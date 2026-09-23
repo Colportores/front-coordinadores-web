@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "verificar:pestanas-ocultas": "node scripts/verificar-pestanas-ocultas.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verificar:pestanas-ocultas"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* El panel es solo claro: `dark:` (usado por shadcn/ui) solo aplica bajo una
+   clase .dark explícita, nunca por prefers-color-scheme del sistema. */
+@custom-variant dark (&:is(.dark *));
+
 /*
  * Tokens de diseño del panel de coordinadores — ÚNICO lugar donde se definen.
  * Salen del archivo "Panel Coordinador" de Claude Design. Se usan como

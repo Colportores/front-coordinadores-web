@@ -16,11 +16,15 @@ services:
       # En staging y producción no se define (queda apagado).
       NEXT_PUBLIC_MODO_DEV: "1"
       NEXT_TELEMETRY_DISABLED: "1"
-      # El bind mount desde Windows/macOS no propaga eventos de archivos.
-      WATCHPACK_POLLING: "true"
+      # El bind mount desde Windows/macOS no propaga eventos de archivos:
+      # Turbopack sondea cada N ms (next.config.ts → watchOptions.pollIntervalMs).
+      NEXT_WATCH_POLL_MS: "1000"
     volumes:
       - .:/app
       # node_modules y .next viven en volúmenes de Docker, no en el host.
+      # Docker copia node_modules de la imagen solo al crear el volumen: después
+      # de cambiar dependencias, `docker compose -f compose.dev.yml down -v` y
+      # `docker compose -f compose.dev.yml build` (ver README).
       - node_modules:/app/node_modules
       - next_cache:/app/.next
 

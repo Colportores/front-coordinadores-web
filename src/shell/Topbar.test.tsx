@@ -5,11 +5,12 @@ import { RESUMEN_COORDINADOR_SIMULADO } from "@/datos/shell/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 import { pestanasVisibles } from "@/shell/pestanas";
 import { Topbar } from "@/shell/Topbar";
+import { fijarFlags } from "@/test/flags";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/equipo" }));
 
 function renderTopbar(modoDev: boolean) {
-  vi.stubEnv("NEXT_PUBLIC_MODO_DEV", modoDev ? "1" : undefined);
+  fijarFlags({ modoDev });
   return render(
     <ProveedorModoDev activo={modoDev}>
       <Topbar resumen={RESUMEN_COORDINADOR_SIMULADO} pestanas={pestanasVisibles()} />

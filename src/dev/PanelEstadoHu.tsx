@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import {
   contarPorEstado,
@@ -56,6 +56,7 @@ function FilaHu({ registro }: { registro: RegistroHu }) {
 export function PanelEstadoHu() {
   const { activo, chipsVisibles, cambiarChipsVisibles } = useModoDev();
   const [abierto, setAbierto] = useState(false);
+  const botonRef = useRef<HTMLButtonElement>(null);
   const idPanel = useId();
   const idInterruptor = useId();
 
@@ -70,7 +71,11 @@ export function PanelEstadoHu() {
           id={idPanel}
           aria-label="Estado de HU"
           onKeyDown={(e) => {
-            if (e.key === "Escape") setAbierto(false);
+            if (e.key === "Escape") {
+              setAbierto(false);
+              // El panel desaparece: el foco vuelve al botón que lo abrió.
+              botonRef.current?.focus();
+            }
           }}
           className="flex max-h-[70vh] w-[380px] flex-col overflow-hidden rounded-tarjeta border border-borde bg-superficie shadow-lg"
         >
@@ -136,6 +141,7 @@ export function PanelEstadoHu() {
         </section>
       )}
       <button
+        ref={botonRef}
         type="button"
         aria-expanded={abierto}
         aria-controls={abierto ? idPanel : undefined}
