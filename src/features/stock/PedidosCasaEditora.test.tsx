@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
 import { DATOS_STOCK_SIMULADO } from "@/datos/stock/simulado";
 import { PedidosCasaEditora } from "@/features/stock/PedidosCasaEditora";
 
@@ -20,11 +21,17 @@ describe("PedidosCasaEditora", () => {
       expect(screen.getByText("Entregado")).toBeInTheDocument();
     });
 
-    it("ofrece autorizar solo el pedido por autorizar y ver los demás", () => {
+    it("ofrece autorizar solo el pedido por autorizar y ver los demás, todos marcados como no disponibles", () => {
       render(<PedidosCasaEditora pedidos={DATOS_STOCK_SIMULADO.pedidos} />);
 
-      expect(screen.getAllByRole("button", { name: "Autorizar" })).toHaveLength(1);
-      expect(screen.getAllByRole("button", { name: "Ver" })).toHaveLength(2);
+      const autorizar = screen.getAllByRole("button", { name: "Autorizar" });
+      const ver = screen.getAllByRole("button", { name: "Ver" });
+      expect(autorizar).toHaveLength(1);
+      expect(ver).toHaveLength(2);
+      [...autorizar, ...ver].forEach((boton) => {
+        expect(boton).toHaveAttribute("aria-disabled", "true");
+        expect(boton).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
+      });
     });
   });
 

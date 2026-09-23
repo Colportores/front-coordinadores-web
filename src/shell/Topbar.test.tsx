@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
 import { RESUMEN_COORDINADOR_SIMULADO } from "@/datos/shell/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 import { pestanasVisibles } from "@/shell/pestanas";
@@ -23,8 +24,14 @@ describe("Topbar", () => {
     renderTopbar(false);
     expect(screen.getByText("Colportaje")).toBeInTheDocument();
     expect(screen.getByText("COORDINADOR")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Montevideo Oeste · Verano 2026/ })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Cuenta: Coordinador de ejemplo" })).toHaveTextContent("MP");
+  });
+
+  it("marca el selector de región/campaña como no disponible: no está diseñado todavía", () => {
+    renderTopbar(false);
+    const selector = screen.getByRole("button", { name: /Montevideo Oeste · Verano 2026/ });
+    expect(selector).toHaveAttribute("aria-disabled", "true");
+    expect(selector).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
   });
 
   it("marca la pestaña actual con aria-current", () => {

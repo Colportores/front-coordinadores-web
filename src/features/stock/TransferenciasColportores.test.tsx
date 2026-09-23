@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
 import { DATOS_STOCK_SIMULADO } from "@/datos/stock/simulado";
 import { TransferenciasColportores } from "@/features/stock/TransferenciasColportores";
 
@@ -19,11 +20,15 @@ describe("TransferenciasColportores", () => {
       expect(screen.getByText("Vida Sana · 3 tomos")).toBeInTheDocument();
     });
 
-    it("ofrece autorizar/rechazar la transferencia pendiente y muestra el estado de la ya resuelta", () => {
+    it("ofrece autorizar/rechazar la transferencia pendiente, marcados como no disponibles, y muestra el estado de la ya resuelta", () => {
       render(<TransferenciasColportores transferencias={DATOS_STOCK_SIMULADO.transferencias} />);
 
-      expect(screen.getByRole("button", { name: "Autorizar" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Rechazar" })).toBeInTheDocument();
+      const autorizar = screen.getByRole("button", { name: "Autorizar" });
+      const rechazar = screen.getByRole("button", { name: "Rechazar" });
+      for (const boton of [autorizar, rechazar]) {
+        expect(boton).toHaveAttribute("aria-disabled", "true");
+        expect(boton).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
+      }
       expect(screen.getByText(/Autorizada · 08 jun/i)).toBeInTheDocument();
     });
   });

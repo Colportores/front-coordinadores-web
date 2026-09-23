@@ -1,3 +1,5 @@
+import { AccionNoDisponible } from "@/components/AccionNoDisponible";
+
 const OPCIONES = ["Campaña", "Mes", "Semana"] as const;
 
 /**
@@ -12,10 +14,8 @@ export function FiltrosReportes() {
       {OPCIONES.map((opcion, indice) => {
         const activa = indice === 0;
         return (
-          <button
+          <AccionNoDisponible
             key={opcion}
-            type="button"
-            aria-pressed={activa}
             className={
               activa
                 ? "rounded-pastilla bg-marca px-[14px] py-[7px] text-chico font-semibold text-superficie"
@@ -23,7 +23,7 @@ export function FiltrosReportes() {
             }
           >
             {opcion}
-          </button>
+          </AccionNoDisponible>
         );
       })}
     </div>

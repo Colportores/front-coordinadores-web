@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import { fuenteEquipo } from "@/datos/equipo";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { Acompanamientos } from "@/features/equipo/Acompanamientos";
@@ -15,9 +15,9 @@ export default async function PestanaEquipo() {
       <div className="flex items-center justify-between">
         <h2 className="font-serif text-[21px] font-semibold text-tinta">Mi equipo · {equipo.region}</h2>
         {/* El formulario para asignar colportor a zona todavía no está diseñado: queda sin comportamiento. */}
-        <Button type="button" className="text-chico font-semibold">
+        <AccionNoDisponible variant="default" size="default" className="text-chico font-semibold">
           + Asignar colportor a zona
-        </Button>
+        </AccionNoDisponible>
       </div>
 
       <div className="grid grid-cols-[1fr_320px] items-start gap-4">

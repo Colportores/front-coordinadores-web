@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import { pestanaVisible } from "@/config/flags";
 import type { PendienteAccion, PuntoMapaRegion, TonoPendiente } from "@/datos/inicio";
 import { MiniMapaRegion } from "@/features/inicio/MiniMapaRegion";
@@ -57,20 +58,19 @@ export function TarjetaPendientesAccion({
                     {pendiente.accionPrincipal.texto}
                   </Link>
                 ) : (
-                  <button type="button" disabled className={cn(CLASE_ACCION_PRINCIPAL, "opacity-60")}>
+                  <AccionNoDisponible className={CLASE_ACCION_PRINCIPAL}>
                     {pendiente.accionPrincipal.texto}
-                  </button>
+                  </AccionNoDisponible>
                 )}
                 {pendiente.accionSecundaria && (
-                  <button
-                    type="button"
+                  <AccionNoDisponible
                     className={cn(
                       "rounded-control border border-borde px-3 py-[5px] text-mini font-semibold",
                       pendiente.accionSecundaria.tono === "peligro" ? "text-peligro" : "text-tinta-2",
                     )}
                   >
                     {pendiente.accionSecundaria.texto}
-                  </button>
+                  </AccionNoDisponible>
                 )}
               </div>
             </div>

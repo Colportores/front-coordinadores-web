@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import { fuenteStock } from "@/datos/stock";
 import { ChipHu } from "@/dev/ChipHu";
 import { SeccionHu } from "@/dev/SeccionHu";
@@ -21,9 +21,9 @@ export default async function PestanaStock() {
         <h2 className="font-serif text-[21px] font-semibold text-tinta">Stock y pedidos</h2>
         {/* El formulario de "Pedido a casa editora" no está diseñado (HU-STK-001): botón sin comportamiento. */}
         <span className="relative inline-flex">
-          <Button className="rounded-control bg-marca text-superficie hover:bg-marca/90">
+          <AccionNoDisponible variant="default" size="default" className="rounded-control bg-marca text-superficie hover:bg-marca/90">
             + Pedido a casa editora
-          </Button>
+          </AccionNoDisponible>
           <ChipHu hu="HU-STK-001" className="absolute -top-2.5 -right-2 z-20" />
         </span>
       </div>

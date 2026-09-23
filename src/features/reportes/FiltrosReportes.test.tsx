@@ -1,13 +1,17 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
 import { FiltrosReportes } from "@/features/reportes/FiltrosReportes";
 
 describe("FiltrosReportes", () => {
-  it("renderiza las tres opciones de rango con Campaña activa por defecto", () => {
+  it("renderiza las tres opciones de rango, todas marcadas como no disponibles", () => {
     render(<FiltrosReportes />);
-    expect(screen.getByRole("button", { name: "Campaña" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Mes" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Semana" })).toHaveAttribute("aria-pressed", "false");
+
+    for (const nombre of ["Campaña", "Mes", "Semana"]) {
+      const boton = screen.getByRole("button", { name: nombre });
+      expect(boton).toHaveAttribute("aria-disabled", "true");
+      expect(boton).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
+    }
   });
 });

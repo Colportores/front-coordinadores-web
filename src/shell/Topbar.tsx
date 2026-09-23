@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import type { ResumenCoordinador } from "@/datos/shell/contrato";
 import { estadoDePestana, ETIQUETA_ESTADO } from "@/dev/estado-hu";
 import { CLASES_ESTADO } from "@/dev/estilos";
@@ -69,12 +70,9 @@ export function Topbar({ resumen, pestanas }: { resumen: ResumenCoordinador; pes
       </div>
       <div className="flex items-center gap-3">
         {/* Cambiar de región/campaña: el selector no está diseñado; queda sin comportamiento. */}
-        <button
-          type="button"
-          className="rounded-control border border-borde bg-superficie px-3 py-[7px] text-chico text-tinta-suave focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none"
-        >
+        <AccionNoDisponible className="rounded-control border border-borde bg-superficie px-3 py-[7px] text-chico text-tinta-suave focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none">
           {resumen.region} · {resumen.campania} <span aria-hidden>▾</span>
-        </button>
+        </AccionNoDisponible>
         <div
           role="img"
           aria-label={`Cuenta: ${resumen.nombre}`}

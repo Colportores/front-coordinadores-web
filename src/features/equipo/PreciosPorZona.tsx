@@ -1,3 +1,4 @@
+import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import type { PrecioProductoZona } from "@/datos/equipo/contrato";
 
 /** Precio base de cada producto contra el precio configurado para la zona. */
@@ -7,9 +8,9 @@ export function PreciosPorZona({ productos }: { productos: PrecioProductoZona[] 
       <div className="flex items-baseline justify-between border-b border-borde px-4 pt-[14px] pb-2.5">
         <span className="font-serif text-titulo font-semibold text-tinta">Precios por zona</span>
         {/* El formulario para editar precios todavía no está diseñado: queda sin comportamiento. */}
-        <button type="button" className="text-mini font-semibold text-marca-media hover:underline">
+        <AccionNoDisponible className="text-mini font-semibold text-marca-media hover:underline">
           Editar
-        </button>
+        </AccionNoDisponible>
       </div>
       {productos.length === 0 ? (
         <p className="px-4 py-4 text-chico text-tinta-suave">No hay precios configurados para esta zona.</p>
