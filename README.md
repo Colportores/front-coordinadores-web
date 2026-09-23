@@ -22,11 +22,21 @@ docker compose -f compose.dev.yml run --rm app npm install <paquete>
 
 La imagen (`dockerfile.dev`) parte de la de Playwright, que trae Node y Chromium para el QA de vistas.
 
+**Después de cambiar dependencias** (`package.json` / `package-lock.json`, incluido un `git pull` que las cambie) hay que recrear el volumen de `node_modules`: Docker copia las dependencias de la imagen solo cuando crea el volumen, y si no se recrea el dev server sigue con las viejas.
+
+```sh
+docker compose -f compose.dev.yml down -v     # borra los volúmenes node_modules y .next
+docker compose -f compose.dev.yml build
+docker compose -f compose.dev.yml up
+```
+
+`sh scripts/check.sh` no usa esos volúmenes: construye la imagen e instala con `npm ci`, igual que el CI y con el modo dev apagado.
+
 ### Modo dev
 
 `NEXT_PUBLIC_MODO_DEV=1` (activo en `compose.dev.yml`, apagado en staging y producción) muestra el estado de cada historia de usuario: chips sobre cada sección, estado agregado en la navegación y el panel flotante "Estado de HU". El registro está en `src/dev/estado-hu.ts`.
 
-Las pestañas **Stock** y **Cuentas** muestran datos simulados hasta su conexión en V2: tienen flag propio (`NEXT_PUBLIC_PESTANA_STOCK`, `NEXT_PUBLIC_PESTANA_CUENTAS`) que, si no se define, sigue al modo dev. En staging y producción quedan ocultas.
+Las pestañas **Stock** y **Cuentas** muestran datos simulados hasta su conexión en V2: tienen flag propio (`NEXT_PUBLIC_PESTANA_STOCK`, `NEXT_PUBLIC_PESTANA_CUENTAS`) que, si no se define, sigue al modo dev. En staging y producción quedan ocultas: `src/proxy.ts` reescribe esas rutas a un 404 antes de renderizar (así ni el HTML ni el payload RSC llevan su contenido) y sus layouts no se prerenderizan.
 
 ## Estructura
 

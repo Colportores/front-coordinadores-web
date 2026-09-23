@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { leerBandera, modoDevActivo, pestanaVisible } from "@/config/flags";
 import { pestanasVisibles } from "@/shell/pestanas";
+import { fijarFlags } from "@/test/flags";
 
 describe("flags", () => {
   describe("leerBandera", () => {
@@ -17,7 +18,7 @@ describe("flags", () => {
 
   describe("cuando el modo dev está apagado (staging y producción)", () => {
     it("oculta Stock y Cuentas y deja visibles las demás", () => {
-      vi.stubEnv("NEXT_PUBLIC_MODO_DEV", undefined);
+      fijarFlags({ modoDev: false });
       expect(modoDevActivo()).toBe(false);
       expect(pestanaVisible("stock")).toBe(false);
       expect(pestanaVisible("cuentas")).toBe(false);
@@ -25,8 +26,7 @@ describe("flags", () => {
     });
 
     it("el flag propio de la pestaña la puede prender", () => {
-      vi.stubEnv("NEXT_PUBLIC_MODO_DEV", undefined);
-      vi.stubEnv("NEXT_PUBLIC_PESTANA_STOCK", "1");
+      fijarFlags({ modoDev: false, stock: true });
       expect(pestanaVisible("stock")).toBe(true);
       expect(pestanaVisible("cuentas")).toBe(false);
     });
@@ -34,14 +34,13 @@ describe("flags", () => {
 
   describe("cuando el modo dev está prendido (desarrollo)", () => {
     it("muestra las cinco pestañas", () => {
-      vi.stubEnv("NEXT_PUBLIC_MODO_DEV", "1");
+      fijarFlags({ modoDev: true });
       expect(modoDevActivo()).toBe(true);
       expect(pestanasVisibles().map((p) => p.id)).toEqual(["inicio", "equipo", "stock", "cuentas", "reportes"]);
     });
 
     it("el flag propio de la pestaña la puede apagar", () => {
-      vi.stubEnv("NEXT_PUBLIC_MODO_DEV", "1");
-      vi.stubEnv("NEXT_PUBLIC_PESTANA_CUENTAS", "0");
+      fijarFlags({ modoDev: true, cuentas: false });
       expect(pestanaVisible("cuentas")).toBe(false);
     });
   });
