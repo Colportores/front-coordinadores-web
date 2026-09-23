@@ -5,3 +5,16 @@ dist/
 .env
 .env.*
 .claude/settings.local.json
+
+# Next.js / tests
+/out/
+/build
+/coverage
+/playwright-report
+/test-results
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+.DS_Store
+*.pem
+npm-debug.log*
