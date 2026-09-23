@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, staging, production]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: lint + typecheck + tests + build (Docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # La misma imagen que el desarrollo local (dockerfile.dev): el check corre adentro.
+      - name: Construir imagen de desarrollo
+        run: docker build -f dockerfile.dev -t panel-coordinadores-dev .
+
+      # Build con el modo dev apagado, como staging y producción.
+      - name: Check (lint, typecheck, tests, build)
+        run: docker run --rm -e NEXT_PUBLIC_MODO_DEV=0 panel-coordinadores-dev npm run check
