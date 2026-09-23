@@ -1,0 +1,133 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * Tokens de diseño del panel de coordinadores — ÚNICO lugar donde se definen.
+ * Salen del archivo "Panel Coordinador" de Claude Design. Se usan como
+ * utilidades de Tailwind: bg-marca, text-tinta-suave, border-borde,
+ * rounded-tarjeta, text-cifra, font-serif, tracking-etiqueta, etc.
+ * Nunca se escribe un color hexadecimal en un componente.
+ */
+:root {
+  /* Superficies */
+  --fondo: #fafaf7; /* fondo de página */
+  --superficie: #ffffff; /* tarjetas, topbar, tablas */
+  --superficie-calida: #fbf8f1; /* fila o tarjeta resaltada */
+  --superficie-suave: #f3f1ea; /* notas, pistas de barras, separadores internos */
+  --superficie-mapa: #e8eef3; /* placeholder de mapas e imágenes */
+
+  /* Bordes */
+  --borde: #e3e7ee;
+  --borde-suave: #f3f1ea;
+
+  /* Texto */
+  --tinta: #0e1a2b; /* texto principal */
+  --tinta-2: #2a3a52; /* texto secundario fuerte, navegación inactiva */
+  --tinta-suave: #5b6b82; /* etiquetas, texto atenuado */
+  --tinta-tenue: #90a0b7; /* texto terciario, denominadores */
+
+  /* Marca */
+  --marca: #002856; /* azul institucional: cifras, marca, activo */
+  --marca-media: #13407a; /* texto sobre marca-clara */
+  --marca-clara: #e6eef8; /* fondo de activo e insignias */
+  --acento: #3b5c8c; /* barras de progreso, marcadores */
+  --grafico-neutro: #cfd6e1; /* barras sin destacar */
+
+  /* Estados */
+  --exito: #1f6e3a;
+  --exito-fondo: #e3efe6;
+  --alerta: #a98330;
+  --alerta-punto: #c8a24a;
+  --alerta-fondo: #fbf1da;
+  --peligro: #a8312a;
+  --peligro-fondo: #f7e4e2;
+
+  /* Radios */
+  --radius: 6px;
+}
+
+@theme inline {
+  /* Colores semánticos del diseño */
+  --color-fondo: var(--fondo);
+  --color-superficie: var(--superficie);
+  --color-superficie-calida: var(--superficie-calida);
+  --color-superficie-suave: var(--superficie-suave);
+  --color-superficie-mapa: var(--superficie-mapa);
+  --color-borde: var(--borde);
+  --color-borde-suave: var(--borde-suave);
+  --color-tinta: var(--tinta);
+  --color-tinta-2: var(--tinta-2);
+  --color-tinta-suave: var(--tinta-suave);
+  --color-tinta-tenue: var(--tinta-tenue);
+  --color-marca: var(--marca);
+  --color-marca-media: var(--marca-media);
+  --color-marca-clara: var(--marca-clara);
+  --color-acento: var(--acento);
+  --color-grafico-neutro: var(--grafico-neutro);
+  --color-exito: var(--exito);
+  --color-exito-fondo: var(--exito-fondo);
+  --color-alerta: var(--alerta);
+  --color-alerta-punto: var(--alerta-punto);
+  --color-alerta-fondo: var(--alerta-fondo);
+  --color-peligro: var(--peligro);
+  --color-peligro-fondo: var(--peligro-fondo);
+
+  /* Alias que usan los componentes de shadcn/ui, mapeados a los tokens */
+  --color-background: var(--fondo);
+  --color-foreground: var(--tinta);
+  --color-card: var(--superficie);
+  --color-card-foreground: var(--tinta);
+  --color-popover: var(--superficie);
+  --color-popover-foreground: var(--tinta);
+  --color-primary: var(--marca);
+  --color-primary-foreground: var(--superficie);
+  --color-secondary: var(--marca-clara);
+  --color-secondary-foreground: var(--marca);
+  --color-muted: var(--superficie-suave);
+  --color-muted-foreground: var(--tinta-suave);
+  --color-accent: var(--marca-clara);
+  --color-accent-foreground: var(--marca);
+  --color-destructive: var(--peligro);
+  --color-border: var(--borde);
+  --color-input: var(--borde);
+  --color-ring: var(--acento);
+
+  /* Tipografías (cargadas con next/font en src/app/layout.tsx) */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-source-serif), Georgia, serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* Escala tipográfica del diseño */
+  --text-etiqueta: 10px; /* rótulos en mayúsculas (con tracking-etiqueta) */
+  --text-mini: 11px; /* notas bajo cifras, pastillas */
+  --text-chico: 12px;
+  --text-cuerpo: 12.5px; /* filas de tablas y listas */
+  --text-nav: 13px;
+  --text-titulo: 15px; /* títulos de tarjeta en serif */
+  --text-cifra: 28px; /* cifras grandes en serif */
+  --tracking-etiqueta: 0.13em;
+
+  /* Radios */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-control: 6px; /* botones, selectores */
+  --radius-tarjeta: 8px; /* tarjetas y paneles */
+  --radius-pastilla: 9999px; /* insignias y estados */
+
+  /* Medidas del shell */
+  --spacing-topbar: 58px;
+}
+
+@layer base {
+  * {
+    @apply border-borde;
+  }
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    @apply bg-fondo font-sans text-tinta antialiased;
+  }
+}
