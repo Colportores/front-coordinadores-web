@@ -4,9 +4,11 @@ import { describe, expect, it } from "vitest";
 
 import { DATOS_EQUIPO_SIMULADO } from "@/datos/equipo/simulado";
 import { TablaColportores } from "@/features/equipo/TablaColportores";
+import { fijarFlags } from "@/test/flags";
 
 describe("TablaColportores", () => {
   it("renderiza una fila por colportor con sus datos principales", () => {
+    fijarFlags({ modoDev: true });
     render(<TablaColportores colportores={DATOS_EQUIPO_SIMULADO.colportores} />);
 
     const fila = screen.getByRole("row", { name: /Diego Rocha/ });
@@ -19,6 +21,14 @@ describe("TablaColportores", () => {
       "href",
       "/cuentas",
     );
+  });
+
+  it("no muestra el acceso a la cuenta cuando la pestaña Cuentas está oculta (staging y producción)", () => {
+    fijarFlags({ modoDev: false });
+    render(<TablaColportores colportores={DATOS_EQUIPO_SIMULADO.colportores} />);
+
+    expect(screen.queryByRole("link", { name: "Ver cuenta de Diego Rocha" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Cuenta")).not.toBeInTheDocument();
   });
 
   it("filtra por zona al hacer click en un chip y actualiza el contador de 'todas las zonas'", async () => {

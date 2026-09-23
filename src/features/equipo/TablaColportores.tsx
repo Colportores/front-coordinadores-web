@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { pestanaVisible } from "@/config/flags";
 import type { EstadoCobro, FilaColportor } from "@/datos/equipo/contrato";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +61,9 @@ export function TablaColportores({ colportores }: { colportores: FilaColportor[]
   const zonas = useMemo(() => agruparPorZona(colportores), [colportores]);
   const filas =
     zonaSeleccionada === TODAS_LAS_ZONAS ? colportores : colportores.filter((c) => c.zonaId === zonaSeleccionada);
+  // Fuera del modo dev, Cuentas está oculta hasta su conexión en V2 (flag apagado
+  // en staging y producción): el link a su ficha no puede llevar a un 404.
+  const cuentasVisible = pestanaVisible("cuentas");
 
   return (
     <div className="flex flex-col gap-4">
@@ -142,13 +146,15 @@ export function TablaColportores({ colportores }: { colportores: FilaColportor[]
                     )}
                   </td>
                   <td className="px-[18px] py-[11px] text-right">
-                    <Link
-                      href="/cuentas"
-                      aria-label={`Ver cuenta de ${c.nombre}`}
-                      className="text-mini font-semibold text-marca-media hover:underline"
-                    >
-                      Cuenta
-                    </Link>
+                    {cuentasVisible && (
+                      <Link
+                        href="/cuentas"
+                        aria-label={`Ver cuenta de ${c.nombre}`}
+                        className="text-mini font-semibold text-marca-media hover:underline"
+                      >
+                        Cuenta
+                      </Link>
+                    )}
                   </td>
                 </tr>
               ))
