@@ -19,8 +19,8 @@ Podés crear subrutas bajo tu carpeta de `src/app/<ruta>/` si el diseño las pid
 **Regla: no se toca ningún archivo fuera de tu pestaña.** Son del shell y no se editan desde una pestaña:
 
 - `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/not-found.tsx`, `src/app/globals.css` (tokens).
-- `src/app/stock/layout.tsx` y `src/app/cuentas/layout.tsx` (el flag que oculta esas pestañas).
-- `src/shell/**` (topbar, navegación, `ContenidoPestana`), `src/dev/**` (modo dev y **`estado-hu.ts`**), `src/config/**`, `src/datos/shell/**`, `src/lib/**`, `src/components/ui/**`.
+- `src/proxy.ts`, `src/app/stock/layout.tsx` y `src/app/cuentas/layout.tsx` (el flag que oculta esas pestañas: el proxy corta la petición antes de renderizar y los layouts desactivan el prerender).
+- `src/shell/**` (topbar, navegación, `ContenidoPestana`), `src/dev/**` (modo dev y **`estado-hu.ts`**), `src/config/**`, `src/datos/shell/**`, `src/lib/**`, `src/components/ui/**`, `src/test/**` (helpers de tests, p. ej. `fijarFlags`).
 - `package.json`, `package-lock.json`, configs y `docs/`.
 
 Si necesitás algo de esa lista (un token nuevo, un componente de `ui/`, una dependencia, cambiar el estado de una HU), no lo agregues: dejalo anotado como pendiente en tu PR y en tu issue.

@@ -104,6 +104,10 @@ const MOTIVO_HEATMAP =
   "HU de V2: su conexión queda para después del 27/11 (plan-sprints.md). Además falta decidir la librería de mapas (ADR-015 dice react-map-gl; la HU menciona react-leaflet).";
 
 const SPRINT_V2 = "V2 · después del 27/11";
+const SPRINT_V3 = "V3 · después del 27/11";
+
+const MOTIVO_V3 =
+  'HU de V3 (HistoriasDeUsuario.md). Además necesita las tablas deposito y ticket de la migración "Stock y cuenta (V2)", que todavía no existe en backend-supabase. Su conexión queda para después del 27/11.';
 
 function calcularSchema(tablas: TablaHu[]): SchemaEnBack {
   const existentes = tablas.filter((t) => t.existe).length;
@@ -221,8 +225,8 @@ export const HISTORIAS: readonly RegistroHu[] = [
     titulo: "Cargar comprobante de depósito bancario",
     pestana: "cuentas",
     estado: "bloqueada",
-    motivo: MOTIVO_V2,
-    sprintConexion: SPRINT_V2,
+    motivo: MOTIVO_V3,
+    sprintConexion: SPRINT_V3,
     tablas: ["deposito", "ticket"],
   }),
   // Reportes

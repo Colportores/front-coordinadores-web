@@ -28,18 +28,19 @@ function leerChipsVisibles(): boolean {
     const valor = window.localStorage.getItem(CLAVE_CHIPS_VISIBLES);
     if (valor === "1") return true;
     if (valor === "0") return false;
-    return true;
+    return preferenciaEnMemoria ?? true;
   } catch {
     return preferenciaEnMemoria ?? true;
   }
 }
 
 function guardarChipsVisibles(visibles: boolean) {
-  preferenciaEnMemoria = visibles;
   try {
     window.localStorage.setItem(CLAVE_CHIPS_VISIBLES, visibles ? "1" : "0");
+    preferenciaEnMemoria = undefined;
   } catch {
-    // Queda solo en memoria.
+    // Sin localStorage (o sin permiso de escritura): queda solo en memoria.
+    preferenciaEnMemoria = visibles;
   }
   suscriptores.forEach((avisar) => avisar());
 }
