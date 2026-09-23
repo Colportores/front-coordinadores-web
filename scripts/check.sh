@@ -1,9 +1,11 @@
 #!/bin/sh
 # Check completo dentro de Docker: lint + typecheck + tests + build.
-# Es lo mismo que corre el CI (.github/workflows/ci.yml).
+# Corre exactamente lo mismo que el CI (.github/workflows/ci.yml): la imagen
+# de dockerfile.dev (que instala con `npm ci`) y el modo dev apagado, como en
+# staging y producción.
 #
 #   sh scripts/check.sh
 set -e
 cd "$(dirname "$0")/.."
-docker compose -f compose.dev.yml build app
-docker compose -f compose.dev.yml run --rm app sh -c "npm install --no-audit --no-fund && npm run check"
+docker build -f dockerfile.dev -t panel-coordinadores-dev .
+docker run --rm -e NEXT_PUBLIC_MODO_DEV=0 panel-coordinadores-dev sh -c "npm ci && npm run check"

@@ -4,6 +4,7 @@ import LayoutCuentas from "@/app/cuentas/layout";
 import Raiz from "@/app/page";
 import LayoutStock from "@/app/stock/layout";
 import { LayoutPestanaConFlag } from "@/shell/LayoutPestanaConFlag";
+import { fijarFlags } from "@/test/flags";
 
 const navegacion = vi.hoisted(() => ({
   redirect: vi.fn((ruta: string) => {
@@ -32,20 +33,20 @@ describe("rutas del shell", () => {
     });
 
     it("responden 404 fuera del modo dev", () => {
-      vi.stubEnv("NEXT_PUBLIC_MODO_DEV", undefined);
+      fijarFlags({ modoDev: false });
       expect(() => LayoutPestanaConFlag({ pestana: "stock", children: hijos })).toThrow("NOT_FOUND");
       expect(() => LayoutPestanaConFlag({ pestana: "cuentas", children: hijos })).toThrow("NOT_FOUND");
     });
 
     it("se muestran en modo dev", () => {
-      vi.stubEnv("NEXT_PUBLIC_MODO_DEV", "1");
+      fijarFlags({ modoDev: true });
       expect(LayoutPestanaConFlag({ pestana: "stock", children: hijos })).toBe(hijos);
       expect(LayoutPestanaConFlag({ pestana: "cuentas", children: hijos })).toBe(hijos);
     });
   });
 
   it("las pestañas sin flag nunca responden 404", () => {
-    vi.stubEnv("NEXT_PUBLIC_MODO_DEV", undefined);
+    fijarFlags({ modoDev: false });
     const hijos = <p>contenido</p>;
     expect(LayoutPestanaConFlag({ pestana: "inicio", children: hijos })).toBe(hijos);
   });
