@@ -3,6 +3,7 @@
  * Es lo que después implementa el BFF (bff-coordinadores). Describe datos
  * de negocio (montos y agregados de la región), nunca datos de clientes.
  */
+import type { Pestana } from "@/config/flags";
 
 /** Una de las cuatro cifras principales del tablero. */
 export interface KpiRegion {
@@ -39,6 +40,8 @@ export type TonoPendiente = "hoy" | "atraso" | "por-autorizar" | "nueva";
 
 export interface AccionPendiente {
   texto: string;
+  /** Pestaña a la que lleva el atajo (para chequear si está visible con `pestanaVisible`). */
+  pestana: Pestana;
   /** Ruta de la pestaña a la que lleva el atajo. */
   href: string;
 }

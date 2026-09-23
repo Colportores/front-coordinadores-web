@@ -23,24 +23,22 @@ export function TarjetaAvancePorZona({ zonas }: { zonas: AvanceZona[] }) {
         <div className="flex flex-col gap-[11px]">
           {zonas.map((zona) => {
             const color = colorAvance(zona.porcentajeMeta);
+            const porcentaje = Math.min(100, Math.max(0, zona.porcentajeMeta));
             return (
               <div key={zona.id} className="flex flex-col gap-[3px]">
                 <div className="flex justify-between text-chico">
                   <span className="font-semibold">{zona.zona}</span>
-                  <span className={cn("text-mini font-semibold", color.texto)}>{zona.porcentajeMeta}%</span>
+                  <span className={cn("text-mini font-semibold", color.texto)}>{porcentaje}%</span>
                 </div>
                 <div
                   role="progressbar"
                   aria-label={`Avance de ${zona.zona}`}
-                  aria-valuenow={zona.porcentajeMeta}
+                  aria-valuenow={porcentaje}
                   aria-valuemin={0}
                   aria-valuemax={100}
                   className="h-[7px] rounded-sm bg-superficie-suave"
                 >
-                  <div
-                    className={cn("h-[7px] rounded-sm", color.barra)}
-                    style={{ width: `${Math.min(100, Math.max(0, zona.porcentajeMeta))}%` }}
-                  />
+                  <div className={cn("h-[7px] rounded-sm", color.barra)} style={{ width: `${porcentaje}%` }} />
                 </div>
               </div>
             );

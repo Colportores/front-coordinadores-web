@@ -80,7 +80,7 @@ export const TABLERO_INICIO_SIMULADO: TableroInicio = {
       etiqueta: "hoy",
       tono: "hoy",
       detalle: "L. Suárez · $U 18.500 · foto adjunta",
-      accionPrincipal: { texto: "Validar", href: "/cuentas" },
+      accionPrincipal: { texto: "Validar", pestana: "cuentas", href: "/cuentas" },
       accionSecundaria: { texto: "Ver foto" },
     },
     {
@@ -89,7 +89,7 @@ export const TABLERO_INICIO_SIMULADO: TableroInicio = {
       etiqueta: "2 días",
       tono: "atraso",
       detalle: "D. Rocha → J. Cabrera · 12 × El Deseado…",
-      accionPrincipal: { texto: "Autorizar", href: "/stock" },
+      accionPrincipal: { texto: "Autorizar", pestana: "stock", href: "/stock" },
       accionSecundaria: { texto: "Rechazar", tono: "peligro" },
     },
     {
@@ -98,7 +98,7 @@ export const TABLERO_INICIO_SIMULADO: TableroInicio = {
       etiqueta: "por autorizar",
       tono: "por-autorizar",
       detalle: "J. Cabrera · 25 × La Gran Esperanza · $U 19.800",
-      accionPrincipal: { texto: "Autorizar", href: "/stock" },
+      accionPrincipal: { texto: "Autorizar", pestana: "stock", href: "/stock" },
       accionSecundaria: { texto: "Rechazar", tono: "peligro" },
     },
     {
@@ -107,7 +107,7 @@ export const TABLERO_INICIO_SIMULADO: TableroInicio = {
       etiqueta: "nueva",
       tono: "nueva",
       detalle: "Ana Martínez · se sumó a tu región · sin zona asignada",
-      accionPrincipal: { texto: "Asignar zona", href: "/equipo" },
+      accionPrincipal: { texto: "Asignar zona", pestana: "equipo", href: "/equipo" },
     },
   ],
   mapaRegion: [

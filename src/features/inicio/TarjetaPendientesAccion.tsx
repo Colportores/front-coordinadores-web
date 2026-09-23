@@ -1,8 +1,11 @@
 import Link from "next/link";
 
+import { pestanaVisible } from "@/config/flags";
 import type { PendienteAccion, PuntoMapaRegion, TonoPendiente } from "@/datos/inicio";
 import { MiniMapaRegion } from "@/features/inicio/MiniMapaRegion";
 import { cn } from "@/lib/utils";
+
+const CLASE_ACCION_PRINCIPAL = "rounded-control bg-marca px-3 py-[5px] text-mini font-semibold text-superficie";
 
 const ETIQUETA_TONO: Record<TonoPendiente, string> = {
   hoy: "bg-alerta-fondo text-alerta",
@@ -49,12 +52,15 @@ export function TarjetaPendientesAccion({
               </div>
               <div className="text-[11.5px] text-tinta-suave">{pendiente.detalle}</div>
               <div className="mt-[5px] flex gap-2">
-                <Link
-                  href={pendiente.accionPrincipal.href}
-                  className="rounded-control bg-marca px-3 py-[5px] text-mini font-semibold text-superficie"
-                >
-                  {pendiente.accionPrincipal.texto}
-                </Link>
+                {pestanaVisible(pendiente.accionPrincipal.pestana) ? (
+                  <Link href={pendiente.accionPrincipal.href} className={CLASE_ACCION_PRINCIPAL}>
+                    {pendiente.accionPrincipal.texto}
+                  </Link>
+                ) : (
+                  <button type="button" disabled className={cn(CLASE_ACCION_PRINCIPAL, "opacity-60")}>
+                    {pendiente.accionPrincipal.texto}
+                  </button>
+                )}
                 {pendiente.accionSecundaria && (
                   <button
                     type="button"

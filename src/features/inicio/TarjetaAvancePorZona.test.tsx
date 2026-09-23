@@ -21,4 +21,24 @@ describe("TarjetaAvancePorZona", () => {
 
     expect(screen.getByText("Todavía no hay zonas con avance registrado.")).toBeInTheDocument();
   });
+
+  it("acota el porcentaje mostrado y el aria-valuenow a [0,100], no solo el ancho de la barra", () => {
+    render(
+      <TarjetaAvancePorZona
+        zonas={[
+          { id: "sobre-meta", zona: "Sobre meta", porcentajeMeta: 140 },
+          { id: "sin-avance", zona: "Sin avance", porcentajeMeta: -12 },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByText("140%")).not.toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(screen.queryByText("-12%")).not.toBeInTheDocument();
+    expect(screen.getByText("0%")).toBeInTheDocument();
+
+    const barras = screen.getAllByRole("progressbar");
+    expect(barras[0]).toHaveAttribute("aria-valuenow", "100");
+    expect(barras[1]).toHaveAttribute("aria-valuenow", "0");
+  });
 });
