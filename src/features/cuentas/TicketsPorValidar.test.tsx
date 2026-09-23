@@ -1,12 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import type { ListaTicketsPorValidar } from "@/datos/cuentas";
 import { LISTA_TICKETS_POR_VALIDAR_SIMULADA } from "@/datos/cuentas/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 import { TicketsPorValidar } from "@/features/cuentas/TicketsPorValidar";
 
 describe("TicketsPorValidar", () => {
-  describe("con tickets", () => {
+  describe("cuando hay tickets", () => {
     it("muestra cada ticket con colportor, monto, medio y fecha", () => {
       render(<TicketsPorValidar lista={LISTA_TICKETS_POR_VALIDAR_SIMULADA} />);
 
@@ -48,6 +49,29 @@ describe("TicketsPorValidar", () => {
       const chips = screen.getAllByTestId("chip-hu");
       expect(chips.some((chip) => chip.textContent?.includes("HU-CTA-006"))).toBe(true);
     });
+
+    it("no muestra 'sin foto' cuando el ticket tiene foto pero todavía no tiene número de recibo", () => {
+      const lista: ListaTicketsPorValidar = {
+        tickets: [
+          {
+            id: "ticket-sin-recibo",
+            colportor: "Ana Pereyra",
+            monto: 5000,
+            medio: "deposito",
+            medioDetalle: "depósito Santander",
+            fecha: "hoy 09:00",
+            tieneFoto: true,
+          },
+        ],
+        totalPendientes: 1,
+      };
+
+      render(<TicketsPorValidar lista={lista} />);
+
+      expect(screen.getByText("depósito Santander · hoy 09:00")).toBeInTheDocument();
+      expect(screen.queryByText(/sin foto/)).not.toBeInTheDocument();
+      expect(screen.getByText("[ foto ticket depósito ]")).toBeInTheDocument();
+    });
   });
 
   describe("cuando no hay tickets", () => {
@@ -56,6 +80,13 @@ describe("TicketsPorValidar", () => {
 
       expect(screen.getByText("No hay tickets pendientes de validar.")).toBeInTheDocument();
       expect(screen.queryByText("0")).not.toBeInTheDocument();
+    });
+
+    it("no muestra la insignia aunque totalPendientes sea mayor a cero", () => {
+      render(<TicketsPorValidar lista={{ tickets: [], totalPendientes: 5 }} />);
+
+      expect(screen.getByText("No hay tickets pendientes de validar.")).toBeInTheDocument();
+      expect(screen.queryByText("5")).not.toBeInTheDocument();
     });
   });
 });

@@ -5,7 +5,7 @@ import { FILAS_ESTADO_CUENTA_SIMULADAS } from "@/datos/cuentas/simulado";
 import { TablaEstadoCuenta } from "@/features/cuentas/TablaEstadoCuenta";
 
 describe("TablaEstadoCuenta", () => {
-  describe("con filas", () => {
+  describe("cuando hay filas", () => {
     it("muestra cada colportor con sus montos", () => {
       render(<TablaEstadoCuenta filas={FILAS_ESTADO_CUENTA_SIMULADAS} />);
 

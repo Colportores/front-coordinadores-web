@@ -28,7 +28,11 @@ export function TablaEstadoCuenta({ filas }: { filas: FilaEstadoCuenta[] }) {
       </div>
 
       {filas.length === 0 ? (
-        <p className="px-[18px] py-6 text-cuerpo text-tinta-suave">Ningún colportor tiene estado de cuenta todavía.</p>
+        <div role="row">
+          <span role="cell" className="block px-[18px] py-6 text-cuerpo text-tinta-suave">
+            Ningún colportor tiene estado de cuenta todavía.
+          </span>
+        </div>
       ) : (
         filas.map((fila, indice) => (
           <div

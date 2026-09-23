@@ -21,7 +21,7 @@ export function TicketsPorValidar({ lista }: { lista: ListaTicketsPorValidar }) 
     <div className="flex flex-col overflow-hidden rounded-tarjeta border border-borde bg-superficie">
       <div className="flex items-baseline justify-between border-b border-borde px-4 pt-[14px] pb-[10px]">
         <span className="font-serif text-titulo font-semibold text-tinta">Tickets por validar</span>
-        {totalPendientes > 0 && (
+        {tickets.length > 0 && totalPendientes > 0 && (
           <Badge className="bg-alerta-fondo font-semibold text-alerta">{totalPendientes}</Badge>
         )}
       </div>
@@ -51,9 +51,13 @@ export function TicketsPorValidar({ lista }: { lista: ListaTicketsPorValidar }) 
 }
 
 function TarjetaTicket({ ticket }: { ticket: TicketPorValidar }) {
-  const detalle = [ticket.medioDetalle, ticket.fecha, ticket.recibo ? `recibo ${ticket.recibo}` : "sin foto"].join(
-    " · ",
-  );
+  const partesDetalle = [ticket.medioDetalle, ticket.fecha];
+  if (ticket.recibo) {
+    partesDetalle.push(`recibo ${ticket.recibo}`);
+  } else if (!ticket.tieneFoto) {
+    partesDetalle.push("sin foto");
+  }
+  const detalle = partesDetalle.join(" · ");
 
   return (
     <div className="relative flex flex-col gap-1.5 rounded-control border border-borde px-3 py-[11px]">
@@ -77,7 +81,7 @@ function TarjetaTicket({ ticket }: { ticket: TicketPorValidar }) {
             <Button type="button" size="sm" className="bg-exito text-superficie hover:bg-exito/90">
               ✓ Validar
             </Button>
-            <Button type="button" size="sm" variant="outline" className="text-peligro">
+            <Button type="button" size="sm" variant="outline" className="text-peligro hover:text-peligro">
               Rechazar
             </Button>
           </>
