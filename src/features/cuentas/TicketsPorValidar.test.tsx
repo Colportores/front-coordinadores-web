@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
 import type { ListaTicketsPorValidar } from "@/datos/cuentas";
 import { LISTA_TICKETS_POR_VALIDAR_SIMULADA } from "@/datos/cuentas/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
@@ -18,19 +19,25 @@ describe("TicketsPorValidar", () => {
       expect(screen.getByText(/transferencia · ayer 18:03 · sin foto/)).toBeInTheDocument();
     });
 
-    it("muestra el total pendiente en la insignia y el enlace a ver todos", () => {
+    it("muestra el total pendiente en la insignia y el botón a ver todos, marcado como no disponible", () => {
       render(<TicketsPorValidar lista={LISTA_TICKETS_POR_VALIDAR_SIMULADA} />);
 
       expect(screen.getByText("4")).toBeInTheDocument();
-      expect(screen.getByText("Ver los 4 tickets →")).toBeInTheDocument();
+      const verTodos = screen.getByRole("button", { name: "Ver los 4 tickets →" });
+      expect(verTodos).toHaveAttribute("aria-disabled", "true");
+      expect(verTodos).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
     });
 
-    it("muestra validar y rechazar en el ticket con comprobante, y revisar en el que no tiene", () => {
+    it("muestra validar y rechazar en el ticket con comprobante, y revisar en el que no tiene, todos marcados como no disponibles", () => {
       render(<TicketsPorValidar lista={LISTA_TICKETS_POR_VALIDAR_SIMULADA} />);
 
-      expect(screen.getByRole("button", { name: /Validar/ })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Rechazar" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Revisar" })).toBeInTheDocument();
+      const validar = screen.getByRole("button", { name: /Validar/ });
+      const rechazar = screen.getByRole("button", { name: "Rechazar" });
+      const revisar = screen.getByRole("button", { name: "Revisar" });
+      for (const boton of [validar, rechazar, revisar]) {
+        expect(boton).toHaveAttribute("aria-disabled", "true");
+        expect(boton).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
+      }
     });
 
     it("muestra el placeholder de foto solo en el ticket con comprobante cargado", () => {

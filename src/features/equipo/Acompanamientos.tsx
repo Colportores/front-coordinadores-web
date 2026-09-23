@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import type { DatosAcompanamiento } from "@/datos/equipo/contrato";
 
 /** Jornadas finalizadas sin acompañamiento registrado y el % acompañado de la campaña. */
@@ -19,13 +19,12 @@ export function Acompanamientos({ datos }: { datos: DatosAcompanamiento }) {
               <span className="text-cuerpo font-semibold text-tinta">{j.titulo}</span>
               <span className="text-mini text-tinta-suave">{j.detalle}</span>
               {/* El formulario para registrar acompañamiento todavía no está diseñado: queda sin comportamiento. */}
-              <Button
-                type="button"
+              <AccionNoDisponible
                 size="xs"
                 className="mt-1 h-auto w-fit rounded-control px-3 py-[5px] text-mini font-semibold"
               >
                 Registrar acompañamiento
-              </Button>
+              </AccionNoDisponible>
             </div>
           ))
         )}

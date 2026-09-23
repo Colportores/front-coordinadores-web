@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import type { ColportorSinZona } from "@/datos/equipo/contrato";
 
 /** Colportores agregados al equipo que todavía no tienen zona. */
@@ -15,9 +15,9 @@ export function SinZonaAsignada({ colportores }: { colportores: ColportorSinZona
               {c.nombre} · {c.nota}
             </span>
             {/* El formulario para asignar zona todavía no está diseñado: queda sin comportamiento. */}
-            <Button type="button" size="xs" className="h-auto w-fit rounded-control px-3 py-[5px] text-mini font-semibold">
+            <AccionNoDisponible size="xs" className="h-auto w-fit rounded-control px-3 py-[5px] text-mini font-semibold">
               Asignar zona
-            </Button>
+            </AccionNoDisponible>
           </div>
         ))
       )}

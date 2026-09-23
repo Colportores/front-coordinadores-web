@@ -1,5 +1,5 @@
+import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { EstadoPedidoCasaEditora, PedidoCasaEditora } from "@/datos/stock";
 import { formatearMonto } from "@/features/stock/formato";
@@ -74,13 +74,17 @@ export function PedidosCasaEditora({ pedidos }: { pedidos: PedidoCasaEditora[] }
                 </TableCell>
                 <TableCell>
                   {pedido.estado === "por_autorizar" ? (
-                    <Button size="sm" className="rounded-control bg-marca text-superficie hover:bg-marca/90">
+                    <AccionNoDisponible size="sm" className="rounded-control bg-marca text-superficie hover:bg-marca/90">
                       Autorizar
-                    </Button>
+                    </AccionNoDisponible>
                   ) : (
-                    <Button variant="ghost" size="sm" className="px-0 font-semibold text-marca-media hover:bg-transparent hover:text-marca-media">
+                    <AccionNoDisponible
+                      variant="ghost"
+                      size="sm"
+                      className="px-0 font-semibold text-marca-media hover:bg-transparent hover:text-marca-media"
+                    >
                       Ver
-                    </Button>
+                    </AccionNoDisponible>
                   )}
                 </TableCell>
               </TableRow>

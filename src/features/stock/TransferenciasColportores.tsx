@@ -1,5 +1,5 @@
+import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { EstadoTransferencia, TransferenciaStock } from "@/datos/stock";
 import { cn } from "@/lib/utils";
@@ -64,16 +64,16 @@ export function TransferenciasColportores({ transferencias }: { transferencias: 
                 <TableCell>
                   {t.estado === "por_autorizar" ? (
                     <div className="flex gap-2">
-                      <Button size="sm" className="rounded-control bg-marca text-superficie hover:bg-marca/90">
+                      <AccionNoDisponible size="sm" className="rounded-control bg-marca text-superficie hover:bg-marca/90">
                         Autorizar
-                      </Button>
-                      <Button
+                      </AccionNoDisponible>
+                      <AccionNoDisponible
                         size="sm"
                         variant="outline"
                         className="rounded-control border-borde text-peligro hover:bg-peligro-fondo hover:text-peligro"
                       >
                         Rechazar
-                      </Button>
+                      </AccionNoDisponible>
                     </div>
                   ) : (
                     <Badge

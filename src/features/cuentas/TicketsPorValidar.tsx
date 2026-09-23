@@ -1,5 +1,5 @@
+import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import type { ListaTicketsPorValidar, TicketPorValidar } from "@/datos/cuentas";
 import { ChipHu } from "@/dev/ChipHu";
 import { formatMonto } from "@/features/cuentas/formato";
@@ -35,9 +35,9 @@ export function TicketsPorValidar({ lista }: { lista: ListaTicketsPorValidar }) 
               <TarjetaTicket key={ticket.id} ticket={ticket} />
             ))}
             {totalPendientes > tickets.length && (
-              <button type="button" className="px-px py-0.5 text-left text-mini font-semibold text-marca-media">
+              <AccionNoDisponible className="px-px py-0.5 text-left text-mini font-semibold text-marca-media">
                 Ver los {totalPendientes} tickets →
-              </button>
+              </AccionNoDisponible>
             )}
           </>
         )}
@@ -78,17 +78,17 @@ function TarjetaTicket({ ticket }: { ticket: TicketPorValidar }) {
       <div className="mt-0.5 flex gap-2">
         {ticket.tieneFoto ? (
           <>
-            <Button type="button" size="sm" className="bg-exito text-superficie hover:bg-exito/90">
+            <AccionNoDisponible size="sm" className="bg-exito text-superficie hover:bg-exito/90">
               ✓ Validar
-            </Button>
-            <Button type="button" size="sm" variant="outline" className="text-peligro hover:text-peligro">
+            </AccionNoDisponible>
+            <AccionNoDisponible size="sm" variant="outline" className="text-peligro hover:text-peligro">
               Rechazar
-            </Button>
+            </AccionNoDisponible>
           </>
         ) : (
-          <Button type="button" size="sm" variant="outline" className="text-tinta-2">
+          <AccionNoDisponible size="sm" variant="outline" className="text-tinta-2">
             Revisar
-          </Button>
+          </AccionNoDisponible>
         )}
       </div>
     </div>
