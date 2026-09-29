@@ -20,6 +20,9 @@ sh scripts/check.sh                           # lint + typecheck + tests + build
 docker compose -f compose.dev.yml run --rm app npm install <paquete>
 ```
 
+- **Imagen y cachés compartidas.** `-p <nombre>` propio está bien para aislar contenedores, `node_modules` y `.next`; la imagen (`front-coordinadores-web-dev:latest`) es compartida por todos los proyectos.
+  `docker compose build` solo cuando cambia `dockerfile.dev`.
+
 La imagen (`dockerfile.dev`) parte de la de Playwright, que trae Node y Chromium para el QA de vistas.
 
 **Después de cambiar dependencias** (`package.json` / `package-lock.json`, incluido un `git pull` que las cambie) hay que recrear el volumen de `node_modules`: Docker copia las dependencias de la imagen solo cuando crea el volumen, y si no se recrea el dev server sigue con las viejas.
