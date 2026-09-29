@@ -9,6 +9,8 @@ services:
     build:
       context: .
       dockerfile: dockerfile.dev
+    # Una imagen por repo, la misma con cualquier `-p`: no se reconstruye salvo que cambie dockerfile.dev.
+    image: front-coordinadores-web-dev:latest
     ports:
       - "3000:3000"
     environment:
