@@ -15,6 +15,7 @@ import "./globals.css";
 const sourceSerif = localFont({
   src: "./fuentes/source-serif-4-latin-wght-normal.woff2",
   variable: "--font-source-serif",
+  adjustFontFallback: "Times New Roman",
   weight: "200 900",
   display: "swap",
 });
@@ -22,6 +23,7 @@ const sourceSerif = localFont({
 const inter = localFont({
   src: "./fuentes/inter-latin-wght-normal.woff2",
   variable: "--font-inter",
+  adjustFontFallback: "Arial",
   weight: "100 900",
   display: "swap",
 });
@@ -29,6 +31,7 @@ const inter = localFont({
 const jetbrainsMono = localFont({
   src: "./fuentes/jetbrains-mono-latin-wght-normal.woff2",
   variable: "--font-jetbrains-mono",
+  adjustFontFallback: false,
   weight: "100 800",
   display: "swap",
 });
