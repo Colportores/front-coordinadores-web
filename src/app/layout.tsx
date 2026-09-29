@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
+import localFont from "next/font/local";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { modoDevActivo } from "@/config/flags";
@@ -11,22 +11,26 @@ import { Topbar } from "@/shell/Topbar";
 
 import "./globals.css";
 
-const sourceSerif = Source_Serif_4({
+// Fuentes locales (src/app/fuentes): el build no baja nada de la red. Ver LEEME.md de esa carpeta.
+const sourceSerif = localFont({
+  src: "./fuentes/source-serif-4-latin-wght-normal.woff2",
   variable: "--font-source-serif",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: "200 900",
+  display: "swap",
 });
 
-const inter = Inter({
+const inter = localFont({
+  src: "./fuentes/inter-latin-wght-normal.woff2",
   variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: "100 900",
+  display: "swap",
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const jetbrainsMono = localFont({
+  src: "./fuentes/jetbrains-mono-latin-wght-normal.woff2",
   variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: "100 800",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
