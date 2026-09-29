@@ -96,7 +96,7 @@
   --color-input: var(--borde);
   --color-ring: var(--acento);
 
-  /* Tipografías (cargadas con next/font en src/app/layout.tsx) */
+  /* Tipografías (cargadas con next/font/local en src/app/layout.tsx) */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-source-serif), Georgia, serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
