@@ -98,6 +98,7 @@ function AvisoAnadido({
   return (
     <div
       role="status"
+      data-aviso-id={id}
       className="flex items-center gap-4 rounded-tarjeta bg-marca px-4 py-3 text-nav text-superficie shadow-lg"
     >
       <span>
@@ -107,7 +108,7 @@ function AvisoAnadido({
         type="button"
         onClick={() => onDeshacer(id)}
         aria-label={`Deshacer: ${nombre}`}
-        className="cursor-pointer rounded-control font-semibold underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-superficie focus-visible:outline-none"
+        className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-control px-1 font-semibold underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-superficie focus-visible:outline-none"
       >
         Deshacer
       </button>
@@ -132,8 +133,11 @@ function FilaCandidato({ candidato, elegido, activo, anadido, ocupado, onElegir,
   return (
     <li
       data-activo={activo || undefined}
+      data-candidato-id={candidato.id}
+      // Tras «Añadir» o «Deshacer» el botón se apaga o desaparece: el foco pasa a la fila en vez de caer al body.
+      tabIndex={-1}
       className={cn(
-        "flex items-start gap-3 rounded-tarjeta border-b border-borde-suave px-3.5 py-3",
+        "flex items-start outline-none focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-inset gap-3 rounded-tarjeta border-b border-borde-suave px-3.5 py-3",
         elegido && "border-transparent bg-marca-clara/50 ring-2 ring-marca-media ring-inset",
         activo && !elegido && "bg-superficie-calida",
       )}
@@ -252,6 +256,7 @@ export function AnadirColportor({
 }) {
   const router = useRouter();
   const buscador = useRef<HTMLInputElement>(null);
+  const raiz = useRef<HTMLDivElement>(null);
   const [consulta, setConsulta] = useState("");
   const [elegidoId, setElegidoId] = useState<string | null>(null);
   const [indiceActivo, setIndiceActivo] = useState(-1);
@@ -308,6 +313,12 @@ export function AnadirColportor({
     return () => document.removeEventListener("keydown", alTeclear);
   }, [router, consulta, ocupado, avisos.length]);
 
+  /** Lleva el foco a la fila de la cuenta (o, si ya no está en los resultados, al buscador). */
+  const enfocarFila = useCallback((id: string) => {
+    const fila = raiz.current?.querySelector<HTMLElement>(`[data-candidato-id="${id}"]`);
+    (fila ?? buscador.current)?.focus();
+  }, []);
+
   const anadir = useCallback(
     async (candidato: CandidatoColportor) => {
       if (inscribiendo.current || motivoBloqueo(candidato) !== null || anadidos.includes(candidato.id)) return;
@@ -328,19 +339,32 @@ export function AnadirColportor({
       } finally {
         inscribiendo.current = false;
         setOcupado(false);
+        enfocarFila(candidato.id);
       }
     },
-    [anadidos, inscribir],
+    [anadidos, inscribir, enfocarFila],
   );
 
   const quitarAviso = useCallback((id: string) => setAvisos((previos) => previos.filter((a) => a.id !== id)), []);
+
+  // Si el plazo vence con el foco en «Deshacer», ese botón desaparece: el foco vuelve a la fila.
+  const expirarAviso = useCallback(
+    (id: string) => {
+      const activo = document.activeElement;
+      const teniaFoco = activo instanceof HTMLElement && activo.closest(`[data-aviso-id="${id}"]`) !== null;
+      quitarAviso(id);
+      if (teniaFoco) enfocarFila(id);
+    },
+    [quitarAviso, enfocarFila],
+  );
 
   const deshacer = useCallback(
     (id: string) => {
       setAnadidos((previos) => previos.filter((x) => x !== id));
       quitarAviso(id);
+      enfocarFila(id);
     },
-    [quitarAviso],
+    [quitarAviso, enfocarFila],
   );
 
   function elegir(id: string | null) {
@@ -373,9 +397,9 @@ export function AnadirColportor({
     : `PENDIENTES DE ASIGNACIÓN · ${resultados.length}`;
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div ref={raiz} className="flex flex-col gap-3.5">
       <nav aria-label="Ruta" className="flex items-center gap-2 text-cuerpo text-tinta-suave">
-        <Link href="/equipo" className="font-semibold text-marca-media hover:text-marca">
+        <Link href="/equipo" className="inline-flex min-h-6 items-center font-semibold text-marca-media hover:text-marca">
           ‹ Equipo
         </Link>
         <span aria-hidden>/</span>
@@ -411,7 +435,7 @@ export function AnadirColportor({
                     cambiarConsulta("");
                     buscador.current?.focus();
                   }}
-                  className="cursor-pointer rounded-control px-1 text-chico text-tinta-suave hover:text-tinta"
+                  className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-control px-1 text-chico text-tinta-suave hover:text-tinta"
                 >
                   ✕
                 </button>
@@ -507,7 +531,7 @@ export function AnadirColportor({
               nombre={a.nombre}
               campania={datos.campania}
               onDeshacer={deshacer}
-              onExpirar={quitarAviso}
+              onExpirar={expirarAviso}
             />
           ))}
         </div>
