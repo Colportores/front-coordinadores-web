@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import type { Esquina, FormaZona, TipoForma, VistaPreviaZona } from "@/datos/equipo/zonas";
 import { cn } from "@/lib/utils";
 
+export const NOMBRE_MAX = 40;
+export const AVISO_NOMBRE_LARGO = `El nombre puede tener hasta ${NOMBRE_MAX} caracteres.`;
 export const RADIO_INICIAL_M = 400;
 export const RADIO_MIN_M = 1;
 export const RADIO_MAX_M = 3000;
@@ -100,8 +102,10 @@ export function PanelFormularioZona({
   }, [confirmando]);
   // Lo que se está tecleando en el radio cuando todavía no es un número válido (vacío o 0): `null` sigue a la forma.
   const [radioTexto, setRadioTexto] = useState<string | null>(null);
+  const nombreLargo = nombre.trim().length > NOMBRE_MAX;
   const puedeGuardar =
     nombre.trim() !== "" &&
+    !nombreLargo &&
     formaCompleta(forma) &&
     vistaPrevia !== null &&
     !guardando &&
@@ -129,8 +133,15 @@ export function PanelFormularioZona({
           type="text"
           value={nombre}
           onChange={(e) => onNombre(e.target.value)}
+          aria-invalid={nombreLargo || undefined}
+          aria-describedby={nombreLargo ? "aviso-nombre-largo" : undefined}
           className="min-h-10 rounded-control border border-grafico-neutro bg-superficie px-3 text-nav text-tinta outline-none focus-visible:ring-2 focus-visible:ring-acento"
         />
+        {nombreLargo ? (
+          <span id="aviso-nombre-largo" role="alert" className="text-chico font-medium text-peligro">
+            {AVISO_NOMBRE_LARGO}
+          </span>
+        ) : null}
       </label>
 
       <fieldset className="flex flex-col gap-1.5">

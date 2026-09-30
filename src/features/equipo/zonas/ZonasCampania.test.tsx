@@ -489,7 +489,7 @@ describe("ZonasCampania", () => {
       await screen.findByText(/Incluye/);
 
       await userEvent.click(screen.getByRole("button", { name: "Guardar zona" }));
-      expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo conectar. Probá de nuevo en unos segundos.");
+      expect(await screen.findByRole("alert")).toHaveTextContent("Necesitás conexión para guardar la zona. Revisá la conexión y probá de nuevo.");
       expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled();
 
       await userEvent.click(screen.getByRole("button", { name: "Guardar zona" }));
@@ -530,7 +530,7 @@ describe("ZonasCampania", () => {
       await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }));
 
       await userEvent.click(screen.getByRole("button", { name: "Asignar a Belvedere" }));
-      expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo conectar. Probá de nuevo en unos segundos.");
+      expect(await screen.findByRole("alert")).toHaveTextContent("Necesitás conexión para asignar a Pablo Ferreira. Revisá la conexión y probá de nuevo.");
       expect(screen.getByRole("button", { name: "Asignar a Belvedere" })).toBeEnabled();
 
       await userEvent.click(screen.getByRole("button", { name: "Asignar a Belvedere" }));
@@ -623,7 +623,7 @@ describe("ZonasCampania", () => {
       await empezarPorEsquinas();
 
       await clicEnMapa(nodo(3, 3));
-      expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo conectar. Probá de nuevo en unos segundos.");
+      expect(await screen.findByRole("alert")).toHaveTextContent("Necesitás conexión para marcar la esquina. Revisá la conexión y probá de nuevo.");
 
       await clicEnMapa(nodo(3, 3));
       await waitFor(() => expect(screen.getByText("ESQUINAS · 1")).toBeInTheDocument());
@@ -635,7 +635,7 @@ describe("ZonasCampania", () => {
       await userEvent.type(screen.getByRole("textbox", { name: "NOMBRE" }), "Casabó");
       await clicEnMapa(CENTRO_LIBRE);
 
-      expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo conectar");
+      expect(await screen.findByRole("alert")).toHaveTextContent("Necesitás conexión para calcular las ubicaciones de la zona. Revisá la conexión y probá de nuevo.");
       expect(screen.getByRole("button", { name: "Guardar zona" })).toBeDisabled();
     });
 
@@ -809,7 +809,7 @@ describe("ZonasCampania", () => {
       const salto = await within(buscador).findByRole("button", { name: "Agregar Salto, Salto" });
 
       await userEvent.click(salto);
-      expect(await within(buscador).findByRole("alert")).toHaveTextContent("No se pudo conectar. Probá de nuevo en unos segundos.");
+      expect(await within(buscador).findByRole("alert")).toHaveTextContent("Necesitás conexión para agregar la ciudad. Revisá la conexión y probá de nuevo.");
       expect(within(buscador).getByRole("button", { name: "Agregar Salto, Salto" })).toBeEnabled();
       expect(within(buscador).getByRole("searchbox")).toBeEnabled();
       expect(within(buscador).queryByText("Agregando la ciudad…")).not.toBeInTheDocument();
@@ -970,7 +970,7 @@ describe("ZonasCampania", () => {
       await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
 
       await userEvent.click(screen.getByRole("button", { name: "Sí, eliminar zona" }));
-      expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo conectar. Probá de nuevo en unos segundos.");
+      expect(await screen.findByRole("alert")).toHaveTextContent("Necesitás conexión para eliminar la zona. Revisá la conexión y probá de nuevo.");
       expect(screen.getByRole("button", { name: "Sí, eliminar zona" })).toBeEnabled();
       expect(screen.getByRole("button", { name: "Cancelar" })).toBeEnabled();
 
@@ -1058,7 +1058,7 @@ describe("ZonasCampania", () => {
       const boton = () => within(detalle).getByRole("button", { name: "Quitar a Laura Suárez de Paso de la Arena" });
 
       await userEvent.click(boton());
-      expect(await within(detalle).findByRole("alert")).toHaveTextContent("No se pudo conectar. Probá de nuevo en unos segundos.");
+      expect(await within(detalle).findByRole("alert")).toHaveTextContent("Necesitás conexión para quitar a Laura Suárez. Revisá la conexión y probá de nuevo.");
       expect(boton()).toBeEnabled();
 
       await userEvent.click(boton());
@@ -1256,7 +1256,7 @@ describe("ZonasCampania", () => {
 
       await act(async () => rechazar(new Error("sin red")));
       expect(await within(screen.getByRole("region", { name: "Zona Belvedere" })).findByRole("alert")).toHaveTextContent(
-        "No se pudo conectar. Probá de nuevo en unos segundos.",
+        "Necesitás conexión para asignar a Pablo Ferreira. Revisá la conexión y probá de nuevo.",
       );
       act(() => mapa.props?.onZonaClick("zona-la-teja"));
       expect(within(screen.getByRole("region", { name: "Zona La Teja" })).queryByRole("alert")).not.toBeInTheDocument();

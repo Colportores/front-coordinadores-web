@@ -65,7 +65,7 @@ afterEach(() => {
 });
 
 describe("QA · HU-CAM-006 · criterios de aceptación", () => {
-  it.skip("QA #28: «Zonas superpuestas» dice «se guarda, sin aviso ni rechazo»: la vista muestra aviso y marca el tramo en rojo", async () => {
+  it("«Zonas superpuestas» (decisión del 30/09): se guarda sin rechazo, pero la vista avisa con quién y marca el tramo en rojo", async () => {
     const previa = vi.fn(async (e: Parameters<typeof fuenteZonasSimulada.vistaPreviaZona>[0]) => ({
       ...(await fuenteZonasSimulada.vistaPreviaZona(e)),
       superposicion: { zonaNombre: "Belvedere", tramo: [nodo(1, 3), nodo(2, 3)] },
@@ -76,8 +76,8 @@ describe("QA · HU-CAM-006 · criterios de aceptación", () => {
     await clicEnMapa(CENTRO_LIBRE);
     await screen.findByText(/Incluye/);
 
-    expect(screen.queryByText(/se superpone/)).not.toBeInTheDocument();
-    expect(mapa.props?.dibujo?.conflicto ?? null).toBeNull();
+    expect(screen.getByText("Esta zona se superpone con «Belvedere» en el tramo marcado en rojo. Podés guardarla igual.")).toBeInTheDocument();
+    expect(mapa.props?.dibujo?.conflicto).toEqual([nodo(1, 3), nodo(2, 3)]);
     await userEvent.click(screen.getByRole("button", { name: "Guardar zona" }));
     expect(acc.guardarZona).toHaveBeenCalledTimes(1);
   });
@@ -119,7 +119,7 @@ describe("QA · validación del nombre de la zona", () => {
     expect(screen.getByRole("spinbutton")).toHaveValue(250);
   });
 
-  it("un nombre pegado de 2000 caracteres no rompe el formulario ni deshabilita el guardado", async () => {
+  it("un nombre pegado de 2000 caracteres no rompe el formulario: avisa el tope de 40 y no deja guardar", async () => {
     montar();
     await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
     await userEvent.click(screen.getByRole("textbox", { name: "NOMBRE" }));
@@ -128,7 +128,8 @@ describe("QA · validación del nombre de la zona", () => {
     await screen.findByText(/Incluye/);
 
     expect(screen.getByRole("region", { name: "Nueva zona" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("El nombre puede tener hasta 40 caracteres.");
+    expect(screen.getByRole("button", { name: "Guardar zona" })).toBeDisabled();
   });
 
   it("caracteres especiales y HTML en el nombre se muestran como texto, sin interpretarse", async () => {
@@ -203,7 +204,7 @@ describe("QA · accesibilidad (axe A/AA, sin contraste) en cada estado", () => {
     await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }));
     await userEvent.click(screen.getByRole("button", { name: "Asignar a Belvedere" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo conectar");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Necesitás conexión para asignar a Pablo Ferreira. Revisá la conexión y probá de nuevo.");
     expect(acc.asignarZona).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Asignar a Belvedere" })).toBeEnabled();
   });
@@ -312,5 +313,36 @@ describe("QA · hallazgos resueltos (contraste, objetivo táctil, foco)", () => 
     expect(espia.mock.contexts.at(-1)).toBe(screen.getByRole("alertdialog"));
     // @ts-expect-error se limpia el doble para no afectar otros tests
     delete Element.prototype.scrollIntoView;
+  });
+
+  it("el nombre de la zona tiene tope de 40 caracteres: 40 se guardan, 41 avisan y no dejan guardar", async () => {
+    const { acc } = montar();
+    await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+    await clicEnMapa(CENTRO_LIBRE);
+    await screen.findByText(/Incluye/);
+    const campo = screen.getByRole("textbox", { name: "NOMBRE" });
+
+    await userEvent.type(campo, "a".repeat(40));
+    expect(screen.queryByText("El nombre puede tener hasta 40 caracteres.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled();
+
+    await userEvent.type(campo, "b");
+    expect(screen.getByRole("alert")).toHaveTextContent("El nombre puede tener hasta 40 caracteres.");
+    expect(campo).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: "Guardar zona" })).toBeDisabled();
+
+    await userEvent.type(campo, "{Backspace}");
+    expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Guardar zona" }));
+    expect(acc.guardarZona).toHaveBeenCalledTimes(1);
+  });
+
+  it("el servidor simulado también rechaza un nombre de más de 40 caracteres", async () => {
+    const r = await fuenteZonasSimulada.guardarZona({
+      ciudadId: MONTEVIDEO.id,
+      nombre: "x".repeat(41),
+      forma: { tipoForma: "RADIAL", centro: CENTRO_LIBRE, radioM: 400 },
+    });
+    expect(r).toEqual({ ok: false, mensaje: "El nombre puede tener hasta 40 caracteres." });
   });
 });

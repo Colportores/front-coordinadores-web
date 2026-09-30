@@ -12,11 +12,11 @@ describe("PestanaEquipo", () => {
 
     expect(screen.getByRole("heading", { name: "Equipo" })).toBeInTheDocument();
     expect(screen.getByText("Mi equipo · Montevideo Oeste")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "+ Asignar colportor a zona" })).toHaveAttribute("href", "/equipo/zonas");
+    expect(screen.getByRole("link", { name: "+ Asignar colportor a zona" })).toHaveAttribute("href", "/ciudades");
     expect(screen.getByRole("link", { name: "+ Añadir colportor" })).toHaveAttribute("href", "/equipo/anadir");
     expect(screen.getByRole("row", { name: /Diego Rocha/ })).toBeInTheDocument();
     expect(screen.getByText("Sin zona asignada · 1")).toBeInTheDocument();
-    expect(screen.getByText("Precios por zona")).toBeInTheDocument();
+    expect(screen.getByText("Precios por ciudad")).toBeInTheDocument();
     expect(screen.getByText("Acompañamientos")).toBeInTheDocument();
   });
 
@@ -24,13 +24,14 @@ describe("PestanaEquipo", () => {
     const jsx = await PestanaEquipo();
     render(<ProveedorModoDev activo={false}>{jsx}</ProveedorModoDev>);
 
-    const nombres = ["Editar", "Registrar acompañamiento"];
+    const nombres = ["Editar"];
     for (const nombre of nombres) {
       const boton = screen.getByRole("button", { name: nombre });
       expect(boton).toHaveAttribute("aria-disabled", "true");
       expect(boton).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
     }
-    // El filtro de zona sí funciona: no debe llevar la marca.
-    expect(screen.getByRole("button", { name: /Todas las zonas/ })).not.toHaveAttribute("aria-disabled");
+    // El filtro de ciudad y «Registrar acompañamiento» sí funcionan: no llevan la marca.
+    expect(screen.getByRole("button", { name: /Todas las ciudades/ })).not.toHaveAttribute("aria-disabled");
+    expect(screen.getByRole("button", { name: "Registrar acompañamiento" })).not.toHaveAttribute("aria-disabled");
   });
 });

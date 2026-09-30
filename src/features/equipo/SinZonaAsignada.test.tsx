@@ -11,7 +11,7 @@ describe("SinZonaAsignada", () => {
     expect(screen.getByText("Sin zona asignada · 1")).toBeInTheDocument();
     expect(screen.getByText(/Ana Martínez/)).toBeInTheDocument();
     expect(screen.getByText(/nueva colportora en tu región/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Asignar zona" })).toHaveAttribute("href", "/equipo/zonas");
+    expect(screen.getByRole("link", { name: "Asignar zona" })).toHaveAttribute("href", "/ciudades");
   });
 
   it("muestra un estado vacío cuando todo el equipo tiene zona", () => {

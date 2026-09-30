@@ -11,7 +11,8 @@ import {
 
 const HU_DEL_PANEL = {
   inicio: ["HU-CAM-008"],
-  equipo: ["HU-CAM-004", "HU-CAM-006", "HU-CAT-005", "HU-JOR-004"],
+  equipo: ["HU-CAM-004", "HU-CAT-005", "HU-JOR-004"],
+  ciudades: ["HU-CAM-006"],
   stock: ["HU-STK-001", "HU-STK-003", "HU-STK-004", "HU-STK-005"],
   cuentas: ["HU-CTA-005", "HU-COB-008", "HU-CTA-006"],
   reportes: ["HU-REP-001", "HU-REP-002", "HU-REP-005", "HU-REP-004"],
@@ -43,7 +44,7 @@ describe("registro estado-hu", () => {
     it("el resto está mockeada", () => {
       const mockeadas = HISTORIAS.filter((h) => h.estado === "mockeada").map((h) => h.id);
       expect(mockeadas.sort()).toEqual(
-        [...HU_DEL_PANEL.inicio, ...HU_DEL_PANEL.equipo, "HU-REP-001", "HU-REP-002", "HU-REP-005"].sort(),
+        [...HU_DEL_PANEL.inicio, ...HU_DEL_PANEL.equipo, ...HU_DEL_PANEL.ciudades, "HU-REP-001", "HU-REP-002", "HU-REP-005"].sort(),
       );
     });
 

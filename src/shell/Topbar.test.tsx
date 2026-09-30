@@ -8,7 +8,8 @@ import { pestanasVisibles } from "@/shell/pestanas";
 import { Topbar } from "@/shell/Topbar";
 import { fijarFlags } from "@/test/flags";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/equipo" }));
+const ruta = vi.hoisted(() => ({ actual: "/equipo" }));
+vi.mock("next/navigation", () => ({ usePathname: () => ruta.actual }));
 
 function renderTopbar(modoDev: boolean) {
   fijarFlags({ modoDev });
@@ -34,6 +35,17 @@ describe("Topbar", () => {
     expect(selector).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
   });
 
+  it("en /equipo/anadir (vista 23) «Equipo» sigue como pestaña actual", () => {
+    ruta.actual = "/equipo/anadir";
+    try {
+      renderTopbar(false);
+      const nav = screen.getByRole("navigation", { name: "Secciones del panel" });
+      expect(within(nav).getByRole("link", { name: "Equipo" })).toHaveAttribute("aria-current", "page");
+    } finally {
+      ruta.actual = "/equipo";
+    }
+  });
+
   it("marca la pestaña actual con aria-current", () => {
     renderTopbar(false);
     const nav = screen.getByRole("navigation", { name: "Secciones del panel" });
@@ -45,16 +57,16 @@ describe("Topbar", () => {
     it("oculta Stock y Cuentas y no muestra estados de HU", () => {
       renderTopbar(false);
       const nav = screen.getByRole("navigation", { name: "Secciones del panel" });
-      expect(within(nav).getAllByRole("link").map((l) => l.textContent)).toEqual(["Inicio", "Equipo", "Reportes"]);
+      expect(within(nav).getAllByRole("link").map((l) => l.textContent)).toEqual(["Inicio", "Equipo", "Ciudades", "Reportes"]);
       expect(screen.queryByTestId("estado-pestana-inicio")).not.toBeInTheDocument();
     });
   });
 
   describe("en modo dev", () => {
-    it("muestra las cinco pestañas con el estado agregado de sus HU", () => {
+    it("muestra las seis pestañas con el estado agregado de sus HU", () => {
       renderTopbar(true);
       const nav = screen.getByRole("navigation", { name: "Secciones del panel" });
-      expect(within(nav).getAllByRole("link")).toHaveLength(5);
+      expect(within(nav).getAllByRole("link")).toHaveLength(6);
       expect(screen.getByTestId("estado-pestana-inicio")).toHaveTextContent("Mockeada");
       expect(screen.getByTestId("estado-pestana-stock")).toHaveTextContent("Bloqueada");
       expect(screen.getByTestId("estado-pestana-cuentas")).toHaveTextContent("Bloqueada");

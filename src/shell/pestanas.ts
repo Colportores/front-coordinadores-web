@@ -12,6 +12,7 @@ export interface DefinicionPestana {
 export const PESTANAS: readonly DefinicionPestana[] = [
   { id: "inicio", etiqueta: "Inicio", ruta: "/inicio" },
   { id: "equipo", etiqueta: "Equipo", ruta: "/equipo" },
+  { id: "ciudades", etiqueta: "Ciudades", ruta: "/ciudades" },
   { id: "stock", etiqueta: "Stock", ruta: "/stock" },
   { id: "cuentas", etiqueta: "Cuentas", ruta: "/cuentas" },
   { id: "reportes", etiqueta: "Reportes", ruta: "/reportes" },

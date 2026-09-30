@@ -24,6 +24,7 @@ import { PanelDetalleZona } from "@/features/equipo/zonas/PanelDetalleZona";
 import { formaCompleta, PanelFormularioZona, RADIO_INICIAL_M, textoColportoresSinZona } from "@/features/equipo/zonas/PanelFormularioZona";
 import { PanelListaZonas } from "@/features/equipo/zonas/PanelListaZonas";
 import { type DibujoEnMapa, TEXTO_CUENTA_SUSPENDIDA } from "@/features/equipo/zonas/tipos";
+import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
 
 /** Las operaciones que la vista le pide al BFF, ya atadas a la campaña por la página (server actions). */
@@ -59,7 +60,6 @@ type Panel =
   | { tipo: "detalle"; zonaId: string; colportorId: string | null; ocupado: boolean; error: string | null }
   | ({ tipo: "dibujo" } & EstadoDibujo);
 
-const MENSAJE_SIN_CONEXION = "No se pudo conectar. Probá de nuevo en unos segundos.";
 const MS_ESPERA_HOVER = 120;
 const MS_ESPERA_VISTA_PREVIA = 150;
 
@@ -166,7 +166,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
           if (version === versionVistaPrevia.current) cambiarDibujo(() => ({ vistaPrevia, error: null }));
         })
         .catch(() => {
-          if (version === versionVistaPrevia.current) cambiarDibujo(() => ({ error: MENSAJE_SIN_CONEXION }));
+          if (version === versionVistaPrevia.current) cambiarDibujo(() => ({ error: mensajeSinConexion("calcular las ubicaciones de la zona") }));
         });
     }, MS_ESPERA_VISTA_PREVIA);
     return () => clearTimeout(temporizador);
@@ -328,7 +328,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
       actualizarForma(cierra ? { ...inicial, cerrada: true } : { ...inicial, esquinas: [...esquinas, esquina] }, { error: null });
       if (cierra) setHover(null);
     } catch {
-      if (deSesion === sesion.current) cambiarDibujo(() => ({ error: MENSAJE_SIN_CONEXION }));
+      if (deSesion === sesion.current) cambiarDibujo(() => ({ error: mensajeSinConexion("marcar la esquina") }));
     }
   }
 
@@ -371,7 +371,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
         );
         if (deSesion === sesion.current && formaVigente.current === nueva) cambiarDibujo(() => ({ tramos }));
       } catch {
-        if (deSesion === sesion.current) cambiarDibujo(() => ({ error: MENSAJE_SIN_CONEXION }));
+        if (deSesion === sesion.current) cambiarDibujo(() => ({ error: mensajeSinConexion("quitar la esquina") }));
       }
     });
   }
@@ -409,7 +409,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
       setPanel({ tipo: "detalle", zonaId: guardada.id, colportorId: null, ocupado: false, error: null });
       setAviso(`Zona «${guardada.nombre}» guardada.`);
     } catch {
-      if (deSesion === sesion.current) cambiarDibujo(() => ({ guardando: false, error: MENSAJE_SIN_CONEXION }));
+      if (deSesion === sesion.current) cambiarDibujo(() => ({ guardando: false, error: mensajeSinConexion("guardar la zona") }));
     } finally {
       guardandoAhora.current = false;
     }
@@ -462,7 +462,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
       const nombre = persona?.nombre ?? "El colportor";
       setAviso(accion === "asignar" ? `${nombre} quedó en ${zona.nombre}.` : `${nombre} quedó sin zona.`);
     } catch {
-      setPanel((p) => (p.tipo === "detalle" && p.zonaId === zona.id ? { ...p, ocupado: false, error: MENSAJE_SIN_CONEXION } : p));
+      setPanel((p) => (p.tipo === "detalle" && p.zonaId === zona.id ? { ...p, ocupado: false, error: mensajeSinConexion(accion === "asignar" ? `asignar a ${persona?.nombre ?? "el colportor"}` : `quitar a ${persona?.nombre ?? "el colportor"}`) } : p));
     } finally {
       asignandoAhora.current = false;
     }
@@ -500,7 +500,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
           : `Zona «${nombre}» eliminada.`,
       );
     } catch {
-      cambiarDibujo(() => ({ guardando: false, error: MENSAJE_SIN_CONEXION }));
+      cambiarDibujo(() => ({ guardando: false, error: mensajeSinConexion("eliminar la zona") }));
     } finally {
       guardandoAhora.current = false;
     }
@@ -525,7 +525,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
       setBuscador(null);
       setAviso(`«${nueva.nombre}» se agregó a la campaña.`);
     } catch {
-      setBuscador({ ocupado: false, error: MENSAJE_SIN_CONEXION });
+      setBuscador({ ocupado: false, error: mensajeSinConexion("agregar la ciudad") });
     } finally {
       agregandoAhora.current = false;
     }

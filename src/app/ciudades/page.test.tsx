@@ -3,9 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { isValidElement, type ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import ErrorZonas from "@/app/equipo/zonas/error";
-import CargandoZonas from "@/app/equipo/zonas/loading";
-import ZonasPagina from "@/app/equipo/zonas/page";
+import ErrorZonas from "@/app/ciudades/error";
+import CargandoZonas from "@/app/ciudades/loading";
+import ZonasPagina from "@/app/ciudades/page";
 import { DATOS_ZONAS_SIMULADO } from "@/datos/equipo/zonas/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 import type { AccionesZonas } from "@/features/equipo/zonas/ZonasCampania";
@@ -28,7 +28,7 @@ describe("ZonasPagina", () => {
     const jsx = await ZonasPagina();
     render(<ProveedorModoDev activo={false}>{jsx}</ProveedorModoDev>);
 
-    expect(screen.getByRole("heading", { level: 1, name: "Zonas de la campaña" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Ciudades" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Zonas · Verano 2026" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Montevideo/ })).toBeInTheDocument();
     expect(screen.getByTestId("mapa")).toBeInTheDocument();

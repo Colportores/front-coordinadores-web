@@ -8,11 +8,12 @@ function normalizar(texto: string): string {
   return texto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
 }
 
-/** Hasta 5 cuentas pendientes de asignación y sin campaña, de la más antigua a la más nueva. */
+/** Hasta 5 cuentas pendientes de asignación y sin campaña, de la más nueva a la más antigua (decisión del 30/09). */
 export function sugeridos(candidatos: CandidatoColportor[]): CandidatoColportor[] {
   return candidatos
     .filter((c) => c.estadoCuenta === "pendiente_asignacion" && c.campaniaActual === null)
-    .sort((a, b) => a.cuentaCreada.localeCompare(b.cuentaCreada))
+    // Misma fecha: por id, para que el orden no salte entre cargas.
+    .sort((a, b) => b.cuentaCreada.localeCompare(a.cuentaCreada) || a.id.localeCompare(b.id))
     .slice(0, MAX_SUGERIDOS);
 }
 
@@ -32,11 +33,10 @@ export function motivoBloqueo(c: CandidatoColportor): string | null {
   return null;
 }
 
-/** Ayuda bajo el botón cuando la cuenta está en otra campaña. */
+/** Ayuda bajo el botón cuando la cuenta no se puede añadir: otra campaña o suspendida (se repite, decisión del 30/09). */
 export function ayudaBloqueo(c: CandidatoColportor): string | null {
-  if (c.estadoCuenta !== "suspendida" && c.campaniaActual !== null) {
-    return `Pedile al coordinador de ${c.campaniaActual} que lo libere.`;
-  }
+  if (c.estadoCuenta === "suspendida") return "Pedile a un administrador que la reactive.";
+  if (c.campaniaActual !== null) return `Pedile al coordinador de ${c.campaniaActual} que lo libere.`;
   return null;
 }
 

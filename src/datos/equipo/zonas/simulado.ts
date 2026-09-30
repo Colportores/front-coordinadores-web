@@ -390,6 +390,7 @@ export const fuenteZonasSimulada: FuenteDatosZonas = {
     const ciudad = ciudadPorId(entrada.ciudadId);
     const nombre = entrada.nombre.trim();
     if (nombre === "") return { ok: false, mensaje: "Poné un nombre para la zona." };
+    if (nombre.length > 40) return { ok: false, mensaje: "El nombre puede tener hasta 40 caracteres." };
     if (ciudad.zonas.some((z) => z.id !== entrada.zonaId && z.nombre.toLowerCase() === nombre.toLowerCase())) {
       return { ok: false, mensaje: `Ya hay una zona llamada «${nombre}» en ${ciudad.nombre}.` };
     }

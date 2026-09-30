@@ -49,7 +49,7 @@ export default async function ZonasPagina() {
   };
 
   return (
-    <ContenidoPestana titulo="Zonas de la campaña">
+    <ContenidoPestana titulo="Ciudades">
       <SeccionHu hu="HU-CAM-006">
         <ZonasCampania datos={datos} acciones={acciones} />
       </SeccionHu>

@@ -17,7 +17,7 @@ export function SinZonaAsignada({ colportores }: { colportores: ColportorSinZona
               {c.nombre} · {c.nota}
             </span>
             <Button asChild size="xs" className="h-auto w-fit rounded-control px-3 py-[5px] text-mini font-semibold">
-              <Link href="/equipo/zonas">Asignar zona</Link>
+              <Link href="/ciudades">Asignar zona</Link>
             </Button>
           </div>
         ))
