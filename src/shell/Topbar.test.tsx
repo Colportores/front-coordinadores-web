@@ -45,16 +45,16 @@ describe("Topbar", () => {
     it("oculta Stock y Cuentas y no muestra estados de HU", () => {
       renderTopbar(false);
       const nav = screen.getByRole("navigation", { name: "Secciones del panel" });
-      expect(within(nav).getAllByRole("link").map((l) => l.textContent)).toEqual(["Inicio", "Equipo", "Reportes"]);
+      expect(within(nav).getAllByRole("link").map((l) => l.textContent)).toEqual(["Inicio", "Equipo", "Ciudades", "Reportes"]);
       expect(screen.queryByTestId("estado-pestana-inicio")).not.toBeInTheDocument();
     });
   });
 
   describe("en modo dev", () => {
-    it("muestra las cinco pestañas con el estado agregado de sus HU", () => {
+    it("muestra las seis pestañas con el estado agregado de sus HU", () => {
       renderTopbar(true);
       const nav = screen.getByRole("navigation", { name: "Secciones del panel" });
-      expect(within(nav).getAllByRole("link")).toHaveLength(5);
+      expect(within(nav).getAllByRole("link")).toHaveLength(6);
       expect(screen.getByTestId("estado-pestana-inicio")).toHaveTextContent("Mockeada");
       expect(screen.getByTestId("estado-pestana-stock")).toHaveTextContent("Bloqueada");
       expect(screen.getByTestId("estado-pestana-cuentas")).toHaveTextContent("Bloqueada");

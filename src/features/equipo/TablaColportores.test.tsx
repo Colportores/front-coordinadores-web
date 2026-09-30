@@ -12,6 +12,7 @@ describe("TablaColportores", () => {
     render(<TablaColportores colportores={DATOS_EQUIPO_SIMULADO.colportores} />);
 
     const fila = screen.getByRole("row", { name: /Diego Rocha/ });
+    expect(within(fila).getByText("Montevideo")).toBeInTheDocument();
     expect(within(fila).getByText("Cerro Norte")).toBeInTheDocument();
     expect(within(fila).getByText("28,4 h")).toBeInTheDocument();
     expect(within(fila).getByText("$U 84K")).toBeInTheDocument();
@@ -31,19 +32,38 @@ describe("TablaColportores", () => {
     expect(screen.queryByText("Cuenta")).not.toBeInTheDocument();
   });
 
-  it("filtra por zona al hacer click en un chip y actualiza el contador de 'todas las zonas'", async () => {
+  it("tiene las columnas Ciudad y Zonas, y ya no la columna Zona", () => {
+    render(<TablaColportores colportores={DATOS_EQUIPO_SIMULADO.colportores} />);
+
+    expect(screen.getByRole("columnheader", { name: "Ciudad" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Zonas" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Zona" })).not.toBeInTheDocument();
+  });
+
+  it("muestra todas las zonas del colportor, o «Sin asignar» si no tiene", () => {
+    render(<TablaColportores colportores={DATOS_EQUIPO_SIMULADO.colportores} />);
+
+    expect(within(screen.getByRole("row", { name: /Noelia Acosta/ })).getByText("La Teja, Paso de la Arena")).toBeInTheDocument();
+    expect(within(screen.getByRole("row", { name: /Laura Suárez/ })).getByText("Sin asignar")).toBeInTheDocument();
+  });
+
+  it("filtra por ciudad al hacer click en un chip y actualiza el contador de 'todas las ciudades'", async () => {
     const user = userEvent.setup();
     render(<TablaColportores colportores={DATOS_EQUIPO_SIMULADO.colportores} />);
 
-    expect(screen.getByRole("button", { name: "Todas las zonas · 6" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Filtrar equipo por ciudad" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Todas las ciudades · 6" })).toBeInTheDocument();
     expect(screen.getAllByRole("row")).toHaveLength(DATOS_EQUIPO_SIMULADO.colportores.length + 1); // + encabezado
 
-    await user.click(screen.getByRole("button", { name: "Cerro Norte · 2" }));
+    await user.click(screen.getByRole("button", { name: "Las Piedras · 1" }));
 
+    expect(screen.getByRole("row", { name: /Laura Suárez/ })).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /Diego Rocha/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Las Piedras · 1" })).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: "Montevideo · 5" }));
     expect(screen.getByRole("row", { name: /Diego Rocha/ })).toBeInTheDocument();
-    expect(screen.getByRole("row", { name: /Joel Cabrera/ })).toBeInTheDocument();
-    expect(screen.queryByRole("row", { name: /Melina Vázquez/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cerro Norte · 2" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("row", { name: /Laura Suárez/ })).not.toBeInTheDocument();
   });
 
   it("alerta cuando la última sincronización es vieja", () => {
@@ -59,6 +79,6 @@ describe("TablaColportores", () => {
 
   it("muestra un estado vacío cuando no hay colportores", () => {
     render(<TablaColportores colportores={[]} />);
-    expect(screen.getByText("No hay colportores en esta zona.")).toBeInTheDocument();
+    expect(screen.getByText("No hay colportores en esta ciudad.")).toBeInTheDocument();
   });
 });

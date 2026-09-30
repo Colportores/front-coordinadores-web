@@ -28,7 +28,7 @@ export function modoDevActivo(): boolean {
   return leerBandera(process.env.NEXT_PUBLIC_MODO_DEV) ?? false;
 }
 
-export type Pestana = "inicio" | "equipo" | "stock" | "cuentas" | "reportes";
+export type Pestana = "inicio" | "equipo" | "ciudades" | "stock" | "cuentas" | "reportes";
 
 /** Pestañas con flag propio. Las demás están siempre visibles. */
 function flagDePestana(pestana: Pestana): boolean | undefined {
