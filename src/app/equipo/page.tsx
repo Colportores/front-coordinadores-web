@@ -1,4 +1,7 @@
+import Link from "next/link";
+
 import { AccionNoDisponible } from "@/components/AccionNoDisponible";
+import { Button } from "@/components/ui/button";
 import { fuenteEquipo } from "@/datos/equipo";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { Acompanamientos } from "@/features/equipo/Acompanamientos";
@@ -14,10 +17,15 @@ export default async function PestanaEquipo() {
     <ContenidoPestana titulo="Equipo">
       <div className="flex items-center justify-between">
         <h2 className="font-serif text-[21px] font-semibold text-tinta">Mi equipo · {equipo.region}</h2>
-        {/* El formulario para asignar colportor a zona todavía no está diseñado: queda sin comportamiento. */}
-        <AccionNoDisponible variant="default" size="default" className="text-chico font-semibold">
-          + Asignar colportor a zona
-        </AccionNoDisponible>
+        <div className="flex items-center gap-2.5">
+          <Button asChild variant="outline" className="text-chico font-semibold text-tinta-2">
+            <Link href="/equipo/anadir">+ Añadir colportor</Link>
+          </Button>
+          {/* El formulario para asignar colportor a zona todavía no está diseñado: queda sin comportamiento. */}
+          <AccionNoDisponible variant="default" size="default" className="text-chico font-semibold">
+            + Asignar colportor a zona
+          </AccionNoDisponible>
+        </div>
       </div>
 
       <div className="grid grid-cols-[1fr_320px] items-start gap-4">
