@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import type { CiudadDeCampania, ZonaDeCiudad } from "@/datos/equipo/zonas";
 import { iniciales } from "@/features/equipo/candidatos";
+import { TEXTO_CUENTA_SUSPENDIDA } from "@/features/equipo/zonas/tipos";
 import { cn } from "@/lib/utils";
 
 export function descripcionForma(z: ZonaDeCiudad): string {
@@ -112,10 +113,12 @@ export function PanelListaZonas({
                 <span className="flex flex-1 flex-col gap-0.5">
                   <span className="text-nav font-semibold text-tinta">{c.nombre}</span>
                   <span className="text-chico text-alerta">Sin zona en {ciudad.nombre}</span>
+                  {c.suspendido ? <span className="text-chico text-peligro">⊘ {TEXTO_CUENTA_SUSPENDIDA}</span> : null}
                 </span>
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={c.suspendido}
                   onClick={() => onAsignar(c.id)}
                   aria-label={`Asignar zona a ${c.nombre}`}
                   className="min-h-8 text-nav font-semibold text-tinta-2"

@@ -30,6 +30,22 @@ export default async function ZonasPagina() {
       "use server";
       return fuenteZonas.asignarZona(datos.campaniaId, usuarioId, zonaId);
     },
+    async quitarZona(usuarioId) {
+      "use server";
+      return fuenteZonas.quitarZona(datos.campaniaId, usuarioId);
+    },
+    async eliminarZona(zonaId) {
+      "use server";
+      return fuenteZonas.eliminarZona(datos.campaniaId, zonaId);
+    },
+    async buscarCiudades(texto) {
+      "use server";
+      return fuenteZonas.buscarCiudades(datos.campaniaId, texto);
+    },
+    async agregarCiudad(catalogoId) {
+      "use server";
+      return fuenteZonas.agregarCiudad(datos.campaniaId, catalogoId);
+    },
   };
 
   return (

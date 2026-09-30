@@ -55,6 +55,11 @@ describe("ZonasPagina", () => {
       await acciones.guardarZona({ ciudadId: ciudad.id, nombre: "", forma: { tipoForma: "RADIAL", centro: origen, radioM: 200 } }),
     ).toEqual({ ok: false, mensaje: "Poné un nombre para la zona." });
     expect(await acciones.asignarZona("col-5", "zona-belvedere")).toEqual({ ok: true });
+    expect(await acciones.asignarZona("col-7", "zona-belvedere")).toMatchObject({ ok: false });
+    expect(await acciones.quitarZona("col-1")).toEqual({ ok: true });
+    expect(await acciones.eliminarZona("zona-belvedere")).toEqual({ ok: true, colportoresSinZona: 0 });
+    expect((await acciones.buscarCiudades("salto")).map((c) => c.nombre)).toEqual(["Salto"]);
+    expect(await acciones.agregarCiudad("cat-salto")).toMatchObject({ ok: true });
   });
 });
 

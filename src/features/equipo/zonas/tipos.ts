@@ -30,3 +30,6 @@ export interface PropsMapaZonas {
   onMapaMove(punto: Punto): void;
   onRadio(radioM: number): void;
 }
+
+/** Lo que se le dice al coordinador de una cuenta suspendida: no se le puede asignar zona (decisión del 30/09, coord #20). */
+export const TEXTO_CUENTA_SUSPENDIDA = "Cuenta suspendida. Pedile a un administrador que la reactive.";

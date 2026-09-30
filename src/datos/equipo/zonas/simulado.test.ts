@@ -51,8 +51,10 @@ describe("fuenteZonasSimulada", () => {
       expect(belvedere?.esquinas?.every((e) => e.calleA && e.calleB)).toBe(true);
     });
 
-    it("Pablo Ferreira es el único colportor sin zona", () => {
-      expect(MONTEVIDEO.colportores.filter((c) => c.zonaId === null).map((c) => c.nombre)).toEqual(["Pablo Ferreira"]);
+    it("Pablo Ferreira y Sergio Píriz (suspendido) son los colportores sin zona", () => {
+      const sinZona = MONTEVIDEO.colportores.filter((c) => c.zonaId === null);
+      expect(sinZona.map((c) => c.nombre)).toEqual(["Pablo Ferreira", "Sergio Píriz"]);
+      expect(sinZona.map((c) => Boolean(c.suspendido))).toEqual([false, true]);
     });
   });
 
@@ -103,7 +105,6 @@ describe("fuenteZonasSimulada", () => {
       expect(vista.ubicacionesIncluidas).toBeLessThan(40);
       expect(vista.superposicion).toBeNull();
       expect(vista.comparteCalle).toBeNull();
-      expect(vista.ubicacionesQueCambian).toBe(0);
       expect(vertices(vista.poligonoGeojson).every((v) => Math.abs(distanciaM(nodo(3, 3.4), v) - 400) < 1)).toBe(true);
     });
 
@@ -137,7 +138,7 @@ describe("fuenteZonasSimulada", () => {
       expect(vista.comparteCalle).toBeNull();
     });
 
-    it("al editar, la zona no se superpone consigo misma y cuenta cuántas ubicaciones cambian", async () => {
+    it("al editar, la zona no se superpone consigo misma y cuenta las ubicaciones que incluye", async () => {
       const arena = MONTEVIDEO.zonas.find((z) => z.nombre === "Paso de la Arena");
       if (!arena?.centro) throw new Error("falta la zona radial");
 
@@ -153,9 +154,8 @@ describe("fuenteZonasSimulada", () => {
       });
 
       expect(igual.superposicion).toBeNull();
-      expect(igual.ubicacionesQueCambian).toBe(0);
       expect(achicada.superposicion).toBeNull();
-      expect(achicada.ubicacionesQueCambian).toBeGreaterThan(30);
+      expect(achicada.ubicacionesIncluidas).toBeLessThan(igual.ubicacionesIncluidas);
     });
 
     it("una forma incompleta no se puede calcular", async () => {
@@ -186,17 +186,14 @@ describe("fuenteZonasSimulada", () => {
       expect(repetido).toEqual({ ok: false, mensaje: "Ya hay una zona llamada «BELVEDERE» en Montevideo." });
     });
 
-    it("rechaza una superposición diciendo con quién", async () => {
+    it("una superposición no se rechaza: las zonas se pueden superponer", async () => {
       const resultado = await fuenteZonasSimulada.guardarZona({
         ciudadId: MONTEVIDEO.id,
         nombre: "Nueva",
         forma: await formaPorEsquinas([1, 3], [3, 3], [3, 4], [1, 4]),
       });
 
-      expect(resultado).toEqual({
-        ok: false,
-        mensaje: "Esta zona se superpone con «Belvedere». Ajustá el borde para que solo compartan la calle.",
-      });
+      expect(resultado.ok).toBe(true);
     });
 
     it("al editar conserva el id, el color y los colportores, y permite el mismo nombre", async () => {
@@ -215,5 +212,70 @@ describe("fuenteZonasSimulada", () => {
 
   it("asignarZona responde que está bien (simulado, no persiste)", async () => {
     expect(await fuenteZonasSimulada.asignarZona("campania-verano-2026", "col-5", "zona-belvedere")).toEqual({ ok: true });
+  });
+
+  describe("colportores: asignar, quitar y suspendidos", () => {
+    it("rechaza asignar zona a una cuenta suspendida con el mensaje de la decisión", async () => {
+      expect(await fuenteZonasSimulada.asignarZona("campania-verano-2026", "col-7", "zona-belvedere")).toEqual({
+        ok: false,
+        mensaje: "Cuenta suspendida. Pedile a un administrador que la reactive.",
+      });
+      expect(await fuenteZonasSimulada.asignarZona("campania-verano-2026", "col-5", "zona-belvedere")).toEqual({ ok: true });
+    });
+
+    it("quitar la zona responde ok", async () => {
+      expect(await fuenteZonasSimulada.quitarZona("campania-verano-2026", "col-1")).toEqual({ ok: true });
+    });
+  });
+
+  describe("eliminarZona", () => {
+    it("dice cuántos colportores quedan sin zona", async () => {
+      expect(await fuenteZonasSimulada.eliminarZona("campania-verano-2026", "zona-cerro-norte")).toEqual({
+        ok: true,
+        colportoresSinZona: 2,
+      });
+      expect(await fuenteZonasSimulada.eliminarZona("campania-verano-2026", "zona-belvedere")).toEqual({
+        ok: true,
+        colportoresSinZona: 0,
+      });
+    });
+  });
+
+  describe("catálogo de ciudades", () => {
+    it("sin texto ofrece el catálogo sin las ciudades que ya están en la campaña", async () => {
+      const ciudades = await fuenteZonasSimulada.buscarCiudades("campania-verano-2026", "");
+      const nombres = ciudades.map((c) => c.nombre);
+
+      expect(nombres).toContain("Salto");
+      expect(nombres).not.toContain("Montevideo");
+      expect(nombres).not.toContain("Las Piedras");
+      expect(nombres).not.toContain("Canelones");
+    });
+
+    it("busca por nombre o por provincia, sin importar mayúsculas ni tildes", async () => {
+      const porNombre = await fuenteZonasSimulada.buscarCiudades("campania-verano-2026", "  PAYSANDU ");
+      const porProvincia = await fuenteZonasSimulada.buscarCiudades("campania-verano-2026", "soriano");
+
+      expect(porNombre).toEqual([{ id: "cat-paysandu", nombre: "Paysandú", provincia: "Paysandú" }]);
+      expect(porProvincia.map((c) => c.nombre)).toEqual(["Mercedes"]);
+      expect(await fuenteZonasSimulada.buscarCiudades("campania-verano-2026", "zzz")).toEqual([]);
+    });
+
+    it("agregar una ciudad devuelve una ciudad de campaña vacía, con calles para dibujar", async () => {
+      const resultado = await fuenteZonasSimulada.agregarCiudad("campania-verano-2026", "cat-salto");
+
+      expect(resultado.ok).toBe(true);
+      if (resultado.ok) {
+        expect(resultado.ciudad).toMatchObject({ catalogoId: "cat-salto", nombre: "Salto", zonas: [], colportores: [] });
+        expect(resultado.ciudad.calles?.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("una ciudad que no está en el catálogo se rechaza", async () => {
+      expect(await fuenteZonasSimulada.agregarCiudad("campania-verano-2026", "cat-atlantida")).toEqual({
+        ok: false,
+        mensaje: "Esa ciudad ya no está en el catálogo.",
+      });
+    });
   });
 });

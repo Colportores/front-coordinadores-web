@@ -31,6 +31,8 @@ export interface PoligonoGeojson {
 export interface ColportorEnZona {
   id: string;
   nombre: string;
+  /** Cuenta suspendida: conserva la zona que tenía, pero no se le puede asignar otra. */
+  suspendido?: boolean;
 }
 
 export interface ZonaDeCiudad {
@@ -57,6 +59,8 @@ export interface ColportorDeCiudad {
   /** `null` mientras no tenga zona en esta ciudad. */
   zonaId: string | null;
   zonaNombre: string | null;
+  /** Cuenta suspendida: aparece marcado y la asignación de zona se rechaza (decisión del 30/09, coord #20). */
+  suspendido?: boolean;
 }
 
 /** Calle para dibujar: `trazo` va de un extremo al otro. */
@@ -67,6 +71,8 @@ export interface CalleMapa {
 
 export interface CiudadDeCampania {
   id: string;
+  /** La ciudad en el catálogo global: sirve para no ofrecerla de nuevo en «+ Agregar ciudad». */
+  catalogoId: string;
   nombre: string;
   centro: Punto;
   zoom: number;
@@ -105,11 +111,12 @@ export interface VistaPreviaEntrada {
 
 export interface VistaPreviaZona {
   poligonoGeojson: PoligonoGeojson;
-  /** «Incluye N ubicaciones ya registradas». */
+  /** «Incluye N ubicaciones.» (`ubicaciones_incluidas` del backend, backend-supabase#32). */
   ubicacionesIncluidas: number;
-  /** Al editar: cuántas ubicaciones cambian de zona si se guarda. */
-  ubicacionesQueCambian: number;
-  /** Si se superpone con otra zona viva de la ciudad, con el tramo en conflicto para marcarlo en rojo (CZ007). */
+  /**
+   * Si se superpone con otra zona viva de la ciudad, con el tramo para marcarlo en rojo.
+   * Solo avisa: las zonas se pueden superponer y no bloquea el guardado (S56, backend-supabase#39).
+   */
   superposicion: { zonaNombre: string; tramo: Punto[] } | null;
   /** Si comparte una calle como borde con otra zona (no es un error). */
   comparteCalle: { calle: string; zonaNombre: string; punto: Punto } | null;
@@ -124,6 +131,16 @@ export interface GuardarZonaEntrada {
 
 export type ResultadoGuardarZona = { ok: true; zona: ZonaDeCiudad } | { ok: false; mensaje: string };
 export type ResultadoAsignacion = { ok: true } | { ok: false; mensaje: string };
+/** `colportoresSinZona`: cuántos colportores quedaron sin zona por la baja. */
+export type ResultadoEliminarZona = { ok: true; colportoresSinZona: number } | { ok: false; mensaje: string };
+export type ResultadoAgregarCiudad = { ok: true; ciudad: CiudadDeCampania } | { ok: false; mensaje: string };
+
+/** Ciudad del catálogo global (nombre y provincia) que se puede sumar a la campaña. */
+export interface CiudadDelCatalogo {
+  id: string;
+  nombre: string;
+  provincia: string;
+}
 
 export interface FuenteDatosZonas {
   obtenerZonas(): Promise<DatosZonas>;
@@ -135,4 +152,12 @@ export interface FuenteDatosZonas {
   guardarZona(entrada: GuardarZonaEntrada): Promise<ResultadoGuardarZona>;
   /** `asignar_zona` (bff-coordinadores#4): pone o cambia la zona de un colportor inscripto. */
   asignarZona(campaniaId: string, usuarioId: string, zonaId: string): Promise<ResultadoAsignacion>;
+  /** «Quitar»: deja al colportor sin zona (RPC y endpoint nuevos, coord #20). */
+  quitarZona(campaniaId: string, usuarioId: string): Promise<ResultadoAsignacion>;
+  /** `baja_zona`: los colportores asignados quedan sin zona; las ubicaciones no se tocan. */
+  eliminarZona(campaniaId: string, zonaId: string): Promise<ResultadoEliminarZona>;
+  /** Busca por nombre o provincia en el catálogo, sin las ciudades que ya están en la campaña. */
+  buscarCiudades(campaniaId: string, texto: string): Promise<CiudadDelCatalogo[]>;
+  /** `agregar_ciudad_a_campania`. */
+  agregarCiudad(campaniaId: string, catalogoId: string): Promise<ResultadoAgregarCiudad>;
 }

@@ -2,24 +2,28 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { AccionNoDisponible } from "@/components/AccionNoDisponible";
+import { Button } from "@/components/ui/button";
 import type {
   CiudadDeCampania,
+  CiudadDelCatalogo,
   DatosZonas,
   Esquina,
   FormaZona,
   FuenteDatosZonas,
   Punto,
+  ResultadoAgregarCiudad,
   ResultadoAsignacion,
+  ResultadoEliminarZona,
   TipoForma,
   VistaPreviaZona,
   ZonaDeCiudad,
 } from "@/datos/equipo/zonas";
+import { BuscadorCiudad } from "@/features/equipo/zonas/BuscadorCiudad";
 import { MapaZonas } from "@/features/equipo/zonas/MapaZonas";
 import { PanelDetalleZona } from "@/features/equipo/zonas/PanelDetalleZona";
-import { formaCompleta, PanelFormularioZona, RADIO_INICIAL_M } from "@/features/equipo/zonas/PanelFormularioZona";
+import { formaCompleta, PanelFormularioZona, RADIO_INICIAL_M, textoColportoresSinZona } from "@/features/equipo/zonas/PanelFormularioZona";
 import { PanelListaZonas } from "@/features/equipo/zonas/PanelListaZonas";
-import type { DibujoEnMapa } from "@/features/equipo/zonas/tipos";
+import { type DibujoEnMapa, TEXTO_CUENTA_SUSPENDIDA } from "@/features/equipo/zonas/tipos";
 import { cn } from "@/lib/utils";
 
 /** Las operaciones que la vista le pide al BFF, ya atadas a la campaña por la página (server actions). */
@@ -29,6 +33,10 @@ export interface AccionesZonas {
   vistaPreviaZona: FuenteDatosZonas["vistaPreviaZona"];
   guardarZona: FuenteDatosZonas["guardarZona"];
   asignarZona: (usuarioId: string, zonaId: string) => Promise<ResultadoAsignacion>;
+  quitarZona: (usuarioId: string) => Promise<ResultadoAsignacion>;
+  eliminarZona: (zonaId: string) => Promise<ResultadoEliminarZona>;
+  buscarCiudades: (texto: string) => Promise<CiudadDelCatalogo[]>;
+  agregarCiudad: (catalogoId: string) => Promise<ResultadoAgregarCiudad>;
 }
 
 interface EstadoDibujo {
@@ -39,7 +47,10 @@ interface EstadoDibujo {
   tramos: Punto[][];
   nombreCentro: string | null;
   vistaPrevia: VistaPreviaZona | null;
+  /** Guardando o eliminando: nada más se puede tocar hasta que conteste el BFF. */
   guardando: boolean;
+  /** Se tocó «Eliminar zona» y falta la confirmación. */
+  confirmandoBaja: boolean;
   error: string | null;
 }
 
@@ -73,6 +84,7 @@ function dibujoNuevo(): Panel {
     nombreCentro: null,
     vistaPrevia: null,
     guardando: false,
+    confirmandoBaja: false,
     error: null,
   };
 }
@@ -91,6 +103,7 @@ function dibujoDeZona(zona: ZonaDeCiudad): Panel {
     nombreCentro: null,
     vistaPrevia: null,
     guardando: false,
+    confirmandoBaja: false,
     error: null,
   };
 }
@@ -114,6 +127,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const [panel, setPanel] = useState<Panel>({ tipo: "lista", asignandoA: null });
   const [aviso, setAviso] = useState<string | null>(null);
   const [hover, setHover] = useState<Esquina | null>(null);
+  const [buscador, setBuscador] = useState<{ ocupado: boolean; error: string | null } | null>(null);
+  const agregandoAhora = useRef(false);
   const versionHover = useRef(0);
   const temporizadorHover = useRef<ReturnType<typeof setTimeout>>(undefined);
   const versionVistaPrevia = useRef(0);
@@ -127,6 +142,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const asignandoAhora = useRef(false);
 
   const ciudad = ciudades.find((c) => c.id === ciudadId) ?? ciudades[0];
+  const catalogoEnCampania = useMemo(() => new Set(ciudades.map((c) => c.catalogoId)), [ciudades]);
   const guardando = panel.tipo === "dibujo" && panel.guardando;
   const forma = panel.tipo === "dibujo" ? panel.forma : null;
   const zonaEnEdicionId = panel.tipo === "dibujo" ? panel.zonaId : undefined;
@@ -214,6 +230,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
 
   const zonas = ciudad.zonas;
   const zonaDetalle = panel.tipo === "detalle" ? zonas.find((z) => z.id === panel.zonaId) : undefined;
+  const zonaEnEdicion = zonaEnEdicionId ? zonas.find((z) => z.id === zonaEnEdicionId) : undefined;
   const zonaElegidaId = zonaDetalle?.id ?? zonaEnEdicionId ?? null;
 
   function abandonarDibujo() {
@@ -233,7 +250,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   }
 
   function elegirCiudad(id: string) {
-    if (id === ciudadId || guardandoAhora.current) return;
+    if (id === ciudadId || guardandoAhora.current || agregandoAhora.current) return;
     abandonarDibujo();
     setCiudadId(id);
     setPanel({ tipo: "lista", asignandoA: null });
@@ -381,44 +398,119 @@ export function ZonasCampania({ datos, acciones }: Props) {
     }
   }
 
-  async function asignar(colportorId: string) {
+  /** Pone (o, con `null`, saca) la zona de un colportor en la lista de la ciudad y en los colportores de cada zona. */
+  function ponerZona(colportorId: string, zona: ZonaDeCiudad | null) {
+    setCiudades((todas) =>
+      todas.map((c) => {
+        if (c.id !== ciudad.id) return c;
+        const persona = c.colportores.find((p) => p.id === colportorId);
+        return {
+          ...c,
+          colportores: c.colportores.map((p) =>
+            p.id === colportorId ? { ...p, zonaId: zona?.id ?? null, zonaNombre: zona?.nombre ?? null } : p,
+          ),
+          zonas: c.zonas.map((z) => {
+            const sinEl = z.colportores.filter((p) => p.id !== colportorId);
+            return z.id === zona?.id && persona
+              ? { ...z, colportores: [...sinEl, { id: persona.id, nombre: persona.nombre, suspendido: persona.suspendido }] }
+              : { ...z, colportores: sinEl };
+          }),
+        };
+      }),
+    );
+  }
+
+  /** «Asignar a <zona>» y «Quitar»: una sola acción sobre colportores a la vez. */
+  async function cambiarZonaDeColportor(colportorId: string, accion: "asignar" | "quitar") {
     if (panel.tipo !== "detalle" || !zonaDetalle || !ciudad || asignandoAhora.current) return;
-    asignandoAhora.current = true;
     const zona = zonaDetalle;
+    const persona = ciudad.colportores.find((c) => c.id === colportorId);
+    if (accion === "asignar" && persona?.suspendido) {
+      setPanel({ ...panel, error: TEXTO_CUENTA_SUSPENDIDA });
+      return;
+    }
+    asignandoAhora.current = true;
     setPanel({ ...panel, ocupado: true, error: null });
     try {
-      const resultado = await acciones.asignarZona(colportorId, zona.id);
+      const resultado =
+        accion === "asignar" ? await acciones.asignarZona(colportorId, zona.id) : await acciones.quitarZona(colportorId);
       if (!resultado.ok) {
         setPanel((p) => (p.tipo === "detalle" ? { ...p, ocupado: false, error: resultado.mensaje } : p));
         return;
       }
-      const persona = ciudad.colportores.find((c) => c.id === colportorId);
+      ponerZona(colportorId, accion === "asignar" ? zona : null);
+      setPanel((p) =>
+        p.tipo === "detalle" && p.zonaId === zona.id ? { ...p, colportorId: null, ocupado: false, error: null } : p,
+      );
+      const nombre = persona?.nombre ?? "El colportor";
+      setAviso(accion === "asignar" ? `${nombre} quedó en ${zona.nombre}.` : `${nombre} quedó sin zona.`);
+    } catch {
+      setPanel((p) => (p.tipo === "detalle" ? { ...p, ocupado: false, error: MENSAJE_SIN_CONEXION } : p));
+    } finally {
+      asignandoAhora.current = false;
+    }
+  }
+
+  /** «Eliminar zona», ya confirmada: los colportores asignados quedan sin zona y las ubicaciones no se tocan. */
+  async function eliminarZona() {
+    if (panel.tipo !== "dibujo" || !panel.zonaId || !ciudad || guardandoAhora.current) return;
+    guardandoAhora.current = true;
+    const zonaId = panel.zonaId;
+    const nombre = zonas.find((z) => z.id === zonaId)?.nombre ?? panel.nombre;
+    cambiarDibujo(() => ({ guardando: true, error: null }));
+    try {
+      const resultado = await acciones.eliminarZona(zonaId);
+      if (!resultado.ok) {
+        cambiarDibujo(() => ({ guardando: false, error: resultado.mensaje }));
+        return;
+      }
       setCiudades((todas) =>
         todas.map((c) =>
           c.id !== ciudad.id
             ? c
             : {
                 ...c,
-                colportores: c.colportores.map((p) =>
-                  p.id === colportorId ? { ...p, zonaId: zona.id, zonaNombre: zona.nombre } : p,
-                ),
-                zonas: c.zonas.map((z) => {
-                  const sinEl = z.colportores.filter((p) => p.id !== colportorId);
-                  return z.id === zona.id && persona
-                    ? { ...z, colportores: [...sinEl, { id: persona.id, nombre: persona.nombre }] }
-                    : { ...z, colportores: sinEl };
-                }),
+                zonas: c.zonas.filter((z) => z.id !== zonaId),
+                colportores: c.colportores.map((p) => (p.zonaId === zonaId ? { ...p, zonaId: null, zonaNombre: null } : p)),
               },
         ),
       );
-      setPanel((p) =>
-        p.tipo === "detalle" && p.zonaId === zona.id ? { ...p, colportorId: null, ocupado: false, error: null } : p,
+      abandonarDibujo();
+      setPanel({ tipo: "lista", asignandoA: null });
+      setAviso(
+        resultado.colportoresSinZona > 0
+          ? `Zona «${nombre}» eliminada. ${textoColportoresSinZona(resultado.colportoresSinZona)}.`
+          : `Zona «${nombre}» eliminada.`,
       );
-      setAviso(`${persona?.nombre ?? "El colportor"} quedó en ${zona.nombre}.`);
     } catch {
-      setPanel((p) => (p.tipo === "detalle" ? { ...p, ocupado: false, error: MENSAJE_SIN_CONEXION } : p));
+      cambiarDibujo(() => ({ guardando: false, error: MENSAJE_SIN_CONEXION }));
     } finally {
-      asignandoAhora.current = false;
+      guardandoAhora.current = false;
+    }
+  }
+
+  /** «+ Agregar ciudad»: suma la ciudad elegida del catálogo y la deja seleccionada. */
+  async function agregarCiudad(elegida: CiudadDelCatalogo) {
+    if (agregandoAhora.current || guardandoAhora.current) return;
+    agregandoAhora.current = true;
+    setBuscador({ ocupado: true, error: null });
+    try {
+      const resultado = await acciones.agregarCiudad(elegida.id);
+      if (!resultado.ok) {
+        setBuscador({ ocupado: false, error: resultado.mensaje });
+        return;
+      }
+      const nueva = resultado.ciudad;
+      setCiudades((todas) => (todas.some((c) => c.catalogoId === nueva.catalogoId) ? todas : [...todas, nueva]));
+      abandonarDibujo();
+      setCiudadId(nueva.id);
+      setPanel({ tipo: "lista", asignandoA: null });
+      setBuscador(null);
+      setAviso(`«${nueva.nombre}» se agregó a la campaña.`);
+    } catch {
+      setBuscador({ ocupado: false, error: MENSAJE_SIN_CONEXION });
+    } finally {
+      agregandoAhora.current = false;
     }
   }
 
@@ -447,11 +539,29 @@ export function ZonasCampania({ datos, acciones }: Props) {
             </button>
           ))}
         </nav>
-        {/* El formulario para agregar una ciudad del catálogo todavía no está diseñado: queda sin comportamiento. */}
-        <AccionNoDisponible variant="outline" size="sm" className="text-nav font-semibold text-tinta-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={guardando}
+          aria-expanded={buscador !== null}
+          onClick={() => setBuscador((b) => (b ? (b.ocupado ? b : null) : { ocupado: false, error: null }))}
+          className="text-nav font-semibold text-tinta-2"
+        >
           + Agregar ciudad
-        </AccionNoDisponible>
+        </Button>
       </div>
+
+      {buscador ? (
+        <BuscadorCiudad
+          buscar={acciones.buscarCiudades}
+          excluidas={catalogoEnCampania}
+          ocupado={buscador.ocupado}
+          error={buscador.error}
+          onElegir={(c) => void agregarCiudad(c)}
+          onCerrar={() => setBuscador(null)}
+        />
+      ) : null}
 
       {aviso ? (
         <p role="status" className="rounded-control bg-exito-fondo px-3 py-2 text-cuerpo font-medium text-exito">
@@ -464,6 +574,18 @@ export function ZonasCampania({ datos, acciones }: Props) {
           {panel.tipo === "dibujo" ? (
             <PanelFormularioZona
               editando={panel.zonaId !== undefined}
+              baja={
+                panel.zonaId !== undefined && zonaEnEdicion
+                  ? {
+                      nombre: zonaEnEdicion.nombre,
+                      colportores: zonaEnEdicion.colportores.length,
+                      confirmando: panel.confirmandoBaja,
+                      onPedir: () => cambiarDibujo(() => ({ confirmandoBaja: true, error: null })),
+                      onCancelar: () => cambiarDibujo(() => ({ confirmandoBaja: false, error: null })),
+                      onConfirmar: () => void eliminarZona(),
+                    }
+                  : undefined
+              }
               nombre={panel.nombre}
               forma={panel.forma}
               nombreCentro={panel.nombreCentro}
@@ -487,7 +609,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
               error={panel.error}
               onCerrar={() => setPanel({ tipo: "lista", asignandoA: null })}
               onEditarForma={() => empezarEdicion(zonaDetalle)}
-              onAsignar={(id) => void asignar(id)}
+              onAsignar={(id) => void cambiarZonaDeColportor(id, "asignar")}
+              onQuitar={(id) => void cambiarZonaDeColportor(id, "quitar")}
             />
           ) : (
             <PanelListaZonas

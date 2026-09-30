@@ -1,6 +1,7 @@
 import type {
   CalleMapa,
   CiudadDeCampania,
+  CiudadDelCatalogo,
   DatosZonas,
   Esquina,
   FormaZona,
@@ -175,6 +176,7 @@ function armarCiudadMontevideo(): CiudadDeCampania {
   ];
   return {
     id: "ciudad-montevideo",
+    catalogoId: "cat-montevideo",
     nombre: "Montevideo",
     centro: CENTRO_MONTEVIDEO,
     zoom: 13.4,
@@ -187,6 +189,7 @@ function armarCiudadMontevideo(): CiudadDeCampania {
       { id: "col-4", nombre: "Joel Cabrera", zonaId: "zona-cerro-norte", zonaNombre: "Cerro Norte" },
       { id: "col-5", nombre: "Pablo Ferreira", zonaId: null, zonaNombre: null },
       { id: "col-6", nombre: "Noelia Acosta", zonaId: "zona-la-teja", zonaNombre: "La Teja" },
+      { id: "col-7", nombre: "Sergio Píriz", zonaId: null, zonaNombre: null, suspendido: true },
     ],
   };
 }
@@ -197,6 +200,7 @@ function armarCiudadLasPiedras(): CiudadDeCampania {
   const centroSur = g.desdeGrilla(5.5, 3);
   return {
     id: "ciudad-las-piedras",
+    catalogoId: "cat-las-piedras",
     nombre: "Las Piedras",
     centro: CENTRO_LAS_PIEDRAS,
     zoom: 13.4,
@@ -233,6 +237,7 @@ function armarCiudadCanelones(): CiudadDeCampania {
   return {
     calles: callesDe(grillaDe(CENTRO_CANELONES)),
     id: "ciudad-canelones",
+    catalogoId: "cat-canelones",
     nombre: "Canelones",
     centro: CENTRO_CANELONES,
     zoom: 13.4,
@@ -240,6 +245,30 @@ function armarCiudadCanelones(): CiudadDeCampania {
     colportores: [],
   };
 }
+
+export const MENSAJE_CUENTA_SUSPENDIDA = "Cuenta suspendida. Pedile a un administrador que la reactive.";
+
+interface CiudadDeCatalogoSimulada extends CiudadDelCatalogo {
+  centro: Punto;
+}
+
+/** Catálogo global inventado: las de la campaña salen de la búsqueda. */
+const CATALOGO: CiudadDeCatalogoSimulada[] = [
+  { id: "cat-montevideo", nombre: "Montevideo", provincia: "Montevideo", centro: CENTRO_MONTEVIDEO },
+  { id: "cat-las-piedras", nombre: "Las Piedras", provincia: "Canelones", centro: CENTRO_LAS_PIEDRAS },
+  { id: "cat-canelones", nombre: "Canelones", provincia: "Canelones", centro: CENTRO_CANELONES },
+  { id: "cat-salto", nombre: "Salto", provincia: "Salto", centro: { lon: -57.96, lat: -31.39 } },
+  { id: "cat-paysandu", nombre: "Paysandú", provincia: "Paysandú", centro: { lon: -58.08, lat: -32.32 } },
+  { id: "cat-rivera", nombre: "Rivera", provincia: "Rivera", centro: { lon: -55.54, lat: -30.9 } },
+  { id: "cat-maldonado", nombre: "Maldonado", provincia: "Maldonado", centro: { lon: -54.96, lat: -34.9 } },
+  { id: "cat-colonia", nombre: "Colonia del Sacramento", provincia: "Colonia", centro: { lon: -57.84, lat: -34.47 } },
+  { id: "cat-mercedes", nombre: "Mercedes", provincia: "Soriano", centro: { lon: -58.07, lat: -33.25 } },
+  { id: "cat-melo", nombre: "Melo", provincia: "Cerro Largo", centro: { lon: -54.18, lat: -32.37 } },
+  { id: "cat-tacuarembo", nombre: "Tacuarembó", provincia: "Tacuarembó", centro: { lon: -55.98, lat: -31.72 } },
+  { id: "cat-durazno", nombre: "Durazno", provincia: "Durazno", centro: { lon: -56.52, lat: -33.38 } },
+];
+
+const sinTildes = (t: string) => t.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
 export const DATOS_ZONAS_SIMULADO: DatosZonas = {
   campaniaId: "campania-verano-2026",
@@ -312,7 +341,6 @@ function vistaPrevia(entrada: VistaPreviaEntrada): VistaPreviaZona {
   if (!poligono) throw new Error("La forma todavía no está completa.");
 
   const otras = ciudad.zonas.filter((z) => z.id !== entrada.zonaId);
-  const anterior = ciudad.zonas.find((z) => z.id === entrada.zonaId);
   const puntos = muestras(grilla);
   const dentroNueva = puntos.filter((p) => contiene(poligono, p));
 
@@ -332,14 +360,9 @@ function vistaPrevia(entrada: VistaPreviaEntrada): VistaPreviaZona {
     break;
   }
 
-  const cambian = anterior
-    ? puntos.filter((p) => contiene(anterior.poligonoGeojson, p) !== contiene(poligono, p)).length
-    : 0;
-
   return {
     poligonoGeojson: poligono,
     ubicacionesIncluidas: ubicacionesPorMuestras(dentroNueva.length, grilla),
-    ubicacionesQueCambian: ubicacionesPorMuestras(cambian, grilla),
     superposicion,
     comparteCalle: superposicion ? null : comparteCalle(entrada.forma, otras),
   };
@@ -362,7 +385,7 @@ export const fuenteZonasSimulada: FuenteDatosZonas = {
     return vistaPrevia(entrada);
   },
 
-  /** Simulado: valida como lo haría `guardar_zona` y devuelve la zona, sin persistirla. */
+  /** Simulado: valida como lo haría `guardar_zona` (nombre y repetidos) y devuelve la zona, sin persistirla. */
   async guardarZona(entrada) {
     const ciudad = ciudadPorId(entrada.ciudadId);
     const nombre = entrada.nombre.trim();
@@ -370,13 +393,8 @@ export const fuenteZonasSimulada: FuenteDatosZonas = {
     if (ciudad.zonas.some((z) => z.id !== entrada.zonaId && z.nombre.toLowerCase() === nombre.toLowerCase())) {
       return { ok: false, mensaje: `Ya hay una zona llamada «${nombre}» en ${ciudad.nombre}.` };
     }
+    // Las zonas se pueden superponer (S56): el guardado no lo rechaza.
     const previa = vistaPrevia({ ciudadId: entrada.ciudadId, zonaId: entrada.zonaId, forma: entrada.forma });
-    if (previa.superposicion) {
-      return {
-        ok: false,
-        mensaje: `Esta zona se superpone con «${previa.superposicion.zonaNombre}». Ajustá el borde para que solo compartan la calle.`,
-      };
-    }
     const anterior = ciudad.zonas.find((z) => z.id === entrada.zonaId);
     const { forma } = entrada;
     return {
@@ -396,8 +414,45 @@ export const fuenteZonasSimulada: FuenteDatosZonas = {
     };
   },
 
-  /** Simulado: no persiste nada; la vista lleva su propio estado local. */
-  async asignarZona() {
+  /** Simulado: no persiste nada; la vista lleva su propio estado local. Rechaza a una cuenta suspendida. */
+  async asignarZona(_campaniaId, usuarioId) {
+    const persona = DATOS_ZONAS_SIMULADO.ciudades.flatMap((c) => c.colportores).find((p) => p.id === usuarioId);
+    if (persona?.suspendido) return { ok: false, mensaje: MENSAJE_CUENTA_SUSPENDIDA };
     return { ok: true };
+  },
+
+  async quitarZona() {
+    return { ok: true };
+  },
+
+  async eliminarZona(_campaniaId, zonaId) {
+    const zona = DATOS_ZONAS_SIMULADO.ciudades.flatMap((c) => c.zonas).find((z) => z.id === zonaId);
+    return { ok: true, colportoresSinZona: zona?.colportores.length ?? 0 };
+  },
+
+  async buscarCiudades(_campaniaId, texto) {
+    const enCampania = new Set(DATOS_ZONAS_SIMULADO.ciudades.map((c) => c.catalogoId));
+    const buscado = sinTildes(texto.trim());
+    return CATALOGO.filter(
+      (c) => !enCampania.has(c.id) && (buscado === "" || sinTildes(`${c.nombre} ${c.provincia}`).includes(buscado)),
+    ).map(({ id, nombre, provincia }) => ({ id, nombre, provincia }));
+  },
+
+  async agregarCiudad(_campaniaId, catalogoId) {
+    const elegida = CATALOGO.find((c) => c.id === catalogoId);
+    if (!elegida) return { ok: false, mensaje: "Esa ciudad ya no está en el catálogo." };
+    return {
+      ok: true,
+      ciudad: {
+        id: `ciudad-${elegida.id.replace(/^cat-/, "")}`,
+        catalogoId: elegida.id,
+        nombre: elegida.nombre,
+        centro: elegida.centro,
+        zoom: 13.4,
+        calles: callesDe(grillaDe(elegida.centro)),
+        zonas: [],
+        colportores: [],
+      },
+    };
   },
 };

@@ -8,6 +8,7 @@ import { fuenteZonasSimulada } from "@/datos/equipo/zonas/simulado";
 
 export type {
   CalleMapa,
+  CiudadDelCatalogo,
   CiudadDeCampania,
   ColportorDeCiudad,
   ColportorEnZona,
@@ -18,7 +19,9 @@ export type {
   GuardarZonaEntrada,
   PoligonoGeojson,
   Punto,
+  ResultadoAgregarCiudad,
   ResultadoAsignacion,
+  ResultadoEliminarZona,
   ResultadoGuardarZona,
   TipoForma,
   VistaPreviaEntrada,

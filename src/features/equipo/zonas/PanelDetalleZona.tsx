@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CiudadDeCampania, ZonaDeCiudad } from "@/datos/equipo/zonas";
 import { iniciales } from "@/features/equipo/candidatos";
+import { TEXTO_CUENTA_SUSPENDIDA } from "@/features/equipo/zonas/tipos";
 import { descripcionForma } from "@/features/equipo/zonas/PanelListaZonas";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,10 @@ interface Props {
   onCerrar: () => void;
   onEditarForma: () => void;
   onAsignar: (colportorId: string) => void;
+  /** «Quitar»: deja al colportor sin zona. */
+  onQuitar: (colportorId: string) => void;
 }
+
 
 function Avatar({ nombre, alerta }: { nombre: string; alerta?: boolean }) {
   return (
@@ -44,6 +48,7 @@ export function PanelDetalleZona({
   onCerrar,
   onEditarForma,
   onAsignar,
+  onQuitar,
 }: Props) {
   const [elegidoId, setElegidoId] = useState<string | null>(colportorInicialId);
   const [abierto, setAbierto] = useState(false);
@@ -87,7 +92,21 @@ export function PanelDetalleZona({
             {zona.colportores.map((c) => (
               <li key={c.id} className="flex items-center gap-2.5 text-nav text-tinta">
                 <Avatar nombre={c.nombre} />
-                {c.nombre}
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="break-words">{c.nombre}</span>
+                  {c.suspendido ? <span className="text-chico text-peligro">⊘ Suspendida</span> : null}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={ocupado}
+                  onClick={() => onQuitar(c.id)}
+                  aria-label={`Quitar a ${c.nombre} de ${zona.nombre}`}
+                  className="text-chico font-semibold text-tinta-2"
+                >
+                  Quitar
+                </Button>
               </li>
             ))}
           </ul>
@@ -132,24 +151,29 @@ export function PanelDetalleZona({
                 </li>
               ) : null}
               {ciudad.colportores.map((c) => (
-                <li key={c.id} role="option" aria-selected={c.id === elegidoId}>
+                <li key={c.id} role="option" aria-selected={c.id === elegidoId} aria-disabled={c.suspendido ? "true" : undefined}>
                   <button
                     type="button"
+                    disabled={c.suspendido}
                     onClick={() => {
                       setElegidoId(c.id);
                       setAbierto(false);
                     }}
                     className={cn(
-                      "flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left hover:bg-fondo focus-visible:bg-fondo focus-visible:outline-none",
+                      "flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left hover:bg-fondo focus-visible:bg-fondo focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-transparent",
                       c.id === elegidoId && "bg-superficie-calida",
                     )}
                   >
                     <Avatar nombre={c.nombre} alerta={c.zonaId === null} />
                     <span className="flex flex-col">
                       <span className="text-nav font-semibold text-tinta">{c.nombre}</span>
-                      <span className={cn("text-chico", c.zonaId === null ? "text-alerta" : "text-tinta-suave")}>
-                        {c.zonaNombre ? `hoy en ${c.zonaNombre}` : "◔ Sin zona"}
-                      </span>
+                      {c.suspendido ? (
+                        <span className="text-chico text-peligro">⊘ {TEXTO_CUENTA_SUSPENDIDA}</span>
+                      ) : (
+                        <span className={cn("text-chico", c.zonaId === null ? "text-alerta" : "text-tinta-suave")}>
+                          {c.zonaNombre ? `hoy en ${c.zonaNombre}` : "◔ Sin zona"}
+                        </span>
+                      )}
                     </span>
                   </button>
                 </li>

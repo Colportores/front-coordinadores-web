@@ -12,8 +12,23 @@ export const AYUDA_RADIAL = "Hacé clic en el mapa para poner el centro y arrast
 export const AYUDA_ESQUINAS =
   "Hacé clic en las esquinas en orden. El borde sigue las calles; para cerrar, tocá la esquina 1.";
 
+/** «Eliminar zona» (solo al editar): pide confirmación y deja sin zona a los colportores asignados. */
+export interface BajaZona {
+  nombre: string;
+  colportores: number;
+  confirmando: boolean;
+  onPedir: () => void;
+  onCancelar: () => void;
+  onConfirmar: () => void;
+}
+
+export function textoColportoresSinZona(cantidad: number): string {
+  return cantidad === 1 ? "1 colportor queda sin zona" : `${cantidad} colportores quedan sin zona`;
+}
+
 interface Props {
   editando: boolean;
+  baja?: BajaZona;
   nombre: string;
   forma: FormaZona;
   /** Nombre de la esquina más cercana al centro de una zona radial. */
@@ -52,6 +67,7 @@ export function formaCompleta(forma: FormaZona): boolean {
 /** Estados 2 y 3 del diseño: nueva zona (radial o por esquinas) y edición de la forma de una zona. */
 export function PanelFormularioZona({
   editando,
+  baja,
   nombre,
   forma,
   nombreCentro,
@@ -66,7 +82,7 @@ export function PanelFormularioZona({
   onCancelar,
 }: Props) {
   const esquinas = forma.esquinas ?? [];
-  const puedeGuardar = nombre.trim() !== "" && formaCompleta(forma) && vistaPrevia !== null && !vistaPrevia.superposicion && !guardando;
+  const puedeGuardar = nombre.trim() !== "" && formaCompleta(forma) && vistaPrevia !== null && !guardando;
 
   return (
     <section aria-label={editando ? "Editar zona" : "Nueva zona"} className="flex flex-col gap-3.5 rounded-tarjeta border border-borde bg-superficie px-[18px] py-4">
@@ -184,18 +200,18 @@ export function PanelFormularioZona({
         </div>
       )}
 
-      {vistaPrevia && !vistaPrevia.superposicion ? (
+      {vistaPrevia ? (
         <p className="text-cuerpo text-tinta-2">
-          {editando
-            ? vistaPrevia.ubicacionesQueCambian === 0
-              ? "Ninguna ubicación cambia de zona."
-              : `Al guardar, ${vistaPrevia.ubicacionesQueCambian} ubicaciones cambian de zona.`
-            : `Incluye ${vistaPrevia.ubicacionesIncluidas} ubicaciones ya registradas.`}
+          {vistaPrevia.ubicacionesIncluidas === 0
+            ? "No incluye ubicaciones todavía."
+            : vistaPrevia.ubicacionesIncluidas === 1
+              ? "Incluye 1 ubicación."
+              : `Incluye ${vistaPrevia.ubicacionesIncluidas} ubicaciones.`}
         </p>
       ) : null}
       {vistaPrevia?.superposicion ? (
-        <p role="alert" className="rounded-control bg-peligro-fondo px-3 py-2 text-cuerpo font-medium text-peligro">
-          Esta zona se superpone con «{vistaPrevia.superposicion.zonaNombre}». Ajustá el borde para que solo compartan la calle.
+        <p role="status" className="rounded-control bg-alerta-fondo px-3 py-2 text-cuerpo font-medium text-alerta">
+          Esta zona se superpone con «{vistaPrevia.superposicion.zonaNombre}» en el tramo marcado en rojo. Podés guardarla igual.
         </p>
       ) : null}
       {error ? (
@@ -205,6 +221,23 @@ export function PanelFormularioZona({
       ) : null}
 
       <p className="text-chico text-tinta-suave">{forma.tipoForma === "RADIAL" ? AYUDA_RADIAL : AYUDA_ESQUINAS}</p>
+
+      {baja?.confirmando ? (
+        <div role="alertdialog" aria-label="Eliminar zona" className="flex flex-col gap-2.5 rounded-control border border-peligro bg-peligro-fondo px-3 py-3">
+          <p className="text-cuerpo font-medium text-tinta">
+            ¿Eliminar la zona «{baja.nombre}»?{" "}
+            {baja.colportores === 0 ? "Nadie la trabaja." : `${textoColportoresSinZona(baja.colportores)}.`} Las ubicaciones no se tocan.
+          </p>
+          <div className="flex items-center gap-2.5">
+            <Button type="button" variant="destructive" disabled={guardando} onClick={baja.onConfirmar} className="min-h-9 text-nav font-semibold">
+              Sí, eliminar zona
+            </Button>
+            <Button type="button" variant="outline" disabled={guardando} onClick={baja.onCancelar} className="min-h-9 text-nav font-semibold text-tinta-2">
+              No, conservarla
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-2.5">
         <Button
@@ -218,6 +251,17 @@ export function PanelFormularioZona({
         <Button type="button" variant="outline" disabled={guardando} onClick={onCancelar} className="min-h-9 text-nav font-semibold text-tinta-2">
           Cancelar
         </Button>
+        {baja && !baja.confirmando ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={guardando}
+            onClick={baja.onPedir}
+            className="ml-auto min-h-9 text-nav font-semibold text-peligro"
+          >
+            Eliminar zona
+          </Button>
+        ) : null}
       </div>
     </section>
   );

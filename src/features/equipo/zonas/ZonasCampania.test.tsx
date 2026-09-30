@@ -2,7 +2,6 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
 import type { CiudadDeCampania, DatosZonas, Punto, ResultadoGuardarZona } from "@/datos/equipo/zonas";
 import { DATOS_ZONAS_SIMULADO, fuenteZonasSimulada } from "@/datos/equipo/zonas/simulado";
 import { type AccionesZonas, ZonasCampania } from "@/features/equipo/zonas/ZonasCampania";
@@ -31,6 +30,10 @@ function acciones(sobre: Partial<AccionesZonas> = {}): AccionesZonas {
     vistaPreviaZona: vi.fn((e) => fuenteZonasSimulada.vistaPreviaZona(e)),
     guardarZona: vi.fn((e) => fuenteZonasSimulada.guardarZona(e)),
     asignarZona: vi.fn(async () => ({ ok: true as const })),
+    quitarZona: vi.fn(async () => ({ ok: true as const })),
+    eliminarZona: vi.fn((id: string) => fuenteZonasSimulada.eliminarZona("campania-verano-2026", id)),
+    buscarCiudades: vi.fn((t: string) => fuenteZonasSimulada.buscarCiudades("campania-verano-2026", t)),
+    agregarCiudad: vi.fn((id: string) => fuenteZonasSimulada.agregarCiudad("campania-verano-2026", id)),
     ...sobre,
   };
 }
@@ -67,7 +70,7 @@ afterEach(() => {
 
 describe("ZonasCampania", () => {
   describe("01 · zonas de la campaña en una ciudad", () => {
-    it("muestra las ciudades con su cantidad de zonas y «+ Agregar ciudad» sin formulario", () => {
+    it("muestra las ciudades con su cantidad de zonas y «+ Agregar ciudad» habilitado", () => {
       montar();
 
       expect(screen.getByRole("heading", { name: "Zonas · Verano 2026" })).toBeInTheDocument();
@@ -75,9 +78,7 @@ describe("ZonasCampania", () => {
       expect(within(ciudades).getByRole("button", { name: /Montevideo/ })).toHaveTextContent("4 zonas");
       expect(within(ciudades).getByRole("button", { name: /Las Piedras/ })).toHaveTextContent("2 zonas");
       expect(within(ciudades).getByRole("button", { name: /Canelones/ })).toHaveTextContent("sin zonas");
-      const agregar = screen.getByRole("button", { name: "+ Agregar ciudad" });
-      expect(agregar).toHaveAttribute("aria-disabled", "true");
-      expect(agregar).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
+      expect(screen.getByRole("button", { name: "+ Agregar ciudad" })).toBeEnabled();
     });
 
     it("lista las zonas con su forma, sus colportores y sus ubicaciones", () => {
@@ -98,8 +99,18 @@ describe("ZonasCampania", () => {
       const sinZona = screen.getByRole("region", { name: "Sin zona en Montevideo" });
 
       expect(within(sinZona).getByText("Pablo Ferreira")).toBeInTheDocument();
-      expect(within(sinZona).getByText("Sin zona en Montevideo")).toBeInTheDocument();
+      expect(within(sinZona).getAllByText("Sin zona en Montevideo")).toHaveLength(2);
       expect(within(sinZona).getByRole("button", { name: "Asignar zona a Pablo Ferreira" })).toHaveTextContent("Asignar");
+    });
+
+    it("un colportor suspendido aparece marcado en «Sin zona» y no se le puede asignar", () => {
+      montar();
+      const sinZona = screen.getByRole("region", { name: "Sin zona en Montevideo" });
+
+      expect(within(sinZona).getByText("Sergio Píriz")).toBeInTheDocument();
+      expect(within(sinZona).getByText(/Cuenta suspendida\. Pedile a un administrador que la reactive\./)).toBeInTheDocument();
+      expect(within(sinZona).getByRole("button", { name: "Asignar zona a Sergio Píriz" })).toBeDisabled();
+      expect(within(sinZona).getByRole("button", { name: "Asignar zona a Pablo Ferreira" })).toBeEnabled();
     });
 
     it("le pasa al mapa las zonas de la ciudad", () => {
@@ -138,7 +149,7 @@ describe("ZonasCampania", () => {
 
       await clicEnMapa(CENTRO_LIBRE);
 
-      expect(await screen.findByText(/Incluye \d+ ubicaciones ya registradas\./)).toBeInTheDocument();
+      expect(await screen.findByText(/^Incluye \d+ ubicaciones\.$/)).toBeInTheDocument();
       expect(screen.getByRole("spinbutton", { name: /RADIO/ })).toHaveValue(400);
       expect(await screen.findByText("Pororó y Egipto")).toBeInTheDocument();
       expect(mapa.props?.dibujo?.rotuloCentro).toEqual({ nombre: "Casabó", detalle: "400 m" });
@@ -231,7 +242,7 @@ describe("ZonasCampania", () => {
 
       await clicEnMapa(nodo(2, 3));
 
-      expect(await screen.findByText(/Incluye \d+ ubicaciones ya registradas\./)).toBeInTheDocument();
+      expect(await screen.findByText(/^Incluye \d+ ubicaciones\.$/)).toBeInTheDocument();
       expect(mapa.props?.dibujo?.poligono).not.toBeNull();
     });
 
@@ -245,17 +256,22 @@ describe("ZonasCampania", () => {
       expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled();
     });
 
-    it("si se superpone no deja guardar, avisa con quién y marca en rojo el tramo en conflicto", async () => {
-      montar();
+    it("si se superpone avisa con quién y marca en rojo el tramo, pero deja guardar", async () => {
+      const acc = montar();
       await empezarPorEsquinas();
       await marcar([1, 3], [3, 3], [3, 4], [1, 4]);
       await clicEnMapa(nodo(1, 3));
 
-      expect(await screen.findByRole("alert")).toHaveTextContent(
-        "Esta zona se superpone con «Belvedere». Ajustá el borde para que solo compartan la calle.",
+      expect(await screen.findByRole("status")).toHaveTextContent(
+        "Esta zona se superpone con «Belvedere» en el tramo marcado en rojo. Podés guardarla igual.",
       );
       expect(mapa.props?.dibujo?.conflicto?.length).toBeGreaterThan(1);
-      expect(screen.getByRole("button", { name: "Guardar zona" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Guardar zona" }));
+
+      expect(acc.guardarZona).toHaveBeenCalledTimes(1);
+      expect(await screen.findByText("Zona «Santa Catalina» guardada.")).toBeInTheDocument();
     });
 
     it("«Quitar» saca la última esquina y reabre una forma cerrada", async () => {
@@ -337,6 +353,7 @@ describe("ZonasCampania", () => {
         "JCJoel Cabrerahoy en Cerro Norte",
         "PFPablo Ferreira◔ Sin zona",
         "NANoelia Acostahoy en La Teja",
+        "SPSergio Píriz⊘ Cuenta suspendida. Pedile a un administrador que la reactive.",
       ]);
     });
 
@@ -359,7 +376,7 @@ describe("ZonasCampania", () => {
       const detalle = screen.getByRole("region", { name: "Zona Belvedere" });
       expect(within(detalle).getByText("COLPORTORES · 1")).toBeInTheDocument();
       await userEvent.click(within(detalle).getByRole("button", { name: "Cerrar el detalle de la zona" }));
-      expect(screen.queryByRole("region", { name: "Sin zona en Montevideo" })).not.toBeInTheDocument();
+      expect(within(screen.getByRole("region", { name: "Sin zona en Montevideo" })).queryByText("Pablo Ferreira")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Ver la zona Belvedere" })).toHaveTextContent("Pablo Ferreira");
     });
 
@@ -398,7 +415,7 @@ describe("ZonasCampania", () => {
       expect(screen.getByRole("button", { name: "Asignar a Belvedere" })).toBeEnabled();
     });
 
-    it("«Editar forma» abre la forma de la zona y avisa cuántas ubicaciones cambian de zona antes de guardar", async () => {
+    it("«Editar forma» abre la forma de la zona y avisa cuántas ubicaciones incluye antes de guardar", async () => {
       montar();
       await userEvent.click(screen.getByRole("button", { name: "Ver la zona Paso de la Arena" }));
       await userEvent.click(screen.getByRole("button", { name: "Editar forma" }));
@@ -407,7 +424,7 @@ describe("ZonasCampania", () => {
 
       await act(async () => mapa.props?.onRadio(300));
 
-      expect(await screen.findByText(/Al guardar, \d+ ubicaciones cambian de zona\./)).toBeInTheDocument();
+      expect(await screen.findByText(/^Incluye \d+ ubicaciones\.$/)).toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: "Guardar zona" }));
       expect(await screen.findByRole("region", { name: "Zona Paso de la Arena" })).toHaveTextContent("Radial · 300 m");
     });
@@ -681,6 +698,485 @@ describe("ZonasCampania", () => {
       await userEvent.keyboard("{Escape}");
 
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("«+ Agregar ciudad»: buscador del catálogo", () => {
+    const buscarCiudades = (texto: string) => fuenteZonasSimulada.buscarCiudades("campania-verano-2026", texto);
+
+    async function abrirBuscador() {
+      await userEvent.click(screen.getByRole("button", { name: "+ Agregar ciudad" }));
+      return screen.getByRole("region", { name: "Agregar ciudad" });
+    }
+
+    it("abre un buscador con el catálogo, sin las ciudades que ya están en la campaña", async () => {
+      montar();
+      const buscador = await abrirBuscador();
+
+      const lista = await within(buscador).findByRole("list", { name: "Ciudades del catálogo" });
+      const nombres = within(lista).getAllByRole("listitem").map((li) => li.textContent);
+      expect(nombres).toContain("SaltoSalto");
+      expect(nombres).toContain("PaysandúPaysandú");
+      expect(nombres.join("|")).not.toMatch(/Montevideo|Las Piedras|Canelones/);
+      expect(within(buscador).getByRole("searchbox", { name: /BUSCAR POR NOMBRE O PROVINCIA/ })).toHaveFocus();
+    });
+
+    it("mientras busca dice «Buscando ciudades…»", async () => {
+      let liberar: (c: Awaited<ReturnType<typeof buscarCiudades>>) => void = () => undefined;
+      montar({ buscarCiudades: vi.fn(() => new Promise<Awaited<ReturnType<typeof buscarCiudades>>>((r) => (liberar = r))) });
+      const buscador = await abrirBuscador();
+
+      expect(await within(buscador).findByText("Buscando ciudades…")).toBeInTheDocument();
+
+      await act(async () => liberar([{ id: "cat-salto", nombre: "Salto", provincia: "Salto" }]));
+      expect(within(buscador).queryByText("Buscando ciudades…")).not.toBeInTheDocument();
+      expect(within(buscador).getByRole("button", { name: "Agregar Salto, Salto" })).toBeInTheDocument();
+    });
+
+    it("filtra al escribir por nombre o provincia y dice cuando no hay coincidencias", async () => {
+      const acc = montar();
+      const buscador = await abrirBuscador();
+      await within(buscador).findByRole("list", { name: "Ciudades del catálogo" });
+
+      await userEvent.type(within(buscador).getByRole("searchbox"), "soriano");
+      expect(await within(buscador).findByRole("button", { name: "Agregar Mercedes, Soriano" })).toBeInTheDocument();
+      expect(within(buscador).queryByRole("button", { name: /Agregar Salto/ })).not.toBeInTheDocument();
+      expect(acc.buscarCiudades).toHaveBeenLastCalledWith("soriano");
+
+      await userEvent.clear(within(buscador).getByRole("searchbox"));
+      await userEvent.type(within(buscador).getByRole("searchbox"), "zzz");
+      expect(await within(buscador).findByText("No hay ciudades que coincidan con «zzz».")).toBeInTheDocument();
+    });
+
+    it("si el catálogo no tiene más ciudades que ofrecer, lo dice", async () => {
+      montar({ buscarCiudades: vi.fn(async () => []) });
+      const buscador = await abrirBuscador();
+
+      expect(await within(buscador).findByText("Ya están todas las ciudades del catálogo en la campaña.")).toBeInTheDocument();
+    });
+
+    it("elegir una ciudad agrega su pestaña, la deja seleccionada y cierra el buscador", async () => {
+      const acc = montar();
+      const buscador = await abrirBuscador();
+      await userEvent.click(await within(buscador).findByRole("button", { name: "Agregar Salto, Salto" }));
+
+      expect(acc.agregarCiudad).toHaveBeenCalledWith("cat-salto");
+      expect(await screen.findByText("«Salto» se agregó a la campaña.")).toBeInTheDocument();
+      const salto = within(screen.getByRole("navigation", { name: "Ciudades de la campaña" })).getByRole("button", { name: /Salto/ });
+      expect(salto).toHaveAttribute("aria-current", "true");
+      expect(salto).toHaveTextContent("sin zonas");
+      expect(screen.getByRole("region", { name: "Zonas de Salto" })).toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Agregar ciudad" })).not.toBeInTheDocument();
+    });
+
+    it("una ciudad recién agregada no se vuelve a ofrecer", async () => {
+      montar();
+      const buscador = await abrirBuscador();
+      await userEvent.click(await within(buscador).findByRole("button", { name: "Agregar Salto, Salto" }));
+      await screen.findByText("«Salto» se agregó a la campaña.");
+
+      const otra = await abrirBuscador();
+      await within(otra).findByRole("list", { name: "Ciudades del catálogo" });
+
+      expect(within(otra).queryByRole("button", { name: /Agregar Salto/ })).not.toBeInTheDocument();
+      expect(within(otra).getByRole("button", { name: "Agregar Paysandú, Paysandú" })).toBeInTheDocument();
+    });
+
+    it("un doble clic en una ciudad la agrega una sola vez", async () => {
+      const acc = montar({
+        agregarCiudad: vi.fn(async (id: string) => {
+          await new Promise((r) => setTimeout(r, 30));
+          return fuenteZonasSimulada.agregarCiudad("campania-verano-2026", id);
+        }),
+      });
+      const buscador = await abrirBuscador();
+
+      await userEvent.dblClick(await within(buscador).findByRole("button", { name: "Agregar Salto, Salto" }));
+
+      expect(await screen.findByText("«Salto» se agregó a la campaña.")).toBeInTheDocument();
+      expect(acc.agregarCiudad).toHaveBeenCalledTimes(1);
+      expect(screen.getAllByRole("button", { name: /Salto/ })).toHaveLength(1);
+    });
+
+    it("si agregar falla, avisa, nada queda trabado y se puede reintentar", async () => {
+      const agregar = vi
+        .fn<AccionesZonas["agregarCiudad"]>()
+        .mockRejectedValueOnce(new Error("sin red"))
+        .mockResolvedValueOnce({ ok: false, mensaje: "Esa ciudad ya está en la campaña." })
+        .mockImplementation((id) => fuenteZonasSimulada.agregarCiudad("campania-verano-2026", id));
+      montar({ agregarCiudad: agregar });
+      const buscador = await abrirBuscador();
+      const salto = await within(buscador).findByRole("button", { name: "Agregar Salto, Salto" });
+
+      await userEvent.click(salto);
+      expect(await within(buscador).findByRole("alert")).toHaveTextContent("No se pudo conectar. Probá de nuevo en unos segundos.");
+      expect(within(buscador).getByRole("button", { name: "Agregar Salto, Salto" })).toBeEnabled();
+      expect(within(buscador).getByRole("searchbox")).toBeEnabled();
+      expect(within(buscador).queryByText("Agregando la ciudad…")).not.toBeInTheDocument();
+
+      await userEvent.click(within(buscador).getByRole("button", { name: "Agregar Salto, Salto" }));
+      expect(await within(buscador).findByRole("alert")).toHaveTextContent("Esa ciudad ya está en la campaña.");
+
+      await userEvent.click(within(buscador).getByRole("button", { name: "Agregar Salto, Salto" }));
+      expect(await screen.findByText("«Salto» se agregó a la campaña.")).toBeInTheDocument();
+    });
+
+    it("si la búsqueda falla (sin conexión), avisa y «Reintentar» vuelve a buscar", async () => {
+      const buscar = vi
+        .fn<AccionesZonas["buscarCiudades"]>()
+        .mockRejectedValueOnce(new Error("sin red"))
+        .mockImplementation(buscarCiudades);
+      montar({ buscarCiudades: buscar });
+      const buscador = await abrirBuscador();
+
+      expect(await within(buscador).findByRole("alert")).toHaveTextContent(
+        "No se pudo buscar en el catálogo. Revisá la conexión y probá de nuevo.",
+      );
+
+      await userEvent.click(within(buscador).getByRole("button", { name: "Reintentar" }));
+
+      expect(await within(buscador).findByRole("button", { name: "Agregar Salto, Salto" })).toBeInTheDocument();
+      expect(within(buscador).queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("dos búsquedas seguidas: la respuesta vieja no pisa a la última", async () => {
+      const pendientes: { texto: string; liberar: () => void }[] = [];
+      montar({
+        buscarCiudades: vi.fn(
+          (texto: string) =>
+            new Promise<Awaited<ReturnType<typeof buscarCiudades>>>((resolver) => {
+              pendientes.push({ texto, liberar: () => resolver(buscarCiudades(texto)) });
+            }),
+        ),
+      });
+      const buscador = await abrirBuscador();
+      await waitFor(() => expect(pendientes.length).toBe(1));
+      await userEvent.type(within(buscador).getByRole("searchbox"), "salto");
+      await waitFor(() => expect(pendientes.at(-1)?.texto).toBe("salto"));
+
+      await act(async () => pendientes.at(-1)?.liberar());
+      await within(buscador).findByRole("button", { name: "Agregar Salto, Salto" });
+      await act(async () => pendientes[0].liberar());
+
+      expect(within(buscador).getAllByRole("listitem")).toHaveLength(1);
+    });
+
+    it("«✕» y Escape lo cierran, y al volver a abrirlo empieza limpio", async () => {
+      montar();
+      const buscador = await abrirBuscador();
+      await userEvent.type(within(buscador).getByRole("searchbox"), "sal");
+
+      await userEvent.click(within(buscador).getByRole("button", { name: "Cerrar el buscador de ciudades" }));
+      expect(screen.queryByRole("region", { name: "Agregar ciudad" })).not.toBeInTheDocument();
+
+      const otro = await abrirBuscador();
+      expect(within(otro).getByRole("searchbox")).toHaveValue("");
+      await userEvent.keyboard("{Escape}");
+      expect(screen.queryByRole("region", { name: "Agregar ciudad" })).not.toBeInTheDocument();
+    });
+
+    it("con un catálogo de 200 ciudades y nombres larguísimos, las muestra todas sin romperse", async () => {
+      const muchas = Array.from({ length: 200 }, (_, i) => ({
+        id: `cat-${i}`,
+        nombre: `Ciudad ${i} ${"de nombre larguísimo ".repeat(6)}`.trim(),
+        provincia: `Provincia ${i}`,
+      }));
+      montar({ buscarCiudades: vi.fn(async () => muchas) });
+      const buscador = await abrirBuscador();
+
+      expect(await within(buscador).findAllByRole("listitem")).toHaveLength(200);
+    });
+  });
+
+  describe("«Eliminar zona»", () => {
+    async function editar(zona: string) {
+      await userEvent.click(screen.getByRole("button", { name: `Ver la zona ${zona}` }));
+      await userEvent.click(screen.getByRole("button", { name: "Editar forma" }));
+    }
+
+    it("está en «Editar zona», no en el detalle ni en «Nueva zona»", async () => {
+      montar();
+      await userEvent.click(screen.getByRole("button", { name: "Ver la zona Cerro Norte" }));
+      expect(screen.queryByRole("button", { name: "Eliminar zona" })).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Editar forma" }));
+      expect(screen.getByRole("button", { name: "Eliminar zona" })).toBeEnabled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+      await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+      expect(screen.queryByRole("button", { name: "Eliminar zona" })).not.toBeInTheDocument();
+    });
+
+    it("pide confirmación y dice cuántos colportores quedan sin zona; «No, conservarla» no toca nada", async () => {
+      const acc = montar();
+      await editar("Cerro Norte");
+
+      await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
+
+      const confirmacion = screen.getByRole("alertdialog", { name: "Eliminar zona" });
+      expect(confirmacion).toHaveTextContent("¿Eliminar la zona «Cerro Norte»? 2 colportores quedan sin zona. Las ubicaciones no se tocan.");
+      await userEvent.click(within(confirmacion).getByRole("button", { name: "No, conservarla" }));
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      expect(acc.eliminarZona).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Eliminar zona" })).toBeEnabled();
+    });
+
+    it("con un solo colportor habla en singular y sin colportores dice que nadie la trabaja", async () => {
+      montar();
+      await editar("Paso de la Arena");
+      await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
+      expect(screen.getByRole("alertdialog")).toHaveTextContent("1 colportor queda sin zona.");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+      await editar("Belvedere");
+      await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
+      expect(screen.getByRole("alertdialog")).toHaveTextContent("Nadie la trabaja. Las ubicaciones no se tocan.");
+    });
+
+    it("al confirmar la zona sale de la lista y de la ciudad, y sus colportores quedan en «Sin zona»", async () => {
+      const acc = montar();
+      await editar("Cerro Norte");
+      await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Sí, eliminar zona" }));
+
+      expect(acc.eliminarZona).toHaveBeenCalledWith("zona-cerro-norte");
+      expect(await screen.findByText("Zona «Cerro Norte» eliminada. 2 colportores quedan sin zona.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Ver la zona Cerro Norte" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Montevideo/ })).toHaveTextContent("3 zonas");
+      const sinZona = screen.getByRole("region", { name: "Sin zona en Montevideo" });
+      expect(within(sinZona).getByText("Diego Rocha")).toBeInTheDocument();
+      expect(within(sinZona).getByText("Joel Cabrera")).toBeInTheDocument();
+      expect(mapa.props?.zonas.map((z) => z.nombre)).not.toContain("Cerro Norte");
+    });
+
+    it("una zona sin colportores se elimina sin avisar de colportores sin zona", async () => {
+      montar();
+      await editar("Belvedere");
+      await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
+      await userEvent.click(screen.getByRole("button", { name: "Sí, eliminar zona" }));
+
+      expect(await screen.findByText("Zona «Belvedere» eliminada.")).toBeInTheDocument();
+    });
+
+    it("si falla, avisa, nada queda trabado y se puede reintentar", async () => {
+      const eliminar = vi
+        .fn<AccionesZonas["eliminarZona"]>()
+        .mockRejectedValueOnce(new Error("sin red"))
+        .mockResolvedValueOnce({ ok: false, mensaje: "La zona ya no existe." })
+        .mockResolvedValueOnce({ ok: true, colportoresSinZona: 0 });
+      montar({ eliminarZona: eliminar });
+      await editar("Belvedere");
+      await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Sí, eliminar zona" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo conectar. Probá de nuevo en unos segundos.");
+      expect(screen.getByRole("button", { name: "Sí, eliminar zona" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Cancelar" })).toBeEnabled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Sí, eliminar zona" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("La zona ya no existe.");
+      expect(screen.getByRole("button", { name: "Sí, eliminar zona" })).toBeEnabled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Sí, eliminar zona" }));
+      expect(await screen.findByText("Zona «Belvedere» eliminada.")).toBeInTheDocument();
+    });
+
+    it("un doble clic elimina una sola vez y mientras tanto no se puede cancelar ni cambiar de ciudad", async () => {
+      let liberar: () => void = () => undefined;
+      const acc = montar({
+        eliminarZona: vi.fn(() => new Promise<{ ok: true; colportoresSinZona: number }>((r) => (liberar = () => r({ ok: true, colportoresSinZona: 0 })))),
+      });
+      await editar("Belvedere");
+      await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
+
+      await userEvent.dblClick(screen.getByRole("button", { name: "Sí, eliminar zona" }));
+
+      expect(acc.eliminarZona).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Sí, eliminar zona" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "No, conservarla" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Guardar zona" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /Las Piedras/ })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "+ Agregar ciudad" })).toBeDisabled();
+
+      await act(async () => liberar());
+      expect(await screen.findByText("Zona «Belvedere» eliminada.")).toBeInTheDocument();
+    });
+
+    it("volver a abrir «Editar zona» no arrastra la confirmación de antes", async () => {
+      montar();
+      await editar("Belvedere");
+      await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+      await editar("Belvedere");
+
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Eliminar zona" })).toBeEnabled();
+    });
+  });
+
+  describe("«Quitar» y colportores suspendidos", () => {
+    async function verZona(zona: string) {
+      await userEvent.click(screen.getByRole("button", { name: `Ver la zona ${zona}` }));
+      return screen.getByRole("region", { name: `Zona ${zona}` });
+    }
+
+    it("cada colportor de la zona tiene «Quitar»: lo deja sin zona y vuelve a «Sin zona»", async () => {
+      const acc = montar();
+      const detalle = await verZona("Cerro Norte");
+
+      await userEvent.click(within(detalle).getByRole("button", { name: "Quitar a Diego Rocha de Cerro Norte" }));
+
+      expect(acc.quitarZona).toHaveBeenCalledWith("col-1");
+      expect(await screen.findByText("Diego Rocha quedó sin zona.")).toBeInTheDocument();
+      expect(within(detalle).getByText("COLPORTORES · 1")).toBeInTheDocument();
+      expect(within(detalle).queryByText("Diego Rocha")).not.toBeInTheDocument();
+      await userEvent.click(within(detalle).getByRole("button", { name: "Cerrar el detalle de la zona" }));
+      const sinZona = screen.getByRole("region", { name: "Sin zona en Montevideo" });
+      expect(within(sinZona).getByText("Diego Rocha")).toBeInTheDocument();
+    });
+
+    it("al quitar al último colportor la zona pasa a «Nadie trabaja esta zona»", async () => {
+      montar();
+      const detalle = await verZona("Paso de la Arena");
+
+      await userEvent.click(within(detalle).getByRole("button", { name: "Quitar a Laura Suárez de Paso de la Arena" }));
+
+      expect(await within(detalle).findByText("◔ Nadie trabaja esta zona")).toBeInTheDocument();
+    });
+
+    it("si quitar falla o se rechaza, avisa, nada queda trabado y se puede reintentar", async () => {
+      const quitar = vi
+        .fn<AccionesZonas["quitarZona"]>()
+        .mockRejectedValueOnce(new Error("sin red"))
+        .mockResolvedValueOnce({ ok: false, mensaje: "La inscripción ya no existe." })
+        .mockResolvedValueOnce({ ok: true });
+      montar({ quitarZona: quitar });
+      const detalle = await verZona("Paso de la Arena");
+      const boton = () => within(detalle).getByRole("button", { name: "Quitar a Laura Suárez de Paso de la Arena" });
+
+      await userEvent.click(boton());
+      expect(await within(detalle).findByRole("alert")).toHaveTextContent("No se pudo conectar. Probá de nuevo en unos segundos.");
+      expect(boton()).toBeEnabled();
+
+      await userEvent.click(boton());
+      expect(await within(detalle).findByRole("alert")).toHaveTextContent("La inscripción ya no existe.");
+      expect(boton()).toBeEnabled();
+
+      await userEvent.click(boton());
+      expect(await screen.findByText("Laura Suárez quedó sin zona.")).toBeInTheDocument();
+    });
+
+    it("un doble clic en «Quitar» llama una sola vez", async () => {
+      const acc = montar({ quitarZona: vi.fn(() => new Promise<{ ok: true }>((r) => setTimeout(() => r({ ok: true }), 30))) });
+      const detalle = await verZona("Paso de la Arena");
+
+      await userEvent.dblClick(within(detalle).getByRole("button", { name: "Quitar a Laura Suárez de Paso de la Arena" }));
+
+      expect(await screen.findByText("Laura Suárez quedó sin zona.")).toBeInTheDocument();
+      expect(acc.quitarZona).toHaveBeenCalledTimes(1);
+    });
+
+    it("con una asignación en curso, «Quitar» y una segunda asignación esperan: no se pisan", async () => {
+      let liberar: () => void = () => undefined;
+      const acc = montar({ asignarZona: vi.fn(() => new Promise<{ ok: true }>((r) => (liberar = () => r({ ok: true })))) });
+      const detalle = await verZona("Cerro Norte");
+      await userEvent.click(within(detalle).getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
+      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(within(detalle).getByRole("button", { name: "Asignar a Cerro Norte" }));
+
+      expect(within(detalle).getByRole("button", { name: "Quitar a Diego Rocha de Cerro Norte" })).toBeDisabled();
+      expect(within(detalle).getByRole("button", { name: "Asignar a Cerro Norte" })).toBeDisabled();
+      await userEvent.click(within(detalle).getByRole("button", { name: "Quitar a Diego Rocha de Cerro Norte" }));
+      expect(acc.quitarZona).not.toHaveBeenCalled();
+
+      await act(async () => liberar());
+      expect(await screen.findByText("Pablo Ferreira quedó en Cerro Norte.")).toBeInTheDocument();
+      expect(within(detalle).getByRole("button", { name: "Quitar a Diego Rocha de Cerro Norte" })).toBeEnabled();
+    });
+
+    it("un suspendido no se puede elegir en el desplegable y dice por qué", async () => {
+      const acc = montar();
+      const detalle = await verZona("Belvedere");
+      await userEvent.click(within(detalle).getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
+
+      const opcion = screen.getByRole("option", { name: /Sergio Píriz/ });
+      expect(opcion).toHaveAttribute("aria-disabled", "true");
+      expect(opcion).toHaveTextContent("Cuenta suspendida. Pedile a un administrador que la reactive.");
+      await userEvent.click(opcion.querySelector("button") as HTMLElement);
+      expect(within(detalle).getByRole("button", { name: "Asignar a Belvedere" })).toBeDisabled();
+      expect(acc.asignarZona).not.toHaveBeenCalled();
+    });
+
+    it("un suspendido que ya tenía zona aparece marcado en ella, la conserva y se le puede quitar", async () => {
+      const ciudad: CiudadDeCampania = {
+        ...MONTEVIDEO,
+        zonas: MONTEVIDEO.zonas.map((z) =>
+          z.id === "zona-la-teja" ? { ...z, colportores: z.colportores.map((c) => (c.id === "col-6" ? { ...c, suspendido: true } : c)) } : z,
+        ),
+        colportores: MONTEVIDEO.colportores.map((c) => (c.id === "col-6" ? { ...c, suspendido: true } : c)),
+      };
+      const acc = montar({}, { ...DATOS_ZONAS_SIMULADO, ciudades: [ciudad] });
+      const detalle = await verZona("La Teja");
+
+      expect(within(detalle).getByText("⊘ Suspendida")).toBeInTheDocument();
+      await userEvent.click(within(detalle).getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
+      expect(screen.getByRole("option", { name: /Noelia Acosta/ })).toHaveAttribute("aria-disabled", "true");
+
+      await userEvent.click(within(detalle).getByRole("button", { name: "Quitar a Noelia Acosta de La Teja" }));
+      expect(acc.quitarZona).toHaveBeenCalledWith("col-6");
+    });
+
+    it("si el BFF rechaza la asignación por cuenta suspendida, muestra ese mensaje y deja intentar de nuevo", async () => {
+      montar({
+        asignarZona: vi.fn(async () => ({ ok: false as const, mensaje: "Cuenta suspendida. Pedile a un administrador que la reactive." })),
+      });
+      const detalle = await verZona("Belvedere");
+      await userEvent.click(within(detalle).getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
+      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(within(detalle).getByRole("button", { name: "Asignar a Belvedere" }));
+
+      expect(await within(detalle).findByRole("alert")).toHaveTextContent("Cuenta suspendida. Pedile a un administrador que la reactive.");
+      expect(within(detalle).getByRole("button", { name: "Asignar a Belvedere" })).toBeEnabled();
+    });
+  });
+
+  describe("«Incluye N ubicaciones» y superposición", () => {
+    it("una zona nueva dice cuántas ubicaciones incluye; sin ubicaciones, que no incluye ninguna todavía", async () => {
+      const vacia = vi.fn(async (e: Parameters<AccionesZonas["vistaPreviaZona"]>[0]) => ({
+        ...(await fuenteZonasSimulada.vistaPreviaZona(e)),
+        ubicacionesIncluidas: 0,
+      }));
+      montar({ vistaPreviaZona: vacia });
+      await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+      await clicEnMapa(CENTRO_LIBRE);
+
+      expect(await screen.findByText("No incluye ubicaciones todavía.")).toBeInTheDocument();
+    });
+
+    it("con una sola ubicación habla en singular", async () => {
+      montar({
+        vistaPreviaZona: vi.fn(async (e: Parameters<AccionesZonas["vistaPreviaZona"]>[0]) => ({
+          ...(await fuenteZonasSimulada.vistaPreviaZona(e)),
+          ubicacionesIncluidas: 1,
+        })),
+      });
+      await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+      await clicEnMapa(CENTRO_LIBRE);
+
+      expect(await screen.findByText("Incluye 1 ubicación.")).toBeInTheDocument();
+    });
+
+    it("ya no avisa cuántas ubicaciones cambian de zona", async () => {
+      montar();
+      await userEvent.click(screen.getByRole("button", { name: "Ver la zona Paso de la Arena" }));
+      await userEvent.click(screen.getByRole("button", { name: "Editar forma" }));
+      await act(async () => mapa.props?.onRadio(300));
+      await screen.findByText(/^Incluye \d+ ubicaciones\.$/);
+
+      expect(screen.queryByText(/cambian de zona/)).not.toBeInTheDocument();
     });
   });
 });
