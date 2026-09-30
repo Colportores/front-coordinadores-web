@@ -128,6 +128,29 @@ describe("MapaZonasGl", () => {
     });
   });
 
+  describe("al volver a renderizar", () => {
+    it("conserva la misma referencia de estilo y de datos, para que MapLibre no recargue el estilo en cada clic", () => {
+      const props: PropsMapaZonas = {
+        ciudad: CIUDAD,
+        zonas: CIUDAD.zonas,
+        zonaElegidaId: null,
+        dibujo: null,
+        onZonaClick: vi.fn(),
+        onMapaClick: vi.fn(),
+        onMapaMove: vi.fn(),
+        onRadio: vi.fn(),
+      };
+      const { rerender } = render(<MapaZonasGl {...props} />);
+      const estilo = doble.mapa?.mapStyle;
+      const zonas = doble.fuentes.zonas;
+
+      rerender(<MapaZonasGl {...props} onMapaClick={vi.fn()} />);
+
+      expect(doble.mapa?.mapStyle).toBe(estilo);
+      expect(doble.fuentes.zonas).toBe(zonas);
+    });
+  });
+
   describe("dibujando", () => {
     it("el clic es de dibujo: entrega el punto y no elige zonas; el cursor es una mira", () => {
       const props = montar({ dibujo: SIN_DIBUJO });

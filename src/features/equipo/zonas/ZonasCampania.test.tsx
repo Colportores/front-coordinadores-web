@@ -432,6 +432,37 @@ describe("ZonasCampania", () => {
       expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled();
     });
 
+    it("mientras guarda no se puede cancelar, cerrar ni cambiar de ciudad, y la zona guardada aparece en la lista", async () => {
+      let liberar: (r: ResultadoGuardarZona) => void = () => undefined;
+      const acc = montar({
+        guardarZona: vi.fn(() => new Promise<ResultadoGuardarZona>((resolver) => (liberar = resolver))),
+      });
+      await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+      await userEvent.type(screen.getByRole("textbox", { name: "NOMBRE" }), "Casabó");
+      await clicEnMapa(CENTRO_LIBRE);
+      await screen.findByText(/Incluye/);
+      await userEvent.click(screen.getByRole("button", { name: "Guardar zona" }));
+
+      expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Cerrar el formulario de zona" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /Las Piedras/ })).toBeDisabled();
+      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+      await userEvent.click(screen.getByRole("button", { name: /Las Piedras/ }));
+      expect(screen.getByRole("region", { name: "Nueva zona" })).toBeInTheDocument();
+
+      const guardada = (await fuenteZonasSimulada.guardarZona({
+        ciudadId: "ciudad-montevideo",
+        nombre: "Casabó",
+        forma: { tipoForma: "RADIAL", centro: CENTRO_LIBRE, radioM: 400 },
+      })) as Extract<ResultadoGuardarZona, { ok: true }>;
+      await act(async () => liberar(guardada));
+
+      expect(await screen.findByRole("region", { name: "Zona Casabó" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Montevideo/ })).toHaveTextContent("5 zonas");
+      expect(screen.getByRole("button", { name: /Las Piedras/ })).toBeEnabled();
+      expect(acc.guardarZona).toHaveBeenCalledTimes(1);
+    });
+
     it("si guardar falla, el botón vuelve a habilitarse y se puede reintentar", async () => {
       const guardar = vi.fn(fuenteZonasSimulada.guardarZona).mockRejectedValueOnce(new Error("sin red"));
       montar({ guardarZona: guardar });

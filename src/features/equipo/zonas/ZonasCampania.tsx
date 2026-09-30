@@ -127,6 +127,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const asignandoAhora = useRef(false);
 
   const ciudad = ciudades.find((c) => c.id === ciudadId) ?? ciudades[0];
+  const guardando = panel.tipo === "dibujo" && panel.guardando;
   const forma = panel.tipo === "dibujo" ? panel.forma : null;
   const zonaEnEdicionId = panel.tipo === "dibujo" ? panel.zonaId : undefined;
 
@@ -232,7 +233,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   }
 
   function elegirCiudad(id: string) {
-    if (id === ciudadId) return;
+    if (id === ciudadId || guardandoAhora.current) return;
     abandonarDibujo();
     setCiudadId(id);
     setPanel({ tipo: "lista", asignandoA: null });
@@ -252,6 +253,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
   }
 
   function cerrarDibujo() {
+    // Mientras guarda no se puede abandonar: la zona quedaría guardada en el backend y ausente de la lista.
+    if (guardandoAhora.current) return;
     abandonarDibujo();
     setPanel({ tipo: "lista", asignandoA: null });
   }
@@ -430,9 +433,10 @@ export function ZonasCampania({ datos, acciones }: Props) {
               key={c.id}
               type="button"
               aria-current={c.id === ciudad.id ? "true" : undefined}
+              disabled={guardando}
               onClick={() => elegirCiudad(c.id)}
               className={cn(
-                "flex cursor-pointer flex-col items-start rounded-control border px-3.5 py-1.5 text-left focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none",
+                "flex cursor-pointer flex-col items-start rounded-control border px-3.5 py-1.5 text-left focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60",
                 c.id === ciudad.id
                   ? "border-marca bg-marca-clara text-marca"
                   : "border-borde bg-superficie text-tinta-2 hover:bg-fondo",

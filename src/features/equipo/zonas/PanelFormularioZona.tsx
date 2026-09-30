@@ -75,8 +75,9 @@ export function PanelFormularioZona({
         <button
           type="button"
           onClick={onCancelar}
+          disabled={guardando}
           aria-label="Cerrar el formulario de zona"
-          className="cursor-pointer rounded-control px-1.5 text-nav text-tinta-suave hover:text-tinta"
+          className="cursor-pointer rounded-control px-1.5 text-nav text-tinta-suave hover:text-tinta disabled:cursor-not-allowed disabled:opacity-50"
         >
           ✕
         </button>
@@ -214,7 +215,7 @@ export function PanelFormularioZona({
         >
           Guardar zona
         </Button>
-        <Button type="button" variant="outline" onClick={onCancelar} className="min-h-9 text-nav font-semibold text-tinta-2">
+        <Button type="button" variant="outline" disabled={guardando} onClick={onCancelar} className="min-h-9 text-nav font-semibold text-tinta-2">
           Cancelar
         </Button>
       </div>

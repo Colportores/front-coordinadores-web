@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import type { Feature, FeatureCollection, LineString, Polygon } from "geojson";
 import { setWorkerUrl, type StyleSpecification } from "maplibre-gl";
+import { useMemo } from "react";
 import Map, { Layer, Marker, NavigationControl, Source, type MapMouseEvent } from "react-map-gl/maplibre";
 
 import type { Punto, ZonaDeCiudad } from "@/datos/equipo/zonas";
@@ -56,34 +57,56 @@ export function MapaZonasGl({
   onMapaMove,
   onRadio,
 }: PropsMapaZonas) {
-  const colores = {
-    fondo: token("--superficie-suave"),
-    calle: token("--superficie"),
-    trazoDibujo: token("--marca-media"),
-    conflicto: token("--peligro"),
-  };
-  const estilo: StyleSpecification = {
-    version: 8,
-    sources: {},
-    layers: [{ id: "fondo", type: "background", paint: { "background-color": colores.fondo } }],
-  };
+  // vis.gl compara `mapStyle` por referencia: un objeto nuevo en cada render dispararía `setStyle` en cada clic o movimiento.
+  const colores = useMemo(
+    () => ({
+      fondo: token("--superficie-suave"),
+      calle: token("--superficie"),
+      trazoDibujo: token("--marca-media"),
+      conflicto: token("--peligro"),
+    }),
+    [],
+  );
+  const estilo = useMemo<StyleSpecification>(
+    () => ({
+      version: 8,
+      sources: {},
+      layers: [{ id: "fondo", type: "background", paint: { "background-color": colores.fondo } }],
+    }),
+    [colores],
+  );
 
-  // El React Compiler memoiza estos valores: los datos de cada capa solo cambian cuando cambian sus entradas.
-  const callesGeojson = coleccion((ciudad.calles ?? []).map((c) => linea(c.trazo)));
-  const zonasGeojson = coleccion(
-    zonas.map(
-      (z): Feature<Polygon> => ({
-        type: "Feature",
-        properties: { id: z.id, color: z.color, elegida: z.id === zonaElegidaId },
-        geometry: z.poligonoGeojson,
-      }),
-    ),
+  // Cada capa recibe el mismo objeto mientras sus datos no cambian: MapLibre no recalcula lo que no se movió.
+  const calles = ciudad.calles;
+  const callesGeojson = useMemo(() => coleccion((calles ?? []).map((c) => linea(c.trazo))), [calles]);
+  const zonasGeojson = useMemo(
+    () =>
+      coleccion(
+        zonas.map(
+          (z): Feature<Polygon> => ({
+            type: "Feature",
+            properties: { id: z.id, color: z.color, elegida: z.id === zonaElegidaId },
+            geometry: z.poligonoGeojson,
+          }),
+        ),
+      ),
+    [zonas, zonaElegidaId],
   );
-  const poligonoGeojson = coleccion(
-    dibujo?.poligono ? [{ type: "Feature", properties: {}, geometry: dibujo.poligono }] : [],
+  const poligono = dibujo?.poligono ?? null;
+  const poligonoGeojson = useMemo(
+    () => coleccion(poligono ? [{ type: "Feature", properties: {}, geometry: poligono }] : []),
+    [poligono],
   );
-  const caminoGeojson = coleccion(dibujo && dibujo.linea.length > 1 ? [linea(dibujo.linea)] : []);
-  const conflictoGeojson = coleccion(dibujo?.conflicto && dibujo.conflicto.length > 1 ? [linea(dibujo.conflicto)] : []);
+  const lineaDibujo = dibujo?.linea ?? null;
+  const caminoGeojson = useMemo(
+    () => coleccion(lineaDibujo && lineaDibujo.length > 1 ? [linea(lineaDibujo)] : []),
+    [lineaDibujo],
+  );
+  const tramoConflicto = dibujo?.conflicto ?? null;
+  const conflictoGeojson = useMemo(
+    () => coleccion(tramoConflicto && tramoConflicto.length > 1 ? [linea(tramoConflicto)] : []),
+    [tramoConflicto],
+  );
 
   function alHacerClic(e: MapMouseEvent) {
     if (!dibujo) {
