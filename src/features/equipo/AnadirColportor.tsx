@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 /** Cuánto dura el aviso con "Deshacer" tras añadir (diseño 23). */
 export const MS_DESHACER = 8000;
 
+export const MENSAJE_SIN_CONEXION = "No se pudo conectar. Probá de nuevo en unos segundos.";
+
 const ETIQUETA_ESTADO = {
   pendiente_asignacion: "◔ Pendiente de asignación",
   activa: "● Activa",
@@ -73,6 +75,47 @@ function AvisoBloqueo({ texto }: { texto: string }) {
   );
 }
 
+/** Aviso con «Deshacer»: cada añadido tiene el suyo y su propio plazo de 8 s. */
+function AvisoAnadido({
+  id,
+  nombre,
+  campania,
+  onDeshacer,
+  onExpirar,
+}: {
+  id: string;
+  nombre: string;
+  campania: string;
+  onDeshacer: (id: string) => void;
+  /** Tiene que ser estable: si cambia en cada render, el plazo de 8 s se reinicia. */
+  onExpirar: (id: string) => void;
+}) {
+  useEffect(() => {
+    const temporizador = setTimeout(() => onExpirar(id), MS_DESHACER);
+    return () => clearTimeout(temporizador);
+  }, [id, onExpirar]);
+
+  return (
+    <div
+      role="status"
+      data-aviso-id={id}
+      className="flex items-center gap-4 rounded-tarjeta bg-marca px-4 py-3 text-nav text-superficie shadow-lg"
+    >
+      <span>
+        Añadiste a {nombre} a {campania}.
+      </span>
+      <button
+        type="button"
+        onClick={() => onDeshacer(id)}
+        aria-label={`Deshacer: ${nombre}`}
+        className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-control px-1 font-semibold underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-superficie focus-visible:outline-none"
+      >
+        Deshacer
+      </button>
+    </div>
+  );
+}
+
 interface FilaProps {
   candidato: CandidatoColportor;
   elegido: boolean;
@@ -90,8 +133,11 @@ function FilaCandidato({ candidato, elegido, activo, anadido, ocupado, onElegir,
   return (
     <li
       data-activo={activo || undefined}
+      data-candidato-id={candidato.id}
+      // Tras «Añadir» o «Deshacer» el botón se apaga o desaparece: el foco pasa a la fila en vez de caer al body.
+      tabIndex={-1}
       className={cn(
-        "flex items-start gap-3 rounded-tarjeta border-b border-borde-suave px-3.5 py-3",
+        "flex items-start outline-none focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-inset gap-3 rounded-tarjeta border-b border-borde-suave px-3.5 py-3",
         elegido && "border-transparent bg-marca-clara/50 ring-2 ring-marca-media ring-inset",
         activo && !elegido && "bg-superficie-calida",
       )}
@@ -106,10 +152,10 @@ function FilaCandidato({ candidato, elegido, activo, anadido, ocupado, onElegir,
         <Avatar nombre={candidato.nombre} apagado={candidato.estadoCuenta === "suspendida"} />
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="text-[13.5px] font-semibold whitespace-nowrap text-tinta">{candidato.nombre}</span>
+            <span className="min-w-0 text-[13.5px] font-semibold break-words text-tinta">{candidato.nombre}</span>
             <PastillaEstado estado={candidato.estadoCuenta} />
           </span>
-          <span className="text-cuerpo text-tinta-2">{candidato.email}</span>
+          <span className="text-cuerpo break-all text-tinta-2">{candidato.email}</span>
           <span className="text-chico text-tinta-suave">
             Campaña actual: {candidato.campaniaActual ?? "sin campaña"}
           </span>
@@ -162,9 +208,9 @@ function DetalleCuenta({ candidato, campania, anadido, ocupado, onAnadir }: Deta
     >
       <div className="flex items-center gap-3.5">
         <Avatar nombre={candidato.nombre} grande apagado={candidato.estadoCuenta === "suspendida"} />
-        <div className="flex flex-col gap-1">
-          <h3 className="font-serif text-[20px] font-semibold text-tinta">{candidato.nombre}</h3>
-          <span className="text-nav text-tinta-2">{candidato.email}</span>
+        <div className="flex min-w-0 flex-col gap-1">
+          <h3 className="font-serif text-[20px] font-semibold break-words text-tinta">{candidato.nombre}</h3>
+          <span className="text-nav break-all text-tinta-2">{candidato.email}</span>
         </div>
       </div>
       <dl>
@@ -210,13 +256,16 @@ export function AnadirColportor({
 }) {
   const router = useRouter();
   const buscador = useRef<HTMLInputElement>(null);
+  const raiz = useRef<HTMLDivElement>(null);
   const [consulta, setConsulta] = useState("");
   const [elegidoId, setElegidoId] = useState<string | null>(null);
   const [indiceActivo, setIndiceActivo] = useState(-1);
   const [anadidos, setAnadidos] = useState<string[]>([]);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<{ id: string; nombre: string } | null>(null);
+  const [avisos, setAvisos] = useState<{ id: string; nombre: string }[]>([]);
+  // Dos toques seguidos antes de que el estado se actualice: el ref corta el segundo.
+  const inscribiendo = useRef(false);
 
   const hayConsulta = consulta.trim() !== "";
   const resultados = useMemo(
@@ -235,56 +284,98 @@ export function AnadirColportor({
     [datos.equipoActual, datos.candidatos, anadidos],
   );
 
-  // El aviso con "Deshacer" se apaga solo a los 8 s.
-  useEffect(() => {
-    if (!aviso) return;
-    const temporizador = setTimeout(() => setAviso(null), MS_DESHACER);
-    return () => clearTimeout(temporizador);
-  }, [aviso]);
-
   useEffect(() => {
     function alTeclear(evento: KeyboardEvent) {
       if (evento.key === "Escape") {
-        router.push("/equipo");
+        // Provisorio (no hay diseño ni patrón para salir con trabajo a medias): Esc va de a un paso y no pierde nada sin aviso.
+        if (consulta !== "") {
+          setConsulta("");
+          setIndiceActivo(-1);
+          setElegidoId(null);
+          setError(null);
+        } else if (ocupado) {
+          // Hay un «Añadir» en curso: no se sale hasta que conteste.
+        } else if (avisos.length > 0) {
+          setAvisos([]);
+        } else {
+          router.push("/equipo");
+        }
         return;
       }
       const escribiendo = evento.target instanceof HTMLElement && evento.target.matches("input, textarea, select");
-      if (evento.key === "/" && !escribiendo) {
+      const conModificador = evento.ctrlKey || evento.metaKey || evento.altKey;
+      if (evento.key === "/" && !escribiendo && !conModificador) {
         evento.preventDefault();
         buscador.current?.focus();
       }
     }
     document.addEventListener("keydown", alTeclear);
     return () => document.removeEventListener("keydown", alTeclear);
-  }, [router]);
+  }, [router, consulta, ocupado, avisos.length]);
+
+  /** Lleva el foco a la fila de la cuenta (o, si ya no está en los resultados, al buscador). */
+  const enfocarFila = useCallback((id: string) => {
+    const fila = raiz.current?.querySelector<HTMLElement>(`[data-candidato-id="${id}"]`);
+    (fila ?? buscador.current)?.focus();
+  }, []);
 
   const anadir = useCallback(
     async (candidato: CandidatoColportor) => {
-      if (ocupado || motivoBloqueo(candidato) !== null || anadidos.includes(candidato.id)) return;
+      if (inscribiendo.current || motivoBloqueo(candidato) !== null || anadidos.includes(candidato.id)) return;
+      inscribiendo.current = true;
       setOcupado(true);
       setError(null);
-      const resultado = await inscribir(candidato.id);
-      setOcupado(false);
-      if (!resultado.ok) {
-        setError(resultado.mensaje);
-        return;
+      try {
+        const resultado = await inscribir(candidato.id);
+        if (!resultado.ok) {
+          setError(resultado.mensaje);
+          return;
+        }
+        setAnadidos((previos) => [...previos, candidato.id]);
+        setAvisos((previos) => [...previos, { id: candidato.id, nombre: candidato.nombre }]);
+      } catch {
+        // Si la llamada se cae, nada queda «ocupado»: se puede volver a intentar.
+        setError(MENSAJE_SIN_CONEXION);
+      } finally {
+        inscribiendo.current = false;
+        setOcupado(false);
+        enfocarFila(candidato.id);
       }
-      setAnadidos((previos) => [...previos, candidato.id]);
-      setAviso({ id: candidato.id, nombre: candidato.nombre });
     },
-    [ocupado, anadidos, inscribir],
+    [anadidos, inscribir, enfocarFila],
   );
 
-  function deshacer() {
-    if (!aviso) return;
-    setAnadidos((previos) => previos.filter((id) => id !== aviso.id));
-    setAviso(null);
+  const quitarAviso = useCallback((id: string) => setAvisos((previos) => previos.filter((a) => a.id !== id)), []);
+
+  // Si el plazo vence con el foco en «Deshacer», ese botón desaparece: el foco vuelve a la fila.
+  const expirarAviso = useCallback(
+    (id: string) => {
+      const activo = document.activeElement;
+      const teniaFoco = activo instanceof HTMLElement && activo.closest(`[data-aviso-id="${id}"]`) !== null;
+      quitarAviso(id);
+      if (teniaFoco) enfocarFila(id);
+    },
+    [quitarAviso, enfocarFila],
+  );
+
+  const deshacer = useCallback(
+    (id: string) => {
+      setAnadidos((previos) => previos.filter((x) => x !== id));
+      quitarAviso(id);
+      enfocarFila(id);
+    },
+    [quitarAviso, enfocarFila],
+  );
+
+  function elegir(id: string | null) {
+    setElegidoId(id);
+    setError(null);
   }
 
   function cambiarConsulta(valor: string) {
     setConsulta(valor);
     setIndiceActivo(-1);
-    setElegidoId(null);
+    elegir(null);
   }
 
   function alTeclearEnBuscador(evento: React.KeyboardEvent<HTMLInputElement>) {
@@ -297,7 +388,7 @@ export function AnadirColportor({
       setIndiceActivo((i) => Math.max(i - 1, 0));
     } else if (evento.key === "Enter" && indiceActivo >= 0) {
       evento.preventDefault();
-      setElegidoId(resultados[indiceActivo].id);
+      elegir(resultados[indiceActivo].id);
     }
   }
 
@@ -306,9 +397,9 @@ export function AnadirColportor({
     : `PENDIENTES DE ASIGNACIÓN · ${resultados.length}`;
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div ref={raiz} className="flex flex-col gap-3.5">
       <nav aria-label="Ruta" className="flex items-center gap-2 text-cuerpo text-tinta-suave">
-        <Link href="/equipo" className="font-semibold text-marca-media hover:text-marca">
+        <Link href="/equipo" className="inline-flex min-h-6 items-center font-semibold text-marca-media hover:text-marca">
           ‹ Equipo
         </Link>
         <span aria-hidden>/</span>
@@ -344,7 +435,7 @@ export function AnadirColportor({
                     cambiarConsulta("");
                     buscador.current?.focus();
                   }}
-                  className="cursor-pointer rounded-control px-1 text-chico text-tinta-suave hover:text-tinta"
+                  className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-control px-1 text-chico text-tinta-suave hover:text-tinta"
                 >
                   ✕
                 </button>
@@ -379,7 +470,7 @@ export function AnadirColportor({
                     activo={i === indiceActivo}
                     anadido={anadidos.includes(c.id)}
                     ocupado={ocupado}
-                    onElegir={() => setElegidoId(c.id)}
+                    onElegir={() => elegir(c.id)}
                     onAnadir={() => {
                       setElegidoId(c.id);
                       void anadir(c);
@@ -431,21 +522,18 @@ export function AnadirColportor({
         </div>
       </div>
 
-      {aviso ? (
-        <div
-          role="status"
-          className="fixed bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-4 rounded-tarjeta bg-marca px-4 py-3 text-nav text-superficie shadow-lg"
-        >
-          <span>
-            Añadiste a {aviso.nombre} a {datos.campania}.
-          </span>
-          <button
-            type="button"
-            onClick={deshacer}
-            className="cursor-pointer rounded-control font-semibold underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-superficie focus-visible:outline-none"
-          >
-            Deshacer
-          </button>
+      {avisos.length > 0 ? (
+        <div className="fixed bottom-6 left-1/2 z-20 flex -translate-x-1/2 flex-col items-stretch gap-2">
+          {avisos.map((a) => (
+            <AvisoAnadido
+              key={a.id}
+              id={a.id}
+              nombre={a.nombre}
+              campania={datos.campania}
+              onDeshacer={deshacer}
+              onExpirar={expirarAviso}
+            />
+          ))}
         </div>
       ) : null}
     </div>
