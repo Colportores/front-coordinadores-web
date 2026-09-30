@@ -32,7 +32,7 @@ describe("Acompanamientos", () => {
   });
 
   it("muestra un estado vacío cuando todavía no hay acompañamientos", () => {
-    render(<Acompanamientos datos={sinDatos({ ultimosAcompanamientos: [], porcentajeJornadasAcompanadas: 0 })} />);
+    render(<Acompanamientos datos={sinDatos({ ultimosAcompanamientos: [], jornadasAcompanadas: 0 })} />);
 
     expect(screen.getByText("Todavía no hay acompañamientos registrados.")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Últimos acompañamientos" })).not.toBeInTheDocument();
@@ -68,6 +68,23 @@ describe("Acompanamientos", () => {
     await user.click(screen.getByRole("button", { name: "Registrar acompañamiento" }));
     expect(screen.queryByRole("button", { name: "Elegir jornada de Joel Cabrera · ayer" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /^Elegir jornada de/ })).toHaveLength(2);
+  });
+
+  it("el % de jornadas acompañadas se recalcula al registrar (y no se mueve con un doble toque)", () => {
+    render(<Acompanamientos datos={DATOS} />);
+    expect(screen.getByText("21%")).toBeInTheDocument(); // 6 de 28
+
+    fireEvent.click(screen.getByRole("button", { name: "Registrar acompañamiento" }));
+    const jornada = screen.getByRole("button", { name: "Elegir jornada de Joel Cabrera · ayer" });
+    fireEvent.click(jornada);
+    fireEvent.click(jornada);
+
+    expect(screen.getByText("25%")).toBeInTheDocument(); // 7 de 28
+  });
+
+  it("sin jornadas en la campaña el % es 0 y no falla", () => {
+    render(<Acompanamientos datos={sinDatos({ jornadasAcompanadas: 0, jornadasTotales: 0 })} />);
+    expect(screen.getByText("0%")).toBeInTheDocument();
   });
 
   it("doble toque sobre la misma jornada: se registra una sola vez", () => {

@@ -115,7 +115,8 @@ export const DATOS_EQUIPO_SIMULADO: DatosEquipo = {
       { id: "jor-3", colportor: "Pablo Ferreira", dia: "lun 28/09", detalle: "2,1 h · Belvedere" },
     ],
     acompaniante: "Coordinador de ejemplo",
-    porcentajeJornadasAcompanadas: 21,
+    jornadasAcompanadas: 6,
+    jornadasTotales: 28,
   },
 };
 

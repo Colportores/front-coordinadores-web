@@ -13,6 +13,7 @@ import type { DatosAcompanamiento, JornadaReciente, UltimoAcompanamiento } from 
 export function Acompanamientos({ datos }: { datos: DatosAcompanamiento }) {
   const [ultimos, setUltimos] = useState<UltimoAcompanamiento[]>(datos.ultimosAcompanamientos);
   const [jornadas, setJornadas] = useState<JornadaReciente[]>(datos.jornadasRecientes);
+  const [acompanadas, setAcompanadas] = useState(datos.jornadasAcompanadas);
   const [eligiendo, setEligiendo] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   // Un doble toque dispara dos clicks antes del re-render: el ref corta el segundo.
@@ -30,10 +31,13 @@ export function Acompanamientos({ datos }: { datos: DatosAcompanamiento }) {
       },
       ...actuales,
     ]);
+    setAcompanadas((actual) => actual + 1);
     setJornadas((actuales) => actuales.filter((j) => j.id !== jornada.id));
     setAviso(`Acompañamiento registrado: jornada de ${jornada.colportor} · ${jornada.dia}.`);
     setEligiendo(false);
   }
+
+  const porcentaje = datos.jornadasTotales === 0 ? 0 : Math.round((acompanadas / datos.jornadasTotales) * 100);
 
   return (
     <div className="overflow-hidden rounded-tarjeta border border-borde bg-superficie">
@@ -112,7 +116,7 @@ export function Acompanamientos({ datos }: { datos: DatosAcompanamiento }) {
         )}
         <div className="flex items-center justify-between px-px py-0.5 text-cuerpo">
           <span className="text-tinta-suave">Jornadas acompañadas esta campaña</span>
-          <span className="font-mono font-medium text-tinta">{datos.porcentajeJornadasAcompanadas}%</span>
+          <span className="font-mono font-medium text-tinta">{porcentaje}%</span>
         </div>
       </div>
     </div>

@@ -23,7 +23,7 @@ describe("TarjetaPendientesAccion", () => {
     const autorizar = screen.getAllByRole("link", { name: "Autorizar" });
     expect(autorizar).toHaveLength(2);
     autorizar.forEach((enlace) => expect(enlace).toHaveAttribute("href", "/stock"));
-    expect(screen.getByRole("link", { name: "Asignar zona" })).toHaveAttribute("href", "/equipo");
+    expect(screen.getByRole("link", { name: "Asignar zona" })).toHaveAttribute("href", "/ciudades");
   });
 
   it("deja el atajo marcado como no disponible, sin link, cuando la pestaña destino no está visible", () => {
@@ -40,8 +40,8 @@ describe("TarjetaPendientesAccion", () => {
     autorizar.forEach((boton) => expect(boton).toHaveAttribute("aria-disabled", "true"));
     expect(screen.queryByRole("link", { name: "Autorizar" })).not.toBeInTheDocument();
 
-    // Equipo no tiene flag propio: siempre visible, sigue siendo un link.
-    expect(screen.getByRole("link", { name: "Asignar zona" })).toHaveAttribute("href", "/equipo");
+    // Ciudades no tiene flag propio: siempre visible, sigue siendo un link.
+    expect(screen.getByRole("link", { name: "Asignar zona" })).toHaveAttribute("href", "/ciudades");
   });
 
   it("deja sin comportamiento y marcados los botones sin formulario diseñado", () => {

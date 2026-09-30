@@ -83,7 +83,10 @@ export interface DatosAcompanamiento {
   jornadasRecientes: JornadaReciente[];
   /** Quien registra (el coordinador de la sesión): figura como acompañante. */
   acompaniante: string;
-  porcentajeJornadasAcompanadas: number;
+  /** Jornadas finalizadas de la campaña con acompañamiento registrado. */
+  jornadasAcompanadas: number;
+  /** Jornadas finalizadas de la campaña: el % acompañado se calcula con estos dos números. */
+  jornadasTotales: number;
 }
 
 export interface DatosEquipo {

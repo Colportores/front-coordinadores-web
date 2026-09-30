@@ -107,7 +107,7 @@ export const TABLERO_INICIO_SIMULADO: TableroInicio = {
       etiqueta: "nueva",
       tono: "nueva",
       detalle: "Ana Martínez · se sumó a tu región · sin zona asignada",
-      accionPrincipal: { texto: "Asignar zona", pestana: "equipo", href: "/equipo" },
+      accionPrincipal: { texto: "Asignar zona", pestana: "ciudades", href: "/ciudades" },
     },
   ],
   mapaRegion: [
