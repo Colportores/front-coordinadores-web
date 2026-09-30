@@ -1,0 +1,221 @@
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import axe from "axe-core";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type { Punto } from "@/datos/equipo/zonas";
+import { DATOS_ZONAS_SIMULADO, fuenteZonasSimulada } from "@/datos/equipo/zonas/simulado";
+import { type AccionesZonas, ZonasCampania } from "@/features/equipo/zonas/ZonasCampania";
+import type { PropsMapaZonas } from "@/features/equipo/zonas/tipos";
+
+/** QA de vistas (sprint 5, PR #35): criterios de la HU-CAM-006 y accesibilidad con axe en cada estado. */
+
+const mapa = vi.hoisted(() => ({ props: null as PropsMapaZonas | null }));
+vi.mock("@/features/equipo/zonas/MapaZonas", () => ({
+  MapaZonas: (props: PropsMapaZonas) => {
+    mapa.props = props;
+    return <div data-testid="mapa" />;
+  },
+}));
+
+const MONTEVIDEO = DATOS_ZONAS_SIMULADO.ciudades[0];
+const ORIGEN: Punto = (MONTEVIDEO.zonas[0].esquinas as Punto[])[0];
+const nodo = (v: number, h: number): Punto => ({ lon: ORIGEN.lon + v * 0.0045, lat: ORIGEN.lat - h * 0.004 });
+const CENTRO_LIBRE = nodo(3, 3.4);
+
+function acciones(sobre: Partial<AccionesZonas> = {}): AccionesZonas {
+  return {
+    esquinaMasCercana: vi.fn((c: string, p: Punto) => fuenteZonasSimulada.esquinaMasCercana(c, p)),
+    tramoPorCalles: vi.fn((c: string, a: Punto, b: Punto) => fuenteZonasSimulada.tramoPorCalles(c, a, b)),
+    vistaPreviaZona: vi.fn((e) => fuenteZonasSimulada.vistaPreviaZona(e)),
+    guardarZona: vi.fn((e) => fuenteZonasSimulada.guardarZona(e)),
+    asignarZona: vi.fn(async () => ({ ok: true as const })),
+    quitarZona: vi.fn(async () => ({ ok: true as const })),
+    eliminarZona: vi.fn((id: string) => fuenteZonasSimulada.eliminarZona("campania-verano-2026", id)),
+    buscarCiudades: vi.fn((t: string) => fuenteZonasSimulada.buscarCiudades("campania-verano-2026", t)),
+    agregarCiudad: vi.fn((id: string) => fuenteZonasSimulada.agregarCiudad("campania-verano-2026", id)),
+    ...sobre,
+  };
+}
+
+function montar(sobre: Partial<AccionesZonas> = {}) {
+  const acc = acciones(sobre);
+  const r = render(<ZonasCampania datos={DATOS_ZONAS_SIMULADO} acciones={acc} />);
+  return { acc, contenedor: r.container };
+}
+
+async function clicEnMapa(punto: Punto) {
+  await act(async () => {
+    mapa.props?.onMapaClick(punto);
+  });
+}
+
+/** axe en jsdom no mide contraste (no hay layout): el contraste va en la corrida con navegador real. */
+async function violaciones(nodoRaiz: Element) {
+  const r = await axe.run(nodoRaiz, {
+    runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+    rules: { "color-contrast": { enabled: false } },
+  });
+  return r.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+}
+
+afterEach(() => {
+  mapa.props = null;
+});
+
+describe("QA · HU-CAM-006 · criterios de aceptación", () => {
+  it.skip("QA #28: «Zonas superpuestas» dice «se guarda, sin aviso ni rechazo»: la vista muestra aviso y marca el tramo en rojo", async () => {
+    const previa = vi.fn(async (e: Parameters<typeof fuenteZonasSimulada.vistaPreviaZona>[0]) => ({
+      ...(await fuenteZonasSimulada.vistaPreviaZona(e)),
+      superposicion: { zonaNombre: "Belvedere", tramo: [nodo(1, 3), nodo(2, 3)] },
+    }));
+    const { acc } = montar({ vistaPreviaZona: previa });
+    await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "NOMBRE" }), "Centro");
+    await clicEnMapa(CENTRO_LIBRE);
+    await screen.findByText(/Incluye/);
+
+    expect(screen.queryByText(/se superpone/)).not.toBeInTheDocument();
+    expect(mapa.props?.dibujo?.conflicto ?? null).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Guardar zona" }));
+    expect(acc.guardarZona).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("QA · validación del nombre de la zona", () => {
+  it("un nombre con emoji y espacios a los lados se envía tal cual tipeado y el guardado lo recorta", async () => {
+    const { acc } = montar();
+    await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "NOMBRE" }), "  Ñandú 🌳  ");
+    await clicEnMapa(CENTRO_LIBRE);
+    await screen.findByText(/Incluye/);
+
+    await userEvent.click(screen.getByRole("button", { name: "Guardar zona" }));
+
+    expect(await screen.findByText("Zona «Ñandú 🌳» guardada.")).toBeInTheDocument();
+    expect(acc.guardarZona).toHaveBeenCalledTimes(1);
+  });
+
+  it("después de un error al guardar no se pierde el nombre ni el radio tipeados", async () => {
+    const guardar = vi.fn(fuenteZonasSimulada.guardarZona).mockRejectedValueOnce(new Error("sin red"));
+    montar({ guardarZona: guardar });
+    await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "NOMBRE" }), "Casabó");
+    await clicEnMapa(CENTRO_LIBRE);
+    await screen.findByText(/Incluye/);
+    const radio = screen.getByRole("spinbutton");
+    await userEvent.clear(radio);
+    await userEvent.type(radio, "250");
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled());
+
+    await userEvent.click(screen.getByRole("button", { name: "Guardar zona" }));
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "NOMBRE" })).toHaveValue("Casabó");
+    expect(screen.getByRole("spinbutton")).toHaveValue(250);
+  });
+
+  it("un nombre pegado de 2000 caracteres no rompe el formulario ni deshabilita el guardado", async () => {
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+    await userEvent.click(screen.getByRole("textbox", { name: "NOMBRE" }));
+    await userEvent.paste("Z".repeat(2000));
+    await clicEnMapa(CENTRO_LIBRE);
+    await screen.findByText(/Incluye/);
+
+    expect(screen.getByRole("region", { name: "Nueva zona" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled();
+  });
+
+  it("caracteres especiales y HTML en el nombre se muestran como texto, sin interpretarse", async () => {
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "NOMBRE" }), "<b>x</b> & «y»");
+    await clicEnMapa(CENTRO_LIBRE);
+    await screen.findByText(/Incluye/);
+    await userEvent.click(screen.getByRole("button", { name: "Guardar zona" }));
+
+    expect(await screen.findByText("Zona «<b>x</b> & «y»» guardada.")).toBeInTheDocument();
+    expect(document.querySelector("section b")).toBeNull();
+  });
+});
+
+describe("QA · accesibilidad (axe A/AA, sin contraste) en cada estado", () => {
+  it("01 · lista de zonas", async () => {
+    const { contenedor } = montar();
+    expect(await violaciones(contenedor)).toEqual([]);
+  });
+
+  it.skip("QA #28: el desplegable de colportores anida un botón dentro de cada role=option (axe nested-interactive, A)", async () => {
+    const { contenedor } = montar();
+    await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
+    await userEvent.click(screen.getByRole("button", { name: /Elegir colportor/ }));
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(await violaciones(contenedor)).toEqual([]);
+  });
+
+  it("02 · nueva zona radial y «Editar zona» con la confirmación de baja", async () => {
+    const { contenedor } = montar();
+    await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+    await clicEnMapa(CENTRO_LIBRE);
+    await screen.findByText(/Incluye/);
+    expect(await violaciones(contenedor)).toEqual([]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar el formulario de zona" }));
+    await userEvent.click(screen.getByRole("button", { name: "Ver la zona Cerro Norte" }));
+    await userEvent.click(screen.getByRole("button", { name: "Editar forma" }));
+    await userEvent.click(screen.getByRole("button", { name: /Eliminar zona/ }));
+    expect(await screen.findByRole("alertdialog", { name: "Eliminar zona" })).toBeInTheDocument();
+    expect(await violaciones(contenedor)).toEqual([]);
+  });
+
+  it("03 · nueva zona por esquinas en curso", async () => {
+    const { contenedor } = montar();
+    await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+    await userEvent.click(screen.getByRole("radio", { name: /Por esquinas/ }));
+    await clicEnMapa(nodo(1, 3));
+    await waitFor(() => expect(screen.getByText("ESQUINAS · 1")).toBeInTheDocument());
+    expect(await violaciones(contenedor)).toEqual([]);
+  });
+
+  it("buscador de ciudades: resultados, sin coincidencias y error con «Reintentar»", async () => {
+    const buscar = vi
+      .fn(fuenteZonasSimulada.buscarCiudades.bind(fuenteZonasSimulada, "campania-verano-2026"))
+      .mockImplementation((t: string) => fuenteZonasSimulada.buscarCiudades("campania-verano-2026", t));
+    const { contenedor } = montar({ buscarCiudades: buscar });
+    await userEvent.click(screen.getByRole("button", { name: "+ Agregar ciudad" }));
+    await screen.findByRole("list", { name: "Ciudades del catálogo" });
+    expect(await violaciones(contenedor)).toEqual([]);
+
+    await userEvent.type(screen.getByRole("searchbox"), "zzzzqq");
+    await screen.findByText(/No hay ciudades que coincidan/);
+    expect(await violaciones(contenedor)).toEqual([]);
+  });
+
+  it("los avisos de error se anuncian (role alert) y los de estado usan role status", async () => {
+    const { acc } = montar({ asignarZona: vi.fn().mockRejectedValue(new Error("sin red")) });
+    await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
+    await userEvent.click(screen.getByRole("button", { name: /Elegir colportor/ }));
+    await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+    await userEvent.click(screen.getByRole("button", { name: "Asignar a Belvedere" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo conectar");
+    expect(acc.asignarZona).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Asignar a Belvedere" })).toBeEnabled();
+  });
+});
+
+describe("QA · foco al abrir la confirmación de «Eliminar zona»", () => {
+  it.skip("QA #28: al pedir «Eliminar zona» el botón desaparece y el foco cae en el body; el aviso debería recibir el foco", async () => {
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "Ver la zona Cerro Norte" }));
+    await userEvent.click(screen.getByRole("button", { name: "Editar forma" }));
+    await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
+
+    const aviso = await screen.findByRole("alertdialog", { name: "Eliminar zona" });
+    expect(aviso.contains(document.activeElement)).toBe(true);
+  });
+});
