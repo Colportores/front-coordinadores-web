@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { fuenteEquipo } from "@/datos/equipo";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { Acompanamientos } from "@/features/equipo/Acompanamientos";
-import { PreciosPorZona } from "@/features/equipo/PreciosPorZona";
+import { PreciosPorCiudad } from "@/features/equipo/PreciosPorCiudad";
 import { SinZonaAsignada } from "@/features/equipo/SinZonaAsignada";
 import { TablaColportores } from "@/features/equipo/TablaColportores";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
@@ -38,7 +38,7 @@ export default async function PestanaEquipo() {
             <SinZonaAsignada colportores={equipo.sinZonaAsignada} />
           </SeccionHu>
           <SeccionHu hu="HU-CAT-005">
-            <PreciosPorZona productos={equipo.preciosPorZona} />
+            <PreciosPorCiudad ciudades={equipo.preciosPorCiudad} />
           </SeccionHu>
           <SeccionHu hu="HU-JOR-004">
             <Acompanamientos datos={equipo.acompanamiento} />

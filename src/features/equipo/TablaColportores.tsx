@@ -13,25 +13,25 @@ const CLASE_ESTADO_COBRO: Record<EstadoCobro, string> = {
   critico: "text-peligro",
 };
 
-const TODAS_LAS_ZONAS = "__todas__";
+const TODAS_LAS_CIUDADES = "__todas__";
 
-interface ZonaConConteo {
+interface CiudadConConteo {
   id: string;
   nombre: string;
   cantidad: number;
 }
 
-function agruparPorZona(colportores: FilaColportor[]): ZonaConConteo[] {
-  const zonas = new Map<string, ZonaConConteo>();
+function agruparPorCiudad(colportores: FilaColportor[]): CiudadConConteo[] {
+  const ciudades = new Map<string, CiudadConConteo>();
   for (const c of colportores) {
-    const actual = zonas.get(c.zonaId);
+    const actual = ciudades.get(c.ciudadId);
     if (actual) actual.cantidad += 1;
-    else zonas.set(c.zonaId, { id: c.zonaId, nombre: c.zonaNombre, cantidad: 1 });
+    else ciudades.set(c.ciudadId, { id: c.ciudadId, nombre: c.ciudadNombre, cantidad: 1 });
   }
-  return Array.from(zonas.values());
+  return Array.from(ciudades.values());
 }
 
-function FiltroZona({
+function FiltroCiudad({
   etiqueta,
   activo,
   onClick,
@@ -55,30 +55,32 @@ function FiltroZona({
   );
 }
 
-/** Tabla de "Mi equipo" con filtro por zona (funciona en cliente sobre los datos simulados). */
+/** Tabla de "Mi equipo" con filtro por ciudad (funciona en cliente sobre los datos simulados). */
 export function TablaColportores({ colportores }: { colportores: FilaColportor[] }) {
-  const [zonaSeleccionada, setZonaSeleccionada] = useState<string>(TODAS_LAS_ZONAS);
-  const zonas = useMemo(() => agruparPorZona(colportores), [colportores]);
+  const [ciudadSeleccionada, setCiudadSeleccionada] = useState<string>(TODAS_LAS_CIUDADES);
+  const ciudades = useMemo(() => agruparPorCiudad(colportores), [colportores]);
   const filas =
-    zonaSeleccionada === TODAS_LAS_ZONAS ? colportores : colportores.filter((c) => c.zonaId === zonaSeleccionada);
+    ciudadSeleccionada === TODAS_LAS_CIUDADES
+      ? colportores
+      : colportores.filter((c) => c.ciudadId === ciudadSeleccionada);
   // Fuera del modo dev, Cuentas está oculta hasta su conexión en V2 (flag apagado
   // en staging y producción): el link a su ficha no puede llevar a un 404.
   const cuentasVisible = pestanaVisible("cuentas");
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar equipo por zona">
-        <FiltroZona
-          etiqueta={`Todas las zonas · ${colportores.length}`}
-          activo={zonaSeleccionada === TODAS_LAS_ZONAS}
-          onClick={() => setZonaSeleccionada(TODAS_LAS_ZONAS)}
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar equipo por ciudad">
+        <FiltroCiudad
+          etiqueta={`Todas las ciudades · ${colportores.length}`}
+          activo={ciudadSeleccionada === TODAS_LAS_CIUDADES}
+          onClick={() => setCiudadSeleccionada(TODAS_LAS_CIUDADES)}
         />
-        {zonas.map((z) => (
-          <FiltroZona
-            key={z.id}
-            etiqueta={`${z.nombre} · ${z.cantidad}`}
-            activo={zonaSeleccionada === z.id}
-            onClick={() => setZonaSeleccionada(z.id)}
+        {ciudades.map((c) => (
+          <FiltroCiudad
+            key={c.id}
+            etiqueta={`${c.nombre} · ${c.cantidad}`}
+            activo={ciudadSeleccionada === c.id}
+            onClick={() => setCiudadSeleccionada(c.id)}
           />
         ))}
       </div>
@@ -91,7 +93,10 @@ export function TablaColportores({ colportores }: { colportores: FilaColportor[]
                 Colportor
               </th>
               <th scope="col" className="px-2 py-2.5">
-                Zona
+                Ciudad
+              </th>
+              <th scope="col" className="px-2 py-2.5">
+                Zonas
               </th>
               <th scope="col" className="px-2 py-2.5">
                 Horas sem.
@@ -113,8 +118,8 @@ export function TablaColportores({ colportores }: { colportores: FilaColportor[]
           <tbody>
             {filas.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-[18px] py-6 text-center text-chico text-tinta-suave">
-                  No hay colportores en esta zona.
+                <td colSpan={8} className="px-[18px] py-6 text-center text-chico text-tinta-suave">
+                  No hay colportores en esta ciudad.
                 </td>
               </tr>
             ) : (
@@ -127,7 +132,10 @@ export function TablaColportores({ colportores }: { colportores: FilaColportor[]
                   )}
                 >
                   <td className="px-[18px] py-[11px] font-semibold text-tinta">{c.nombre}</td>
-                  <td className="px-2 py-[11px] text-tinta-suave">{c.zonaNombre}</td>
+                  <td className="px-2 py-[11px] text-tinta-suave">{c.ciudadNombre}</td>
+                  <td className="px-2 py-[11px] text-tinta-suave">
+                    {c.zonas.length === 0 ? "Sin asignar" : c.zonas.join(", ")}
+                  </td>
                   <td className="px-2 py-[11px] font-mono">{c.horasSemana}</td>
                   <td className="px-2 py-[11px] font-mono">{c.ventas}</td>
                   <td className={cn("px-2 py-[11px] font-semibold", CLASE_ESTADO_COBRO[c.estadoCobro])}>

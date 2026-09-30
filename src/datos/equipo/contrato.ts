@@ -1,6 +1,6 @@
 /**
- * Contrato de datos de la pestaña Equipo: colportores del coordinador, zonas,
- * precios por zona y acompañamientos. Es lo que después implementa el BFF
+ * Contrato de datos de la pestaña Equipo: colportores del coordinador (con su
+ * ciudad y sus zonas), precios por ciudad y acompañamientos. Es lo que después implementa el BFF
  * (bff-coordinadores).
  */
 
@@ -9,8 +9,11 @@ export type EstadoCobro = "bien" | "atencion" | "critico";
 export interface FilaColportor {
   id: string;
   nombre: string;
-  zonaId: string;
-  zonaNombre: string;
+  /** Ciudad de la campaña a la que pertenece el colportor (los precios son por ciudad). */
+  ciudadId: string;
+  ciudadNombre: string;
+  /** Zonas asignadas (solo visual); vacío mientras no tenga ninguna: se muestra «Sin asignar». */
+  zonas: string[];
   /** Formateado como en el diseño, p. ej. "28,4 h". */
   horasSemana: string;
   /** Formateado como en el diseño, p. ej. "$U 84K". */
@@ -38,33 +41,59 @@ export interface ColportorSinZona {
   nota: string;
 }
 
-export interface PrecioProductoZona {
+export interface PrecioProductoCiudad {
   id: string;
   producto: string;
   /** Formateado como en el diseño, p. ej. "$U 1.450". */
   precioBase: string;
-  /** Formateado como en el diseño, p. ej. "$U 1.500". */
-  precioZona: string;
+  /** Precio configurado para la ciudad, formateado, p. ej. "$U 1.500". */
+  precioCiudad: string;
 }
 
-export interface JornadaSinAcompanamiento {
+/** Precios de los productos de una ciudad de la campaña (`campania_ciudad`). */
+export interface PreciosDeCiudad {
+  ciudadId: string;
+  ciudadNombre: string;
+  productos: PrecioProductoCiudad[];
+}
+
+/** Último acompañamiento registrado: a quién, qué día y quién acompañó. */
+export interface UltimoAcompanamiento {
   id: string;
-  /** P. ej. "Jornada de J. Cabrera · ayer". */
-  titulo: string;
-  /** P. ej. "3,4 h · Cerro Norte · sin acompañamiento registrado". */
+  colportor: string;
+  /** Día de la jornada, en texto como lo muestra el panel, p. ej. "ayer" o "lun 28/09". */
+  dia: string;
+  acompaniante: string;
+}
+
+/** Jornada finalizada reciente del equipo, candidata a registrarle un acompañamiento. */
+export interface JornadaReciente {
+  id: string;
+  colportor: string;
+  /** Día de la jornada, p. ej. "ayer". */
+  dia: string;
+  /** P. ej. "3,4 h · Cerro Norte". */
   detalle: string;
 }
 
 export interface DatosAcompanamiento {
-  jornadasSinAcompanamiento: JornadaSinAcompanamiento[];
-  porcentajeJornadasAcompanadas: number;
+  /** Más reciente primero. */
+  ultimosAcompanamientos: UltimoAcompanamiento[];
+  /** Últimas jornadas del equipo sin acompañamiento, para elegir al registrar uno. */
+  jornadasRecientes: JornadaReciente[];
+  /** Quien registra (el coordinador de la sesión): figura como acompañante. */
+  acompaniante: string;
+  /** Jornadas finalizadas de la campaña con acompañamiento registrado. */
+  jornadasAcompanadas: number;
+  /** Jornadas finalizadas de la campaña: el % acompañado se calcula con estos dos números. */
+  jornadasTotales: number;
 }
 
 export interface DatosEquipo {
   region: string;
   colportores: FilaColportor[];
   sinZonaAsignada: ColportorSinZona[];
-  preciosPorZona: PrecioProductoZona[];
+  preciosPorCiudad: PreciosDeCiudad[];
   acompanamiento: DatosAcompanamiento;
 }
 

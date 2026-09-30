@@ -16,10 +16,12 @@ export type {
   EstadoCuenta,
   FilaColportor,
   FuenteDatosEquipo,
-  JornadaSinAcompanamiento,
+  JornadaReciente,
   MiembroEquipo,
-  PrecioProductoZona,
+  PrecioProductoCiudad,
+  PreciosDeCiudad,
   ResultadoInscripcion,
+  UltimoAcompanamiento,
 } from "@/datos/equipo/contrato";
 
 export const fuenteEquipo: FuenteDatosEquipo = fuenteEquipoSimulada;

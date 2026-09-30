@@ -22,7 +22,7 @@ describe("flags", () => {
       expect(modoDevActivo()).toBe(false);
       expect(pestanaVisible("stock")).toBe(false);
       expect(pestanaVisible("cuentas")).toBe(false);
-      expect(pestanasVisibles().map((p) => p.id)).toEqual(["inicio", "equipo", "reportes"]);
+      expect(pestanasVisibles().map((p) => p.id)).toEqual(["inicio", "equipo", "ciudades", "reportes"]);
     });
 
     it("el flag propio de la pestaña la puede prender", () => {
@@ -33,10 +33,10 @@ describe("flags", () => {
   });
 
   describe("cuando el modo dev está prendido (desarrollo)", () => {
-    it("muestra las cinco pestañas", () => {
+    it("muestra las seis pestañas", () => {
       fijarFlags({ modoDev: true });
       expect(modoDevActivo()).toBe(true);
-      expect(pestanasVisibles().map((p) => p.id)).toEqual(["inicio", "equipo", "stock", "cuentas", "reportes"]);
+      expect(pestanasVisibles().map((p) => p.id)).toEqual(["inicio", "equipo", "ciudades", "stock", "cuentas", "reportes"]);
     });
 
     it("el flag propio de la pestaña la puede apagar", () => {
