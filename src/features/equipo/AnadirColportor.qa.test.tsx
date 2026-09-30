@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
@@ -139,5 +140,67 @@ describe("QA · accesibilidad (axe A/AA, sin contraste) en cada estado", () => {
       await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
     });
     expect(screen.getByRole("status")).toHaveTextContent("Añadiste a Ana Martínez a Verano 2026.");
+  });
+});
+
+describe("QA · hallazgos resueltos (contraste, objetivo táctil, foco)", () => {
+  const luz = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contraste = (a: string, b: string) => {
+    const [x, y] = [luz(a), luz(b)].sort((m, n) => n - m);
+    return (x + 0.05) / (y + 0.05);
+  };
+  const token = (nombre: string) => new RegExp(`--${nombre}: *(#[0-9a-fA-F]{6})`).exec(readFileSync("src/app/globals.css", "utf8"))?.[1] as string;
+
+  it("el texto de `alerta` da al menos 4,5:1 sobre blanco y sobre `alerta-fondo`", () => {
+    expect(contraste(token("alerta"), "#ffffff")).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(token("alerta"), token("alerta-fondo"))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("«‹ Equipo», «Borrar búsqueda» y «Deshacer» piden al menos 24 px de alto", async () => {
+    montar();
+    expect(screen.getByRole("link", { name: "‹ Equipo" })).toHaveClass("min-h-6");
+    await userEvent.type(buscador(), "ana");
+    expect(screen.getByRole("button", { name: "Borrar búsqueda" })).toHaveClass("min-h-6", "min-w-6");
+    await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+    expect(screen.getByRole("button", { name: /Deshacer/ })).toHaveClass("min-h-6", "min-w-6");
+  });
+
+  it("tras «Añadir» el foco queda en la fila de la cuenta y no en el body", async () => {
+    montar();
+    await userEvent.type(buscador(), "ana");
+    await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+    await screen.findByText(/Añadiste a Ana Martínez/);
+    const fila = screen.getByRole("button", { name: "Elegir a Ana Martínez" }).closest("li");
+    expect(fila).toHaveFocus();
+  });
+
+  it("tras un «Añadir» que falla el foco queda en la fila y el botón vuelve a estar habilitado", async () => {
+    montar(async () => {
+      throw new Error("sin red");
+    });
+    await userEvent.type(buscador(), "ana");
+    await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+    await screen.findByRole("alert");
+    expect(screen.getByRole("button", { name: "Añadir a Ana Martínez" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Elegir a Ana Martínez" }).closest("li")).toHaveFocus();
+  });
+
+  it("tras «Deshacer» el foco vuelve a la fila, y si la cuenta ya no está en los resultados, al buscador", async () => {
+    montar();
+    await userEvent.type(buscador(), "ana");
+    await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Deshacer/ }));
+    expect(screen.getByRole("button", { name: "Elegir a Ana Martínez" }).closest("li")).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Añadir a Ana Martínez" })).toBeEnabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+    const deshacer = await screen.findByRole("button", { name: /Deshacer/ });
+    await userEvent.clear(buscador());
+    await userEvent.type(buscador(), "zzzzqq");
+    await userEvent.click(deshacer);
+    expect(buscador()).toHaveFocus();
   });
 });
