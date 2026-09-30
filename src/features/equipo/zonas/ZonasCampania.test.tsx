@@ -181,7 +181,7 @@ describe("ZonasCampania", () => {
 
       await userEvent.clear(radio);
       await userEvent.type(radio, "0");
-      expect(radio).not.toHaveValue(0);
+      expect(mapa.props?.dibujo?.radioM).toBe(3000);
     });
 
     it("guarda la zona, la suma a la lista y abre su detalle", async () => {
@@ -739,8 +739,8 @@ describe("ZonasCampania", () => {
       await within(buscador).findByRole("list", { name: "Ciudades del catálogo" });
 
       await userEvent.type(within(buscador).getByRole("searchbox"), "soriano");
-      expect(await within(buscador).findByRole("button", { name: "Agregar Mercedes, Soriano" })).toBeInTheDocument();
-      expect(within(buscador).queryByRole("button", { name: /Agregar Salto/ })).not.toBeInTheDocument();
+      await waitFor(() => expect(within(buscador).queryByRole("button", { name: /Agregar Salto/ })).not.toBeInTheDocument());
+      expect(within(buscador).getByRole("button", { name: "Agregar Mercedes, Soriano" })).toBeInTheDocument();
       expect(acc.buscarCiudades).toHaveBeenLastCalledWith("soriano");
 
       await userEvent.clear(within(buscador).getByRole("searchbox"));
@@ -1177,6 +1177,164 @@ describe("ZonasCampania", () => {
       await screen.findByText(/^Incluye \d+ ubicaciones\.$/);
 
       expect(screen.queryByText(/cambian de zona/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("revisión #35: casos límite de la UI", () => {
+    it("(a) mientras se agrega una ciudad no se puede empezar una zona, editar una forma ni cambiar de ciudad", async () => {
+      let liberar: () => void = () => undefined;
+      montar({
+        agregarCiudad: vi.fn(
+          (id: string) =>
+            new Promise<Awaited<ReturnType<typeof fuenteZonasSimulada.agregarCiudad>>>((r) => {
+              liberar = () => r(fuenteZonasSimulada.agregarCiudad("campania-verano-2026", id));
+            }),
+        ),
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
+      await userEvent.click(screen.getByRole("button", { name: "+ Agregar ciudad" }));
+      await userEvent.click(await screen.findByRole("button", { name: "Agregar Salto, Salto" }));
+
+      expect(screen.getByRole("button", { name: "Editar forma" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /Las Piedras/ })).toBeDisabled();
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar el detalle de la zona" }));
+      expect(screen.getByRole("region", { name: "Zona Belvedere" })).toBeInTheDocument();
+      act(() => mapa.props?.onZonaClick("zona-la-teja"));
+      expect(screen.getByRole("region", { name: "Zona Belvedere" })).toBeInTheDocument();
+
+      await act(async () => liberar());
+      expect(await screen.findByText("«Salto» se agregó a la campaña.")).toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Zonas de Salto" })).toBeInTheDocument();
+    });
+
+    it("(a) con la lista abierta, «+ Nueva zona» espera a que termine de agregar la ciudad", async () => {
+      let liberar: () => void = () => undefined;
+      montar({
+        agregarCiudad: vi.fn(
+          (id: string) =>
+            new Promise<Awaited<ReturnType<typeof fuenteZonasSimulada.agregarCiudad>>>((r) => {
+              liberar = () => r(fuenteZonasSimulada.agregarCiudad("campania-verano-2026", id));
+            }),
+        ),
+      });
+      await userEvent.click(screen.getByRole("button", { name: "+ Agregar ciudad" }));
+      await userEvent.click(await screen.findByRole("button", { name: "Agregar Salto, Salto" }));
+
+      expect(screen.getByRole("button", { name: "+ Nueva zona" })).toBeDisabled();
+
+      await act(async () => liberar());
+      await screen.findByText("«Salto» se agregó a la campaña.");
+      expect(screen.getByRole("button", { name: "+ Nueva zona" })).toBeEnabled();
+    });
+
+    it("(a) con un dibujo a medias no se puede agregar una ciudad, y empezar uno cierra el buscador abierto", async () => {
+      montar();
+      await userEvent.click(screen.getByRole("button", { name: "+ Agregar ciudad" }));
+      expect(screen.getByRole("region", { name: "Agregar ciudad" })).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+
+      expect(screen.queryByRole("region", { name: "Agregar ciudad" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "+ Agregar ciudad" })).toBeDisabled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+      expect(screen.getByRole("button", { name: "+ Agregar ciudad" })).toBeEnabled();
+    });
+
+    it("(b) con una asignación en curso no se puede cambiar de zona, y su error aparece en la zona que la pidió", async () => {
+      let rechazar: (e: Error) => void = () => undefined;
+      montar({ asignarZona: vi.fn(() => new Promise<{ ok: true }>((_r, rej) => (rechazar = rej))) });
+      await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
+      await userEvent.click(screen.getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
+      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(screen.getByRole("button", { name: "Asignar a Belvedere" }));
+
+      expect(screen.getByRole("button", { name: "Cerrar el detalle de la zona" })).toBeDisabled();
+      act(() => mapa.props?.onZonaClick("zona-la-teja"));
+      expect(screen.getByRole("region", { name: "Zona Belvedere" })).toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Zona La Teja" })).not.toBeInTheDocument();
+
+      await act(async () => rechazar(new Error("sin red")));
+      expect(await within(screen.getByRole("region", { name: "Zona Belvedere" })).findByRole("alert")).toHaveTextContent(
+        "No se pudo conectar. Probá de nuevo en unos segundos.",
+      );
+      act(() => mapa.props?.onZonaClick("zona-la-teja"));
+      expect(within(screen.getByRole("region", { name: "Zona La Teja" })).queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("(c) el radio se puede vaciar con Backspace y teclear otro valor; vacío no deja guardar", async () => {
+      montar();
+      await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+      await userEvent.type(screen.getByRole("textbox", { name: "NOMBRE" }), "Casabó");
+      await clicEnMapa(CENTRO_LIBRE);
+      await screen.findByText(/^Incluye \d+ ubicaciones\.$/);
+      const radio = screen.getByRole("spinbutton", { name: /RADIO/ });
+      expect(radio).toHaveValue(400);
+
+      await userEvent.clear(radio);
+      expect(radio).toHaveValue(null);
+      expect(screen.getByRole("button", { name: "Guardar zona" })).toBeDisabled();
+
+      await userEvent.type(radio, "500");
+      expect(radio).toHaveValue(500);
+      await waitFor(() => expect(mapa.props?.dibujo?.radioM).toBe(500));
+      await screen.findByText(/^Incluye \d+ ubicaciones\.$/);
+      expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled();
+    });
+
+    it("(c) al salir del campo vacío el radio vuelve al último valor válido", async () => {
+      montar();
+      await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+      await clicEnMapa(CENTRO_LIBRE);
+      const radio = screen.getByRole("spinbutton", { name: /RADIO/ });
+      await userEvent.clear(radio);
+
+      await userEvent.tab();
+
+      expect(radio).toHaveValue(400);
+    });
+
+    it("(c) 0 tampoco se toma como radio y sigue pudiéndose corregir", async () => {
+      montar();
+      await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+      await clicEnMapa(CENTRO_LIBRE);
+      const radio = screen.getByRole("spinbutton", { name: /RADIO/ });
+
+      await userEvent.clear(radio);
+      await userEvent.type(radio, "0");
+      expect(radio).toHaveValue(0);
+      await userEvent.clear(radio);
+      await userEvent.type(radio, "250");
+
+      expect(radio).toHaveValue(250);
+    });
+
+    it("(d) escribir rápido en el buscador consulta una sola vez, cuando se deja de teclear", async () => {
+      const acc = montar();
+      await userEvent.click(screen.getByRole("button", { name: "+ Agregar ciudad" }));
+      await waitFor(() => expect(acc.buscarCiudades).toHaveBeenCalledTimes(1));
+
+      await userEvent.type(screen.getByRole("searchbox"), "salto");
+
+      await waitFor(() => expect(acc.buscarCiudades).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.queryByRole("button", { name: /Agregar Mercedes/ })).not.toBeInTheDocument());
+      expect(screen.getByRole("button", { name: "Agregar Salto, Salto" })).toBeInTheDocument();
+      expect(acc.buscarCiudades).toHaveBeenLastCalledWith("salto");
+    });
+
+    it("(e) con la confirmación de baja abierta no se puede guardar; al conservarla vuelve a poderse", async () => {
+      montar();
+      await userEvent.click(screen.getByRole("button", { name: "Ver la zona Paso de la Arena" }));
+      await userEvent.click(screen.getByRole("button", { name: "Editar forma" }));
+      await act(async () => mapa.props?.onRadio(300));
+      await screen.findByText(/^Incluye \d+ ubicaciones\.$/);
+      expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
+      expect(screen.getByRole("button", { name: "Guardar zona" })).toBeDisabled();
+
+      await userEvent.click(screen.getByRole("button", { name: "No, conservarla" }));
+      expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled();
     });
   });
 });

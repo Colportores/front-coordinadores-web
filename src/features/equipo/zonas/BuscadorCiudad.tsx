@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CiudadDelCatalogo } from "@/datos/equipo/zonas";
 
+/** Espera entre la última tecla y la consulta al catálogo. */
+export const MS_ESPERA_BUSQUEDA = 250;
+
 export const MENSAJE_BUSQUEDA_SIN_CONEXION = "No se pudo buscar en el catálogo. Revisá la conexión y probá de nuevo.";
 
 interface Props {
@@ -27,11 +30,14 @@ export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, on
   const [intento, setIntento] = useState(0);
   // Cada búsqueda nueva invalida a la anterior: una respuesta vieja no pisa a la de lo último que se escribió.
   const version = useRef(0);
+  const textoBuscado = useRef("");
 
   useEffect(() => {
     const esta = ++version.current;
-    // Un temporizador en cero mantiene fuera del cuerpo del efecto el cambio de estado («cargando»).
+    // Al escribir se espera a que pare de teclear; la primera carga y «Reintentar» salen enseguida.
+    const espera = texto === textoBuscado.current ? 0 : MS_ESPERA_BUSQUEDA;
     const arranque = setTimeout(() => {
+      textoBuscado.current = texto;
       setResultados(null);
       setFallo(false);
       buscar(texto)
@@ -41,7 +47,7 @@ export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, on
         .catch(() => {
           if (esta === version.current) setFallo(true);
         });
-    }, 0);
+    }, espera);
     return () => clearTimeout(arranque);
   }, [texto, intento, buscar]);
 

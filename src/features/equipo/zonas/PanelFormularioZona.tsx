@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import type { Esquina, FormaZona, TipoForma, VistaPreviaZona } from "@/datos/equipo/zonas";
 import { cn } from "@/lib/utils";
@@ -82,7 +84,15 @@ export function PanelFormularioZona({
   onCancelar,
 }: Props) {
   const esquinas = forma.esquinas ?? [];
-  const puedeGuardar = nombre.trim() !== "" && formaCompleta(forma) && vistaPrevia !== null && !guardando;
+  // Lo que se está tecleando en el radio cuando todavía no es un número válido (vacío o 0): `null` sigue a la forma.
+  const [radioTexto, setRadioTexto] = useState<string | null>(null);
+  const puedeGuardar =
+    nombre.trim() !== "" &&
+    formaCompleta(forma) &&
+    vistaPrevia !== null &&
+    !guardando &&
+    !baja?.confirmando &&
+    radioTexto === null;
 
   return (
     <section aria-label={editando ? "Editar zona" : "Nueva zona"} className="flex flex-col gap-3.5 rounded-tarjeta border border-borde bg-superficie px-[18px] py-4">
@@ -159,13 +169,20 @@ export function PanelFormularioZona({
                 min={RADIO_MIN_M}
                 max={RADIO_MAX_M}
                 step={50}
-                value={forma.radioM ?? ""}
+                value={radioTexto ?? forma.radioM ?? ""}
                 placeholder={String(RADIO_INICIAL_M)}
                 disabled={!forma.centro}
                 onChange={(e) => {
                   const valor = Number(e.target.value);
-                  if (Number.isFinite(valor) && valor > 0) onRadio(Math.min(RADIO_MAX_M, Math.max(RADIO_MIN_M, valor)));
+                  if (e.target.value.trim() !== "" && Number.isFinite(valor) && valor > 0) {
+                    setRadioTexto(null);
+                    onRadio(Math.min(RADIO_MAX_M, Math.max(RADIO_MIN_M, valor)));
+                  } else {
+                    // Se puede borrar con Backspace para teclear otro valor; hasta entonces no se guarda.
+                    setRadioTexto(e.target.value);
+                  }
                 }}
+                onBlur={() => setRadioTexto(null)}
                 className="min-w-0 flex-1 bg-transparent text-nav text-tinta outline-none disabled:text-tinta-tenue"
               />
               <span aria-hidden className="text-nav text-tinta-suave">

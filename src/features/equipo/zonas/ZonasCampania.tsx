@@ -144,6 +144,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const ciudad = ciudades.find((c) => c.id === ciudadId) ?? ciudades[0];
   const catalogoEnCampania = useMemo(() => new Set(ciudades.map((c) => c.catalogoId)), [ciudades]);
   const guardando = panel.tipo === "dibujo" && panel.guardando;
+  const agregando = buscador?.ocupado === true;
   const forma = panel.tipo === "dibujo" ? panel.forma : null;
   const zonaEnEdicionId = panel.tipo === "dibujo" ? panel.zonaId : undefined;
 
@@ -246,6 +247,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
     abandonarDibujo();
     if (nuevo.tipo === "dibujo") formaVigente.current = nuevo.forma;
     setPanel(nuevo);
+    setBuscador((b) => (b?.ocupado ? b : null));
     setAviso(null);
   }
 
@@ -258,7 +260,9 @@ export function ZonasCampania({ datos, acciones }: Props) {
   }
 
   function elegirZona(zonaId: string) {
-    if (panel.tipo === "dibujo") return;
+    // Mientras se guarda algo del detalle o se agrega una ciudad, la vista no cambia de lugar: el resultado caería en otra parte.
+    if (panel.tipo === "dibujo" || agregando) return;
+    if (panel.tipo === "detalle" && panel.ocupado) return;
     const colportorId = panel.tipo === "lista" ? panel.asignandoA : null;
     setPanel({ tipo: "detalle", zonaId, colportorId, ocupado: false, error: null });
     setAviso(null);
@@ -435,7 +439,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
       const resultado =
         accion === "asignar" ? await acciones.asignarZona(colportorId, zona.id) : await acciones.quitarZona(colportorId);
       if (!resultado.ok) {
-        setPanel((p) => (p.tipo === "detalle" ? { ...p, ocupado: false, error: resultado.mensaje } : p));
+        setPanel((p) => (p.tipo === "detalle" && p.zonaId === zona.id ? { ...p, ocupado: false, error: resultado.mensaje } : p));
         return;
       }
       ponerZona(colportorId, accion === "asignar" ? zona : null);
@@ -445,7 +449,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
       const nombre = persona?.nombre ?? "El colportor";
       setAviso(accion === "asignar" ? `${nombre} quedó en ${zona.nombre}.` : `${nombre} quedó sin zona.`);
     } catch {
-      setPanel((p) => (p.tipo === "detalle" ? { ...p, ocupado: false, error: MENSAJE_SIN_CONEXION } : p));
+      setPanel((p) => (p.tipo === "detalle" && p.zonaId === zona.id ? { ...p, ocupado: false, error: MENSAJE_SIN_CONEXION } : p));
     } finally {
       asignandoAhora.current = false;
     }
@@ -525,7 +529,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
               key={c.id}
               type="button"
               aria-current={c.id === ciudad.id ? "true" : undefined}
-              disabled={guardando}
+              disabled={guardando || agregando}
               onClick={() => elegirCiudad(c.id)}
               className={cn(
                 "flex cursor-pointer flex-col items-start rounded-control border px-3.5 py-1.5 text-left focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60",
@@ -543,7 +547,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
           type="button"
           variant="outline"
           size="sm"
-          disabled={guardando}
+          // Con un dibujo a medias no se puede cambiar de ciudad: se perdería sin aviso.
+          disabled={panel.tipo === "dibujo"}
           aria-expanded={buscador !== null}
           onClick={() => setBuscador((b) => (b ? (b.ocupado ? b : null) : { ocupado: false, error: null }))}
           className="text-nav font-semibold text-tinta-2"
@@ -608,6 +613,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
               ocupado={panel.ocupado}
               error={panel.error}
               onCerrar={() => setPanel({ tipo: "lista", asignandoA: null })}
+              bloqueado={agregando}
               onEditarForma={() => empezarEdicion(zonaDetalle)}
               onAsignar={(id) => void cambiarZonaDeColportor(id, "asignar")}
               onQuitar={(id) => void cambiarZonaDeColportor(id, "quitar")}
@@ -618,6 +624,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
               zonas={zonas}
               zonaElegidaId={zonaElegidaId}
               asignandoA={panel.tipo === "lista" ? panel.asignandoA : null}
+              bloqueado={agregando}
               onNuevaZona={() => empezarDibujo(dibujoNuevo())}
               onElegirZona={elegirZona}
               onAsignar={(colportorId) => setPanel({ tipo: "lista", asignandoA: colportorId })}

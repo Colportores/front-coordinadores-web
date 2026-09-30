@@ -15,6 +15,8 @@ interface Props {
   /** Colportor preelegido en el desplegable (viene de «Asignar» en «Sin zona»). */
   colportorInicialId: string | null;
   ocupado: boolean;
+  /** Se está agregando una ciudad: «Editar forma» espera. */
+  bloqueado: boolean;
   error: string | null;
   onCerrar: () => void;
   onEditarForma: () => void;
@@ -44,6 +46,7 @@ export function PanelDetalleZona({
   zona,
   colportorInicialId,
   ocupado,
+  bloqueado,
   error,
   onCerrar,
   onEditarForma,
@@ -74,8 +77,9 @@ export function PanelDetalleZona({
         <button
           type="button"
           onClick={onCerrar}
+          disabled={ocupado || bloqueado}
           aria-label="Cerrar el detalle de la zona"
-          className="cursor-pointer rounded-control px-1.5 text-nav text-tinta-suave hover:text-tinta"
+          className="cursor-pointer rounded-control px-1.5 text-nav text-tinta-suave hover:text-tinta disabled:cursor-not-allowed disabled:opacity-50"
         >
           ✕
         </button>
@@ -201,7 +205,7 @@ export function PanelDetalleZona({
         >
           Asignar a {zona.nombre}
         </Button>
-        <Button type="button" variant="outline" onClick={onEditarForma} className="min-h-9 text-nav font-semibold text-tinta-2">
+        <Button type="button" variant="outline" disabled={bloqueado || ocupado} onClick={onEditarForma} className="min-h-9 text-nav font-semibold text-tinta-2">
           Editar forma
         </Button>
       </div>

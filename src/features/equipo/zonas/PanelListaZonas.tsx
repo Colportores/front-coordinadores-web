@@ -49,6 +49,8 @@ interface Props {
   zonaElegidaId: string | null;
   /** Colportor al que se le está buscando zona (tocó «Asignar» en «Sin zona»). */
   asignandoA: string | null;
+  /** Se está agregando una ciudad: no se empieza nada nuevo hasta que conteste. */
+  bloqueado: boolean;
   onNuevaZona: () => void;
   onElegirZona: (zonaId: string) => void;
   onAsignar: (colportorId: string) => void;
@@ -61,6 +63,7 @@ export function PanelListaZonas({
   zonas,
   zonaElegidaId,
   asignandoA,
+  bloqueado,
   onNuevaZona,
   onElegirZona,
   onAsignar,
@@ -74,7 +77,7 @@ export function PanelListaZonas({
       <section aria-label={`Zonas de ${ciudad.nombre}`} className="overflow-hidden rounded-tarjeta border border-borde bg-superficie">
         <div className="flex items-center justify-between px-3.5 py-3">
           <h3 className="font-serif text-[15px] font-semibold text-tinta">Zonas de {ciudad.nombre}</h3>
-          <Button type="button" onClick={onNuevaZona} className="min-h-8 text-nav font-semibold">
+          <Button type="button" disabled={bloqueado} onClick={onNuevaZona} className="min-h-8 text-nav font-semibold">
             + Nueva zona
           </Button>
         </div>
