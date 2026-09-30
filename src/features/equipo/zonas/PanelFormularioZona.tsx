@@ -92,7 +92,7 @@ export function PanelFormularioZona({
   useEffect(() => {
     if (confirmando) {
       confirmacion.current?.focus();
-      confirmacion.current?.scrollIntoView?.({ block: "nearest" });
+      confirmacion.current?.scrollIntoView?.({ block: "center" });
     } else if (estabaConfirmando.current) {
       botonEliminar.current?.focus();
     }

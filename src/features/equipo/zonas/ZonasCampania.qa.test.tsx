@@ -292,4 +292,25 @@ describe("QA · hallazgos resueltos (contraste, objetivo táctil, foco)", () => 
     await userEvent.click(screen.getByRole("button", { name: "Cerrar el formulario de zona" }));
     expect(screen.getByRole("button", { name: "Ver la zona Cerro Norte" })).toHaveFocus();
   });
+
+  it("al cerrar el buscador de ciudades el foco vuelve a «+ Agregar ciudad»", async () => {
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "+ Agregar ciudad" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar el buscador de ciudades" }));
+    expect(screen.getByRole("button", { name: "+ Agregar ciudad" })).toHaveFocus();
+  });
+
+  it("el aviso de baja se trae a la vista centrado para que «Sí, eliminar zona» entre entero", async () => {
+    const espia = vi.fn();
+    Element.prototype.scrollIntoView = espia;
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "Ver la zona Cerro Norte" }));
+    await userEvent.click(screen.getByRole("button", { name: "Editar forma" }));
+    await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
+    await screen.findByRole("alertdialog", { name: "Eliminar zona" });
+    expect(espia).toHaveBeenCalledWith({ block: "center" });
+    expect(espia.mock.contexts.at(-1)).toBe(screen.getByRole("alertdialog"));
+    // @ts-expect-error se limpia el doble para no afectar otros tests
+    delete Element.prototype.scrollIntoView;
+  });
 });

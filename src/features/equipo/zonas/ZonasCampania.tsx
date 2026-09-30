@@ -563,6 +563,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
           // Con un dibujo a medias no se puede cambiar de ciudad: se perdería sin aviso.
           disabled={panel.tipo === "dibujo"}
           aria-expanded={buscador !== null}
+          data-foco="agregar-ciudad"
           onClick={() => setBuscador((b) => (b ? (b.ocupado ? b : null) : { ocupado: false, error: null }))}
           className="text-nav font-semibold text-tinta-2"
         >
@@ -577,7 +578,10 @@ export function ZonasCampania({ datos, acciones }: Props) {
           ocupado={buscador.ocupado}
           error={buscador.error}
           onElegir={(c) => void agregarCiudad(c)}
-          onCerrar={() => setBuscador(null)}
+          onCerrar={() => {
+            setBuscador(null);
+            raiz.current?.querySelector<HTMLElement>('[data-foco="agregar-ciudad"]')?.focus();
+          }}
         />
       ) : null}
 
