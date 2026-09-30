@@ -380,4 +380,69 @@ describe("AnadirColportor", () => {
       expect(screen.getByRole("heading", { name: "1 RESULTADO PARA “MARTINEZ”" })).toBeInTheDocument();
     });
   });
+
+  describe("Esc y errores (revisión de #36)", () => {
+    it("Esc con texto en el buscador solo lo limpia; recién el siguiente Esc sale a Equipo", async () => {
+      montar();
+      await userEvent.type(screen.getByRole("textbox", { name: "Buscar por email o nombre" }), "ana");
+
+      await userEvent.keyboard("{Escape}");
+
+      expect(navegacion.push).not.toHaveBeenCalled();
+      expect(screen.getByRole("textbox", { name: "Buscar por email o nombre" })).toHaveValue("");
+      await userEvent.keyboard("{Escape}");
+      expect(navegacion.push).toHaveBeenCalledWith("/equipo");
+    });
+
+    it("Esc con un «Añadir» en curso no sale; cuando contesta, vuelve a funcionar", async () => {
+      let liberar: () => void = () => undefined;
+      montar(() => new Promise((r) => (liberar = () => r({ ok: true }))));
+      await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+
+      await userEvent.keyboard("{Escape}");
+      expect(navegacion.push).not.toHaveBeenCalled();
+
+      await act(async () => liberar());
+      await screen.findByRole("status");
+      await userEvent.keyboard("{Escape}");
+      expect(navegacion.push).not.toHaveBeenCalled();
+    });
+
+    it("Esc con avisos de «Deshacer» pendientes primero los cierra y después sale", async () => {
+      montar();
+      await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+      await userEvent.click(await screen.findByRole("button", { name: "Añadir a Gonzalo Sosa" }));
+      expect(screen.getAllByRole("status")).toHaveLength(2);
+
+      await userEvent.keyboard("{Escape}");
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(navegacion.push).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Añadir a Ana Martínez" })).toHaveTextContent("Añadido ✓");
+
+      await userEvent.keyboard("{Escape}");
+      expect(navegacion.push).toHaveBeenCalledWith("/equipo");
+    });
+
+    it("el aviso «No se pudo conectar» se va al cambiar de búsqueda", async () => {
+      const inscribir = montar();
+      inscribir.mockRejectedValueOnce(new Error("sin red"));
+      await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+      await screen.findByRole("alert");
+
+      await userEvent.type(screen.getByRole("textbox", { name: "Buscar por email o nombre" }), "g");
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("el aviso de error no se queda arriba del detalle de otra cuenta", async () => {
+      const inscribir = montar();
+      inscribir.mockResolvedValueOnce({ ok: false, mensaje: "La cuenta ya está en otra campaña." });
+      await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+      await screen.findByRole("alert");
+
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Gonzalo Sosa" }));
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
 });

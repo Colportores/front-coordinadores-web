@@ -29,6 +29,12 @@ describe("candidatos", () => {
       ]);
     });
 
+    it("con la misma fecha de creación desempata por id, siempre igual", () => {
+      const mismoDia = ["c", "a", "b"].map((id) => ({ ...porId("usr-ana-martinez"), id, cuentaCreada: "2026-09-10" }));
+      expect(sugeridos(mismoDia).map((c) => c.id)).toEqual(["a", "b", "c"]);
+      expect(sugeridos([...mismoDia].reverse()).map((c) => c.id)).toEqual(["a", "b", "c"]);
+    });
+
     it(`se limita a ${MAX_SUGERIDOS}`, () => {
       const muchos = Array.from({ length: 8 }, (_, i) => ({
         ...porId("usr-ana-martinez"),

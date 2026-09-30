@@ -282,7 +282,19 @@ export function AnadirColportor({
   useEffect(() => {
     function alTeclear(evento: KeyboardEvent) {
       if (evento.key === "Escape") {
-        router.push("/equipo");
+        // Provisorio (no hay diseño ni patrón para salir con trabajo a medias): Esc va de a un paso y no pierde nada sin aviso.
+        if (consulta !== "") {
+          setConsulta("");
+          setIndiceActivo(-1);
+          setElegidoId(null);
+          setError(null);
+        } else if (ocupado) {
+          // Hay un «Añadir» en curso: no se sale hasta que conteste.
+        } else if (avisos.length > 0) {
+          setAvisos([]);
+        } else {
+          router.push("/equipo");
+        }
         return;
       }
       const escribiendo = evento.target instanceof HTMLElement && evento.target.matches("input, textarea, select");
@@ -294,7 +306,7 @@ export function AnadirColportor({
     }
     document.addEventListener("keydown", alTeclear);
     return () => document.removeEventListener("keydown", alTeclear);
-  }, [router]);
+  }, [router, consulta, ocupado, avisos.length]);
 
   const anadir = useCallback(
     async (candidato: CandidatoColportor) => {
@@ -331,10 +343,15 @@ export function AnadirColportor({
     [quitarAviso],
   );
 
+  function elegir(id: string | null) {
+    setElegidoId(id);
+    setError(null);
+  }
+
   function cambiarConsulta(valor: string) {
     setConsulta(valor);
     setIndiceActivo(-1);
-    setElegidoId(null);
+    elegir(null);
   }
 
   function alTeclearEnBuscador(evento: React.KeyboardEvent<HTMLInputElement>) {
@@ -347,7 +364,7 @@ export function AnadirColportor({
       setIndiceActivo((i) => Math.max(i - 1, 0));
     } else if (evento.key === "Enter" && indiceActivo >= 0) {
       evento.preventDefault();
-      setElegidoId(resultados[indiceActivo].id);
+      elegir(resultados[indiceActivo].id);
     }
   }
 
@@ -429,7 +446,7 @@ export function AnadirColportor({
                     activo={i === indiceActivo}
                     anadido={anadidos.includes(c.id)}
                     ocupado={ocupado}
-                    onElegir={() => setElegidoId(c.id)}
+                    onElegir={() => elegir(c.id)}
                     onAnadir={() => {
                       setElegidoId(c.id);
                       void anadir(c);

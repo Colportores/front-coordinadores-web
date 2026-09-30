@@ -12,7 +12,8 @@ function normalizar(texto: string): string {
 export function sugeridos(candidatos: CandidatoColportor[]): CandidatoColportor[] {
   return candidatos
     .filter((c) => c.estadoCuenta === "pendiente_asignacion" && c.campaniaActual === null)
-    .sort((a, b) => b.cuentaCreada.localeCompare(a.cuentaCreada))
+    // Misma fecha: por id, para que el orden no salte entre cargas.
+    .sort((a, b) => b.cuentaCreada.localeCompare(a.cuentaCreada) || a.id.localeCompare(b.id))
     .slice(0, MAX_SUGERIDOS);
 }
 
