@@ -143,10 +143,10 @@ export const HISTORIAS: readonly RegistroHu[] = [
   hu({
     id: "HU-CAM-006",
     titulo: "Asignar zona a colportor",
-    pestana: "equipo",
+    pestana: "ciudades",
     estado: "mockeada",
     sprintConexion: "Sprint 6 · 05/10–09/10",
-    tablas: ["campania_colportor", "zona"],
+    tablas: ["campania_colportor", "zona", "campania_ciudad"],
   }),
   hu({
     id: "HU-CAT-005",
@@ -154,7 +154,7 @@ export const HISTORIAS: readonly RegistroHu[] = [
     pestana: "equipo",
     estado: "mockeada",
     sprintConexion: "Sprint 7 · 12/10–16/10",
-    tablas: ["precio_por_zona", "producto", "zona"],
+    tablas: ["campania_ciudad", "producto", "ciudad"],
   }),
   hu({
     id: "HU-JOR-004",
