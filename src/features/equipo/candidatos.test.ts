@@ -20,13 +20,19 @@ const porId = (id: string) => {
 
 describe("candidatos", () => {
   describe("sugeridos", () => {
-    it("trae solo pendientes sin campaña, de la cuenta más antigua a la más nueva", () => {
+    it("trae solo pendientes sin campaña, de la cuenta más nueva a la más antigua", () => {
       expect(sugeridos(candidatos).map((c) => c.nombre)).toEqual([
-        "Ana Martínez",
-        "Gonzalo Sosa",
-        "Valentina Bentancor",
         "Rodrigo Barrios",
+        "Valentina Bentancor",
+        "Gonzalo Sosa",
+        "Ana Martínez",
       ]);
+    });
+
+    it("con la misma fecha de creación desempata por id, siempre igual", () => {
+      const mismoDia = ["c", "a", "b"].map((id) => ({ ...porId("usr-ana-martinez"), id, cuentaCreada: "2026-09-10" }));
+      expect(sugeridos(mismoDia).map((c) => c.id)).toEqual(["a", "b", "c"]);
+      expect(sugeridos([...mismoDia].reverse()).map((c) => c.id)).toEqual(["a", "b", "c"]);
     });
 
     it(`se limita a ${MAX_SUGERIDOS}`, () => {
@@ -36,7 +42,8 @@ describe("candidatos", () => {
         cuentaCreada: `2026-09-0${i + 1}`,
       }));
       expect(sugeridos(muchos)).toHaveLength(MAX_SUGERIDOS);
-      expect(sugeridos(muchos)[0].id).toBe("x0");
+      // Quedan fuera las tres más antiguas: entran las 5 más nuevas.
+      expect(sugeridos(muchos).map((c) => c.id)).toEqual(["x7", "x6", "x5", "x4", "x3"]);
     });
   });
 
@@ -71,7 +78,7 @@ describe("candidatos", () => {
       expect(motivoBloqueo(porId("usr-mariana-olivera"))).toBe(
         "Cuenta suspendida. Pedí a un administrador que la reactive para añadirla.",
       );
-      expect(ayudaBloqueo(porId("usr-mariana-olivera"))).toBeNull();
+      expect(ayudaBloqueo(porId("usr-mariana-olivera"))).toBe("Pedile a un administrador que la reactive.");
     });
 
     it("explica que está en otra campaña", () => {
