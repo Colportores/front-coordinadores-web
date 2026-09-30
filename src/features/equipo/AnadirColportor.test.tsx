@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DATOS_ANADIR_COLPORTOR_SIMULADO } from "@/datos/equipo/simulado";
 import type { DatosAnadirColportor, ResultadoInscripcion } from "@/datos/equipo/contrato";
-import { AnadirColportor, MENSAJE_SIN_CONEXION, MS_DESHACER } from "@/features/equipo/AnadirColportor";
+import { AnadirColportor, mensajeAnadirSinConexion, MS_DESHACER } from "@/features/equipo/AnadirColportor";
 
 const navegacion = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navegacion.push }) }));
@@ -249,7 +249,7 @@ describe("AnadirColportor", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
 
-      expect(await screen.findByRole("alert")).toHaveTextContent(MENSAJE_SIN_CONEXION);
+      expect(await screen.findByRole("alert")).toHaveTextContent(mensajeAnadirSinConexion("Ana Martínez"));
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Añadir a Ana Martínez" })).toBeEnabled();
       expect(screen.getByRole("button", { name: "Añadir a Gonzalo Sosa" })).toBeEnabled();
@@ -436,7 +436,7 @@ describe("AnadirColportor", () => {
       expect(navegacion.push).toHaveBeenCalledWith("/equipo");
     });
 
-    it("el aviso «No se pudo conectar» se va al cambiar de búsqueda", async () => {
+    it("el aviso de falta de conexión se va al cambiar de búsqueda", async () => {
       const inscribir = montar();
       inscribir.mockRejectedValueOnce(new Error("sin red"));
       await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));

@@ -14,12 +14,14 @@ import {
   motivoBloqueo,
   sugeridos,
 } from "@/features/equipo/candidatos";
+import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
 
 /** Cuánto dura el aviso con "Deshacer" tras añadir (diseño 23). */
 export const MS_DESHACER = 8000;
 
-export const MENSAJE_SIN_CONEXION = "No se pudo conectar. Probá de nuevo en unos segundos.";
+/** Falla de red al añadir: dice la acción (convención §10). */
+export const mensajeAnadirSinConexion = (nombre: string) => mensajeSinConexion(`añadir a ${nombre}`);
 
 const ETIQUETA_ESTADO = {
   pendiente_asignacion: "◔ Pendiente de asignación",
@@ -335,7 +337,7 @@ export function AnadirColportor({
         setAvisos((previos) => [...previos, { id: candidato.id, nombre: candidato.nombre }]);
       } catch {
         // Si la llamada se cae, nada queda «ocupado»: se puede volver a intentar.
-        setError(MENSAJE_SIN_CONEXION);
+        setError(mensajeAnadirSinConexion(candidato.nombre));
       } finally {
         inscribiendo.current = false;
         setOcupado(false);

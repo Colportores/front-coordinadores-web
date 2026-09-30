@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ResultadoInscripcion } from "@/datos/equipo/contrato";
 import { DATOS_ANADIR_COLPORTOR_SIMULADO } from "@/datos/equipo/simulado";
-import { AnadirColportor, MENSAJE_SIN_CONEXION } from "@/features/equipo/AnadirColportor";
+import { AnadirColportor, mensajeAnadirSinConexion } from "@/features/equipo/AnadirColportor";
 
 /** QA de vistas (sprint 5, PR #36): textos literales del diseño, validación del buscador y axe por estado. */
 
@@ -93,7 +93,7 @@ describe("QA · validación del buscador", () => {
     await userEvent.click(screen.getByRole("button", { name: "Elegir a Ana Martínez" }));
     await userEvent.click(screen.getByRole("button", { name: "Añadir a Verano 2026" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(MENSAJE_SIN_CONEXION);
+    expect(await screen.findByRole("alert")).toHaveTextContent(mensajeAnadirSinConexion("Ana Martínez"));
     expect(buscador()).toHaveValue("ana");
     expect(screen.getByRole("region", { name: "Detalle de Ana Martínez" })).toBeInTheDocument();
   });

@@ -12,7 +12,7 @@ describe("PestanaEquipo", () => {
 
     expect(screen.getByRole("heading", { name: "Equipo" })).toBeInTheDocument();
     expect(screen.getByText("Mi equipo · Montevideo Oeste")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "+ Asignar colportor a zona" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "+ Asignar colportor a zona" })).toHaveAttribute("href", "/ciudades");
     expect(screen.getByRole("link", { name: "+ Añadir colportor" })).toHaveAttribute("href", "/equipo/anadir");
     expect(screen.getByRole("row", { name: /Diego Rocha/ })).toBeInTheDocument();
     expect(screen.getByText("Sin zona asignada · 1")).toBeInTheDocument();
@@ -20,11 +20,11 @@ describe("PestanaEquipo", () => {
     expect(screen.getByText("Acompañamientos")).toBeInTheDocument();
   });
 
-  it("marca como no disponibles todas las acciones sin formulario diseñado de la pestaña", async () => {
+  it("marca como no disponibles las acciones que todavía no tienen formulario diseñado", async () => {
     const jsx = await PestanaEquipo();
     render(<ProveedorModoDev activo={false}>{jsx}</ProveedorModoDev>);
 
-    const nombres = ["+ Asignar colportor a zona", "Asignar zona", "Editar"];
+    const nombres = ["Editar"];
     for (const nombre of nombres) {
       const boton = screen.getByRole("button", { name: nombre });
       expect(boton).toHaveAttribute("aria-disabled", "true");
