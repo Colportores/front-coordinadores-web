@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Punto } from "@/datos/equipo/zonas";
@@ -149,7 +150,7 @@ describe("QA · accesibilidad (axe A/AA, sin contraste) en cada estado", () => {
     expect(await violaciones(contenedor)).toEqual([]);
   });
 
-  it.skip("QA #28: el desplegable de colportores anida un botón dentro de cada role=option (axe nested-interactive, A)", async () => {
+  it("QA #28: el desplegable de colportores anida un botón dentro de cada role=option (axe nested-interactive, A)", async () => {
     const { contenedor } = montar();
     await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
     await userEvent.click(screen.getByRole("button", { name: /Elegir colportor/ }));
@@ -199,7 +200,7 @@ describe("QA · accesibilidad (axe A/AA, sin contraste) en cada estado", () => {
     const { acc } = montar({ asignarZona: vi.fn().mockRejectedValue(new Error("sin red")) });
     await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
     await userEvent.click(screen.getByRole("button", { name: /Elegir colportor/ }));
-    await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+    await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }));
     await userEvent.click(screen.getByRole("button", { name: "Asignar a Belvedere" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo conectar");
@@ -209,7 +210,7 @@ describe("QA · accesibilidad (axe A/AA, sin contraste) en cada estado", () => {
 });
 
 describe("QA · foco al abrir la confirmación de «Eliminar zona»", () => {
-  it.skip("QA #28: al pedir «Eliminar zona» el botón desaparece y el foco cae en el body; el aviso debería recibir el foco", async () => {
+  it("QA #28: al pedir «Eliminar zona» el botón desaparece y el foco cae en el body; el aviso debería recibir el foco", async () => {
     montar();
     await userEvent.click(screen.getByRole("button", { name: "Ver la zona Cerro Norte" }));
     await userEvent.click(screen.getByRole("button", { name: "Editar forma" }));
@@ -217,5 +218,78 @@ describe("QA · foco al abrir la confirmación de «Eliminar zona»", () => {
 
     const aviso = await screen.findByRole("alertdialog", { name: "Eliminar zona" });
     expect(aviso.contains(document.activeElement)).toBe(true);
+  });
+});
+
+describe("QA · hallazgos resueltos (contraste, objetivo táctil, foco)", () => {
+  const luz = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contraste = (a: string, b: string) => {
+    const [x, y] = [luz(a), luz(b)].sort((m, n) => n - m);
+    return (x + 0.05) / (y + 0.05);
+  };
+  const token = (nombre: string) => new RegExp(`--${nombre}: *(#[0-9a-fA-F]{6})`).exec(readFileSync("src/app/globals.css", "utf8"))?.[1] as string;
+
+  it("el texto de `alerta` da al menos 4,5:1 sobre blanco y sobre `alerta-fondo`", () => {
+    expect(contraste(token("alerta"), "#ffffff")).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(token("alerta"), token("alerta-fondo"))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("los «✕» de detalle, formulario y buscador piden al menos 24×24 px", async () => {
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "+ Agregar ciudad" }));
+    const cerrarBuscador = screen.getByRole("button", { name: "Cerrar el buscador de ciudades" });
+    await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
+    const cerrarDetalle = screen.getByRole("button", { name: "Cerrar el detalle de la zona" });
+    await userEvent.click(screen.getByRole("button", { name: "Editar forma" }));
+    const cerrarFormulario = screen.getByRole("button", { name: "Cerrar el formulario de zona" });
+    for (const b of [cerrarBuscador, cerrarDetalle, cerrarFormulario]) {
+      expect(b).toHaveClass("min-h-6", "min-w-6");
+    }
+  });
+
+  it("el desplegable se maneja con teclado: Enter elige, flechas mueven y el foco vuelve al campo", async () => {
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
+    await userEvent.click(screen.getByRole("button", { name: /Elegir colportor/ }));
+    const opciones = screen.getAllByRole("option").filter((o) => o.getAttribute("aria-disabled") !== "true");
+    opciones[0].focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(opciones[1]).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ASIGNAR COLPORTOR/ })).toHaveFocus();
+  });
+
+  it("«No, conservarla» devuelve el foco a «Eliminar zona»", async () => {
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "Ver la zona Cerro Norte" }));
+    await userEvent.click(screen.getByRole("button", { name: "Editar forma" }));
+    await userEvent.click(screen.getByRole("button", { name: "Eliminar zona" }));
+    const aviso = await screen.findByRole("alertdialog", { name: "Eliminar zona" });
+    expect(aviso).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "No, conservarla" }));
+    expect(screen.getByRole("button", { name: "Eliminar zona" })).toHaveFocus();
+  });
+
+  it("al cerrar el detalle el foco vuelve a la fila de la zona", async () => {
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar el detalle de la zona" }));
+    expect(screen.getByRole("button", { name: "Ver la zona Belvedere" })).toHaveFocus();
+  });
+
+  it("al cerrar el formulario de una zona nueva el foco vuelve a «+ Nueva zona»; al de una existente, a su fila", async () => {
+    montar();
+    await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar el formulario de zona" }));
+    expect(screen.getByRole("button", { name: "+ Nueva zona" })).toHaveFocus();
+
+    await userEvent.click(screen.getByRole("button", { name: "Ver la zona Cerro Norte" }));
+    await userEvent.click(screen.getByRole("button", { name: "Editar forma" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar el formulario de zona" }));
+    expect(screen.getByRole("button", { name: "Ver la zona Cerro Norte" })).toHaveFocus();
   });
 });

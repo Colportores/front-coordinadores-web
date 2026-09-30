@@ -140,6 +140,9 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const cola = useRef<Promise<void>>(Promise.resolve());
   const guardandoAhora = useRef(false);
   const asignandoAhora = useRef(false);
+  // Al cerrar el formulario o el detalle el foco vuelve a la fila de la zona (o a «+ Nueva zona»), no al body.
+  const raiz = useRef<HTMLDivElement>(null);
+  const volverFoco = useRef<string | null>(null);
 
   const ciudad = ciudades.find((c) => c.id === ciudadId) ?? ciudades[0];
   const catalogoEnCampania = useMemo(() => new Set(ciudades.map((c) => c.catalogoId)), [ciudades]);
@@ -170,6 +173,15 @@ export function ZonasCampania({ datos, acciones }: Props) {
   }, [forma, ciudad, zonaEnEdicionId, acciones, cambiarDibujo]);
 
   useEffect(() => () => clearTimeout(temporizadorHover.current), []);
+
+  const tipoPanel = panel.tipo;
+  useEffect(() => {
+    const selector = volverFoco.current;
+    volverFoco.current = null;
+    if (tipoPanel !== "lista" || !selector) return;
+    const destino = raiz.current?.querySelector<HTMLElement>(selector) ?? raiz.current?.querySelector<HTMLElement>('[data-foco="nueva-zona"]');
+    destino?.focus();
+  }, [tipoPanel]);
 
   const actualizarForma = useCallback(
     (nueva: FormaZona, resto: Partial<EstadoDibujo> = {}) => {
@@ -276,6 +288,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   function cerrarDibujo() {
     // Mientras guarda no se puede abandonar: la zona quedaría guardada en el backend y ausente de la lista.
     if (guardandoAhora.current) return;
+    volverFoco.current = panel.tipo === "dibujo" && panel.zonaId ? `[data-zona-id="${panel.zonaId}"]` : '[data-foco="nueva-zona"]';
     abandonarDibujo();
     setPanel({ tipo: "lista", asignandoA: null });
   }
@@ -519,7 +532,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div ref={raiz} className="flex flex-col gap-3.5">
       <h2 className="font-serif text-[21px] font-semibold text-tinta">Zonas · {datos.campania}</h2>
 
       <div className="flex items-center gap-2">
@@ -612,7 +625,10 @@ export function ZonasCampania({ datos, acciones }: Props) {
               colportorInicialId={panel.colportorId}
               ocupado={panel.ocupado}
               error={panel.error}
-              onCerrar={() => setPanel({ tipo: "lista", asignandoA: null })}
+              onCerrar={() => {
+                volverFoco.current = `[data-zona-id="${zonaDetalle.id}"]`;
+                setPanel({ tipo: "lista", asignandoA: null });
+              }}
               bloqueado={agregando}
               onEditarForma={() => empezarEdicion(zonaDetalle)}
               onAsignar={(id) => void cambiarZonaDeColportor(id, "asignar")}

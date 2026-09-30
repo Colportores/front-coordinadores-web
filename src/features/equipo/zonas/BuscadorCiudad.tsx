@@ -68,7 +68,7 @@ export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, on
           onClick={onCerrar}
           disabled={ocupado}
           aria-label="Cerrar el buscador de ciudades"
-          className="cursor-pointer rounded-control px-1.5 text-nav text-tinta-suave hover:text-tinta disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-control px-1.5 text-nav text-tinta-suave hover:text-tinta disabled:cursor-not-allowed disabled:opacity-50"
         >
           ✕
         </button>

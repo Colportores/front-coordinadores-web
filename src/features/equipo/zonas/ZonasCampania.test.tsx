@@ -367,7 +367,7 @@ describe("ZonasCampania", () => {
       const acc = montar();
       await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
       await userEvent.click(screen.getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
-      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }));
 
       await userEvent.click(screen.getByRole("button", { name: "Asignar a Belvedere" }));
 
@@ -384,7 +384,7 @@ describe("ZonasCampania", () => {
       montar();
       await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
       await userEvent.click(screen.getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
-      await userEvent.click(screen.getByRole("option", { name: /Diego Rocha/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(screen.getByRole("option", { name: /Diego Rocha/ }));
       await userEvent.click(screen.getByRole("button", { name: "Asignar a Belvedere" }));
       await screen.findByText("Diego Rocha quedó en Belvedere.");
 
@@ -398,7 +398,7 @@ describe("ZonasCampania", () => {
       montar();
       await userEvent.click(screen.getByRole("button", { name: "Ver la zona Cerro Norte" }));
       await userEvent.click(screen.getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
-      await userEvent.click(screen.getByRole("option", { name: /Diego Rocha/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(screen.getByRole("option", { name: /Diego Rocha/ }));
 
       expect(screen.getByRole("button", { name: "Asignar a Cerro Norte" })).toBeDisabled();
       expect(screen.getByText("Diego Rocha ya trabaja esta zona.")).toBeInTheDocument();
@@ -527,7 +527,7 @@ describe("ZonasCampania", () => {
       montar({ asignarZona: asignar });
       await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
       await userEvent.click(screen.getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
-      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }));
 
       await userEvent.click(screen.getByRole("button", { name: "Asignar a Belvedere" }));
       expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo conectar. Probá de nuevo en unos segundos.");
@@ -541,7 +541,7 @@ describe("ZonasCampania", () => {
       montar({ asignarZona: vi.fn(async () => ({ ok: false as const, mensaje: "La zona ya no existe." })) });
       await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
       await userEvent.click(screen.getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
-      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }));
       await userEvent.click(screen.getByRole("button", { name: "Asignar a Belvedere" }));
 
       expect(await screen.findByRole("alert")).toHaveTextContent("La zona ya no existe.");
@@ -552,7 +552,7 @@ describe("ZonasCampania", () => {
       const acc = montar({ asignarZona: vi.fn(() => new Promise<{ ok: true }>((r) => setTimeout(() => r({ ok: true }), 30))) });
       await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
       await userEvent.click(screen.getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
-      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }));
 
       await userEvent.dblClick(screen.getByRole("button", { name: "Asignar a Belvedere" }));
 
@@ -643,7 +643,7 @@ describe("ZonasCampania", () => {
       montar({ asignarZona: vi.fn(async () => ({ ok: false as const, mensaje: "La zona ya no existe." })) });
       await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
       await userEvent.click(screen.getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
-      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }));
       await userEvent.click(screen.getByRole("button", { name: "Asignar a Belvedere" }));
       await screen.findByRole("alert");
 
@@ -1084,7 +1084,7 @@ describe("ZonasCampania", () => {
       const acc = montar({ asignarZona: vi.fn(() => new Promise<{ ok: true }>((r) => (liberar = () => r({ ok: true })))) });
       const detalle = await verZona("Cerro Norte");
       await userEvent.click(within(detalle).getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
-      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }));
       await userEvent.click(within(detalle).getByRole("button", { name: "Asignar a Cerro Norte" }));
 
       expect(within(detalle).getByRole("button", { name: "Quitar a Diego Rocha de Cerro Norte" })).toBeDisabled();
@@ -1105,7 +1105,7 @@ describe("ZonasCampania", () => {
       const opcion = screen.getByRole("option", { name: /Sergio Píriz/ });
       expect(opcion).toHaveAttribute("aria-disabled", "true");
       expect(opcion).toHaveTextContent("Cuenta suspendida. Pedile a un administrador que la reactive.");
-      await userEvent.click(opcion.querySelector("button") as HTMLElement);
+      await userEvent.click(opcion);
       expect(within(detalle).getByRole("button", { name: "Asignar a Belvedere" })).toBeDisabled();
       expect(acc.asignarZona).not.toHaveBeenCalled();
     });
@@ -1135,7 +1135,7 @@ describe("ZonasCampania", () => {
       });
       const detalle = await verZona("Belvedere");
       await userEvent.click(within(detalle).getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
-      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }));
       await userEvent.click(within(detalle).getByRole("button", { name: "Asignar a Belvedere" }));
 
       expect(await within(detalle).findByRole("alert")).toHaveTextContent("Cuenta suspendida. Pedile a un administrador que la reactive.");
@@ -1246,7 +1246,7 @@ describe("ZonasCampania", () => {
       montar({ asignarZona: vi.fn(() => new Promise<{ ok: true }>((_r, rej) => (rechazar = rej))) });
       await userEvent.click(screen.getByRole("button", { name: "Ver la zona Belvedere" }));
       await userEvent.click(screen.getByRole("button", { name: /ASIGNAR COLPORTOR/ }));
-      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }).querySelector("button") as HTMLElement);
+      await userEvent.click(screen.getByRole("option", { name: /Pablo Ferreira/ }));
       await userEvent.click(screen.getByRole("button", { name: "Asignar a Belvedere" }));
 
       expect(screen.getByRole("button", { name: "Cerrar el detalle de la zona" })).toBeDisabled();

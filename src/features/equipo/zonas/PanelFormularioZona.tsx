@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { Esquina, FormaZona, TipoForma, VistaPreviaZona } from "@/datos/equipo/zonas";
@@ -84,6 +84,20 @@ export function PanelFormularioZona({
   onCancelar,
 }: Props) {
   const esquinas = forma.esquinas ?? [];
+  const confirmacion = useRef<HTMLDivElement>(null);
+  const botonEliminar = useRef<HTMLButtonElement>(null);
+  const estabaConfirmando = useRef(false);
+  const confirmando = baja?.confirmando === true;
+  // Al pedir la baja el botón desaparece: el foco pasa a la confirmación (y se la trae a la vista); al conservarla, vuelve al botón.
+  useEffect(() => {
+    if (confirmando) {
+      confirmacion.current?.focus();
+      confirmacion.current?.scrollIntoView?.({ block: "nearest" });
+    } else if (estabaConfirmando.current) {
+      botonEliminar.current?.focus();
+    }
+    estabaConfirmando.current = confirmando;
+  }, [confirmando]);
   // Lo que se está tecleando en el radio cuando todavía no es un número válido (vacío o 0): `null` sigue a la forma.
   const [radioTexto, setRadioTexto] = useState<string | null>(null);
   const puedeGuardar =
@@ -103,7 +117,7 @@ export function PanelFormularioZona({
           onClick={onCancelar}
           disabled={guardando}
           aria-label="Cerrar el formulario de zona"
-          className="cursor-pointer rounded-control px-1.5 text-nav text-tinta-suave hover:text-tinta disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-control px-1.5 text-nav text-tinta-suave hover:text-tinta disabled:cursor-not-allowed disabled:opacity-50"
         >
           ✕
         </button>
@@ -240,7 +254,7 @@ export function PanelFormularioZona({
       <p className="text-chico text-tinta-suave">{forma.tipoForma === "RADIAL" ? AYUDA_RADIAL : AYUDA_ESQUINAS}</p>
 
       {baja?.confirmando ? (
-        <div role="alertdialog" aria-label="Eliminar zona" className="flex flex-col gap-2.5 rounded-control border border-peligro bg-peligro-fondo px-3 py-3">
+        <div ref={confirmacion} tabIndex={-1} role="alertdialog" aria-label="Eliminar zona" className="outline-none focus-visible:ring-2 focus-visible:ring-acento flex flex-col gap-2.5 rounded-control border border-peligro bg-peligro-fondo px-3 py-3">
           <p className="text-cuerpo font-medium text-tinta">
             ¿Eliminar la zona «{baja.nombre}»?{" "}
             {baja.colportores === 0 ? "Nadie la trabaja." : `${textoColportoresSinZona(baja.colportores)}.`} Las ubicaciones no se tocan.
@@ -270,6 +284,7 @@ export function PanelFormularioZona({
         </Button>
         {baja && !baja.confirmando ? (
           <Button
+            ref={botonEliminar}
             type="button"
             variant="outline"
             disabled={guardando}

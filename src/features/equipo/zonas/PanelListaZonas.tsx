@@ -15,6 +15,7 @@ function FilaZona({ zona, elegida, onElegir }: { zona: ZonaDeCiudad; elegida: bo
         type="button"
         onClick={onElegir}
         aria-label={`Ver la zona ${zona.nombre}`}
+        data-zona-id={zona.id}
         aria-pressed={elegida}
         className={cn(
           "flex w-full cursor-pointer items-start gap-3 px-3.5 py-[11px] text-left hover:bg-fondo focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none focus-visible:ring-inset",
@@ -77,7 +78,7 @@ export function PanelListaZonas({
       <section aria-label={`Zonas de ${ciudad.nombre}`} className="overflow-hidden rounded-tarjeta border border-borde bg-superficie">
         <div className="flex items-center justify-between px-3.5 py-3">
           <h3 className="font-serif text-[15px] font-semibold text-tinta">Zonas de {ciudad.nombre}</h3>
-          <Button type="button" disabled={bloqueado} onClick={onNuevaZona} className="min-h-8 text-nav font-semibold">
+          <Button type="button" data-foco="nueva-zona" disabled={bloqueado} onClick={onNuevaZona} className="min-h-8 text-nav font-semibold">
             + Nueva zona
           </Button>
         </div>

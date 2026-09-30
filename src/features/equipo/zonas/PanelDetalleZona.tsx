@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { CiudadDeCampania, ZonaDeCiudad } from "@/datos/equipo/zonas";
@@ -57,6 +57,14 @@ export function PanelDetalleZona({
   const [abierto, setAbierto] = useState(false);
   const elegido = ciudad.colportores.find((c) => c.id === elegidoId) ?? null;
   const yaEstaAhi = elegido?.zonaId === zona.id;
+  const botonDesplegable = useRef<HTMLButtonElement>(null);
+
+  function elegir(id: string, suspendido?: boolean) {
+    if (suspendido) return;
+    setElegidoId(id);
+    setAbierto(false);
+    botonDesplegable.current?.focus();
+  }
 
   return (
     <section aria-label={`Zona ${zona.nombre}`} className="flex flex-col gap-3.5 rounded-tarjeta border border-borde bg-superficie px-[18px] py-4">
@@ -79,7 +87,7 @@ export function PanelDetalleZona({
           onClick={onCerrar}
           disabled={ocupado || bloqueado}
           aria-label="Cerrar el detalle de la zona"
-          className="cursor-pointer rounded-control px-1.5 text-nav text-tinta-suave hover:text-tinta disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-control px-1.5 text-nav text-tinta-suave hover:text-tinta disabled:cursor-not-allowed disabled:opacity-50"
         >
           ✕
         </button>
@@ -131,6 +139,7 @@ export function PanelDetalleZona({
           }}
         >
           <button
+            ref={botonDesplegable}
             type="button"
             aria-haspopup="listbox"
             aria-expanded={abierto}
@@ -155,31 +164,40 @@ export function PanelDetalleZona({
                 </li>
               ) : null}
               {ciudad.colportores.map((c) => (
-                <li key={c.id} role="option" aria-selected={c.id === elegidoId} aria-disabled={c.suspendido ? "true" : undefined}>
-                  <button
-                    type="button"
-                    disabled={c.suspendido}
-                    onClick={() => {
-                      setElegidoId(c.id);
-                      setAbierto(false);
-                    }}
-                    className={cn(
-                      "flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left hover:bg-fondo focus-visible:bg-fondo focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-transparent",
-                      c.id === elegidoId && "bg-superficie-calida",
+                <li
+                  key={c.id}
+                  role="option"
+                  aria-selected={c.id === elegidoId}
+                  aria-disabled={c.suspendido ? "true" : undefined}
+                  tabIndex={c.suspendido ? -1 : 0}
+                  onClick={() => elegir(c.id, c.suspendido)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      elegir(c.id, c.suspendido);
+                    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                      e.preventDefault();
+                      const opciones = Array.from(e.currentTarget.parentElement?.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"])') ?? []);
+                      const i = opciones.indexOf(e.currentTarget);
+                      opciones[i + (e.key === "ArrowDown" ? 1 : -1)]?.focus();
+                    }
+                  }}
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left hover:bg-fondo focus-visible:bg-fondo focus-visible:outline-none aria-disabled:cursor-not-allowed aria-disabled:opacity-70 aria-disabled:hover:bg-transparent",
+                    c.id === elegidoId && "bg-superficie-calida",
+                  )}
+                >
+                  <Avatar nombre={c.nombre} alerta={c.zonaId === null} />
+                  <span className="flex flex-col">
+                    <span className="text-nav font-semibold text-tinta">{c.nombre}</span>
+                    {c.suspendido ? (
+                      <span className="text-chico text-peligro">⊘ {TEXTO_CUENTA_SUSPENDIDA}</span>
+                    ) : (
+                      <span className={cn("text-chico", c.zonaId === null ? "text-alerta" : "text-tinta-suave")}>
+                        {c.zonaNombre ? `hoy en ${c.zonaNombre}` : "◔ Sin zona"}
+                      </span>
                     )}
-                  >
-                    <Avatar nombre={c.nombre} alerta={c.zonaId === null} />
-                    <span className="flex flex-col">
-                      <span className="text-nav font-semibold text-tinta">{c.nombre}</span>
-                      {c.suspendido ? (
-                        <span className="text-chico text-peligro">⊘ {TEXTO_CUENTA_SUSPENDIDA}</span>
-                      ) : (
-                        <span className={cn("text-chico", c.zonaId === null ? "text-alerta" : "text-tinta-suave")}>
-                          {c.zonaNombre ? `hoy en ${c.zonaNombre}` : "◔ Sin zona"}
-                        </span>
-                      )}
-                    </span>
-                  </button>
+                  </span>
                 </li>
               ))}
             </ul>
