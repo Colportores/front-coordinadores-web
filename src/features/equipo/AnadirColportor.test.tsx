@@ -70,6 +70,19 @@ describe("AnadirColportor", () => {
       expect(within(detalle).getByText("Pedile al coordinador de Otoño Norte que lo libere.")).toBeInTheDocument();
     });
 
+    it("«rodrigo» muestra primero a Rodrigo Silva (bloqueado) y después a Rodrigo Barrios, como el artboard B · 03", async () => {
+      montar();
+      await userEvent.type(screen.getByRole("textbox", { name: "Buscar por email o nombre" }), "rodrigo");
+
+      const filas = within(screen.getByRole("list", { name: "Cuentas" })).getAllByRole("listitem");
+      expect(filas).toHaveLength(2);
+      expect(within(filas[0]).getByText("Rodrigo Silva")).toBeInTheDocument();
+      expect(within(filas[0]).getByRole("note")).toHaveTextContent("Está en campaña Otoño Norte. Reasignar primero.");
+      expect(within(filas[0]).getByRole("button", { name: "Añadir a Rodrigo Silva" })).toBeDisabled();
+      expect(within(filas[1]).getByText("Rodrigo Barrios")).toBeInTheDocument();
+      expect(within(filas[1]).getByRole("button", { name: "Añadir a Rodrigo Barrios" })).toBeEnabled();
+    });
+
     it("avisa cuando no hay coincidencias y borra la búsqueda con la X", async () => {
       montar();
       const caja = screen.getByRole("textbox", { name: "Buscar por email o nombre" });
