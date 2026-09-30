@@ -152,6 +152,15 @@ export const DATOS_ANADIR_COLPORTOR_SIMULADO: DatosAnadirColportor = {
       campaniaActual: null,
       cuentaCreada: "2026-09-26",
     },
+    // Antes que Rodrigo Barrios: el artboard B · 03 muestra primero a Silva (bloqueado). El orden real lo pondrá la búsqueda del servidor.
+    {
+      id: "usr-rodrigo-silva",
+      nombre: "Rodrigo Silva",
+      email: "rodrigo.silva@correo.uy",
+      estadoCuenta: "activa",
+      campaniaActual: "Otoño Norte",
+      cuentaCreada: "2026-03-03",
+    },
     {
       id: "usr-rodrigo-barrios",
       nombre: "Rodrigo Barrios",
@@ -175,14 +184,6 @@ export const DATOS_ANADIR_COLPORTOR_SIMULADO: DatosAnadirColportor = {
       estadoCuenta: "suspendida",
       campaniaActual: null,
       cuentaCreada: "2026-04-02",
-    },
-    {
-      id: "usr-rodrigo-silva",
-      nombre: "Rodrigo Silva",
-      email: "rodrigo.silva@correo.uy",
-      estadoCuenta: "activa",
-      campaniaActual: "Otoño Norte",
-      cuentaCreada: "2026-03-03",
     },
   ],
   equipoActual: [

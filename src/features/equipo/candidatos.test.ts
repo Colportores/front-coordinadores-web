@@ -58,8 +58,8 @@ describe("candidatos", () => {
       expect(buscarCandidatos(candidatos, "martinez").map((c) => c.nombre)).toEqual(["Ana Martínez"]);
     });
 
-    it("incluye las suspendidas y las de otra campaña", () => {
-      expect(buscarCandidatos(candidatos, "rodrigo").map((c) => c.nombre)).toEqual(["Rodrigo Barrios", "Rodrigo Silva"]);
+    it("incluye las suspendidas y las de otra campaña, en el orden del artboard B · 03 (Silva, bloqueado, antes que Barrios)", () => {
+      expect(buscarCandidatos(candidatos, "rodrigo").map((c) => c.nombre)).toEqual(["Rodrigo Silva", "Rodrigo Barrios"]);
     });
 
     it("sin texto no devuelve nada", () => {
