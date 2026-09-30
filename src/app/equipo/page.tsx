@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import { Button } from "@/components/ui/button";
 import { fuenteEquipo } from "@/datos/equipo";
 import { SeccionHu } from "@/dev/SeccionHu";
@@ -21,10 +20,9 @@ export default async function PestanaEquipo() {
           <Button asChild variant="outline" className="text-chico font-semibold text-tinta-2">
             <Link href="/equipo/anadir">+ Añadir colportor</Link>
           </Button>
-          {/* El formulario para asignar colportor a zona todavía no está diseñado: queda sin comportamiento. */}
-          <AccionNoDisponible variant="default" size="default" className="text-chico font-semibold">
-            + Asignar colportor a zona
-          </AccionNoDisponible>
+          <Button asChild className="text-chico font-semibold">
+            <Link href="/equipo/zonas">+ Asignar colportor a zona</Link>
+          </Button>
         </div>
       </div>
 
