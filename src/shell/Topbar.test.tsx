@@ -8,7 +8,8 @@ import { pestanasVisibles } from "@/shell/pestanas";
 import { Topbar } from "@/shell/Topbar";
 import { fijarFlags } from "@/test/flags";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/equipo" }));
+const ruta = vi.hoisted(() => ({ actual: "/equipo" }));
+vi.mock("next/navigation", () => ({ usePathname: () => ruta.actual }));
 
 function renderTopbar(modoDev: boolean) {
   fijarFlags({ modoDev });
@@ -32,6 +33,17 @@ describe("Topbar", () => {
     const selector = screen.getByRole("button", { name: /Montevideo Oeste · Verano 2026/ });
     expect(selector).toHaveAttribute("aria-disabled", "true");
     expect(selector).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
+  });
+
+  it("en /equipo/anadir (vista 23) «Equipo» sigue como pestaña actual", () => {
+    ruta.actual = "/equipo/anadir";
+    try {
+      renderTopbar(false);
+      const nav = screen.getByRole("navigation", { name: "Secciones del panel" });
+      expect(within(nav).getByRole("link", { name: "Equipo" })).toHaveAttribute("aria-current", "page");
+    } finally {
+      ruta.actual = "/equipo";
+    }
   });
 
   it("marca la pestaña actual con aria-current", () => {
