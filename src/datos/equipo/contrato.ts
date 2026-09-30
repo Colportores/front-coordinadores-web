@@ -68,6 +68,46 @@ export interface DatosEquipo {
   acompanamiento: DatosAcompanamiento;
 }
 
+/** Estado de la cuenta de un candidato (HU-CAM-004). `suspendida` no se puede añadir. */
+export type EstadoCuenta = "pendiente_asignacion" | "activa" | "suspendida";
+
+/** Cuenta que el coordinador puede buscar para añadirla a su campaña. */
+export interface CandidatoColportor {
+  id: string;
+  nombre: string;
+  email: string;
+  estadoCuenta: EstadoCuenta;
+  /** Nombre de la campaña en la que ya está, o `null` si no está en ninguna. */
+  campaniaActual: string | null;
+  /** Fecha de creación de la cuenta, ISO `AAAA-MM-DD`. */
+  cuentaCreada: string;
+}
+
+/** Colportor que ya está en la campaña; `zonaNombre` es `null` mientras no tenga zona. */
+export interface MiembroEquipo {
+  id: string;
+  nombre: string;
+  zonaNombre: string | null;
+}
+
+/**
+ * Datos de la vista 23 (añadir colportor). La búsqueda por email o nombre
+ * todavía no tiene decisión de backend (coord #19): mientras tanto la fuente
+ * entrega `candidatos` completos y la vista filtra en el cliente.
+ */
+export interface DatosAnadirColportor {
+  campaniaId: string;
+  /** P. ej. "Verano 2026". */
+  campania: string;
+  candidatos: CandidatoColportor[];
+  equipoActual: MiembroEquipo[];
+}
+
+/** Respuesta a `POST /v1/campanias/:campaniaId/colportores {usuarioId}` (bff-coordinadores#3). */
+export type ResultadoInscripcion = { ok: true } | { ok: false; mensaje: string };
+
 export interface FuenteDatosEquipo {
   obtenerEquipo(): Promise<DatosEquipo>;
+  obtenerAnadirColportor(): Promise<DatosAnadirColportor>;
+  inscribirColportor(campaniaId: string, usuarioId: string): Promise<ResultadoInscripcion>;
 }

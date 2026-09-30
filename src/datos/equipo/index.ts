@@ -7,14 +7,19 @@ import type { FuenteDatosEquipo } from "@/datos/equipo/contrato";
 import { fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 
 export type {
+  CandidatoColportor,
   ColportorSinZona,
   DatosAcompanamiento,
+  DatosAnadirColportor,
   DatosEquipo,
   EstadoCobro,
+  EstadoCuenta,
   FilaColportor,
   FuenteDatosEquipo,
   JornadaSinAcompanamiento,
+  MiembroEquipo,
   PrecioProductoZona,
+  ResultadoInscripcion,
 } from "@/datos/equipo/contrato";
 
 export const fuenteEquipo: FuenteDatosEquipo = fuenteEquipoSimulada;

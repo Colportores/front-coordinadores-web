@@ -13,6 +13,7 @@ describe("PestanaEquipo", () => {
     expect(screen.getByRole("heading", { name: "Equipo" })).toBeInTheDocument();
     expect(screen.getByText("Mi equipo · Montevideo Oeste")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "+ Asignar colportor a zona" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "+ Añadir colportor" })).toHaveAttribute("href", "/equipo/anadir");
     expect(screen.getByRole("row", { name: /Diego Rocha/ })).toBeInTheDocument();
     expect(screen.getByText("Sin zona asignada · 1")).toBeInTheDocument();
     expect(screen.getByText("Precios por zona")).toBeInTheDocument();
