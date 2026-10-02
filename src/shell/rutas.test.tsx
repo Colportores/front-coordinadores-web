@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LayoutCuentas from "@/app/cuentas/layout";
 import Raiz from "@/app/page";
@@ -15,9 +15,17 @@ const navegacion = vi.hoisted(() => ({
   }),
 }));
 
+// `connection()` saca la ruta del prerender: solo se llama con el flag apagado.
+const servidor = vi.hoisted(() => ({ connection: vi.fn(async () => {}) }));
+
 vi.mock("next/navigation", () => navegacion);
+vi.mock("next/server", () => servidor);
 
 describe("rutas del shell", () => {
+  beforeEach(() => {
+    servidor.connection.mockClear();
+  });
+
   it("/ redirige a /inicio", () => {
     expect(() => Raiz()).toThrow("REDIRECT:/inicio");
     expect(navegacion.redirect).toHaveBeenCalledWith("/inicio");
@@ -32,22 +40,25 @@ describe("rutas del shell", () => {
       expect(LayoutCuentas({ children: hijos, params }).props).toMatchObject({ pestana: "cuentas" });
     });
 
-    it("responden 404 fuera del modo dev", () => {
+    it("responden 404 fuera del modo dev, y la ruta no se prerenderiza", async () => {
       fijarFlags({ modoDev: false });
-      expect(() => LayoutPestanaConFlag({ pestana: "stock", children: hijos })).toThrow("NOT_FOUND");
-      expect(() => LayoutPestanaConFlag({ pestana: "cuentas", children: hijos })).toThrow("NOT_FOUND");
+      await expect(LayoutPestanaConFlag({ pestana: "stock", children: hijos })).rejects.toThrow("NOT_FOUND");
+      await expect(LayoutPestanaConFlag({ pestana: "cuentas", children: hijos })).rejects.toThrow("NOT_FOUND");
+      expect(servidor.connection).toHaveBeenCalledTimes(2);
     });
 
-    it("se muestran en modo dev", () => {
+    it("se muestran en modo dev, y la ruta puede ser estática (el sitio de prueba la exporta)", async () => {
       fijarFlags({ modoDev: true });
-      expect(LayoutPestanaConFlag({ pestana: "stock", children: hijos })).toBe(hijos);
-      expect(LayoutPestanaConFlag({ pestana: "cuentas", children: hijos })).toBe(hijos);
+      await expect(LayoutPestanaConFlag({ pestana: "stock", children: hijos })).resolves.toBe(hijos);
+      await expect(LayoutPestanaConFlag({ pestana: "cuentas", children: hijos })).resolves.toBe(hijos);
+      expect(servidor.connection).not.toHaveBeenCalled();
     });
   });
 
-  it("las pestañas sin flag nunca responden 404", () => {
+  it("las pestañas sin flag nunca responden 404", async () => {
     fijarFlags({ modoDev: false });
     const hijos = <p>contenido</p>;
-    expect(LayoutPestanaConFlag({ pestana: "inicio", children: hijos })).toBe(hijos);
+    await expect(LayoutPestanaConFlag({ pestana: "inicio", children: hijos })).resolves.toBe(hijos);
+    expect(servidor.connection).not.toHaveBeenCalled();
   });
 });

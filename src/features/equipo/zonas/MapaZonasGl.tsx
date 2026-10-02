@@ -12,7 +12,8 @@ import { distanciaM, puntoADistancia, vertices } from "@/datos/equipo/zonas/geom
 import type { PropsMapaZonas } from "@/features/equipo/zonas/tipos";
 
 // Bajo Turbopack MapLibre no deduce la URL de su worker: se sirve desde public/maplibre (scripts/copiar-worker-maplibre.mjs).
-setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
+// El sitio de prueba (GitHub Pages) cuelga de un subdirectorio: NEXT_PUBLIC_BASE_PATH lo trae next.config.ts.
+setWorkerUrl(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/maplibre/maplibre-gl-worker.mjs`);
 
 const RADIO_MIN_M = 1;
 const RADIO_MAX_M = 3000;

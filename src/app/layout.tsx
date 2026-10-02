@@ -39,6 +39,8 @@ const jetbrainsMono = localFont({
 export const metadata: Metadata = {
   title: "Colportaje · Coordinador",
   description: "Panel del coordinador: seguimiento del equipo de colportores de su región.",
+  // Sitio de prueba (GitHub Pages, datos simulados): que ningún buscador lo indexe.
+  ...(process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1" ? { robots: { index: false, follow: false } } : {}),
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
