@@ -39,7 +39,44 @@ docker compose -f compose.dev.yml up
 
 `NEXT_PUBLIC_MODO_DEV=1` (activo en `compose.dev.yml`, apagado en staging y producción) muestra el estado de cada historia de usuario: chips sobre cada sección, estado agregado en la navegación y el panel flotante "Estado de HU". El registro está en `src/dev/estado-hu.ts`.
 
-Las pestañas **Stock** y **Cuentas** muestran datos simulados hasta su conexión en V2: tienen flag propio (`NEXT_PUBLIC_PESTANA_STOCK`, `NEXT_PUBLIC_PESTANA_CUENTAS`) que, si no se define, sigue al modo dev. En staging y producción quedan ocultas: `src/proxy.ts` reescribe esas rutas a un 404 antes de renderizar (así ni el HTML ni el payload RSC llevan su contenido) y sus layouts no se prerenderizan.
+Las pestañas **Stock** y **Cuentas** muestran datos simulados hasta su conexión en V2: tienen flag propio (`NEXT_PUBLIC_PESTANA_STOCK`, `NEXT_PUBLIC_PESTANA_CUENTAS`) que, si no se define, sigue al modo dev. En staging y producción quedan ocultas: `src/proxy.ts` reescribe esas rutas a un 404 antes de renderizar (así ni el HTML ni el payload RSC llevan su contenido) y, con el flag apagado, la ruta no se prerenderiza (`LayoutPestanaConFlag`).
+
+## Sitio de prueba (GitHub Pages)
+
+El panel se publica para probarlo desde un navegador, **solo desde la rama `develop`** y **con datos simulados**: sin backend, sin claves, sin datos de personas.
+
+- **URL:** https://colportores.github.io/front-coordinadores-web/ (cada push a `develop` lo actualiza con `.github/workflows/deploy-pages.yml`; no hay deploys desde feature, PR, staging ni production).
+- Es un sitio público, sin acceso restringido: lleva `noindex, nofollow` y un `robots.txt` que bloquea todo. El modo dev está prendido: todas las pestañas visibles y el estado de cada HU.
+- **Qué lo distingue del build normal:** export estático (`output: 'export'`) con `basePath` y `assetPrefix` `/front-coordinadores-web`, solo cuando corre `npm run build:pages` (`DEPLOY_PAGES=1`, ver `next.config.ts`). `next dev`, `npm run build` y el CI de siempre no cambian.
+- **Sin servidor no hay server actions ni proxy.** Las vistas que usan server actions (`/ciudades`, `/equipo/anadir`) tienen una variante `*Local` que le habla a la fuente simulada desde el navegador, y el módulo con las server actions (`acciones-servidor.ts`, `inscribir-servidor.ts`) se importa solo cuando no es este build. El estado de esas acciones vive en la pestaña: al recargar vuelve a los datos de ejemplo. **Una vista nueva con server actions necesita las dos variantes**: el CI corre `npm run build:pages` y falla si falta (ver [`docs/PESTANAS.md`](./docs/PESTANAS.md), sección 2).
+- **Nunca lleva credenciales:** `scripts/build-pages.mjs` falla si el entorno trae variables de Supabase, del BFF o credenciales (`SUPABASE_*`, `*_SECRET`, `NEXT_PUBLIC_*` ajenas al panel…), si hay archivos `.env*`, o si algún archivo de `out/` parece llevar un JWT o una URL de Supabase. Corre `next build` con un entorno limpio.
+
+Reproducirlo en local, en Docker (el sitio queda en http://localhost:3000/front-coordinadores-web/):
+
+```sh
+docker compose -f compose.dev.yml run --rm --service-ports app sh -c "npm run build:pages && npm run servir:pages"
+```
+
+`servir:pages` sirve `out/` como lo hace Pages (`/ruta/` → `ruta/index.html`, 404 con `404.html`). Después se puede borrar `out/` (no se versiona).
+
+### Configuración del repo (admin)
+
+El workflow no cambia la configuración del repo. **Ya está hecha** (02/10): Pages con la fuente «GitHub Actions» y `develop` entre las ramas permitidas del environment `github-pages`. Queda a criterio del admin sacar la política de `production` que GitHub agrega por defecto (este workflow no despliega desde ahí). Para rehacerla en otro repo, en la web: *Settings → Pages → Build and deployment → Source: GitHub Actions*, y *Settings → Environments → `github-pages` → Deployment branches and tags → Selected branches and tags → `develop`*. O con `gh`:
+
+```sh
+# 1. Pages con la fuente «GitHub Actions»
+gh api -X POST repos/Colportores/front-coordinadores-web/pages -f build_type=workflow
+
+# 2. El environment github-pages solo despliega desde develop
+gh api -X PUT repos/Colportores/front-coordinadores-web/environments/github-pages --input - <<< '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
+gh api -X POST repos/Colportores/front-coordinadores-web/environments/github-pages/deployment-branch-policies -f name=develop -f type=branch
+
+# 3. Si el environment ya traía otra política (por ejemplo la de production), sacarla
+gh api repos/Colportores/front-coordinadores-web/environments/github-pages/deployment-branch-policies --jq '.branch_policies[] | "\(.id) \(.name)"'
+gh api -X DELETE repos/Colportores/front-coordinadores-web/environments/github-pages/deployment-branch-policies/<id>
+```
+
+El botón «Run workflow» (`workflow_dispatch`) aparece cuando el workflow llega a la rama por defecto del repo (`production`); el push a `develop` publica sin esperar a eso.
 
 ## Estructura
 

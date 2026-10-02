@@ -24,3 +24,8 @@ jobs:
       # Build con el modo dev apagado, como staging y producción.
       - name: Check (lint, typecheck, tests, build)
         run: docker run --rm -e NEXT_PUBLIC_MODO_DEV=0 panel-coordinadores-dev npm run check
+
+      # El sitio de prueba (GitHub Pages, issue #42) tiene su propio build estático con datos simulados:
+      # que ningún cambio lo rompa antes de llegar a develop (el deploy corre en deploy-pages.yml).
+      - name: Build del sitio de prueba (export estático, datos simulados)
+        run: docker run --rm panel-coordinadores-dev npm run build:pages

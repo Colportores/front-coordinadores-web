@@ -19,7 +19,7 @@ Podés crear subrutas bajo tu carpeta de `src/app/<ruta>/` si el diseño las pid
 **Regla: no se toca ningún archivo fuera de tu pestaña.** Son del shell y no se editan desde una pestaña:
 
 - `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/not-found.tsx`, `src/app/globals.css` (tokens).
-- `src/proxy.ts`, `src/app/stock/layout.tsx` y `src/app/cuentas/layout.tsx` (el flag que oculta esas pestañas: el proxy corta la petición antes de renderizar y los layouts desactivan el prerender).
+- `src/proxy.ts`, `src/app/stock/layout.tsx` y `src/app/cuentas/layout.tsx` (el flag que oculta esas pestañas: el proxy corta la petición antes de renderizar y, con el flag apagado, el layout saca la ruta del prerender).
 - `src/shell/**` (topbar, navegación, `ContenidoPestana`), `src/dev/**` (modo dev y **`estado-hu.ts`**), `src/config/**`, `src/datos/shell/**`, `src/lib/**`, `src/components/ui/**`, `src/test/**` (helpers de tests, p. ej. `fijarFlags`).
 - `package.json`, `package-lock.json`, configs y `docs/`.
 
@@ -49,6 +49,7 @@ export default async function PestanaEquipo() {
 - **`ContenidoPestana`** (`@/shell/ContenidoPestana`) es el elemento raíz de toda página: ocupa el área bajo el topbar, tiene su propio scroll, el padding del diseño (20px 22px) y 16px entre bloques. Pide un `titulo` (h1 para lectores de pantalla).
 - Las páginas son componentes de servidor por defecto y leen los datos con `await`. Lo interactivo (filtros, pestañas internas) va en componentes con `"use client"` dentro de `src/features/<pestaña>/`.
 - **Solo escritorio**: el shell ya fija `min-width: 1280px`. No hace falta layout mobile.
+- **Server actions y el sitio de prueba.** El panel se publica también como export estático en GitHub Pages (`npm run build:pages`, ver README), donde no hay servidor ni server actions. Si una vista las usa, las acciones van en un módulo aparte (`acciones-servidor.ts`, con `"use server"` inline) que la página importa con `await import()` dentro del `else` de `if (process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1")`; la rama del sitio de prueba renderiza un componente `*Local` (`"use client"`) que le habla a la fuente simulada desde el navegador. Mirá `src/app/ciudades/page.tsx` y `src/app/equipo/anadir/page.tsx`. El CI corre `build:pages` y falla si falta. Tampoco se pueden usar `cookies()`, `headers()` ni `dynamic = "force-dynamic"` en las rutas que el sitio de prueba exporta.
 
 ## 3. Tokens de diseño
 
