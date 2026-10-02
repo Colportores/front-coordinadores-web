@@ -131,7 +131,7 @@ export const DATOS_ANADIR_COLPORTOR_SIMULADO: DatosAnadirColportor = {
     {
       id: "usr-ana-martinez",
       nombre: "Ana Martínez",
-      email: "ana.martinez@correo.uy",
+      email: "ana.martinez@example.com",
       estadoCuenta: "pendiente_asignacion",
       campaniaActual: null,
       cuentaCreada: "2026-09-22",
@@ -139,7 +139,7 @@ export const DATOS_ANADIR_COLPORTOR_SIMULADO: DatosAnadirColportor = {
     {
       id: "usr-gonzalo-sosa",
       nombre: "Gonzalo Sosa",
-      email: "gonza.sosa@correo.uy",
+      email: "gonza.sosa@example.com",
       estadoCuenta: "pendiente_asignacion",
       campaniaActual: null,
       cuentaCreada: "2026-09-24",
@@ -147,7 +147,7 @@ export const DATOS_ANADIR_COLPORTOR_SIMULADO: DatosAnadirColportor = {
     {
       id: "usr-valentina-bentancor",
       nombre: "Valentina Bentancor",
-      email: "vbentancor@correo.uy",
+      email: "vbentancor@example.com",
       estadoCuenta: "pendiente_asignacion",
       campaniaActual: null,
       cuentaCreada: "2026-09-26",
@@ -156,7 +156,7 @@ export const DATOS_ANADIR_COLPORTOR_SIMULADO: DatosAnadirColportor = {
     {
       id: "usr-rodrigo-silva",
       nombre: "Rodrigo Silva",
-      email: "rodrigo.silva@correo.uy",
+      email: "rodrigo.silva@example.com",
       estadoCuenta: "activa",
       campaniaActual: "Otoño Norte",
       cuentaCreada: "2026-03-03",
@@ -164,7 +164,7 @@ export const DATOS_ANADIR_COLPORTOR_SIMULADO: DatosAnadirColportor = {
     {
       id: "usr-rodrigo-barrios",
       nombre: "Rodrigo Barrios",
-      email: "rbarrios@correo.uy",
+      email: "rbarrios@example.com",
       estadoCuenta: "pendiente_asignacion",
       campaniaActual: null,
       cuentaCreada: "2026-09-27",
@@ -172,7 +172,7 @@ export const DATOS_ANADIR_COLPORTOR_SIMULADO: DatosAnadirColportor = {
     {
       id: "usr-anabel-pereira",
       nombre: "Anabel Pereira",
-      email: "anabel.p@correo.uy",
+      email: "anabel.p@example.com",
       estadoCuenta: "activa",
       campaniaActual: null,
       cuentaCreada: "2026-05-14",
@@ -180,7 +180,7 @@ export const DATOS_ANADIR_COLPORTOR_SIMULADO: DatosAnadirColportor = {
     {
       id: "usr-mariana-olivera",
       nombre: "Mariana Olivera",
-      email: "mariana.olivera@correo.uy",
+      email: "mariana.olivera@example.com",
       estadoCuenta: "suspendida",
       campaniaActual: null,
       cuentaCreada: "2026-04-02",

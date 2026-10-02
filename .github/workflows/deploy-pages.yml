@@ -1,0 +1,77 @@
+name: Deploy Pages
+
+# Sitio de prueba del panel (issue #42): export estático con DATOS SIMULADOS,
+# publicado en GitHub Pages SOLO desde la rama develop. Sin backend, sin claves
+# reales, sin datos de personas. No hay deploys desde feature, PR, staging ni
+# production. `npm run build:pages` (scripts/build-pages.mjs) falla si el
+# entorno trae variables de Supabase, del BFF o credenciales.
+#
+# Lo que hay que activar a mano en el repo (no lo hace este workflow): Settings →
+# Pages → Source «GitHub Actions», y el environment `github-pages` con la política
+# de despliegue limitada a la rama develop. Pasos en el README, «Sitio de prueba».
+
+on:
+  push:
+    branches: [develop]
+  # Corrida manual: solo sobre develop (los jobs lo verifican).
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un deploy a la vez; el que está en curso termina y el último pedido espera su turno.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build del sitio de prueba (datos simulados)
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Node 24, el mismo que trae la imagen de desarrollo (dockerfile.dev).
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      # Falla pronto, con un mensaje claro, si Pages no está activado con la fuente «GitHub Actions».
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      # Export estático con basePath /front-coordinadores-web y datos simulados (next.config.ts).
+      # El modo del build lo fija el script: ninguna variable ni secreto del repo entra acá.
+      - name: Build
+        run: npm run build:pages
+        env:
+          DEPLOY_PAGES: "1"
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: out
+
+  deploy:
+    name: Publicar en GitHub Pages
+    needs: build
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

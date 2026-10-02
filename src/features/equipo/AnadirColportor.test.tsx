@@ -375,7 +375,7 @@ describe("AnadirColportor", () => {
       const candidatos = Array.from({ length: 300 }, (_, i) => ({
         id: `usr-${i}`,
         nombre: `Persona ${i} ${largo}`,
-        email: `persona${i}.${"x".repeat(80)}@correo.uy`,
+        email: `persona${i}.${"x".repeat(80)}@example.com`,
         estadoCuenta: "pendiente_asignacion" as const,
         campaniaActual: null,
         cuentaCreada: "2026-09-01",

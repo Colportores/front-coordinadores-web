@@ -6,8 +6,8 @@ import { modoDevActivo } from "@/config/flags";
 import { fuenteShell } from "@/datos/shell";
 import { PanelEstadoHu } from "@/dev/PanelEstadoHu";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
+import { MarcoDelPanel } from "@/shell/MarcoDelPanel";
 import { pestanasVisibles } from "@/shell/pestanas";
-import { Topbar } from "@/shell/Topbar";
 
 import "./globals.css";
 
@@ -39,6 +39,8 @@ const jetbrainsMono = localFont({
 export const metadata: Metadata = {
   title: "Colportaje · Coordinador",
   description: "Panel del coordinador: seguimiento del equipo de colportores de su región.",
+  // Sitio de prueba (GitHub Pages, datos simulados): que ningún buscador lo indexe.
+  ...(process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1" ? { robots: { index: false, follow: false } } : {}),
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -50,11 +52,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <ProveedorModoDev activo={modoDev}>
           <TooltipProvider>
-            {/* Solo escritorio: el diseño fija un ancho mínimo de 1280px. */}
-            <div className="grid h-screen min-w-[1280px] grid-rows-[var(--spacing-topbar)_1fr] overflow-hidden">
-              <Topbar resumen={resumen} pestanas={pestanasVisibles()} />
-              <main className="relative overflow-hidden">{children}</main>
-            </div>
+            <MarcoDelPanel resumen={resumen} pestanas={pestanasVisibles()}>
+              {children}
+            </MarcoDelPanel>
             <PanelEstadoHu />
           </TooltipProvider>
         </ProveedorModoDev>

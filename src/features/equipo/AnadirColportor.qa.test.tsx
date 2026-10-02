@@ -63,7 +63,7 @@ describe("QA · textos literales del diseño (artboards B · 01 a B · 03)", () 
 describe("QA · validación del buscador", () => {
   it.each([
     ["mayúsculas y espacios a los lados", "  ANA  "],
-    ["por email", "ana.martinez@correo.uy"],
+    ["por email", "ana.martinez@example.com"],
     ["sin tildes", "martinez"],
   ])("encuentra por %s", async (_n, texto) => {
     montar();

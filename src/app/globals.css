@@ -121,6 +121,8 @@
 
   /* Medidas del shell */
   --spacing-topbar: 58px;
+  /* Franja de «versión de prueba» (solo en el sitio de prueba): alto mínimo. */
+  --spacing-aviso: 32px;
 }
 
 @layer base {
