@@ -1,10 +1,11 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { isValidElement, type ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import ZonasPagina from "@/app/ciudades/page";
 import type * as ModuloZonas from "@/datos/equipo/zonas";
-import { DATOS_ZONAS_SIMULADO } from "@/datos/equipo/zonas/simulado";
-import { ZonasCampaniaLocal } from "@/features/equipo/zonas/ZonasCampaniaLocal";
+import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 
 vi.mock("@/features/equipo/zonas/MapaZonas", () => ({ MapaZonas: () => <div data-testid="mapa" /> }));
 
@@ -22,16 +23,31 @@ vi.mock("@/datos/equipo/zonas", async (importOriginal) => ({
   ),
 }));
 
-describe("ZonasCampaniaLocal (vista 24 en el sitio de prueba)", () => {
-  it("muestra la vista con los datos que recibe", () => {
-    render(<ZonasCampaniaLocal datos={DATOS_ZONAS_SIMULADO} />);
+/** ¿Algún elemento del árbol de la página lleva una prop `acciones` (las server actions de la vista)? */
+function tieneAcciones(jsx: ReactElement): boolean {
+  let actual: unknown = jsx;
+  while (isValidElement(actual)) {
+    const props = actual.props as { acciones?: unknown; children?: unknown };
+    if (props.acciones) return true;
+    actual = props.children;
+  }
+  return false;
+}
 
+describe("ZonasPagina en el build del sitio de prueba (export estático, sin servidor)", () => {
+  it("arma la misma vista con la fuente simulada, sin server actions ni el selector de fuente", async () => {
+    vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "1");
+    const jsx = await ZonasPagina();
+    render(<ProveedorModoDev activo={false}>{jsx}</ProveedorModoDev>);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Ciudades" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Zonas · Verano 2026" })).toBeInTheDocument();
-    expect(screen.getByTestId("mapa")).toBeInTheDocument();
+    expect(tieneAcciones(jsx)).toBe(false);
   });
 
-  it("las acciones le hablan a la fuente simulada desde el navegador: busca y agrega una ciudad", async () => {
-    render(<ZonasCampaniaLocal datos={DATOS_ZONAS_SIMULADO} />);
+  it("las acciones las arma el navegador contra la simulada: busca y agrega una ciudad", async () => {
+    vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "1");
+    render(<ProveedorModoDev activo={false}>{await ZonasPagina()}</ProveedorModoDev>);
 
     await userEvent.click(screen.getByRole("button", { name: /\+ Agregar ciudad/ }));
     await userEvent.type(screen.getByRole("searchbox", { name: /BUSCAR POR NOMBRE O PROVINCIA/ }), "salto");

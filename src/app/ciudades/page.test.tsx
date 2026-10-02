@@ -63,18 +63,6 @@ describe("ZonasPagina", () => {
   });
 });
 
-describe("ZonasPagina en el build del sitio de prueba (export estático, sin servidor)", () => {
-  it("arma la misma vista, pero sin server actions: las acciones las arma el navegador", async () => {
-    vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "1");
-    const jsx = await ZonasPagina();
-    render(<ProveedorModoDev activo={false}>{jsx}</ProveedorModoDev>);
-
-    expect(screen.getByRole("heading", { level: 1, name: "Ciudades" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Zonas · Verano 2026" })).toBeInTheDocument();
-    expect(() => propsDeLaVista(jsx)).toThrow("No se encontró la vista dentro de la página");
-  });
-});
-
 describe("carga y error de la ruta de zonas", () => {
   it("mientras trae las zonas dice que está cargando", () => {
     render(<CargandoZonas />);

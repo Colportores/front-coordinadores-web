@@ -2,9 +2,20 @@
 
 import { useCallback } from "react";
 
-import { fuenteEquipo } from "@/datos/equipo";
-import type { DatosAnadirColportor } from "@/datos/equipo";
+import type { DatosAnadirColportor, FuenteDatosEquipo } from "@/datos/equipo";
 import { AnadirColportor } from "@/features/equipo/AnadirColportor";
+
+/**
+ * Siempre la fuente SIMULADA, no el selector `fuenteEquipo` (`@/datos/equipo`):
+ * el sitio de prueba no puede hablar con otra fuente el día que `index.ts`
+ * apunte a la real. Se carga con `import()` para que sus datos de ejemplo vayan
+ * en un chunk aparte, que el navegador baja solo cuando esta vista se usa.
+ */
+let simulada: Promise<FuenteDatosEquipo> | undefined;
+function fuenteSimulada(): Promise<FuenteDatosEquipo> {
+  simulada ??= import("@/datos/equipo/simulado").then((m) => m.fuenteEquipoSimulada);
+  return simulada;
+}
 
 /**
  * La vista 23 para el sitio de prueba (GitHub Pages, export estático): sin
@@ -14,7 +25,7 @@ import { AnadirColportor } from "@/features/equipo/AnadirColportor";
  */
 export function AnadirColportorLocal({ datos }: { datos: DatosAnadirColportor }) {
   const inscribir = useCallback(
-    (usuarioId: string) => fuenteEquipo.inscribirColportor(datos.campaniaId, usuarioId),
+    async (usuarioId: string) => (await fuenteSimulada()).inscribirColportor(datos.campaniaId, usuarioId),
     [datos.campaniaId],
   );
 

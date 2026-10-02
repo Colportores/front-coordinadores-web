@@ -2,9 +2,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import AnadirColportorPagina from "@/app/equipo/anadir/page";
 import type * as ModuloEquipo from "@/datos/equipo";
-import { DATOS_ANADIR_COLPORTOR_SIMULADO } from "@/datos/equipo/simulado";
-import { AnadirColportorLocal } from "@/features/equipo/AnadirColportorLocal";
+import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -22,9 +22,19 @@ vi.mock("@/datos/equipo", async (importOriginal) => ({
   ),
 }));
 
-describe("AnadirColportorLocal (vista 23 en el sitio de prueba)", () => {
-  it("inscribe contra la fuente simulada desde el navegador", async () => {
-    render(<AnadirColportorLocal datos={DATOS_ANADIR_COLPORTOR_SIMULADO} />);
+describe("AnadirColportorPagina en el build del sitio de prueba (export estático, sin servidor)", () => {
+  it("arma la misma vista con la fuente simulada, sin el selector de fuente", async () => {
+    vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "1");
+    const jsx = await AnadirColportorPagina();
+    render(<ProveedorModoDev activo={false}>{jsx}</ProveedorModoDev>);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Añadir colportor" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Añadir colportor a Verano 2026" })).toBeInTheDocument();
+  });
+
+  it("inscribe contra la simulada desde el navegador", async () => {
+    vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "1");
+    render(<ProveedorModoDev activo={false}>{await AnadirColportorPagina()}</ProveedorModoDev>);
 
     const primero = screen.getAllByRole("button", { name: /^Añadir a / })[0];
     const nombre = (primero.getAttribute("aria-label") ?? "").replace("Añadir a ", "");

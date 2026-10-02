@@ -1,4 +1,5 @@
 import { fuenteEquipo } from "@/datos/equipo";
+import { fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { AnadirColportor } from "@/features/equipo/AnadirColportor";
 import { AnadirColportorLocal } from "@/features/equipo/AnadirColportorLocal";
@@ -6,12 +7,13 @@ import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
 /** Vista 23 (HU-CAM-004): añadir colportor a la campaña. Cuelga de la pestaña Equipo. */
 export default async function AnadirColportorPagina() {
-  const datos = await fuenteEquipo.obtenerAnadirColportor();
-
   // Sitio de prueba (export estático, sin servidor): no hay server actions, así que la vista le habla a la fuente
   // simulada desde el navegador. La condición es literal y el `import()` está en el `else` para que el módulo con
   // la server action no entre al build exportado. Ver README, «Sitio de prueba».
   if (process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1") {
+    // Siempre la simulada, por construcción: el sitio de prueba nunca lee `fuenteEquipo` (el selector).
+    const datos = await fuenteEquipoSimulada.obtenerAnadirColportor();
+
     return (
       <ContenidoPestana titulo="Añadir colportor">
         <SeccionHu hu="HU-CAM-004">
@@ -20,6 +22,7 @@ export default async function AnadirColportorPagina() {
       </ContenidoPestana>
     );
   } else {
+    const datos = await fuenteEquipo.obtenerAnadirColportor();
     const { crearInscribirServidor } = await import("./inscribir-servidor");
 
     return (
