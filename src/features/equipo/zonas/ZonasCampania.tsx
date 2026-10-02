@@ -592,7 +592,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
       ) : null}
 
       <div className="grid grid-cols-[360px_minmax(0,1fr)] items-start gap-4">
-        <div className="max-h-[calc(100vh-var(--spacing-topbar)-230px)] min-h-[520px] overflow-auto">
+        <div className="max-h-[calc(100vh-var(--spacing-topbar)-var(--alto-aviso,0px)-230px)] min-h-[520px] overflow-auto">
           {panel.tipo === "dibujo" ? (
             <PanelFormularioZona
               editando={panel.zonaId !== undefined}
@@ -653,7 +653,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
           )}
         </div>
 
-        <div className="relative h-[calc(100vh-var(--spacing-topbar)-230px)] min-h-[520px] overflow-hidden rounded-tarjeta border border-borde">
+        <div className="relative h-[calc(100vh-var(--spacing-topbar)-var(--alto-aviso,0px)-230px)] min-h-[520px] overflow-hidden rounded-tarjeta border border-borde">
           <MapaZonas
             ciudad={ciudad}
             zonas={zonas}

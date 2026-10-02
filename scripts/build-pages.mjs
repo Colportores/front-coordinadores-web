@@ -10,7 +10,8 @@
 //    basePath /front-coordinadores-web, ver next.config.ts) y modo dev prendido.
 // 3. Escribe robots.txt y .nojekyll en `out/` y falla si algún archivo de `out/`
 //    parece llevar una clave o una URL de Supabase, o si alguna página HTML no
-//    lleva `<meta name="robots" content="noindex, nofollow">`.
+//    lleva `<meta name="robots" content="noindex, nofollow">` ni el aviso de
+//    «Versión de prueba con datos simulados».
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -63,6 +64,10 @@ writeFileSync(join(salida, ".nojekyll"), "");
 
 const EXTENSIONES_DE_TEXTO = /\.(html|js|mjs|css|json|txt|map|xml|svg)$/i;
 const META_ROBOTS = /<meta name="robots" content="noindex, nofollow"\s*\/?>/;
+// Ver src/shell/AvisoVersionDePrueba.tsx (texto de la decisión del 02/10, PR #43).
+const AVISO_ROL = /<div role="note"/;
+const REDIRECCION_A_INICIO = /NEXT_REDIRECT;replace;\/inicio;/;
+const AVISO_TEXTO = /Versión de prueba con datos simulados\.<\/strong> Lo que hagas no se guarda: al recargar la página vuelve a los datos de ejemplo\./;
 const hallazgos = [];
 
 function recorrer(carpeta) {
@@ -77,6 +82,14 @@ function recorrer(carpeta) {
       }
       if (nombre.endsWith(".html") && !META_ROBOTS.test(texto)) {
         hallazgos.push(`${relative(salida, ruta)}: falta <meta name="robots" content="noindex, nofollow">`);
+      }
+      // Cada pantalla (también 404.html) lleva el aviso de versión de prueba: franja fija, sin botón para cerrarla.
+      // La única excepción es out/index.html: la raíz solo redirige a /inicio (no pinta el panel).
+      if (nombre.endsWith(".html")) {
+        const esRedireccionDeLaRaiz = ruta === join(salida, "index.html") && REDIRECCION_A_INICIO.test(texto);
+        if (!esRedireccionDeLaRaiz && !(AVISO_ROL.test(texto) && AVISO_TEXTO.test(texto))) {
+          hallazgos.push(`${relative(salida, ruta)}: falta el aviso «Versión de prueba con datos simulados.»`);
+        }
       }
     }
   }

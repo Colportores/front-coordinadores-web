@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { leerBandera, modoDevActivo, pestanaVisible } from "@/config/flags";
+import { leerBandera, modoDevActivo, pestanaVisible, sitioDePruebaActivo } from "@/config/flags";
 import { pestanasVisibles } from "@/shell/pestanas";
 import { fijarFlags } from "@/test/flags";
 
@@ -13,6 +13,16 @@ describe("flags", () => {
       expect(leerBandera("false")).toBe(false);
       expect(leerBandera(undefined)).toBeUndefined();
       expect(leerBandera("quizas")).toBeUndefined();
+    });
+  });
+
+  describe("sitioDePruebaActivo", () => {
+    it("solo es verdadero en el build del sitio de prueba (NEXT_PUBLIC_DEPLOY_PAGES=1)", () => {
+      expect(sitioDePruebaActivo()).toBe(false);
+      vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "1");
+      expect(sitioDePruebaActivo()).toBe(true);
+      vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "0");
+      expect(sitioDePruebaActivo()).toBe(false);
     });
   });
 

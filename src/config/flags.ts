@@ -28,7 +28,15 @@ export function modoDevActivo(): boolean {
   return leerBandera(process.env.NEXT_PUBLIC_MODO_DEV) ?? false;
 }
 
-export type Pestana = "inicio" | "equipo" | "ciudades" | "stock" | "cuentas" | "reportes";
+/**
+ * `true` solo en el build del sitio de prueba (GitHub Pages, `npm run build:pages`): export estático con datos
+ * simulados que no se guardan. `next dev` y el build de staging y producción no la definen. Ver README.
+ */
+export function sitioDePruebaActivo(): boolean {
+  return leerBandera(process.env.NEXT_PUBLIC_DEPLOY_PAGES) ?? false;
+}
+
+export type Pestana ="inicio" | "equipo" | "ciudades" | "stock" | "cuentas" | "reportes";
 
 /** Pestañas con flag propio. Las demás están siempre visibles. */
 function flagDePestana(pestana: Pestana): boolean | undefined {
