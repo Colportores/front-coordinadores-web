@@ -41,6 +41,25 @@ docker compose -f compose.dev.yml up
 
 Las pestañas **Stock** y **Cuentas** muestran datos simulados hasta su conexión en V2: tienen flag propio (`NEXT_PUBLIC_PESTANA_STOCK`, `NEXT_PUBLIC_PESTANA_CUENTAS`) que, si no se define, sigue al modo dev. En staging y producción quedan ocultas: `src/proxy.ts` reescribe esas rutas a un 404 antes de renderizar (así ni el HTML ni el payload RSC llevan su contenido) y, con el flag apagado, la ruta no se prerenderiza (`LayoutPestanaConFlag`).
 
+### Equipo con datos reales de Supabase (solo desarrollo)
+
+Para la demo, la pestaña **Equipo** puede leer la campaña y los colportores reales de un proyecto de Supabase en vez de los simulados (issue #45). Es un puente de desarrollo: la conexión definitiva va por el BFF ([ADR-013](https://github.com/Colportores/docs-organizacion/blob/main/docs/decisiones/ADR-013-un-bff-por-aplicacion-en-workers.md)).
+
+Creá un `.env.local` en la raíz del repo (git lo ignora; Next lo carga solo, también adentro de Docker) con la cuenta de un coordinador:
+
+```sh
+SUPABASE_URL=https://<proyecto>.supabase.co
+SUPABASE_ANON_KEY=<clave publishable o anon>
+SUPABASE_COORDINADOR_EMAIL=<correo del coordinador>
+SUPABASE_COORDINADOR_PASSWORD=<su contraseña>
+```
+
+Después `docker compose -f compose.dev.yml up` y abrí `/equipo`. El servidor inicia sesión con esa cuenta (GoTrue) y consulta con su token, así que las políticas RLS ven al coordinador: la campaña vigente y sus inscriptos salen de `colportores_de_campania()`. La contraseña vive solo en el servidor (variables sin `NEXT_PUBLIC_`).
+
+- **Se apaga sola** si falta alguna de las cuatro variables y **siempre en un build de producción** (`next build` / `next start`: staging, producción y el sitio de Pages), aunque estén definidas. Los tests lo prueban.
+- **Lo que todavía no tiene fuente real** queda vacío o con «—»: horas, ventas, cobro, última sincronización, precios por ciudad y acompañamientos. Añadir e inscribir colportores siguen simulados.
+- **No lo dejes en el entorno al correr `npm run build:pages`:** ese build rechaza a propósito cualquier `.env*` o variable de Supabase.
+
 ## Sitio de prueba (GitHub Pages)
 
 El panel se publica para probarlo desde un navegador, **solo desde la rama `develop`** y **con datos simulados**: sin backend, sin claves, sin datos de personas.
