@@ -23,6 +23,14 @@ export const MS_DESHACER = 8000;
 /** Falla de red al añadir: dice la acción (convención §10). */
 export const mensajeAnadirSinConexion = (nombre: string) => mensajeSinConexion(`añadir a ${nombre}`);
 
+/**
+ * Rechazo del servidor cuando la cuenta elegida en ese momento no es la que falló (eligió otra mientras
+ * contestaba, o soltó la elegida al cambiar la búsqueda): el aviso nombra a quien falló para que no se lea
+ * como un reproche al detalle que se ve. Si sigue elegida la misma, queda el literal de la HU
+ * («Está en campaña X. Reasignar primero.»). Decisión del orquestador, mapa §2 «casos límite de UI», 15/10.
+ */
+export const mensajeAnadirRechazado = (nombre: string, mensaje: string) => `No se pudo añadir a ${nombre}. ${mensaje}`;
+
 const ETIQUETA_ESTADO = {
   pendiente_asignacion: "◔ Pendiente de asignación",
   activa: "● Activa",
@@ -281,6 +289,8 @@ export function AnadirColportor({
   const [avisos, setAvisos] = useState<{ id: string; nombre: string }[]>([]);
   // Dos toques seguidos antes de que el estado se actualice: el ref corta el segundo.
   const inscribiendo = useRef(false);
+  // La cuenta elegida «ahora»: cuando contesta el servidor, el `anadir` que lo pidió ya quedó atrás en el tiempo.
+  const elegidoAhora = useRef<string | null>(null);
 
   const hayConsulta = consulta.trim() !== "";
   const resultados = useMemo(
@@ -288,6 +298,10 @@ export function AnadirColportor({
     [datos.candidatos, consulta, hayConsulta],
   );
   const elegido = resultados.find((c) => c.id === elegidoId) ?? null;
+  const idDelDetalle = elegido?.id ?? null;
+  useEffect(() => {
+    elegidoAhora.current = idDelDetalle;
+  }, [idDelDetalle]);
 
   const equipo = useMemo(
     () => [
@@ -343,7 +357,11 @@ export function AnadirColportor({
       try {
         const resultado = await inscribir(candidato.id);
         if (!resultado.ok) {
-          setError(resultado.mensaje);
+          setError(
+            elegidoAhora.current === candidato.id
+              ? resultado.mensaje
+              : mensajeAnadirRechazado(candidato.nombre, resultado.mensaje),
+          );
           return;
         }
         setAnadidos((previos) => [...previos, candidato.id]);

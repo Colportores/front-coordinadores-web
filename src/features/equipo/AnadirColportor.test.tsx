@@ -4,7 +4,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DATOS_ANADIR_COLPORTOR_SIMULADO } from "@/datos/equipo/simulado";
 import type { DatosAnadirColportor, ResultadoInscripcion } from "@/datos/equipo/contrato";
-import { AnadirColportor, mensajeAnadirSinConexion, MS_DESHACER } from "@/features/equipo/AnadirColportor";
+import {
+  AnadirColportor,
+  mensajeAnadirRechazado,
+  mensajeAnadirSinConexion,
+  MS_DESHACER,
+} from "@/features/equipo/AnadirColportor";
 
 const navegacion = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navegacion.push }) }));
@@ -563,6 +568,105 @@ describe("AnadirColportor", () => {
       await userEvent.click(screen.getByRole("button", { name: "Elegir a Gonzalo Sosa" }));
 
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("un «Añadir» rechazado cuando ya miró otra cuenta (decisión del 15/10, mapa §2)", () => {
+    const RECHAZO = "Está en campaña Otoño Norte. Reasignar primero.";
+
+    /** Un servidor que contesta recién cuando el test lo libera. */
+    function conRespuestaDemorada() {
+      let liberar: (resultado: ResultadoInscripcion) => void = () => undefined;
+      const inscribir = montar(() => new Promise((resolver) => (liberar = resolver)));
+      return { inscribir, contestar: (resultado: ResultadoInscripcion) => act(async () => liberar(resultado)) };
+    }
+
+    it("si la cuenta elegida ya no es la que falló, el aviso nombra a quien falló", async () => {
+      const { contestar } = conRespuestaDemorada();
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Ana Martínez" }));
+      const detalleAna = screen.getByRole("region", { name: "Detalle de Ana Martínez" });
+      await userEvent.click(within(detalleAna).getByRole("button", { name: "Añadir a Verano 2026" }));
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Gonzalo Sosa" }));
+
+      await contestar({ ok: false, mensaje: RECHAZO });
+
+      expect(screen.getByRole("alert").textContent).toBe(mensajeAnadirRechazado("Ana Martínez", RECHAZO));
+      expect(screen.getByRole("alert").textContent).toBe(`No se pudo añadir a Ana Martínez. ${RECHAZO}`);
+      expect(screen.getByRole("region", { name: "Detalle de Gonzalo Sosa" })).toBeInTheDocument();
+      // Nada quedó «ocupado»: Ana sigue con su botón «Añadir».
+      expect(screen.getByRole("button", { name: "Añadir a Ana Martínez" })).toHaveTextContent("Añadir");
+    });
+
+    it("si sigue elegida la misma cuenta, queda el literal de la HU, sin prefijo", async () => {
+      const { contestar } = conRespuestaDemorada();
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Ana Martínez" }));
+      const detalle = screen.getByRole("region", { name: "Detalle de Ana Martínez" });
+      await userEvent.click(within(detalle).getByRole("button", { name: "Añadir a Verano 2026" }));
+
+      await contestar({ ok: false, mensaje: RECHAZO });
+
+      expect(screen.getByRole("alert").textContent).toBe(RECHAZO);
+    });
+
+    it("si el coordinador soltó la cuenta elegida (cambió la búsqueda), el aviso nombra a quien falló", async () => {
+      const { contestar } = conRespuestaDemorada();
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Ana Martínez" }));
+      const detalle = screen.getByRole("region", { name: "Detalle de Ana Martínez" });
+      await userEvent.click(within(detalle).getByRole("button", { name: "Añadir a Verano 2026" }));
+      await userEvent.type(screen.getByRole("textbox", { name: "Buscar por email o nombre" }), "val");
+
+      await contestar({ ok: false, mensaje: RECHAZO });
+
+      expect(screen.getByRole("alert").textContent).toBe(mensajeAnadirRechazado("Ana Martínez", RECHAZO));
+    });
+
+    it("«Añadir» en la fila elige esa cuenta: si nadie más se elige mientras contesta, queda el literal", async () => {
+      const { contestar } = conRespuestaDemorada();
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Gonzalo Sosa" }));
+      await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+      expect(screen.getByRole("region", { name: "Detalle de Ana Martínez" })).toBeInTheDocument();
+
+      await contestar({ ok: false, mensaje: RECHAZO });
+
+      expect(screen.getByRole("alert").textContent).toBe(RECHAZO);
+    });
+
+    it("«Añadir» en la fila y después elegir otra fila mientras contesta: el aviso nombra a quien falló", async () => {
+      const { contestar } = conRespuestaDemorada();
+      await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Valentina Bentancor" }));
+
+      await contestar({ ok: false, mensaje: RECHAZO });
+
+      expect(screen.getByRole("alert").textContent).toBe(mensajeAnadirRechazado("Ana Martínez", RECHAZO));
+      expect(screen.getByRole("region", { name: "Detalle de Valentina Bentancor" })).toBeInTheDocument();
+    });
+
+    it("el aviso con nombre se va al elegir otra cuenta, como cualquier otro", async () => {
+      const { contestar } = conRespuestaDemorada();
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Ana Martínez" }));
+      const detalle = screen.getByRole("region", { name: "Detalle de Ana Martínez" });
+      await userEvent.click(within(detalle).getByRole("button", { name: "Añadir a Verano 2026" }));
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Gonzalo Sosa" }));
+      await contestar({ ok: false, mensaje: RECHAZO });
+
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Valentina Bentancor" }));
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("elegir de nuevo a quien falló después del rechazo vuelve a mostrarle el literal", async () => {
+      const inscribir = montar();
+      inscribir.mockResolvedValueOnce({ ok: false, mensaje: RECHAZO });
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Ana Martínez" }));
+      const detalle = screen.getByRole("region", { name: "Detalle de Ana Martínez" });
+      await userEvent.click(within(detalle).getByRole("button", { name: "Añadir a Verano 2026" }));
+      await screen.findByRole("alert");
+      inscribir.mockResolvedValueOnce({ ok: false, mensaje: RECHAZO });
+
+      await userEvent.click(within(detalle).getByRole("button", { name: "Añadir a Verano 2026" }));
+
+      expect((await screen.findByRole("alert")).textContent).toBe(RECHAZO);
     });
   });
 });
