@@ -29,13 +29,13 @@ function FilaZona({ zona, elegida, onElegir }: { zona: ZonaDeCiudad; elegida: bo
         />
         <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
           <span className="flex justify-between gap-2">
-            <span className="min-w-0 text-[13.5px] font-semibold break-words text-tinta">{zona.nombre}</span>
+            <span className="min-w-0 text-[13.5px] font-semibold wrap-anywhere text-tinta">{zona.nombre}</span>
             <span className="text-[11.5px] whitespace-nowrap text-tinta-suave">{descripcionForma(zona)}</span>
           </span>
           {zona.colportores.length === 0 ? (
             <span className="text-cuerpo font-semibold text-alerta">◔ Sin colportores</span>
           ) : (
-            <span className="text-cuerpo break-words text-tinta-2">{zona.colportores.map((c) => c.nombre).join(", ")}</span>
+            <span className="text-cuerpo wrap-anywhere text-tinta-2">{zona.colportores.map((c) => c.nombre).join(", ")}</span>
           )}
           <span className="text-[11.5px] text-tinta-suave">{zona.ubicacionesRegistradas} ubicaciones registradas</span>
         </span>
@@ -114,8 +114,8 @@ export function PanelListaZonas({
                 >
                   {iniciales(c.nombre)}
                 </span>
-                <span className="flex flex-1 flex-col gap-0.5">
-                  <span className="text-nav font-semibold text-tinta">{c.nombre}</span>
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-nav font-semibold wrap-anywhere text-tinta">{c.nombre}</span>
                   <span className="text-chico text-alerta">Sin zona en {ciudad.nombre}</span>
                   {c.suspendido ? <span className="text-chico text-peligro">⊘ {TEXTO_CUENTA_SUSPENDIDA}</span> : null}
                 </span>

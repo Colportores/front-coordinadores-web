@@ -151,8 +151,9 @@ function aZona(
   const comun = {
     id: cadena(rpc, fila, datos.idCampo),
     nombre: cadena(rpc, fila, "nombre"),
-    // `color` es nulable en la base (`guardar_zona()` lo permite) y el contrato del panel exige `#RRGGBB`.
-    color: esColorHex(fila.color) ? fila.color : COLOR_ZONA_SIN_COLOR,
+    // `color` es nulable en la base (`guardar_zona()` lo permite) y el contrato del panel exige `#RRGGBB` para dibujarla:
+    // sin color se pinta con un gris y se marca `sinColor`, para que al editarla no se guarde ese gris como si fuera suyo.
+    ...(esColorHex(fila.color) ? { color: fila.color } : { color: COLOR_ZONA_SIN_COLOR, sinColor: true as const }),
     poligonoGeojson: aPoligono(rpc, fila.poligono_geojson),
     colportores: datos.colportores,
     ubicacionesRegistradas: datos.ubicaciones,

@@ -218,7 +218,7 @@ describe("fuente de la vista 24 contra las RPC", () => {
       }
     });
 
-    it("una zona que se guardó sin color llega con el color de «sin color»; uno que no es #RRGGBB, también", async () => {
+    it("una zona que se guardó sin color llega con el color de «sin color» y marcada `sinColor`; uno que no es #RRGGBB, también", async () => {
       const { cliente } = lecturas({
         zonas_de_ciudad: (a: Record<string, unknown>) =>
           a.p_campania_ciudad_id === MVD ? [{ ...zonaRadial, color: null }, { ...zonaEsquinas, color: "rojo" }] : [],
@@ -227,6 +227,18 @@ describe("fuente de la vista 24 contra las RPC", () => {
       const datos = await crearFuenteZonasRpc(cliente).obtenerZonas();
 
       expect(datos?.ciudades[0].zonas.map((z) => z.color)).toEqual([COLOR_ZONA_SIN_COLOR, COLOR_ZONA_SIN_COLOR]);
+      expect(datos?.ciudades[0].zonas.map((z) => z.sinColor)).toEqual([true, true]);
+    });
+
+    it("una zona con color propio no lleva `sinColor`", async () => {
+      const { cliente } = lecturas({
+        zonas_de_ciudad: (a: Record<string, unknown>) => (a.p_campania_ciudad_id === MVD ? [{ ...zonaRadial, color: "#1F6E3A" }] : []),
+      });
+
+      const [zona] = (await crearFuenteZonasRpc(cliente).obtenerZonas())?.ciudades[0].zonas ?? [];
+
+      expect(zona.color).toBe("#1F6E3A");
+      expect(zona).not.toHaveProperty("sinColor");
     });
 
     it("las esquinas salen por `orden` y una calle nula queda vacía, sin inventar un nombre", async () => {
@@ -519,7 +531,7 @@ describe("fuente de la vista 24 contra las RPC", () => {
 
       const resultado = await crearFuenteZonasRpc(cliente).guardarZona({ ciudadId: MVD, nombre: "Casabó", forma: radial });
 
-      expect(resultado).toMatchObject({ ok: true, zona: { color: COLOR_ZONA_SIN_COLOR } });
+      expect(resultado).toMatchObject({ ok: true, zona: { color: COLOR_ZONA_SIN_COLOR, sinColor: true } });
     });
 
     it.each([

@@ -184,7 +184,7 @@ describe("QA vista 24 con la fuente de las RPC", () => {
       expect(guardados(llamadas)[0].args).toMatchObject({ p_zona_id: ZONA_CON_COLOR, p_nombre: "Cerro Norte", p_color: "#1F6E3A" });
     });
 
-    it.skip("QA #40: una zona que la base guardó sin color no recibe uno inventado al editarla (hoy manda p_color #8A94A6 y la base lo guarda)", async () => {
+    it("QA #40: una zona que la base guardó sin color no recibe uno inventado al editarla (hoy manda p_color #8A94A6 y la base lo guarda)", async () => {
       const llamadas = await montarConLaFuente();
 
       await editarYGuardar("Prado");
@@ -215,7 +215,7 @@ describe("QA vista 24 con la fuente de las RPC", () => {
     const claseDeColor = (el: Element, prefijo: "text-" | "bg-") =>
       Array.from(el.classList).find((c) => c.startsWith(prefijo) && !/^text-(nav|chico|cuerpo|mini|etiqueta|titulo)\b/.test(c))?.slice(prefijo.length);
 
-    it.skip("QA #40: «Sin elegir» (centro de la zona nueva, antes del primer clic) llega a 4,5:1 sobre su fondo", () => {
+    it("QA #40: «Sin elegir» (centro de la zona nueva, antes del primer clic) llega a 4,5:1 sobre su fondo", () => {
       render(
         <PanelFormularioZona
           editando={false}
@@ -243,7 +243,7 @@ describe("QA vista 24 con la fuente de las RPC", () => {
   });
 
   describe("la vista previa que falla por la red", () => {
-    it.skip("QA #40: el aviso trae un «Reintentar»; hoy «probá de nuevo» no tiene botón y Guardar sigue apagado aunque vuelva la red", async () => {
+    it("QA #40: el aviso trae un «Reintentar»; hoy «probá de nuevo» no tiene botón y Guardar sigue apagado aunque vuelva la red", async () => {
       const vistaPreviaZona = vi.fn().mockRejectedValueOnce(new Error("sin red")).mockResolvedValue(PREVIA);
       render(<ZonasCampania datos={ciudadCon([])} acciones={accionesSueltas({ vistaPreviaZona })} />);
       await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
@@ -263,7 +263,7 @@ describe("QA vista 24 con la fuente de las RPC", () => {
   describe("nombres largos sin espacios (el email de respaldo de una cuenta sin nombre también lo es)", () => {
     const largo = "a".repeat(40);
 
-    it.skip("QA #40: el nombre de un colportor sin zona se parte y no empuja «Asignar» fuera de la columna", () => {
+    it("QA #40: el nombre de un colportor sin zona se parte y no empuja «Asignar» fuera de la columna", () => {
       render(<ZonasCampania datos={ciudadCon([], [{ id: "col-1", nombre: largo.repeat(3), zonaId: null, zonaNombre: null }])} acciones={accionesSueltas()} />);
 
       const nombre = screen.getByText(largo.repeat(3));
@@ -273,7 +273,7 @@ describe("QA vista 24 con la fuente de las RPC", () => {
       expect(nombre.className).toMatch(/break-words|wrap-anywhere|break-all/);
     });
 
-    it.skip("QA #40: el nombre de 40 letras sin espacios de una zona se parte en el detalle y no esconde el ✕ de cerrar", async () => {
+    it("QA #40: el nombre de 40 letras sin espacios de una zona se parte en el detalle y no esconde el ✕ de cerrar", async () => {
       render(<ZonasCampania datos={ciudadCon([zonaRadial("z-larga", largo)])} acciones={accionesSueltas()} />);
       await userEvent.click(screen.getByRole("button", { name: `Ver la zona ${largo}` }));
 
@@ -293,7 +293,7 @@ describe("QA vista 24 con la fuente de las RPC", () => {
       return activo !== null && activo !== document.body && screen.getByRole("region", { name: region }).contains(activo);
     };
 
-    it.skip("QA #40: «+ Nueva zona» lleva el foco al formulario", async () => {
+    it("QA #40: «+ Nueva zona» lleva el foco al formulario", async () => {
       render(<ZonasCampania datos={ciudadCon([zonaRadial("z-1", "Prado")])} acciones={accionesSueltas()} />);
 
       await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
@@ -301,7 +301,7 @@ describe("QA vista 24 con la fuente de las RPC", () => {
       expect(dentroDe("Nueva zona")).toBe(true);
     });
 
-    it.skip("QA #40: abrir una zona de la lista lleva el foco al detalle, y «Editar forma» al formulario", async () => {
+    it("QA #40: abrir una zona de la lista lleva el foco al detalle, y «Editar forma» al formulario", async () => {
       render(<ZonasCampania datos={ciudadCon([zonaRadial("z-1", "Prado")])} acciones={accionesSueltas()} />);
 
       await userEvent.click(screen.getByRole("button", { name: "Ver la zona Prado" }));
@@ -311,7 +311,7 @@ describe("QA vista 24 con la fuente de las RPC", () => {
       expect(dentroDe("Editar zona")).toBe(true);
     });
 
-    it.skip("QA #40: tras «Asignar a <zona>» y tras «Quitar» el foco sigue en el detalle, en algo que se pueda usar", async () => {
+    it("QA #40: tras «Asignar a <zona>» y tras «Quitar» el foco sigue en el detalle, en algo que se pueda usar", async () => {
       render(<ZonasCampania datos={ciudadCon([zonaRadial("z-1", "Prado")], [colportor])} acciones={accionesSueltas()} />);
       await userEvent.click(screen.getByRole("button", { name: "Ver la zona Prado" }));
       await userEvent.click(screen.getByRole("button", { name: /Elegir colportor/ }));
@@ -331,7 +331,7 @@ describe("QA vista 24 con la fuente de las RPC", () => {
   });
 
   describe("el tope de 40 caracteres del nombre", () => {
-    it.skip("QA #40: cuenta caracteres como la base (char_length), no unidades UTF-16: 21 emojis entran", async () => {
+    it("QA #40: cuenta caracteres como la base (char_length), no unidades UTF-16: 21 emojis entran", async () => {
       await montarConLaFuente();
       await userEvent.click(screen.getByRole("button", { name: "+ Nueva zona" }));
       await userEvent.click(screen.getByRole("textbox", { name: "NOMBRE" }));

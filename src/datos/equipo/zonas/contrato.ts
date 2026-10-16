@@ -42,8 +42,13 @@ export interface ZonaDeCiudad {
   id: string;
   nombre: string;
   tipoForma: TipoForma;
-  /** `#RRGGBB`. Una zona que el backend guardó sin color llega con `COLOR_ZONA_SIN_COLOR` (`paleta.ts`). */
+  /** `#RRGGBB`. Una zona que el backend guardó sin color llega con `COLOR_ZONA_SIN_COLOR` (`paleta.ts`) y `sinColor`. */
   color: string;
+  /**
+   * La zona no tiene color en la base (`color` es nulo): `color` es solo el gris con el que se dibuja. Al editarla no se manda
+   * como `color` (la base la guardaría gris); sin `color` la base conserva que no tiene.
+   */
+  sinColor?: true;
   /** Solo RADIAL. */
   centro?: Punto;
   /** Solo RADIAL, de 1 a 3000 m (supuesto S56). */
@@ -145,8 +150,8 @@ export interface GuardarZonaEntrada {
   nombre: string;
   forma: FormaZona;
   /**
-   * `#RRGGBB`. Al editar, el de la zona (guardar sin color se lo borraría); al crear, el que le toca de la paleta.
-   * La fuente simulada lo ignora y conserva el de siempre.
+   * `#RRGGBB`. Al editar, el de la zona (guardar sin color se lo borraría), o ninguno si la zona no tiene (`sinColor`);
+   * al crear, el que le toca de la paleta. La fuente simulada lo ignora y conserva el de siempre.
    */
   color?: string;
 }

@@ -54,6 +54,8 @@ interface EstadoDibujo {
   /** Se tocó «Eliminar zona» y falta la confirmación. */
   confirmandoBaja: boolean;
   error: string | null;
+  /** El texto de `error` cuando la que falló fue la vista previa por la red: ese aviso trae «Reintentar». */
+  fallaVistaPrevia: string | null;
 }
 
 type Panel =
@@ -86,6 +88,7 @@ function dibujoNuevo(): Panel {
     guardando: false,
     confirmandoBaja: false,
     error: null,
+    fallaVistaPrevia: null,
   };
 }
 
@@ -105,6 +108,7 @@ function dibujoDeZona(zona: ZonaDeCiudad): Panel {
     guardando: false,
     confirmandoBaja: false,
     error: null,
+    fallaVistaPrevia: null,
   };
 }
 
@@ -143,6 +147,10 @@ export function ZonasCampania({ datos, acciones }: Props) {
   // Al cerrar el formulario o el detalle el foco vuelve a la fila de la zona (o a «+ Nueva zona»), no al body.
   const raiz = useRef<HTMLDivElement>(null);
   const volverFoco = useRef<string | null>(null);
+  // Al abrir el formulario o el detalle, o tras asignar o quitar, el foco va a un lugar útil del panel nuevo (no queda en el <body>).
+  const focoPendiente = useRef<string | null>(null);
+  // Cada «Reintentar» de la vista previa suma uno: vuelve a correr el efecto que la pide.
+  const [reintentosVistaPrevia, setReintentosVistaPrevia] = useState(0);
 
   const ciudad = ciudades.find((c) => c.id === ciudadId) ?? ciudades[0];
   const catalogoEnCampania = useMemo(() => new Set(ciudades.map((c) => c.catalogoId)), [ciudades]);
@@ -166,15 +174,20 @@ export function ZonasCampania({ datos, acciones }: Props) {
           if (version !== versionVistaPrevia.current) return;
           // La base la rechazó (la campaña terminó, la ciudad se quitó, no hay permiso): su texto dice qué hacer, y sin vista previa no se guarda.
           cambiarDibujo(() =>
-            "rechazo" in resultado ? { vistaPrevia: null, error: resultado.rechazo } : { vistaPrevia: resultado, error: null },
+            "rechazo" in resultado
+              ? { vistaPrevia: null, error: resultado.rechazo, fallaVistaPrevia: null }
+              : { vistaPrevia: resultado, error: null, fallaVistaPrevia: null },
           );
         })
         .catch(() => {
-          if (version === versionVistaPrevia.current) cambiarDibujo(() => ({ error: mensajeSinConexion("calcular las ubicaciones de la zona") }));
+          if (version !== versionVistaPrevia.current) return;
+          // Una caída de la red no es un rechazo: se puede reintentar sin tocar la forma.
+          const mensaje = mensajeSinConexion("calcular las ubicaciones de la zona");
+          cambiarDibujo(() => ({ error: mensaje, fallaVistaPrevia: mensaje }));
         });
     }, MS_ESPERA_VISTA_PREVIA);
     return () => clearTimeout(temporizador);
-  }, [forma, ciudad, zonaEnEdicionId, acciones, cambiarDibujo]);
+  }, [forma, ciudad, zonaEnEdicionId, acciones, cambiarDibujo, reintentosVistaPrevia]);
 
   useEffect(() => () => clearTimeout(temporizadorHover.current), []);
 
@@ -187,11 +200,18 @@ export function ZonasCampania({ datos, acciones }: Props) {
     destino?.focus();
   }, [tipoPanel]);
 
+  // Corre después de cada render: el foco pendiente se pide justo antes del cambio de panel, así que cae en el panel nuevo.
+  useEffect(() => {
+    const selector = focoPendiente.current;
+    focoPendiente.current = null;
+    if (selector) raiz.current?.querySelector<HTMLElement>(selector)?.focus();
+  });
+
   const actualizarForma = useCallback(
     (nueva: FormaZona, resto: Partial<EstadoDibujo> = {}) => {
       formaVigente.current = nueva;
       versionVistaPrevia.current++;
-      cambiarDibujo(() => ({ forma: nueva, vistaPrevia: null, ...resto }));
+      cambiarDibujo(() => ({ forma: nueva, vistaPrevia: null, fallaVistaPrevia: null, ...resto }));
     },
     [cambiarDibujo],
   );
@@ -250,6 +270,12 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const zonaEnEdicion = zonaEnEdicionId ? zonas.find((z) => z.id === zonaEnEdicionId) : undefined;
   const zonaElegidaId = zonaDetalle?.id ?? zonaEnEdicionId ?? null;
 
+  /** «Reintentar» del aviso de la vista previa caída: la vuelve a pedir con la misma forma. */
+  function reintentarVistaPrevia() {
+    cambiarDibujo(() => ({ error: null, fallaVistaPrevia: null }));
+    setReintentosVistaPrevia((n) => n + 1);
+  }
+
   function abandonarDibujo() {
     sesion.current++;
     versionVistaPrevia.current++;
@@ -262,6 +288,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   function empezarDibujo(nuevo: Panel) {
     abandonarDibujo();
     if (nuevo.tipo === "dibujo") formaVigente.current = nuevo.forma;
+    focoPendiente.current = '[data-foco="nombre-zona"]';
     setPanel(nuevo);
     setBuscador((b) => (b?.ocupado ? b : null));
     setAviso(null);
@@ -280,6 +307,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
     if (panel.tipo === "dibujo" || agregando) return;
     if (panel.tipo === "detalle" && panel.ocupado) return;
     const colportorId = panel.tipo === "lista" ? panel.asignandoA : null;
+    focoPendiente.current = '[data-foco="titulo-zona"]';
     setPanel({ tipo: "detalle", zonaId, colportorId, ocupado: false, error: null });
     setAviso(null);
   }
@@ -384,15 +412,16 @@ export function ZonasCampania({ datos, acciones }: Props) {
     if (panel.tipo !== "dibujo" || !ciudad || guardandoAhora.current) return;
     guardandoAhora.current = true;
     const deSesion = sesion.current;
-    cambiarDibujo(() => ({ guardando: true, error: null }));
+    cambiarDibujo(() => ({ guardando: true, error: null, fallaVistaPrevia: null }));
     try {
       const resultado = await acciones.guardarZona({
         ciudadId: ciudad.id,
         zonaId: panel.zonaId,
         nombre: panel.nombre,
         forma: panel.forma,
-        // Al editar va el color de la zona (guardar sin color se lo borraría); al crear, el que le toca de la paleta.
-        color: zonaEnEdicion?.color ?? colorParaZonaNueva(zonas.length),
+        // Al editar va el color de la zona (guardar sin color se lo borraría), salvo que no tenga: entonces no se le inventa uno.
+        // Al crear, el que le toca de la paleta.
+        color: zonaEnEdicion ? (zonaEnEdicion.sinColor ? undefined : zonaEnEdicion.color) : colorParaZonaNueva(zonas.length),
       });
       if (deSesion !== sesion.current) return;
       if (!resultado.ok) {
@@ -415,6 +444,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
         }),
       );
       abandonarDibujo();
+      focoPendiente.current = '[data-foco="titulo-zona"]';
       setPanel({ tipo: "detalle", zonaId: guardada.id, colportorId: null, ocupado: false, error: null });
       setAviso(`Zona «${guardada.nombre}» guardada.`);
     } catch {
@@ -463,6 +493,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
         return;
       }
       ponerZona(colportorId, accion === "asignar" ? zona : null);
+      // El botón que se tocó queda apagado («ya trabaja esta zona») o desaparece con el colportor: el foco va al desplegable.
+      focoPendiente.current = '[data-foco="desplegable-colportor"]';
       setPanel((p) =>
         p.tipo === "detalle" && p.zonaId === zona.id ? { ...p, colportorId: null, ocupado: false, error: null } : p,
       );
@@ -481,7 +513,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
     guardandoAhora.current = true;
     const zonaId = panel.zonaId;
     const nombre = zonas.find((z) => z.id === zonaId)?.nombre ?? panel.nombre;
-    cambiarDibujo(() => ({ guardando: true, error: null }));
+    cambiarDibujo(() => ({ guardando: true, error: null, fallaVistaPrevia: null }));
     try {
       const resultado = await acciones.eliminarZona(zonaId);
       if (!resultado.ok) {
@@ -497,6 +529,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
         })),
       );
       abandonarDibujo();
+      volverFoco.current = '[data-foco="nueva-zona"]';
       setPanel({ tipo: "lista", asignandoA: null });
       setAviso(
         resultado.colportoresSinZona > 0
@@ -624,6 +657,9 @@ export function ZonasCampania({ datos, acciones }: Props) {
               onQuitarEsquina={quitarEsquina}
               onGuardar={() => void guardarZona()}
               onCancelar={cerrarDibujo}
+              onReintentarVistaPrevia={
+                panel.error !== null && panel.error === panel.fallaVistaPrevia ? reintentarVistaPrevia : undefined
+              }
             />
           ) : panel.tipo === "detalle" && zonaDetalle ? (
             <PanelDetalleZona
