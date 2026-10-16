@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import type { Esquina, FormaZona, TipoForma, VistaPreviaZona } from "@/datos/equipo/zonas";
+import type { FormaZona, TipoForma, VistaPreviaZona } from "@/datos/equipo/zonas";
+import { nombreEsquina } from "@/features/equipo/zonas/tipos";
 import { cn } from "@/lib/utils";
 
 export const NOMBRE_MAX = 40;
@@ -52,8 +53,6 @@ const OPCIONES_FORMA: { tipo: TipoForma; etiqueta: string }[] = [
   { tipo: "RADIAL", etiqueta: "◯ Radial" },
   { tipo: "ESQUINAS", etiqueta: "⌐ Por esquinas" },
 ];
-
-const nombreEsquina = (e: Esquina) => `${e.calleA} y ${e.calleB}`;
 
 function Rotulo({ id, children }: { id?: string; children: React.ReactNode }) {
   return (

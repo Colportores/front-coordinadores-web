@@ -1,5 +1,6 @@
 import { fuenteZonas } from "@/datos/equipo/zonas";
 import { fuenteZonasSimulada } from "@/datos/equipo/zonas/simulado";
+import { SinCampaniaParaZonas } from "@/features/equipo/zonas/SinCampaniaParaZonas";
 import { ZonasCampania } from "@/features/equipo/zonas/ZonasCampania";
 import { ZonasCampaniaLocal } from "@/features/equipo/zonas/ZonasCampaniaLocal";
 import { SeccionHu } from "@/dev/SeccionHu";
@@ -23,7 +24,17 @@ export default async function ZonasPagina() {
     );
   } else {
     const datos = await fuenteZonas.obtenerZonas();
-    // Server actions: el navegador pide y el servidor le habla a la fuente (hoy simulada, después el BFF).
+    if (!datos) {
+      return (
+        <ContenidoPestana titulo="Ciudades">
+          <SeccionHu hu="HU-CAM-006">
+            <SinCampaniaParaZonas />
+          </SeccionHu>
+        </ContenidoPestana>
+      );
+    }
+    // Server actions: el navegador pide y el servidor le habla a la fuente (las RPC de Supabase bajo el puente de
+    // desarrollo, la simulada en cualquier build de producción).
     const { crearAccionesServidor } = await import("./acciones-servidor");
 
     return (

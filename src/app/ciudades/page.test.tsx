@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import ErrorZonas from "@/app/ciudades/error";
 import CargandoZonas from "@/app/ciudades/loading";
 import ZonasPagina from "@/app/ciudades/page";
+import { fuenteZonas } from "@/datos/equipo/zonas";
 import { DATOS_ZONAS_SIMULADO } from "@/datos/equipo/zonas/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 import type { AccionesZonas } from "@/features/equipo/zonas/ZonasCampania";
@@ -34,6 +35,19 @@ describe("ZonasPagina", () => {
     expect(screen.getByTestId("mapa")).toBeInTheDocument();
   });
 
+  it("sin una campaña con la que armar zonas (la fuente devuelve null) lo dice, sin mapa ni «+ Nueva zona»", async () => {
+    vi.spyOn(fuenteZonas, "obtenerZonas").mockResolvedValueOnce(null);
+
+    const jsx = await ZonasPagina();
+    render(<ProveedorModoDev activo={false}>{jsx}</ProveedorModoDev>);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Ciudades" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso ni por empezar.");
+    expect(screen.queryByTestId("mapa")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ Nueva zona" })).not.toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
   it("en modo dev marca la sección con la HU-CAM-006", async () => {
     const jsx = await ZonasPagina();
     const { container } = render(<ProveedorModoDev activo>{jsx}</ProveedorModoDev>);
@@ -49,8 +63,8 @@ describe("ZonasPagina", () => {
     expect((await acciones.esquinaMasCercana(ciudad.id, origen)).calleA).toBeTruthy();
     expect((await acciones.tramoPorCalles(ciudad.id, origen, origen)).length).toBeGreaterThan(0);
     expect(
-      (await acciones.vistaPreviaZona({ ciudadId: ciudad.id, forma: { tipoForma: "RADIAL", centro: origen, radioM: 200 } })).poligonoGeojson.type,
-    ).toBe("Polygon");
+      await acciones.vistaPreviaZona({ ciudadId: ciudad.id, forma: { tipoForma: "RADIAL", centro: origen, radioM: 200 } }),
+    ).toMatchObject({ poligonoGeojson: { type: "Polygon" } });
     expect(
       await acciones.guardarZona({ ciudadId: ciudad.id, nombre: "", forma: { tipoForma: "RADIAL", centro: origen, radioM: 200 } }),
     ).toEqual({ ok: false, mensaje: "Poné un nombre para la zona." });
