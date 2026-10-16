@@ -226,7 +226,8 @@ export function PanelFormularioZona({
                     const valor = Number(e.target.value);
                     if (e.target.value.trim() !== "" && Number.isFinite(valor) && valor > 0) {
                       setRadioTexto(null);
-                      onRadio(Math.min(RADIO_MAX_M, Math.max(RADIO_MIN_M, valor)));
+                      // Metros enteros: el deslizador y el servidor los redondean, y el campo y el «N m» que anuncia el lector deben decir lo mismo.
+                      onRadio(Math.min(RADIO_MAX_M, Math.max(RADIO_MIN_M, Math.round(valor))));
                     } else {
                       // Se puede borrar con Backspace para teclear otro valor; hasta entonces no se guarda.
                       setRadioTexto(e.target.value);

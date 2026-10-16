@@ -148,6 +148,30 @@ describe("deslizador del radio (artboard 02)", () => {
     expect(screen.getByRole("button", { name: "Guardar zona" })).toBeEnabled();
   });
 
+  it("el campo solo acepta metros enteros: lo decimal se redondea y el campo, el deslizador y el «N m» anunciado dicen lo mismo", async () => {
+    montar();
+    await nuevaZonaRadialConCentro();
+
+    fireEvent.change(campoRadio(), { target: { value: "400.7" } });
+    expect(campoRadio()).toHaveValue(401);
+    expect(deslizador()).toHaveValue("401");
+    expect(deslizador()).toHaveAttribute("aria-valuetext", "401 m");
+    expect(mapa.props?.dibujo?.radioM).toBe(401);
+
+    fireEvent.change(campoRadio(), { target: { value: "1234.4" } });
+    expect(campoRadio()).toHaveValue(1234);
+    expect(deslizador()).toHaveAttribute("aria-valuetext", "1234 m");
+
+    // Menos de un metro redondea a 0, y 0 no es un radio: queda en el mínimo.
+    fireEvent.change(campoRadio(), { target: { value: "0.4" } });
+    expect(campoRadio()).toHaveValue(1);
+    expect(mapa.props?.dibujo?.radioM).toBe(1);
+
+    // Pasarse del máximo con decimales también se acota.
+    fireEvent.change(campoRadio(), { target: { value: "3000.6" } });
+    expect(campoRadio()).toHaveValue(3000);
+  });
+
   it("al editar una zona radial arranca en el radio que tiene, y las que son por esquinas no lo muestran", async () => {
     montar();
     await userEvent.click(screen.getByRole("button", { name: "Ver la zona Paso de la Arena" }));
@@ -158,6 +182,24 @@ describe("deslizador del radio (artboard 02)", () => {
 
     await userEvent.click(screen.getByRole("radio", { name: /Por esquinas/ }));
     expect(screen.queryByRole("slider")).not.toBeInTheDocument();
+  });
+});
+
+describe("un nombre de 40 letras sin espacios en el detalle de la zona", () => {
+  it("«Asignar a …» puede achicarse (`shrink`): el Button base trae `shrink-0` y sin eso la tarjeta se desborda", async () => {
+    const nombre = "ZonaConUnNombreLarguisimoSinEspacios1234";
+    expect(nombre).toHaveLength(40);
+    const datos = { ...DATOS_ZONAS_SIMULADO, ciudades: [{ ...MONTEVIDEO, zonas: [{ ...MONTEVIDEO.zonas[0], id: "z-larga", nombre }] }] };
+    render(<ZonasCampania datos={datos} acciones={acciones()} />);
+    await userEvent.click(screen.getByRole("button", { name: `Ver la zona ${nombre}` }));
+
+    const asignar = screen.getByRole("button", { name: `Asignar a ${nombre}` });
+
+    expect(asignar.classList.contains("shrink")).toBe(true);
+    expect(asignar.classList.contains("shrink-0")).toBe(false);
+    expect(asignar.classList.contains("min-w-0")).toBe(true);
+    expect(asignar.classList.contains("wrap-anywhere")).toBe(true);
+    expect(asignar.parentElement?.classList.contains("flex-wrap")).toBe(true);
   });
 });
 

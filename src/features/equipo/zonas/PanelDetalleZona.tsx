@@ -229,7 +229,8 @@ export function PanelDetalleZona({
           type="button"
           disabled={!elegido || yaEstaAhi || ocupado}
           onClick={() => elegido && onAsignar(elegido.id)}
-          className="h-auto min-h-9 min-w-0 text-left text-nav font-semibold whitespace-normal wrap-anywhere disabled:bg-borde disabled:text-tinta-suave disabled:opacity-100"
+          // `shrink`: el Button trae `shrink-0` y con él `min-w-0` no alcanza; un nombre de 40 letras sin espacios sobresalía de la tarjeta.
+          className="h-auto min-h-9 min-w-0 shrink text-left text-nav font-semibold whitespace-normal wrap-anywhere disabled:bg-borde disabled:text-tinta-suave disabled:opacity-100"
         >
           Asignar a {zona.nombre}
         </Button>
