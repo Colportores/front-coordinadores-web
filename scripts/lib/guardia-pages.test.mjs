@@ -15,6 +15,8 @@ describe("guardia del build de Pages", () => {
       const env = {
         PATH: "/usr/bin",
         SUPABASE_URL: "https://x.supabase.co",
+        // La conexión pública del login (#18): la clave es pública, pero el sitio de prueba no habla con ningún Supabase.
+        NEXT_PUBLIC_SUPABASE_URL: "https://x.supabase.co",
         NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJ",
         SUPABASE_SERVICE_ROLE_KEY: "eyJ",
         BFF_COORDINADORES_URL: "https://bff",
@@ -25,6 +27,7 @@ describe("guardia del build de Pages", () => {
         "BFF_COORDINADORES_URL",
         "DB_PASSWORD",
         "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "NEXT_PUBLIC_SUPABASE_URL",
         "STRIPE_API_KEY",
         "SUPABASE_SERVICE_ROLE_KEY",
         "SUPABASE_URL",

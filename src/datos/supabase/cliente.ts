@@ -1,20 +1,41 @@
 import type { ConfigSupabase } from "@/datos/supabase/config";
+import { causaDeFalla, type CausaFalla } from "@/datos/supabase/errores";
 
 export class ErrorSupabase extends Error {
   constructor(
     mensaje: string,
+    /** Estado HTTP de la respuesta; 0 si no hubo respuesta. */
     readonly estado: number,
+    /** Código de PostgREST o `SQLSTATE` de la RPC (`CI004`, `42501`…); vacío si no vino ninguno. */
+    readonly codigo: string = "",
   ) {
     super(mensaje);
     this.name = "ErrorSupabase";
   }
 }
 
-export interface ClienteSupabase {
-  /** GET a PostgREST. `consulta` es lo que va después de `/rest/v1/`: la tabla y sus filtros. */
-  consultar<T>(consulta: string): Promise<T>;
+/**
+ * La clase de falla de lo que salió mal en una llamada a Supabase (ver `errores.ts`). Lo que no es un
+ * `ErrorSupabase` (un `fetch` que se cae con `TypeError`, un timeout) es una falla de conexión: nunca
+ * una sesión vencida.
+ */
+export function causaDe(error: unknown): CausaFalla {
+  if (error instanceof ErrorSupabase) return causaDeFalla({ estado: error.estado, codigo: error.codigo });
+  return "no-disponible";
+}
+
+/** Lo único que ADR-013 deja hacer a una fuente de datos: llamar funciones (RPC) con el JWT del usuario. */
+export interface ClienteRpc {
   /** POST a `/rest/v1/rpc/<nombre>` con los argumentos como JSON. */
   llamarRpc<T>(nombre: string, argumentos: Record<string, unknown>): Promise<T>;
+}
+
+export interface ClienteSupabase extends ClienteRpc {
+  /**
+   * GET a PostgREST. `consulta` es lo que va después de `/rest/v1/`: la tabla y sus filtros.
+   * Solo lo usa el puente de desarrollo de Equipo (#45): ADR-013 no deja leer tablas desde los clientes.
+   */
+  consultar<T>(consulta: string): Promise<T>;
 }
 
 /** Se renueva la sesión un minuto antes de que venza, para no mandar un token a punto de caducar. */
@@ -28,13 +49,15 @@ interface Sesion {
 
 async function errorDe(respuesta: Response): Promise<ErrorSupabase> {
   let detalle = respuesta.statusText;
+  let codigo = "";
   try {
     const cuerpo = (await respuesta.json()) as { message?: string; code?: string };
-    detalle = [cuerpo.message, cuerpo.code && `(${cuerpo.code})`].filter(Boolean).join(" ") || detalle;
+    codigo = typeof cuerpo.code === "string" ? cuerpo.code : "";
+    detalle = [cuerpo.message, codigo && `(${codigo})`].filter(Boolean).join(" ") || detalle;
   } catch {
     // La respuesta no era JSON: queda el texto del estado HTTP.
   }
-  return new ErrorSupabase(`Supabase respondió ${respuesta.status}: ${detalle}`, respuesta.status);
+  return new ErrorSupabase(`Supabase respondió ${respuesta.status}: ${detalle}`, respuesta.status, codigo);
 }
 
 /**

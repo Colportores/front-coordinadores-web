@@ -10,6 +10,8 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_PESTANA_STOCK", undefined);
   vi.stubEnv("NEXT_PUBLIC_PESTANA_CUENTAS", undefined);
   vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", undefined);
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", undefined);
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", undefined);
 });
 
 afterEach(() => {
