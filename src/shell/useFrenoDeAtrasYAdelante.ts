@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { esperarTrabajoPendiente, estaEsperando, hayQueEsperar } from "@/shell/trabajo-pendiente";
+import { esperarYSalir, estaEsperando, hayQueEsperar } from "@/shell/trabajo-pendiente";
 
 /**
  * Lo mínimo que se usa de la Navigation API (TypeScript todavía no la trae toda): el evento `navigate` y `traverseTo`.
@@ -33,6 +33,13 @@ function navegacionDelNavegador(): NavegacionDelNavegador | null {
  * Solo funciona donde el navegador deja frenar un `traverse` (`cancelable`, que Chromium pide con una interacción previa
  * de la persona en la página). Donde no (sin Navigation API, o un `traverse` que no se puede cancelar) queda como antes: la
  * vista manda lo que tenía dentro del plazo al irse, pero un rechazo no se puede mostrar.
+ *
+ * Dos límites de Chromium que esto no resuelve (re-revisión de #55, R2):
+ * - Deja frenar un solo `traverse` por interacción: un segundo atrás durante la espera sale `no cancelable` y pasa. La vista
+ *   se desmonta, la inscripción ya estaba mandada, pero un rechazo no se ve. `esperarYSalir` evita al menos que la respuesta
+ *   tardía devuelva a la persona a la entrada que había elegido antes.
+ * - Si la entrada anterior es de otro documento (F5, entrada por la URL), el atrás no dispara `navigate`: no se frena y queda
+ *   solo el aviso de `beforeunload`; si la persona acepta irse, la cuenta que estaba dentro del plazo no se manda.
  */
 export function useFrenoDeAtrasYAdelante(): void {
   useEffect(() => {
@@ -47,8 +54,9 @@ export function useFrenoDeAtrasYAdelante(): void {
       if (!clave) return;
       if (!estaEsperando() && !hayQueEsperar()) return;
       evento.preventDefault();
-      void esperarTrabajoPendiente().then((salida) => {
-        if (salida !== "listo") return;
+      // Si mientras se espera la persona se va por su cuenta (Chromium deja frenar un solo atrás por interacción: el
+      // segundo pasa), `esperarYSalir` no la devuelve a la entrada que había elegido al empezar.
+      void esperarYSalir(() => {
         try {
           const resultado = navegacion?.traverseTo(clave);
           // Si esa entrada del historial ya no existe, no hay nada que hacer: la persona sigue donde estaba.

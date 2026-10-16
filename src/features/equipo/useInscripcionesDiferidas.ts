@@ -38,7 +38,10 @@ interface Opciones {
   inscribir: (usuarioId: string) => Promise<ResultadoInscripcion>;
   /** El envío no prosperó: la cuenta ya no figura como añadida y quien usa el hook arma el aviso para la persona. */
   alFallar: (cuenta: Anadido, causa: CausaFallo) => void;
-  /** Venció el plazo de «Deshacer» de esa cuenta; se llama justo antes de sacar su aviso y de mandar la inscripción. */
+  /**
+   * Se da por terminado el plazo de «Deshacer» de esa cuenta (venció, o se manda ya porque la persona se va); se llama
+   * justo antes de sacar su aviso y de mandar la inscripción.
+   */
   alVencerPlazo?: (id: string) => void;
 }
 
@@ -142,7 +145,11 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
    * (un servidor colgado no hace esperar otros 10 s a cada intento de irse). Devuelve si todos prosperaron.
    */
   const confirmarTodas = useCallback(async (): Promise<boolean> => {
-    for (const { cuenta } of [...plazos.current.values()]) void enviar(cuenta);
+    for (const { cuenta } of [...plazos.current.values()]) {
+      // Su aviso se saca ya, igual que cuando vence el plazo: si el foco estaba en su «Deshacer», que no caiga al `body`.
+      ultimo.current.alVencerPlazo?.(cuenta.id);
+      void enviar(cuenta);
+    }
     const resultados = await Promise.all([...envios.current.values()].filter((envio) => !fueAbandonado(envio)));
     return resultados.every(Boolean);
   }, [enviar]);

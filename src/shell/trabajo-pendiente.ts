@@ -172,6 +172,28 @@ export async function esperarTrabajoPendiente(): Promise<SalidaDeEspera> {
   }
 }
 
+/**
+ * Dónde está la persona en el historial: la clave de la entrada actual si el navegador tiene la Navigation API (cada entrada
+ * tiene la suya y un reemplazo la conserva), y si no, la ruta. Sirve para saber, después de esperar, si se fue por su cuenta.
+ */
+export function ubicacionActual(): string {
+  if (typeof window === "undefined") return "";
+  const clave = (window as unknown as { navigation?: { currentEntry?: { key?: unknown } | null } }).navigation?.currentEntry?.key;
+  return typeof clave === "string" ? `entrada:${clave}` : `ruta:${window.location.pathname}`;
+}
+
+/**
+ * Espera el trabajo pendiente y, si salió todo bien, hace `irA` (el cambio de pantalla que la persona eligió al empezar la
+ * espera). Si mientras tanto ya se fue por su cuenta (un segundo atrás que el navegador no deja frenar, por ejemplo), no
+ * navega: llevarla al destino viejo la devolvería a una pantalla que ya dejó. Devuelve cómo terminó la espera.
+ */
+export async function esperarYSalir(irA: () => void): Promise<SalidaDeEspera> {
+  const dondeEstaba = ubicacionActual();
+  const salida = await esperarTrabajoPendiente();
+  if (salida === "listo" && ubicacionActual() === dondeEstaba) irA();
+  return salida;
+}
+
 /** Solo para los tests: cada uno arranca sin trabajo pendiente ni esperas de otro. */
 export function reiniciarTrabajoPendiente(): void {
   generacion++;

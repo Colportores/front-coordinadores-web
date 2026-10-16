@@ -28,7 +28,7 @@ import {
   type CausaFallo,
 } from "@/features/equipo/useInscripcionesDiferidas";
 import { cn } from "@/lib/utils";
-import { estaEsperando, esperarTrabajoPendiente } from "@/shell/trabajo-pendiente";
+import { esperarYSalir, estaEsperando } from "@/shell/trabajo-pendiente";
 
 export { MS_DESHACER, mensajeAnadirRechazado, mensajeAnadirSinConexion } from "@/features/equipo/useInscripcionesDiferidas";
 
@@ -416,7 +416,7 @@ export function AnadirColportor({
       router.push("/equipo");
       return;
     }
-    if ((await esperarTrabajoPendiente()) === "listo") router.push("/equipo");
+    await esperarYSalir(() => router.push("/equipo"));
   }, [router, hayTrabajoPendiente]);
 
   useEffect(() => {

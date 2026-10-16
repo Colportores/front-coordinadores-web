@@ -6,6 +6,7 @@ import { DATOS_ANADIR_COLPORTOR_SIMULADO, fuenteEquipoSimulada } from "@/datos/e
 import { RESUMEN_COORDINADOR_SIMULADO } from "@/datos/shell/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 import { AnadirColportor, mensajeAnadirSinConexion, MS_DESHACER } from "@/features/equipo/AnadirColportor";
+import { MS_ESPERA_BUSQUEDA } from "@/features/equipo/useBusquedaCandidatos";
 import { pestanasVisibles } from "@/shell/pestanas";
 import { esperarTrabajoPendiente, estaEsperando, hayQueEsperar, MS_TOPE_ESPERA, registrarFuente } from "@/shell/trabajo-pendiente";
 import { TEXTO_ESPERANDO_ENVIOS, Topbar } from "@/shell/Topbar";
@@ -596,6 +597,8 @@ describe("la espera que ya venció (el servidor contesta después del tope)", ()
 /** Un `window.navigation` simulado: lo único que se usa es el evento `navigate` y `traverseTo`. */
 class NavegacionFalsa extends EventTarget {
   traverseTo = vi.fn<(clave: string) => unknown>();
+  /** La entrada del historial donde está la persona; cambia cuando un traverse pasa sin frenarse. */
+  currentEntry: { key: string } = { key: "entrada-actual" };
 
   /** Lo que haría el navegador al apretar «atrás» o «adelante»: devuelve el evento para ver si se frenó. */
   async mover(opciones: { tipo?: string; cancelable?: boolean; clave?: string } = {}): Promise<Event> {
@@ -867,5 +870,229 @@ describe("atrás y adelante del navegador con inscripciones por mandar", () => {
 
     expect("navigation" in window).toBe(false);
     expect(servidor.inscribir).toHaveBeenCalledExactlyOnceWith(ANA);
+  });
+});
+
+describe("la persona se va por su cuenta mientras se espera: no se la lleva a un destino viejo (R3, seguimiento de #55)", () => {
+  afterEach(() => {
+    Reflect.deleteProperty(window, "navigation");
+    window.history.replaceState(null, "", "/");
+  });
+
+  /** Lo que pasa cuando el 2.º «atrás» que Chromium no deja frenar se cumple: la persona queda en otra entrada. */
+  async function atrasQueNoSeFrena(navegador: NavegacionFalsa) {
+    const evento = await navegador.mover({ cancelable: false });
+    expect(evento.defaultPrevented).toBe(false);
+    navegador.currentEntry = { key: "entrada-anterior" };
+  }
+
+  it("menú: el servidor contesta cuando ya está en otra entrada del historial → no cambia de pestaña (y la espera termina)", async () => {
+    const navegador = instalarNavegacion();
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    await tocar(seccion("Ciudades"));
+    expect(estadoDelMenu()).toHaveTextContent(TEXTO_ESPERANDO_ENVIOS);
+
+    await atrasQueNoSeFrena(navegador);
+    await servidor.responder(ANA);
+
+    expect(navegacion.push).not.toHaveBeenCalled();
+    expect(estadoDelMenu()).toBeEmptyDOMElement();
+    expect(menu()).not.toHaveAttribute("aria-busy");
+  });
+
+  it("menú, sin la Navigation API: se compara la ruta, y si cambió tampoco cambia de pestaña", async () => {
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    await tocar(seccion("Ciudades"));
+
+    window.history.pushState(null, "", "/reportes");
+    await servidor.responder(ANA);
+
+    expect(navegacion.push).not.toHaveBeenCalled();
+    expect(estadoDelMenu()).toBeEmptyDOMElement();
+  });
+
+  it("menú: si la persona volvió a la misma entrada antes de que conteste, sí cambia de pestaña (sigue donde empezó)", async () => {
+    const navegador = instalarNavegacion();
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    await tocar(seccion("Ciudades"));
+
+    navegador.currentEntry = { key: "entrada-anterior" };
+    navegador.currentEntry = { key: "entrada-actual" };
+    await servidor.responder(ANA);
+
+    expect(navegacion.push).toHaveBeenCalledExactlyOnceWith("/ciudades");
+  });
+
+  it("«‹ Equipo»: si ya se fue por su cuenta, no la lleva a Equipo", async () => {
+    const navegador = instalarNavegacion();
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    await tocar(screen.getByRole("link", { name: "‹ Equipo" }));
+
+    await atrasQueNoSeFrena(navegador);
+    await servidor.responder(ANA);
+
+    expect(navegacion.push).not.toHaveBeenCalled();
+    expect(estadoDelMenu()).toBeEmptyDOMElement();
+  });
+
+  it("Esc: si ya se fue por su cuenta, no la lleva a Equipo", async () => {
+    const navegador = instalarNavegacion();
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "Escape" }); // cierra los avisos: manda ya
+    });
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "Escape" }); // sale: espera la respuesta
+    });
+
+    await atrasQueNoSeFrena(navegador);
+    await servidor.responder(ANA);
+
+    expect(navegacion.push).not.toHaveBeenCalled();
+  });
+
+  it("atrás frenado: el 2.º atrás pasa (Chromium no deja frenarlo) → al contestar no hay traverseTo que la devuelva", async () => {
+    const navegador = instalarNavegacion();
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    expect((await navegador.mover()).defaultPrevented).toBe(true);
+
+    await atrasQueNoSeFrena(navegador);
+    await servidor.responder(ANA);
+
+    expect(navegador.traverseTo).not.toHaveBeenCalled();
+    expect(navegacion.push).not.toHaveBeenCalled();
+    expect(estadoDelMenu()).toBeEmptyDOMElement();
+  });
+
+  it("atrás frenado y la persona sigue en la misma entrada: vuelve a la que eligió (como hasta hoy)", async () => {
+    const navegador = instalarNavegacion();
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    await navegador.mover();
+
+    await servidor.responder(ANA);
+
+    expect(navegador.traverseTo).toHaveBeenCalledExactlyOnceWith("entrada-anterior");
+  });
+
+  it("después de irse por su cuenta, la espera siguiente funciona normal (nada quedó trabado)", async () => {
+    const navegador = instalarNavegacion();
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    await tocar(seccion("Ciudades"));
+    await atrasQueNoSeFrena(navegador);
+    await servidor.responder(ANA);
+    navegacion.push.mockClear();
+    navegador.currentEntry = { key: "entrada-actual" };
+
+    await tocar(anadirEnFila("Gonzalo Sosa"));
+    await tocar(seccion("Reportes"));
+    await servidor.responder(GONZALO);
+
+    expect(navegacion.push).toHaveBeenCalledExactlyOnceWith("/reportes");
+  });
+});
+
+describe("el foco al mandar ya lo que estaba dentro del plazo (R1, seguimiento de #55)", () => {
+  afterEach(() => {
+    Reflect.deleteProperty(window, "navigation");
+  });
+
+  const deshacerDe = (nombre: string) => screen.getByRole("button", { name: `Deshacer: ${nombre}` });
+  const filaDe = (nombre: string) => screen.getByRole("button", { name: `Elegir a ${nombre}` }).closest("li");
+  const caja = () => screen.getByRole("textbox", { name: "Buscar por email o nombre" });
+
+  it("atrás con el foco en «Deshacer»: el foco pasa a la fila de la cuenta durante la espera y se queda ahí tras el rechazo", async () => {
+    const navegador = instalarNavegacion();
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    expect(deshacerDe("Ana Martínez")).toHaveFocus();
+
+    await navegador.mover();
+
+    expect(estadoDelMenu()).toHaveTextContent(TEXTO_ESPERANDO_ENVIOS);
+    expect(document.body).not.toHaveFocus();
+    expect(filaDe("Ana Martínez")).toHaveFocus();
+
+    await servidor.responder(ANA, { ok: false, mensaje: "La cuenta está suspendida." });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("La cuenta está suspendida.");
+    expect(filaDe("Ana Martínez")).toHaveFocus();
+    expect(anadirEnFila("Ana Martínez")).toBeEnabled();
+  });
+
+  it("el menú con el foco en «Deshacer»: lo mismo (el foco no cae al body mientras espera)", async () => {
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    expect(deshacerDe("Ana Martínez")).toHaveFocus();
+
+    await tocar(seccion("Ciudades"));
+
+    expect(filaDe("Ana Martínez")).toHaveFocus();
+    await servidor.caer(ANA);
+    expect(filaDe("Ana Martínez")).toHaveFocus();
+  });
+
+  it("si la cuenta ya no está en los resultados, el foco va al buscador", async () => {
+    const navegador = instalarNavegacion();
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    await act(async () => {
+      fireEvent.change(caja(), { target: { value: "zzzz" } });
+    });
+    await pasar(MS_ESPERA_BUSQUEDA);
+    expect(screen.queryByRole("button", { name: "Elegir a Ana Martínez" })).not.toBeInTheDocument();
+    act(() => deshacerDe("Ana Martínez").focus());
+
+    await navegador.mover();
+
+    expect(caja()).toHaveFocus();
+  });
+
+  it("con el foco fuera del aviso (el buscador) no se mueve", async () => {
+    const navegador = instalarNavegacion();
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    act(() => caja().focus());
+
+    await navegador.mover();
+
+    expect(estadoDelMenu()).toHaveTextContent(TEXTO_ESPERANDO_ENVIOS);
+    expect(caja()).toHaveFocus();
+  });
+
+  it("con dos avisos, el foco en el de una cuenta va a la fila de esa cuenta y no toca a la otra", async () => {
+    const navegador = instalarNavegacion();
+    const servidor = servidorALaEspera();
+    montar(servidor.inscribir);
+    await tocar(anadirEnFila("Ana Martínez"));
+    act(() => anadirEnFila("Gonzalo Sosa").focus());
+    await tocar(anadirEnFila("Gonzalo Sosa"));
+    expect(deshacerDe("Gonzalo Sosa")).toHaveFocus();
+
+    await navegador.mover();
+
+    expect(filaDe("Gonzalo Sosa")).toHaveFocus();
+    await servidor.responder(ANA);
+    await servidor.responder(GONZALO, { ok: false, mensaje: "La cuenta está suspendida." });
+    expect(filaDe("Gonzalo Sosa")).toHaveFocus();
   });
 });
