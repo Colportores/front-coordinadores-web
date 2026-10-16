@@ -1,6 +1,7 @@
 import { isAuthRetryableFetchError, type AuthError, type SupabaseClient } from "@supabase/supabase-js";
 
 import { causaDeFalla } from "@/datos/supabase/errores";
+import { borrarSesionGuardada } from "@/datos/supabase/sdk";
 
 /**
  * Acceso del coordinador al panel (issue #18, ADR-013 y ADR-015): iniciar y cerrar sesión con `supabase-js`
@@ -75,6 +76,13 @@ function conTiempoMaximo<T>(promesa: Promise<T>, ms: number, siVence: T): Promis
   return Promise.race([promesa, limite]).finally(() => clearTimeout(temporizador));
 }
 
+/**
+ * El número del último inicio de sesión de cada cliente. Un intento que venció el tope de 5 s sigue vivo por
+ * detrás: si termina cuando ya hay otro intento en curso o terminado, no decide nada (en particular, no cierra
+ * la sesión del intento nuevo).
+ */
+const ultimoIntento = new WeakMap<SupabaseClient, number>();
+
 type ComprobacionDeRol = "coordinador" | "otro-rol" | "sesion-vencida" | "no-disponible";
 
 async function comprobarRol(supabase: SupabaseClient): Promise<ComprobacionDeRol> {
@@ -110,19 +118,35 @@ function resultadoDeErrorDeInicio(error: AuthError): ResultadoInicioSesion {
   return { tipo: "no-disponible" };
 }
 
-/** Cierra en este navegador la sesión que haya, sin dejar rastro, aunque no haya red para revocarla. */
-async function cerrarLocalmente(supabase: SupabaseClient): Promise<ResultadoCierre> {
+/**
+ * Cierra en este navegador la sesión que haya, sin dejar rastro, aunque no haya red para revocarla. `signOut`
+ * del SDK no alcanza solo: con el token vencido intenta renovarlo antes de cerrar y, si no hay red, devuelve el
+ * error sin borrar nada; con el servidor colgado no termina. Por eso espera a lo sumo `tiempoMaximoMs` y, si
+ * no logró cerrar, borra la sesión guardada por su cuenta (`borrarSesionGuardada`): «Cerrar sesión» nunca deja
+ * la sesión abierta, y el resultado dice que no se pudo avisar al servidor.
+ */
+async function cerrarLocalmente(supabase: SupabaseClient, tiempoMaximoMs: number = TIEMPO_MAXIMO_MS): Promise<ResultadoCierre> {
+  let resultado: ResultadoCierre = { tipo: "cerrada-sin-revocar" };
   try {
     // `scope: "local"`: solo esta sesión, no las del mismo usuario en otros dispositivos (como HU-AUTH-006, R8).
-    // Con o sin error del servidor, `supabase-js` borra la sesión guardada de este navegador.
-    const { error } = await supabase.auth.signOut({ scope: "local" });
-    return error ? { tipo: "cerrada-sin-revocar" } : { tipo: "cerrada" };
+    const respuesta = await conTiempoMaximo<Awaited<ReturnType<typeof supabase.auth.signOut>> | null>(
+      supabase.auth.signOut({ scope: "local" }),
+      tiempoMaximoMs,
+      null,
+    );
+    if (respuesta && !respuesta.error) resultado = { tipo: "cerrada" };
   } catch {
-    return { tipo: "cerrada-sin-revocar" };
+    // Queda `cerrada-sin-revocar`: se borra abajo.
   }
+  if (resultado.tipo !== "cerrada") await borrarSesionGuardada(supabase);
+  return resultado;
 }
 
-async function iniciarSinTope(supabase: SupabaseClient, { correo, contrasena }: Credenciales): Promise<ResultadoInicioSesion> {
+async function iniciarSinTope(
+  supabase: SupabaseClient,
+  { correo, contrasena }: Credenciales,
+  esElIntentoVigente: () => boolean,
+): Promise<ResultadoInicioSesion> {
   // El correo se normaliza (los espacios de los bordes no son parte de la dirección). La contraseña va tal cual:
   // puede llevar espacios y no tiene tope, ninguna cuenta puede tener una más larga.
   const email = correo.trim();
@@ -142,6 +166,8 @@ async function iniciarSinTope(supabase: SupabaseClient, { correo, contrasena }: 
     case "coordinador":
       return { tipo: "ok", usuarioId };
     case "otro-rol":
+      // Un intento viejo no cierra la sesión del nuevo: el nuevo comprueba su propio rol.
+      if (!esElIntentoVigente()) return { tipo: "no-disponible" };
       await cerrarLocalmente(supabase);
       return { tipo: "sin-acceso" };
     default:
@@ -185,7 +211,10 @@ export function iniciarSesion(
   credenciales: Credenciales,
   tiempoMaximoMs: number = TIEMPO_MAXIMO_MS,
 ): Promise<ResultadoInicioSesion> {
-  return conTiempoMaximo(iniciarSinTope(supabase, credenciales), tiempoMaximoMs, { tipo: "no-disponible" });
+  const intento = (ultimoIntento.get(supabase) ?? 0) + 1;
+  ultimoIntento.set(supabase, intento);
+  const esElIntentoVigente = () => ultimoIntento.get(supabase) === intento;
+  return conTiempoMaximo(iniciarSinTope(supabase, credenciales, esElIntentoVigente), tiempoMaximoMs, { tipo: "no-disponible" });
 }
 
 /**
@@ -199,10 +228,11 @@ export function verificarAcceso(supabase: SupabaseClient, tiempoMaximoMs: number
 }
 
 /**
- * Cierra la sesión de este navegador. Es idempotente: sin sesión abierta devuelve `cerrada`. Si no hay red,
- * la sesión se cierra igual acá y el resultado lo dice, para que la pantalla no afirme una revocación que no
- * pasó (la sesión del servidor queda hasta que venza su token).
+ * Cierra la sesión de este navegador. Es idempotente: sin sesión abierta devuelve `cerrada`. Si no hay red
+ * (o el servidor no contesta en `tiempoMaximoMs`, o el token venció y no se pudo renovar para revocarlo), la
+ * sesión se borra igual acá y el resultado lo dice, para que la pantalla no afirme una revocación que no pasó
+ * (la sesión del servidor queda hasta que venza su token).
  */
-export function cerrarSesion(supabase: SupabaseClient): Promise<ResultadoCierre> {
-  return cerrarLocalmente(supabase);
+export function cerrarSesion(supabase: SupabaseClient, tiempoMaximoMs: number = TIEMPO_MAXIMO_MS): Promise<ResultadoCierre> {
+  return cerrarLocalmente(supabase, tiempoMaximoMs);
 }

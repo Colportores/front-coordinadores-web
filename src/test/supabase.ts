@@ -67,14 +67,25 @@ export function crearSupabasePrueba(responder: (llamada: LlamadaFalsa) => Respon
     return responder(llamada);
   };
 
+  // El almacén es un `Map` propio de cada cliente: la sesión se guarda como en el navegador (y los tests pueden ver
+  // si quedó algo guardado), sin tocar el `localStorage` ni compartir nada entre tests.
+  const almacen = new Map<string, string>();
   const supabase: SupabaseClient = crearSupabase(
     { url: URL_PRUEBA, anonKey: CLAVE_PRUEBA },
-    // Sin almacenamiento persistente ni temporizadores de fondo: cada test arranca limpio. La clave de
-    // almacenamiento es propia de cada cliente (el SDK avisa si dos clientes de la misma ventana comparten una).
+    // Sin temporizadores de fondo: cada test arranca limpio. La clave de almacenamiento es propia de cada cliente
+    // (el SDK avisa si dos clientes de la misma ventana comparten una).
     {
-      auth: { persistSession: false, autoRefreshToken: false, storageKey: `sb-prueba-${++cuenta}-auth-token` },
+      auth: {
+        autoRefreshToken: false,
+        storageKey: `sb-prueba-${++cuenta}-auth-token`,
+        storage: {
+          getItem: (clave) => almacen.get(clave) ?? null,
+          setItem: (clave, valor) => void almacen.set(clave, valor),
+          removeItem: (clave) => void almacen.delete(clave),
+        },
+      },
       global: { fetch: fetchFalso as typeof fetch },
     },
   );
-  return { supabase, llamadas };
+  return { supabase, llamadas, almacen };
 }

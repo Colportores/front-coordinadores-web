@@ -13,7 +13,7 @@ import {
 const CREDENCIALES = { correo: "coordinador@example.com", contrasena: "Clave-de-prueba1" };
 
 /** Lo que contesta el Supabase falso a cada endpoint; cada test cambia lo que necesita, también a mitad del test. */
-type Contestacion = () => Response | Promise<Response>;
+type Contestacion = (llamada: LlamadaFalsa) => Response | Promise<Response>;
 
 interface Servidor {
   iniciar: Contestacion;
@@ -33,11 +33,13 @@ function servidorFalso(cambios: Partial<Servidor> = {}) {
   const prueba = crearSupabasePrueba((llamada: LlamadaFalsa) => {
     switch (llamada.ruta) {
       case "/auth/v1/token":
-        return llamada.url.searchParams.get("grant_type") === "refresh_token" ? servidor.renovar() : servidor.iniciar();
+        return llamada.url.searchParams.get("grant_type") === "refresh_token"
+          ? servidor.renovar(llamada)
+          : servidor.iniciar(llamada);
       case "/auth/v1/logout":
-        return servidor.revocar();
+        return servidor.revocar(llamada);
       case "/rest/v1/rpc/tiene_rol":
-        return servidor.tieneRol();
+        return servidor.tieneRol(llamada);
       default:
         throw new Error(`Ruta no prevista en el test: ${llamada.ruta}`);
     }
@@ -51,6 +53,10 @@ const sinRed = (): never => {
 
 /** Una conexión que nunca contesta. */
 const colgada = (): Promise<Response> => new Promise(() => {});
+
+/** Una conexión lenta: contesta `respuesta` a los `ms` (del reloj de los tests con tiempo falso). */
+const demorada = (ms: number, respuesta: Response): Promise<Response> =>
+  new Promise((resolver) => setTimeout(() => resolver(respuesta), ms));
 
 const rutas = (llamadas: LlamadaFalsa[]) => llamadas.map((l) => l.ruta);
 
@@ -423,5 +429,188 @@ describe("cerrarSesion", () => {
 
     expect(resultados.map((r) => r.tipo)).toEqual(["cerrada", "cerrada"]);
     expect((await supabase.auth.getSession()).data.session).toBeNull();
+  });
+});
+
+describe("cerrarSesion con el token vencido o el servidor colgado (revisión de #47)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const abrirSesion = (supabase: ReturnType<typeof servidorFalso>["supabase"]) =>
+    supabase.auth.signInWithPassword({ email: CREDENCIALES.correo, password: CREDENCIALES.contrasena });
+  /** Pasa el tiempo hasta que el token de 1 hora ya venció de verdad. */
+  const vencerElToken = () => vi.setSystemTime(Date.now() + 2 * 3_600_000);
+  const esRenovacion = (l: LlamadaFalsa) => l.url.searchParams.get("grant_type") === "refresh_token";
+
+  it("sin red y con el token vencido, cerrar sesión termina a los 5 s y borra la sesión guardada", async () => {
+    const { supabase, almacen } = servidorFalso({ renovar: sinRed, revocar: sinRed });
+    await abrirSesion(supabase);
+    expect(almacen.size).toBe(1);
+    vencerElToken();
+
+    let resultado: unknown = "pendiente";
+    void cerrarSesion(supabase).then((r) => (resultado = r));
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(resultado).toBe("pendiente");
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(resultado).toEqual({ tipo: "cerrada-sin-revocar" });
+    expect(almacen.size).toBe(0);
+    // Cuando el SDK termina de reintentar, tampoco hay sesión: no hay «cerrar sesión» que no cierra.
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(await verificarAcceso(supabase)).toEqual({ tipo: "sin-sesion" });
+  });
+
+  it("con la renovación ya en camino, al volver la red la sesión cerrada no se vuelve a guardar", async () => {
+    const { supabase, servidor, almacen, llamadas } = servidorFalso({ renovar: sinRed, revocar: sinRed });
+    await abrirSesion(supabase);
+    vencerElToken();
+    void cerrarSesion(supabase);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(almacen.size).toBe(0);
+    const renovacionesAlCerrar = llamadas.filter(esRenovacion).length;
+
+    servidor.renovar = () => respuestaDeSesion({ token: "token-que-no-debe-guardarse" });
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(almacen.size).toBe(0);
+    expect(llamadas.filter(esRenovacion)).toHaveLength(renovacionesAlCerrar);
+    expect(await verificarAcceso(supabase)).toEqual({ tipo: "sin-sesion" });
+  });
+
+  it("con el servidor colgado al revocar, termina a los 5 s con la sesión borrada y el SDK no queda trabado", async () => {
+    const { supabase, almacen } = servidorFalso({ revocar: colgada });
+    await abrirSesion(supabase);
+
+    let resultado: unknown = "pendiente";
+    void cerrarSesion(supabase).then((r) => (resultado = r));
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(resultado).toBe("pendiente");
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(resultado).toEqual({ tipo: "cerrada-sin-revocar" });
+    expect(almacen.size).toBe(0);
+    // El pedido colgado se aborta (tope de `fetch-auth.ts`), que en un navegador es lo que libera el cerrojo de
+    // Web Locks del SDK (jsdom no lo tiene): `getSession` contesta.
+    let hayRespuesta = false;
+    void supabase.auth.getSession().then(() => (hayRespuesta = true));
+    await vi.advanceTimersByTimeAsync(1);
+    expect(hayRespuesta).toBe(true);
+  });
+
+  it("después de un cierre colgado se puede volver a entrar y cerrar", async () => {
+    const { supabase, servidor } = servidorFalso({ revocar: colgada });
+    await abrirSesion(supabase);
+    const cierre = cerrarSesion(supabase);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(await cierre).toEqual({ tipo: "cerrada-sin-revocar" });
+
+    servidor.revocar = () => new Response(null, { status: 204 });
+    expect(await iniciarSesion(supabase, CREDENCIALES)).toEqual({ tipo: "ok", usuarioId: "usuario-1" });
+    expect(await cerrarSesion(supabase)).toEqual({ tipo: "cerrada" });
+  });
+});
+
+describe("un intento de inicio de sesión que venció no pisa al siguiente (revisión de #47)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const cuenta = (correo: string) => ({ correo, contrasena: CREDENCIALES.contrasena });
+  const correoDe = (l: LlamadaFalsa) => (l.cuerpo as { email: string }).email;
+
+  it("la respuesta tardía de la cuenta X no reemplaza la sesión de la cuenta Y que entró después", async () => {
+    const { supabase } = servidorFalso({
+      iniciar: (l) =>
+        correoDe(l) === "x@example.com"
+          ? demorada(6_000, respuestaDeSesion({ token: "token-X", usuarioId: "X" }))
+          : respuestaDeSesion({ token: "token-Y", usuarioId: "Y" }),
+      tieneRol: (l) => json(l.token === "token-Y"),
+    });
+
+    const intentoX = iniciarSesion(supabase, cuenta("x@example.com"));
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(await intentoX).toEqual({ tipo: "no-disponible" });
+
+    const intentoY = iniciarSesion(supabase, cuenta("y@example.com"));
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await intentoY).toEqual({ tipo: "ok", usuarioId: "Y" });
+    // A los 6 s habría llegado la respuesta de X.
+    await vi.advanceTimersByTimeAsync(3_000);
+
+    expect((await supabase.auth.getSession()).data.session?.access_token).toBe("token-Y");
+    expect(await verificarAcceso(supabase)).toEqual({ tipo: "ok", usuarioId: "Y" });
+  });
+
+  it("si la comprobación del rol de X llega tarde y dice «otro rol», no cierra la sesión de Y", async () => {
+    const { supabase } = servidorFalso({
+      iniciar: (l) =>
+        correoDe(l) === "x@example.com"
+          ? respuestaDeSesion({ token: "token-X", usuarioId: "X" })
+          : respuestaDeSesion({ token: "token-Y", usuarioId: "Y" }),
+      tieneRol: (l) => (l.token === "token-X" ? demorada(7_000, json(false)) : json(true)),
+    });
+
+    const intentoX = iniciarSesion(supabase, cuenta("x@example.com"));
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(await intentoX).toEqual({ tipo: "no-disponible" });
+    const intentoY = iniciarSesion(supabase, cuenta("y@example.com"));
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await intentoY).toEqual({ tipo: "ok", usuarioId: "Y" });
+
+    // A los 7 s llega el «false» de X: el intento viejo no decide nada.
+    await vi.advanceTimersByTimeAsync(3_000);
+
+    expect((await supabase.auth.getSession()).data.session?.access_token).toBe("token-Y");
+  });
+
+  it("el intento vigente que no es de coordinador sigue cerrando su propia sesión", async () => {
+    const { supabase, almacen } = servidorFalso({ tieneRol: () => json(false) });
+
+    expect(await iniciarSesion(supabase, CREDENCIALES)).toEqual({ tipo: "sin-acceso" });
+    expect(almacen.size).toBe(0);
+  });
+});
+
+describe("un límite de uso al renovar no es una sesión vencida (revisión de #47)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("con el token vencido y un 429 al renovar: no-disponible, la sesión se conserva y al ceder el límite entra", async () => {
+    const { supabase, servidor, almacen } = servidorFalso({
+      renovar: () => errorDeAuth(429, "over_request_rate_limit", "Request rate limit reached"),
+    });
+    await supabase.auth.signInWithPassword({ email: CREDENCIALES.correo, password: CREDENCIALES.contrasena });
+    vi.setSystemTime(Date.now() + 2 * 3_600_000);
+
+    const comprobacion = verificarAcceso(supabase);
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(await comprobacion).toEqual({ tipo: "no-disponible" });
+    expect(almacen.size).toBe(1);
+
+    servidor.renovar = () => respuestaDeSesion({ token: "token-renovado" });
+    const otraVez = verificarAcceso(supabase);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(await otraVez).toMatchObject({ tipo: "ok" });
+  });
+
+  it("el 429 de un inicio de sesión sigue siendo «demasiados intentos»", async () => {
+    const { supabase } = servidorFalso({
+      iniciar: () => errorDeAuth(429, "over_request_rate_limit", "Request rate limit reached"),
+    });
+
+    expect(await iniciarSesion(supabase, CREDENCIALES)).toEqual({ tipo: "demasiados-intentos" });
   });
 });
