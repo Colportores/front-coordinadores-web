@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ResultadoInscripcion } from "@/datos/equipo/contrato";
 import { mensajeSinConexion } from "@/lib/mensajes";
+import { registrarEnvio, registrarFuente, trabajoCambio } from "@/shell/trabajo-pendiente";
 
 /** Cuánto demora la inscripción tras «Añadir», y cuánto dura el aviso con «Deshacer» (decisión de Cristian, 30/09; diseño 23). */
 export const MS_DESHACER = 8000;
@@ -47,7 +48,9 @@ interface Opciones {
  *
  * Nada se pierde sin aviso:
  * - Si se va de la vista (cambio de ruta, cierre de la pestaña) con cuentas dentro del plazo, se mandan en ese momento.
- *   Al cerrar o recargar la pestaña el navegador además pregunta antes de irse, porque ahí el envío puede no llegar.
+ *   Al cerrar o recargar la pestaña el navegador además pregunta antes de irse, porque ahí el envío puede no llegar: lo
+ *   que está dentro del plazo o sin contestar se anota en `@/shell/trabajo-pendiente`, que también deja al menú de
+ *   secciones esperar antes de cambiar de pestaña y sigue avisando si la vista ya se fue pero un envío no contestó.
  * - Si el envío falla (regla o conexión), la cuenta vuelve a figurar sin añadir, el botón se habilita y `alFallar` avisa.
  */
 export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }: Opciones) {
@@ -89,6 +92,7 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
       }
       envios.current.delete(cuenta.id);
       setEnviando(envios.current.size);
+      trabajoCambio();
       if (causa === null) return true;
       conocidos.current.delete(cuenta.id);
       setAnadidos((previos) => previos.filter((a) => a.id !== cuenta.id));
@@ -97,6 +101,8 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
     })();
     envios.current.set(cuenta.id, envio);
     setEnviando(envios.current.size);
+    // Cuenta como trabajo sin contestar aunque la vista se vaya antes de que conteste.
+    registrarEnvio(envio);
     return envio;
   }, []);
 
@@ -112,6 +118,7 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
         void enviar(cuenta);
       }, MS_DESHACER);
       plazos.current.set(cuenta.id, { cuenta, temporizador });
+      trabajoCambio();
       return true;
     },
     [enviar],
@@ -126,6 +133,7 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
     conocidos.current.delete(id);
     setAnadidos((previos) => previos.filter((a) => a.id !== id));
     setAvisos((previos) => previos.filter((a) => a.id !== id));
+    trabajoCambio();
     return true;
   }, []);
 
@@ -149,17 +157,16 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
     };
   }, [enviar]);
 
-  // Mientras haya algo dentro del plazo o sin contestar, cerrar o recargar la pestaña pide confirmación.
-  const hayTrabajo = avisos.length > 0 || enviando > 0;
-  useEffect(() => {
-    if (!hayTrabajo) return;
-    const preguntar = (evento: BeforeUnloadEvent) => {
-      evento.preventDefault();
-      evento.returnValue = "";
-    };
-    window.addEventListener("beforeunload", preguntar);
-    return () => window.removeEventListener("beforeunload", preguntar);
-  }, [hayTrabajo]);
+  // Mientras haya algo dentro del plazo o sin contestar, cerrar o recargar la pestaña pide confirmación, y el menú de
+  // secciones espera antes de cambiar de pestaña (ver `@/shell/trabajo-pendiente`).
+  useEffect(
+    () =>
+      registrarFuente({
+        hayPendiente: () => plazos.current.size > 0 || envios.current.size > 0,
+        confirmar: confirmarTodas,
+      }),
+    [confirmarTodas],
+  );
 
   return { anadidos, avisos, enviando: enviando > 0, programar, deshacer, confirmarTodas };
 }

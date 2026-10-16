@@ -28,11 +28,9 @@ import {
   type CausaFallo,
 } from "@/features/equipo/useInscripcionesDiferidas";
 import { cn } from "@/lib/utils";
+import { esperarTrabajoPendiente } from "@/shell/trabajo-pendiente";
 
 export { MS_DESHACER, mensajeAnadirRechazado, mensajeAnadirSinConexion } from "@/features/equipo/useInscripcionesDiferidas";
-
-/** Lo más que espera «Salir» a que contesten las inscripciones en camino; pasado eso se va igual. */
-const MS_TOPE_SALIDA = 10_000;
 
 const ETIQUETA_ESTADO = {
   pendiente_asignacion: "◔ Pendiente de asignación",
@@ -408,21 +406,13 @@ export function AnadirColportor({
       return;
     }
     saliendo.current = true;
-    let tope: ReturnType<typeof setTimeout> | undefined;
     try {
-      const sinFallas = await Promise.race([
-        confirmarTodas(),
-        new Promise<boolean>((resolver) => {
-          tope = setTimeout(() => resolver(true), MS_TOPE_SALIDA);
-        }),
-      ]);
-      if (sinFallas) router.push("/equipo");
+      // El mismo camino que el menú de secciones (`Topbar`): manda, espera con el tope de 10 s y no sale si algo falla.
+      if (await esperarTrabajoPendiente()) router.push("/equipo");
     } finally {
-      // Si los envíos contestaron antes, el tope de 10 s ya no hace falta.
-      clearTimeout(tope);
       saliendo.current = false;
     }
-  }, [router, hayTrabajoPendiente, confirmarTodas]);
+  }, [router, hayTrabajoPendiente]);
 
   useEffect(() => {
     function alTeclear(evento: KeyboardEvent) {
