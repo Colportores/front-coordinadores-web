@@ -19,7 +19,7 @@ function fuenteSimulada(): Promise<FuenteDatosEquipo> {
 
 /**
  * La vista 23 para el sitio de prueba (GitHub Pages, export estático): sin
- * servidor no hay server actions, así que inscribir le habla a la fuente
+ * servidor no hay server actions, así que inscribir y buscar le hablan a la fuente
  * simulada desde el navegador. El estado vive en la pestaña: al recargar vuelve
  * a los datos de ejemplo.
  */
@@ -28,6 +28,11 @@ export function AnadirColportorLocal({ datos }: { datos: DatosAnadirColportor })
     async (usuarioId: string) => (await fuenteSimulada()).inscribirColportor(datos.campaniaId, usuarioId),
     [datos.campaniaId],
   );
+  const buscar = useCallback(
+    async (texto: string, despuesDe: string | null) =>
+      (await fuenteSimulada()).buscarCandidatos(datos.campaniaId, texto, despuesDe),
+    [datos.campaniaId],
+  );
 
-  return <AnadirColportor datos={datos} inscribir={inscribir} />;
+  return <AnadirColportor datos={datos} inscribir={inscribir} buscar={buscar} />;
 }

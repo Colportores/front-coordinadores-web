@@ -96,7 +96,9 @@ export function crearClienteRpc(supabase: SupabaseClient): ClienteRpc {
   return {
     async llamarRpc<T>(nombre: string, argumentos: Record<string, unknown>): Promise<T> {
       const { data, error, status } = await supabase.rpc(nombre, argumentos);
-      if (error) throw new ErrorSupabase(error.message || `Supabase rechazó ${nombre}.`, status, error.code);
+      if (error) {
+        throw new ErrorSupabase(error.message || `Supabase rechazó ${nombre}.`, status, error.code, error.details ?? "");
+      }
       return data as T;
     },
   };
