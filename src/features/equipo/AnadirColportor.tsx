@@ -249,8 +249,10 @@ function DetalleCuenta({ candidato, campania, anadido, ocupado, onAnadir }: Deta
           disabled={bloqueo !== null || anadido || ocupado}
           onClick={onAnadir}
           data-anadir-id={candidato.id}
-          // Con una campaña de nombre largo el texto corta línea en vez de desbordar la columna.
-          className="h-auto min-h-9 max-w-full py-1.5 text-left text-nav font-semibold whitespace-normal disabled:bg-borde disabled:text-tinta-suave disabled:opacity-100"
+          // Con una campaña de nombre largo el texto corta línea en vez de desbordar la columna: en los espacios y, si el nombre
+          // no los tiene, en medio de la palabra. `break-words` no alcanza acá: el botón es `inline-flex` y su texto es un ítem
+          // flex que no baja de la palabra más larga; `wrap-anywhere` (`overflow-wrap: anywhere`) sí achica ese mínimo.
+          className="h-auto min-h-9 max-w-full py-1.5 text-left text-nav font-semibold wrap-anywhere whitespace-normal disabled:bg-borde disabled:text-tinta-suave disabled:opacity-100"
         >
           {anadido ? "Añadido ✓" : `Añadir a ${campania}`}
         </Button>
