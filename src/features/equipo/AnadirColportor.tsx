@@ -293,8 +293,10 @@ export function AnadirColportor({
   /**
    * Cuentas que la base rechazó por estar en otra campaña (`CI007`) y la campaña que dijo: la fila pasa a mostrarse
    * bloqueada con el literal de la HU, en vez de seguir «sin campaña» con «Añadir» habilitado para repetir el rechazo.
-   * La marca vale hasta que el servidor contesta una búsqueda nueva (`recibidas`): ese dato es más nuevo, y si trae la
-   * cuenta libre (alguien la liberó) la fila vuelve a poder añadirse; si la trae todavía en otra campaña, se muestra esa.
+   * En los resultados de una búsqueda vale hasta que el servidor contesta otra (`recibidas`): ese dato es más nuevo, y si
+   * trae la cuenta libre (alguien la liberó) la fila vuelve a poder añadirse; si la trae todavía en otra campaña, se muestra
+   * esa. En los sugeridos vale siempre: son los de la carga de la página y no se refrescan, así que volver a ellos tras
+   * buscar y borrar el texto no tiene un dato más nuevo que lo contradiga.
    */
   const [enOtraCampania, setEnOtraCampania] = useState<ReadonlyMap<string, { campania: string; recibidas: number }>>(
     () => new Map(),
@@ -377,9 +379,10 @@ export function AnadirColportor({
         ? encontrados
         : encontrados.map((c) => {
             const marca = enOtraCampania.get(c.id);
-            return marca === undefined || marca.recibidas !== recibidas ? c : { ...c, campaniaActual: marca.campania };
+            const vigente = marca !== undefined && (!hayConsulta || marca.recibidas === recibidas);
+            return vigente ? { ...c, campaniaActual: marca.campania } : c;
           }),
-    [encontrados, enOtraCampania, recibidas],
+    [encontrados, enOtraCampania, recibidas, hayConsulta],
   );
   const elegido = resultados.find((c) => c.id === elegidoId) ?? null;
   useEffect(() => {

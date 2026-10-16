@@ -206,6 +206,47 @@ describe("la marca de «otra campaña» (CI007) y las búsquedas nuevas", () => 
     expect(anadirEnFila("Ana Martínez")).toBeDisabled();
   });
 
+  it("una sugerida rechazada sigue bloqueada si se busca otra cosa y se borra el texto: los sugeridos no se refrescan", async () => {
+    const { buscar } = montar(async () => ({ ok: true, candidatos: [{ ...gonzalo }], hayMas: false }));
+    await anadirYQuedarRechazada("Ana Martínez");
+    expect(anadirEnFila("Ana Martínez")).toBeDisabled();
+
+    await escribir("gonzalo");
+    expect(buscar).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Añadir a Ana Martínez" })).not.toBeInTheDocument();
+    await escribir("");
+
+    expect(fila("Ana Martínez")).toHaveTextContent("Campaña actual: Otoño Norte");
+    expect(anadirEnFila("Ana Martínez")).toBeDisabled();
+    expect(anadirEnFila("Gonzalo Sosa")).toBeEnabled();
+  });
+
+  it("una respuesta tardía que se descarta (se siguió escribiendo) no cuenta como dato nuevo: la fila que se ve sigue bloqueada", async () => {
+    const colgadas = new Map<string, (r: ResultadoBusqueda) => void>();
+    const buscar: Buscar = (texto) =>
+      texto === "ana m"
+        ? new Promise<ResultadoBusqueda>((resolver) => colgadas.set(texto, resolver))
+        : Promise.resolve({ ok: true, candidatos: [{ ...ana }], hayMas: false });
+    montar(buscar);
+    await escribir("ana");
+    await anadirYQuedarRechazada("Ana Martínez");
+    expect(anadirEnFila("Ana Martínez")).toBeDisabled();
+
+    // «ana m» sale al servidor y queda colgada; se vuelve a «ana» antes de que conteste, así que esa respuesta ya no vale.
+    await escribir("ana m");
+    expect(colgadas.has("ana m")).toBe(true);
+    await act(async () => {
+      fireEvent.change(caja(), { target: { value: "ana" } });
+    });
+    await act(async () => {
+      colgadas.get("ana m")?.({ ok: true, candidatos: [], hayMas: false });
+    });
+    await pasar(0);
+
+    expect(anadirEnFila("Ana Martínez")).toBeDisabled();
+    expect(fila("Ana Martínez")).toHaveTextContent("Campaña actual: Otoño Norte");
+  });
+
   it("volver atrás y reentrar arranca sin marcas: la cuenta del servidor se ve como viene", async () => {
     const primera = montar(async () => ({ ok: true, candidatos: [{ ...ana }], hayMas: false }));
     await anadirYQuedarRechazada("Ana Martínez");
