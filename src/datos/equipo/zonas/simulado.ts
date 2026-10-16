@@ -12,6 +12,7 @@ import type {
   VistaPreviaZona,
   ZonaDeCiudad,
 } from "@/datos/equipo/zonas/contrato";
+import { colorParaZonaNueva, PALETA_ZONAS as PALETA } from "@/datos/equipo/zonas/paleta";
 import {
   contiene,
   distanciaM,
@@ -34,8 +35,6 @@ const SEPARACION_LAT = 0.004;
 const M2_POR_UBICACION = 17_700;
 /** Puntos de muestra por cuadra y por lado para calcular superposiciones y conteos. */
 const MUESTRAS_POR_LADO = 12;
-
-const PALETA = ["#13407A", "#1F6E3A", "#A98330", "#5B6B82", "#A8312A", "#3B5C8C"];
 
 interface Grilla {
   nodo(v: number, h: number): Esquina;
@@ -368,7 +367,13 @@ function vistaPrevia(entrada: VistaPreviaEntrada): VistaPreviaZona {
   };
 }
 
-export const fuenteZonasSimulada: FuenteDatosZonas = {
+/** La simulada siempre tiene campaña y nunca rechaza una vista previa: los tipos lo dicen para quien la usa directo. */
+type FuenteSimulada = Omit<FuenteDatosZonas, "obtenerZonas" | "vistaPreviaZona"> & {
+  obtenerZonas(): Promise<DatosZonas>;
+  vistaPreviaZona(entrada: VistaPreviaEntrada): Promise<VistaPreviaZona>;
+};
+
+export const fuenteZonasSimulada: FuenteSimulada = {
   async obtenerZonas() {
     return DATOS_ZONAS_SIMULADO;
   },
@@ -404,7 +409,7 @@ export const fuenteZonasSimulada: FuenteDatosZonas = {
         id: anterior?.id ?? `zona-${ciudad.zonas.length + 1}-${nombre.toLowerCase().replace(/\s+/g, "-")}`,
         nombre,
         tipoForma: forma.tipoForma,
-        color: anterior?.color ?? PALETA[ciudad.zonas.length % PALETA.length],
+        color: anterior?.color ?? colorParaZonaNueva(ciudad.zonas.length),
         centro: forma.tipoForma === "RADIAL" ? forma.centro : undefined,
         radioM: forma.tipoForma === "RADIAL" ? forma.radioM : undefined,
         esquinas: forma.tipoForma === "ESQUINAS" ? forma.esquinas : undefined,
