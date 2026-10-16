@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -80,12 +82,27 @@ describe("guardia del build de Pages", () => {
   });
 
   describe("hallazgosEnTexto", () => {
-    it("detecta un JWT, una clave sb_, una URL de Supabase y el rol de servicio", () => {
+    it("detecta un JWT, una clave sb_, una URL de Supabase y la variable de la clave de servicio", () => {
       const jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIn0.firmaDeEjemplo123";
       expect(hallazgosEnTexto(`const k="${jwt}"`)).toHaveLength(1);
       expect(hallazgosEnTexto("sb_secret_abcdefgh1234")).toHaveLength(1);
       expect(hallazgosEnTexto("https://abcdefghijkl.supabase.co/rest/v1")).toHaveLength(1);
-      expect(hallazgosEnTexto('{"role":"service_role"}')).toHaveLength(1);
+      expect(hallazgosEnTexto("process.env.SUPABASE_SERVICE_ROLE_KEY")).toHaveLength(1);
+    });
+
+    it("un JWT con el rol de servicio sigue siendo un hallazgo, por ser un JWT", () => {
+      const jwtDeServicio = `eyJhbGciOiJIUzI1NiJ9.${btoa('{"iss":"supabase","role":"service_role"}').replace(/=+$/, "")}.firmaDeEjemplo123`;
+      expect(hallazgosEnTexto(jwtDeServicio)).toEqual(["un JWT (clave de Supabase o de sesión)"]);
+    });
+
+    it("la palabra `service_role` suelta, sin ninguna clave, no es un hallazgo (la lleva config-publica.ts cuando entra a un bundle del navegador)", () => {
+      expect(hallazgosEnTexto('return carga.role==="service_role"')).toEqual([]);
+    });
+
+    it("el módulo de la configuración pública de Supabase puede ir en un bundle de Pages sin que la guarda lo rechace", () => {
+      for (const archivo of ["src/datos/supabase/config-publica.ts", "src/datos/supabase/sdk.ts", "src/datos/supabase/fetch-auth.ts", "src/auth/acceso.ts"]) {
+        expect(hallazgosEnTexto(readFileSync(archivo, "utf8")), archivo).toEqual([]);
+      }
     });
 
     it("no marca el texto normal del panel", () => {

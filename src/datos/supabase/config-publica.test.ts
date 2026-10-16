@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { configPublicaSupabase, leerConfigPublicaSupabase } from "@/datos/supabase/config-publica";
+import {
+  configPublicaSupabase,
+  esClaveDeServicio,
+  leerConfigPublicaSupabase,
+  verificarEntornoSupabase,
+} from "@/datos/supabase/config-publica";
 
 const COMPLETO = {
   NEXT_PUBLIC_SUPABASE_URL: "https://abc.supabase.co",
@@ -24,9 +29,27 @@ describe("leerConfigPublicaSupabase", () => {
     expect(config?.url).toBe("https://abc.supabase.co");
   });
 
-  it("acepta el Supabase local por http", () => {
-    expect(leerConfigPublicaSupabase({ ...COMPLETO, NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321" })?.url).toBe(
-      "http://127.0.0.1:54321",
+  it.each(["http://127.0.0.1:54321", "http://localhost:54321", "http://[::1]:54321"])(
+    "acepta el Supabase local por http: %s",
+    (url) => {
+      expect(leerConfigPublicaSupabase({ ...COMPLETO, NEXT_PUBLIC_SUPABASE_URL: url })?.url).toBe(url);
+    },
+  );
+
+  it.each([
+    "http://abc.supabase.co",
+    "http://proyecto.supabase.co:80",
+    "http://192.168.1.20:54321",
+    "http://localhost.evil.com",
+    "http://127.0.0.1.evil.com",
+    "http://localhost@evil.com",
+  ])("http a un host que no es local se rechaza, porque el correo y la contraseña saldrían en claro: %s", (url) => {
+    expect(leerConfigPublicaSupabase({ ...COMPLETO, NEXT_PUBLIC_SUPABASE_URL: url })).toBeNull();
+  });
+
+  it("https vale para cualquier host", () => {
+    expect(leerConfigPublicaSupabase({ ...COMPLETO, NEXT_PUBLIC_SUPABASE_URL: "https://localhost:8443" })?.url).toBe(
+      "https://localhost:8443",
     );
   });
 
@@ -72,5 +95,51 @@ describe("configPublicaSupabase", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", undefined);
 
     expect(configPublicaSupabase()).toBeNull();
+  });
+});
+
+describe("verificarEntornoSupabase (el chequeo del build)", () => {
+  it("no hace nada sin variables, con la clave publishable o con una anon", () => {
+    expect(() => verificarEntornoSupabase({})).not.toThrow();
+    expect(() => verificarEntornoSupabase(COMPLETO)).not.toThrow();
+    expect(() => verificarEntornoSupabase({ NEXT_PUBLIC_SUPABASE_ANON_KEY: jwt({ role: "anon" }) })).not.toThrow();
+  });
+
+  it.each([
+    ["una clave secreta", "sb_secret_abcdefgh1234"],
+    ["un JWT con el rol de servicio", jwt({ iss: "supabase", role: "service_role" })],
+  ])("frena con %s, dice qué variable es y no escribe la clave", (_nombre, clave) => {
+    let mensaje = "";
+    try {
+      verificarEntornoSupabase({ ...COMPLETO, NEXT_PUBLIC_SUPABASE_ANON_KEY: ` ${clave} ` });
+    } catch (error) {
+      mensaje = (error as Error).message;
+    }
+
+    expect(mensaje).toContain("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    expect(mensaje).not.toContain(clave);
+    expect(mensaje).not.toContain("abcdefgh1234");
+  });
+
+  it("esClaveDeServicio no confunde una clave anon ni algo que no es un JWT", () => {
+    expect(esClaveDeServicio(jwt({ role: "anon" }))).toBe(false);
+    expect(esClaveDeServicio("a.b.c")).toBe(false);
+    expect(esClaveDeServicio("sb_publishable_x")).toBe(false);
+  });
+
+  describe("next.config.ts lo llama antes de que Next incruste las variables en el navegador", () => {
+    it("con una clave de servicio el arranque falla", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "sb_secret_abcdefgh1234");
+      vi.resetModules();
+
+      await expect(import("../../../next.config")).rejects.toThrow(/NEXT_PUBLIC_SUPABASE_ANON_KEY/);
+    });
+
+    it("con una clave publishable carga la configuración", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "sb_publishable_x");
+      vi.resetModules();
+
+      expect((await import("../../../next.config")).default).toBeTypeOf("object");
+    });
   });
 });
