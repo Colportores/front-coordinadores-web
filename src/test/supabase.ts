@@ -44,8 +44,8 @@ export function respuestaDeSesion({ token = "token-1", usuarioId = "usuario-1", 
 /** Un error de GoTrue (`error_code`) o de PostgREST (`code`), con el estado HTTP que le toca. */
 export const errorDeAuth = (estado: number, codigo: string, mensaje: string) =>
   json({ code: estado, error_code: codigo, msg: mensaje }, estado);
-export const errorDePostgrest = (estado: number, codigo: string, mensaje: string) =>
-  json({ code: codigo, message: mensaje, details: null, hint: null }, estado);
+export const errorDePostgrest = (estado: number, codigo: string, mensaje: string, detalle: string | null = null) =>
+  json({ code: codigo, message: mensaje, details: detalle, hint: null }, estado);
 
 let cuenta = 0;
 

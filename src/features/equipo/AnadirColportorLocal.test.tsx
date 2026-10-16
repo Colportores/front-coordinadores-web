@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type * as ModuloEquipo from "@/datos/equipo";
-import { DATOS_ANADIR_COLPORTOR_SIMULADO } from "@/datos/equipo/simulado";
+import { DATOS_ANADIR_COLPORTOR_SIMULADO, fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { AnadirColportorLocal } from "@/features/equipo/AnadirColportorLocal";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -23,6 +23,32 @@ vi.mock("@/datos/equipo", async (importOriginal) => ({
 }));
 
 describe("AnadirColportorLocal (vista 23 en el sitio de prueba)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("busca contra la fuente simulada desde el navegador, con la campaña de los datos", async () => {
+    const espia = vi.spyOn(fuenteEquipoSimulada, "buscarCandidatos");
+    render(<AnadirColportorLocal datos={DATOS_ANADIR_COLPORTOR_SIMULADO} />);
+
+    await userEvent.type(screen.getByRole("textbox", { name: "Buscar por email o nombre" }), "silva");
+
+    expect(await screen.findByRole("button", { name: "Elegir a Rodrigo Silva" })).toBeInTheDocument();
+    expect(espia).toHaveBeenLastCalledWith(DATOS_ANADIR_COLPORTOR_SIMULADO.campaniaId, "silva", null);
+  });
+
+  it("manda la inscripción a la fuente simulada cuando se cierran los avisos (Esc), con la campaña de los datos", async () => {
+    const espia = vi.spyOn(fuenteEquipoSimulada, "inscribirColportor");
+    render(<AnadirColportorLocal datos={DATOS_ANADIR_COLPORTOR_SIMULADO} />);
+    const sugerido = DATOS_ANADIR_COLPORTOR_SIMULADO.sugeridos[0];
+
+    await userEvent.click(screen.getByRole("button", { name: `Añadir a ${sugerido.nombre}` }));
+    expect(espia).not.toHaveBeenCalled();
+    await userEvent.keyboard("{Escape}");
+
+    await vi.waitFor(() => expect(espia).toHaveBeenCalledExactlyOnceWith(DATOS_ANADIR_COLPORTOR_SIMULADO.campaniaId, sugerido.id));
+  });
+
   it("inscribe contra la fuente simulada desde el navegador", async () => {
     render(<AnadirColportorLocal datos={DATOS_ANADIR_COLPORTOR_SIMULADO} />);
 

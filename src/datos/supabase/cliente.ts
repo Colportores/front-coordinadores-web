@@ -8,6 +8,8 @@ export class ErrorSupabase extends Error {
     readonly estado: number,
     /** Código de PostgREST o `SQLSTATE` de la RPC (`CI004`, `42501`…); vacío si no vino ninguno. */
     readonly codigo: string = "",
+    /** El `details` de la RPC (en `CI007`, un JSON con la campaña en conflicto); vacío si no vino. */
+    readonly detalle: string = "",
   ) {
     super(mensaje);
     this.name = "ErrorSupabase";
@@ -47,17 +49,23 @@ interface Sesion {
   venceEn: number;
 }
 
+/**
+ * El `message` queda tal cual lo mandó la base (igual que en `crearClienteRpc`): en una RPC propia es el texto para
+ * mostrar y la fuente de datos lo usa. Sin `message` (la respuesta no era JSON), queda el texto del estado HTTP.
+ */
 async function errorDe(respuesta: Response): Promise<ErrorSupabase> {
-  let detalle = respuesta.statusText;
+  let mensaje = `Supabase respondió ${respuesta.status}: ${respuesta.statusText}`;
   let codigo = "";
+  let detalles = "";
   try {
-    const cuerpo = (await respuesta.json()) as { message?: string; code?: string };
+    const cuerpo = (await respuesta.json()) as { message?: string; code?: string; details?: unknown };
     codigo = typeof cuerpo.code === "string" ? cuerpo.code : "";
-    detalle = [cuerpo.message, codigo && `(${codigo})`].filter(Boolean).join(" ") || detalle;
+    detalles = typeof cuerpo.details === "string" ? cuerpo.details : "";
+    if (typeof cuerpo.message === "string" && cuerpo.message !== "") mensaje = cuerpo.message;
   } catch {
     // La respuesta no era JSON: queda el texto del estado HTTP.
   }
-  return new ErrorSupabase(`Supabase respondió ${respuesta.status}: ${detalle}`, respuesta.status, codigo);
+  return new ErrorSupabase(mensaje, respuesta.status, codigo, detalles);
 }
 
 /**

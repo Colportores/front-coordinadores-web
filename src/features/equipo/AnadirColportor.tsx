@@ -5,31 +5,27 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import type { CandidatoColportor, DatosAnadirColportor, ResultadoInscripcion } from "@/datos/equipo/contrato";
+import type {
+  CandidatoColportor,
+  DatosAnadirColportor,
+  ResultadoBusqueda,
+  ResultadoInscripcion,
+} from "@/datos/equipo/contrato";
+import { ayudaBloqueo, fechaCorta, iniciales, motivoBloqueo } from "@/features/equipo/candidatos";
+import { useBusquedaCandidatos } from "@/features/equipo/useBusquedaCandidatos";
 import {
-  ayudaBloqueo,
-  buscarCandidatos,
-  fechaCorta,
-  iniciales,
-  motivoBloqueo,
-  sugeridos,
-} from "@/features/equipo/candidatos";
-import { mensajeSinConexion } from "@/lib/mensajes";
+  mensajeAnadirRechazado,
+  mensajeAnadirSinConexion,
+  useInscripcionesDiferidas,
+  type Anadido,
+  type CausaFallo,
+} from "@/features/equipo/useInscripcionesDiferidas";
 import { cn } from "@/lib/utils";
 
-/** Cuánto dura el aviso con "Deshacer" tras añadir (diseño 23). */
-export const MS_DESHACER = 8000;
+export { MS_DESHACER, mensajeAnadirRechazado, mensajeAnadirSinConexion } from "@/features/equipo/useInscripcionesDiferidas";
 
-/** Falla de red al añadir: dice la acción (convención §10). */
-export const mensajeAnadirSinConexion = (nombre: string) => mensajeSinConexion(`añadir a ${nombre}`);
-
-/**
- * Rechazo del servidor cuando la cuenta elegida en ese momento no es la que falló (eligió otra mientras
- * contestaba, o soltó la elegida al cambiar la búsqueda): el aviso nombra a quien falló para que no se lea
- * como un reproche al detalle que se ve. Si sigue elegida la misma, queda el literal de la HU
- * («Está en campaña X. Reasignar primero.»). Decisión del orquestador, mapa §2 «casos límite de UI», 15/10.
- */
-export const mensajeAnadirRechazado = (nombre: string, mensaje: string) => `No se pudo añadir a ${nombre}. ${mensaje}`;
+/** Lo más que espera «Salir» a que contesten las inscripciones en camino; pasado eso se va igual. */
+const MS_TOPE_SALIDA = 10_000;
 
 const ETIQUETA_ESTADO = {
   pendiente_asignacion: "◔ Pendiente de asignación",
@@ -85,26 +81,18 @@ function AvisoBloqueo({ texto }: { texto: string }) {
   );
 }
 
-/** Aviso con «Deshacer»: cada añadido tiene el suyo y su propio plazo de 8 s. */
+/** Aviso con «Deshacer»: cada añadido tiene el suyo y su propio plazo de 8 s (lo cuenta `useInscripcionesDiferidas`). */
 function AvisoAnadido({
   id,
   nombre,
   campania,
   onDeshacer,
-  onExpirar,
 }: {
   id: string;
   nombre: string;
   campania: string;
   onDeshacer: (id: string) => void;
-  /** Tiene que ser estable: si cambia en cada render, el plazo de 8 s se reinicia. */
-  onExpirar: (id: string) => void;
 }) {
-  useEffect(() => {
-    const temporizador = setTimeout(() => onExpirar(id), MS_DESHACER);
-    return () => clearTimeout(temporizador);
-  }, [id, onExpirar]);
-
   return (
     <div
       role="status"
@@ -141,14 +129,13 @@ interface FilaProps {
   elegido: boolean;
   activo: boolean;
   anadido: boolean;
-  ocupado: boolean;
   onElegir: () => void;
   onAnadir: () => void;
 }
 
-function FilaCandidato({ candidato, elegido, activo, anadido, ocupado, onElegir, onAnadir }: FilaProps) {
+function FilaCandidato({ candidato, elegido, activo, anadido, onElegir, onAnadir }: FilaProps) {
   const bloqueo = motivoBloqueo(candidato);
-  const deshabilitado = bloqueo !== null || anadido || ocupado;
+  const deshabilitado = bloqueo !== null || anadido;
 
   return (
     <li
@@ -214,11 +201,10 @@ interface DetalleProps {
   candidato: CandidatoColportor;
   campania: string;
   anadido: boolean;
-  ocupado: boolean;
   onAnadir: () => void;
 }
 
-function DetalleCuenta({ candidato, campania, anadido, ocupado, onAnadir }: DetalleProps) {
+function DetalleCuenta({ candidato, campania, anadido, onAnadir }: DetalleProps) {
   const bloqueo = motivoBloqueo(candidato);
   const ayuda = ayudaBloqueo(candidato);
 
@@ -246,7 +232,7 @@ function DetalleCuenta({ candidato, campania, anadido, ocupado, onAnadir }: Deta
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button
           type="button"
-          disabled={bloqueo !== null || anadido || ocupado}
+          disabled={bloqueo !== null || anadido}
           onClick={onAnadir}
           data-anadir-id={candidato.id}
           // Con una campaña de nombre largo el texto corta línea en vez de desbordar la columna: en los espacios y, si el nombre
@@ -269,51 +255,118 @@ function DetalleCuenta({ candidato, campania, anadido, ocupado, onAnadir }: Deta
  * buscador y resultados a la izquierda, detalle de la cuenta y equipo actual a la derecha.
  *
  * Atajos: "/" enfoca el buscador, ↑ ↓ recorren los resultados, Enter elige, Esc vuelve a Equipo.
- * El botón "Deshacer" solo revierte lo que muestra la vista: no existe (todavía) un endpoint
- * del BFF para sacar a un colportor de la campaña.
+ *
+ * La búsqueda es del servidor, de a 10 por página (la siguiente se pide al llegar al final de la lista), y «Añadir»
+ * demora la inscripción 8 s para dejar «Deshacer» (decisiones de Cristian, 30/09): ver los dos hooks.
  */
 export function AnadirColportor({
   datos,
   inscribir,
+  buscar,
 }: {
   datos: DatosAnadirColportor;
   inscribir: (usuarioId: string) => Promise<ResultadoInscripcion>;
+  buscar: (texto: string, despuesDe: string | null) => Promise<ResultadoBusqueda>;
 }) {
   const router = useRouter();
   const buscador = useRef<HTMLInputElement>(null);
   const raiz = useRef<HTMLDivElement>(null);
-  const [consulta, setConsulta] = useState("");
+  const centinela = useRef<HTMLDivElement>(null);
+  const saliendo = useRef(false);
   const [elegidoId, setElegidoId] = useState<string | null>(null);
   const [indiceActivo, setIndiceActivo] = useState(-1);
-  const [anadidos, setAnadidos] = useState<string[]>([]);
-  const [ocupado, setOcupado] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [avisos, setAvisos] = useState<{ id: string; nombre: string }[]>([]);
-  // Dos toques seguidos antes de que el estado se actualice: el ref corta el segundo.
-  const inscribiendo = useRef(false);
-  // La cuenta elegida «ahora»: cuando contesta el servidor, el `anadir` que lo pidió ya quedó atrás en el tiempo.
-  const elegidoAhora = useRef<string | null>(null);
+  /** Inscripciones que no prosperaron, una por cuenta: no se pisan entre sí ni se borran al escribir. */
+  const [fallos, setFallos] = useState<{ id: string; mensaje: string }[]>([]);
 
-  const hayConsulta = consulta.trim() !== "";
-  const resultados = useMemo(
-    () => (hayConsulta ? buscarCandidatos(datos.candidatos, consulta) : sugeridos(datos.candidatos)),
-    [datos.candidatos, consulta, hayConsulta],
+  const {
+    consulta,
+    setConsulta,
+    hayConsulta,
+    texto,
+    buscando,
+    resultados,
+    hayMas,
+    cargandoMas,
+    falla,
+    fallaMas,
+    cargarMas,
+    reintentar,
+    reintentarMas,
+  } = useBusquedaCandidatos(buscar, datos.sugeridos);
+
+  /** Lleva el foco a la fila de la cuenta (o, si ya no está en los resultados, al buscador). */
+  const enfocarFila = useCallback((id: string) => {
+    const fila = raiz.current?.querySelector<HTMLElement>(`[data-candidato-id="${id}"]`);
+    (fila ?? buscador.current)?.focus();
+  }, []);
+
+  /** La cuenta cuyo detalle se ve ahora: si falla justo esa, el aviso no necesita nombrarla. */
+  const elegidaVisible = useRef<string | null>(null);
+
+  // Una cuenta tiene a lo sumo un envío, y volver a añadirla borra su aviso: no hay dos avisos de la misma.
+  const registrarFallo = useCallback((cuenta: Anadido, causa: CausaFallo) => {
+    const mensaje =
+      causa.tipo === "sin-conexion"
+        ? mensajeAnadirSinConexion(cuenta.nombre)
+        : elegidaVisible.current === cuenta.id
+          ? causa.mensaje
+          : mensajeAnadirRechazado(cuenta.nombre, causa.mensaje);
+    setFallos((previos) => [...previos, { id: cuenta.id, mensaje }]);
+  }, []);
+
+  // Si el plazo vence con el foco en «Deshacer», ese botón desaparece: el foco vuelve a la fila.
+  const alVencerPlazo = useCallback(
+    (id: string) => {
+      const activo = document.activeElement;
+      const teniaFoco = activo instanceof HTMLElement && activo.closest(`[data-aviso-id="${id}"]`) !== null;
+      if (teniaFoco) enfocarFila(id);
+    },
+    [enfocarFila],
   );
+
+  const { anadidos, avisos, enviando, programar, deshacer, confirmarTodas } = useInscripcionesDiferidas({
+    inscribir,
+    alFallar: registrarFallo,
+    alVencerPlazo,
+  });
+
   const elegido = resultados.find((c) => c.id === elegidoId) ?? null;
-  const idDelDetalle = elegido?.id ?? null;
   useEffect(() => {
-    elegidoAhora.current = idDelDetalle;
-  }, [idDelDetalle]);
+    elegidaVisible.current = elegido?.id ?? null;
+  });
+  const hayTrabajoPendiente = avisos.length > 0 || enviando;
 
   const equipo = useMemo(
     () => [
       ...datos.equipoActual,
-      ...datos.candidatos
-        .filter((c) => anadidos.includes(c.id))
-        .map((c) => ({ id: c.id, nombre: c.nombre, zonaNombre: null })),
+      ...anadidos
+        .filter((a) => !datos.equipoActual.some((m) => m.id === a.id))
+        .map((a) => ({ id: a.id, nombre: a.nombre, zonaNombre: null })),
     ],
-    [datos.equipoActual, datos.candidatos, anadidos],
+    [datos.equipoActual, anadidos],
   );
+
+  /**
+   * Vuelve a Equipo. Con inscripciones dentro del plazo o en camino las manda y espera a que contesten: si alguna
+   * falla, se queda para que el aviso no se pierda al cambiar de pantalla (con un tope, por si el servidor no contesta).
+   */
+  const salir = useCallback(async () => {
+    if (saliendo.current) return;
+    if (!hayTrabajoPendiente) {
+      router.push("/equipo");
+      return;
+    }
+    saliendo.current = true;
+    try {
+      const sinFallas = await Promise.race([
+        confirmarTodas(),
+        new Promise<boolean>((resolver) => setTimeout(() => resolver(true), MS_TOPE_SALIDA)),
+      ]);
+      if (sinFallas) router.push("/equipo");
+    } finally {
+      saliendo.current = false;
+    }
+  }, [router, hayTrabajoPendiente, confirmarTodas]);
 
   useEffect(() => {
     function alTeclear(evento: KeyboardEvent) {
@@ -323,13 +376,11 @@ export function AnadirColportor({
           setConsulta("");
           setIndiceActivo(-1);
           setElegidoId(null);
-          setError(null);
-        } else if (ocupado) {
-          // Hay un «Añadir» en curso: no se sale hasta que conteste.
         } else if (avisos.length > 0) {
-          setAvisos([]);
+          // Cerrar los avisos es dar por hecho lo añadido: sin «Deshacer» no hay nada que esperar, se manda ya.
+          void confirmarTodas();
         } else {
-          router.push("/equipo");
+          void salir();
         }
         return;
       }
@@ -342,70 +393,35 @@ export function AnadirColportor({
     }
     document.addEventListener("keydown", alTeclear);
     return () => document.removeEventListener("keydown", alTeclear);
-  }, [router, consulta, ocupado, avisos.length]);
+  }, [consulta, setConsulta, avisos.length, confirmarTodas, salir]);
 
-  /** Lleva el foco a la fila de la cuenta (o, si ya no está en los resultados, al buscador). */
-  const enfocarFila = useCallback((id: string) => {
-    const fila = raiz.current?.querySelector<HTMLElement>(`[data-candidato-id="${id}"]`);
-    (fila ?? buscador.current)?.focus();
-  }, []);
+  // La página siguiente se pide cuando el final de la lista entra en pantalla. Sin `IntersectionObserver` quedan
+  // el «↓» del teclado y el aviso de abajo.
+  useEffect(() => {
+    const nodo = centinela.current;
+    if (!nodo || !hayMas || fallaMas !== null || typeof IntersectionObserver === "undefined") return;
+    const observador = new IntersectionObserver((entradas) => {
+      if (entradas.some((e) => e.isIntersecting)) void cargarMas();
+    });
+    observador.observe(nodo);
+    return () => observador.disconnect();
+    // `cargandoMas` y la cantidad vuelven a armar el observador: si el final sigue a la vista tras cargar, pide la que sigue.
+  }, [hayMas, fallaMas, cargandoMas, resultados.length, cargarMas]);
 
-  const anadir = useCallback(
-    async (candidato: CandidatoColportor) => {
-      if (inscribiendo.current || motivoBloqueo(candidato) !== null || anadidos.includes(candidato.id)) return;
-      inscribiendo.current = true;
-      setOcupado(true);
-      setError(null);
-      try {
-        const resultado = await inscribir(candidato.id);
-        if (!resultado.ok) {
-          setError(
-            elegidoAhora.current === candidato.id
-              ? resultado.mensaje
-              : mensajeAnadirRechazado(candidato.nombre, resultado.mensaje),
-          );
-          return;
-        }
-        setAnadidos((previos) => [...previos, candidato.id]);
-        setAvisos((previos) => [...previos, { id: candidato.id, nombre: candidato.nombre }]);
-      } catch {
-        // Si la llamada se cae, nada queda «ocupado»: se puede volver a intentar.
-        setError(mensajeAnadirSinConexion(candidato.nombre));
-      } finally {
-        inscribiendo.current = false;
-        setOcupado(false);
-        // Si ya está escribiendo en el buscador o fue a otro botón, el foco se queda ahí (no se le corta lo que teclea).
-        if (focoSigueEnAnadir(candidato.id)) enfocarFila(candidato.id);
-      }
-    },
-    [anadidos, inscribir, enfocarFila],
-  );
+  function anadir(candidato: CandidatoColportor) {
+    if (motivoBloqueo(candidato) !== null) return;
+    setFallos((previos) => previos.filter((f) => f.id !== candidato.id));
+    programar({ id: candidato.id, nombre: candidato.nombre });
+    // El botón se apaga al añadir: el foco pasa a la fila en vez de caer al body (salvo que ya esté escribiendo en otro lado).
+    if (focoSigueEnAnadir(candidato.id)) enfocarFila(candidato.id);
+  }
 
-  const quitarAviso = useCallback((id: string) => setAvisos((previos) => previos.filter((a) => a.id !== id)), []);
-
-  // Si el plazo vence con el foco en «Deshacer», ese botón desaparece: el foco vuelve a la fila.
-  const expirarAviso = useCallback(
-    (id: string) => {
-      const activo = document.activeElement;
-      const teniaFoco = activo instanceof HTMLElement && activo.closest(`[data-aviso-id="${id}"]`) !== null;
-      quitarAviso(id);
-      if (teniaFoco) enfocarFila(id);
-    },
-    [quitarAviso, enfocarFila],
-  );
-
-  const deshacer = useCallback(
-    (id: string) => {
-      setAnadidos((previos) => previos.filter((x) => x !== id));
-      quitarAviso(id);
-      enfocarFila(id);
-    },
-    [quitarAviso, enfocarFila],
-  );
+  function alDeshacer(id: string) {
+    if (deshacer(id)) enfocarFila(id);
+  }
 
   function elegir(id: string | null) {
     setElegidoId(id);
-    setError(null);
   }
 
   function cambiarConsulta(valor: string) {
@@ -418,6 +434,7 @@ export function AnadirColportor({
     if (resultados.length === 0) return;
     if (evento.key === "ArrowDown") {
       evento.preventDefault();
+      if (indiceActivo >= resultados.length - 1 && hayMas) void cargarMas();
       setIndiceActivo((i) => Math.min(i + 1, resultados.length - 1));
     } else if (evento.key === "ArrowUp") {
       evento.preventDefault();
@@ -428,14 +445,31 @@ export function AnadirColportor({
     }
   }
 
-  const titulo = hayConsulta
-    ? `${resultados.length} ${resultados.length === 1 ? "RESULTADO" : "RESULTADOS"} PARA “${consulta.trim().toUpperCase()}”`
-    : `PENDIENTES DE ASIGNACIÓN · ${resultados.length}`;
+  function alVolverAEquipo(evento: React.MouseEvent<HTMLAnchorElement>) {
+    // Un clic con modificador abre otra pestaña y esta se queda como está.
+    if (evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) return;
+    if (!hayTrabajoPendiente) return;
+    evento.preventDefault();
+    void salir();
+  }
+
+  const busqueda = texto.toUpperCase();
+  const titulo = !hayConsulta
+    ? `PENDIENTES DE ASIGNACIÓN · ${resultados.length}`
+    : buscando
+      ? `BUSCANDO “${busqueda}”…`
+      : falla !== null
+        ? `RESULTADOS PARA “${busqueda}”`
+        : `${resultados.length}${hayMas ? "+" : ""} ${resultados.length === 1 && !hayMas ? "RESULTADO" : "RESULTADOS"} PARA “${busqueda}”`;
 
   return (
     <div ref={raiz} className="flex flex-col gap-3.5">
       <nav aria-label="Ruta" className="flex items-center gap-2 text-cuerpo text-tinta-suave">
-        <Link href="/equipo" className="inline-flex min-h-6 items-center font-semibold text-marca-media hover:text-marca">
+        <Link
+          href="/equipo"
+          onClick={alVolverAEquipo}
+          className="inline-flex min-h-6 items-center font-semibold text-marca-media hover:text-marca"
+        >
           ‹ Equipo
         </Link>
         <span aria-hidden>/</span>
@@ -490,47 +524,76 @@ export function AnadirColportor({
             <div className="px-3.5 pt-3.5 pb-1.5">
               <h3 className="text-etiqueta font-semibold tracking-etiqueta text-tinta-suave">{titulo}</h3>
             </div>
-            {resultados.length === 0 ? (
+            {buscando ? (
+              <p role="status" className="px-3.5 py-4 text-cuerpo text-tinta-suave">
+                Buscando cuentas…
+              </p>
+            ) : falla !== null ? (
+              <div role="alert" className="flex flex-col items-start gap-2 px-3.5 py-4 text-cuerpo font-medium text-peligro">
+                <p>{falla}</p>
+                <Button type="button" variant="outline" onClick={reintentar} className="text-nav font-semibold">
+                  Reintentar
+                </Button>
+              </div>
+            ) : resultados.length === 0 ? (
               <p className="px-3.5 py-4 text-cuerpo text-tinta-suave">
                 {hayConsulta
                   ? "No hay cuentas que coincidan con tu búsqueda."
                   : "No hay cuentas pendientes de asignación."}
               </p>
             ) : (
-              <ul aria-label="Cuentas">
-                {resultados.map((c, i) => (
-                  <FilaCandidato
-                    key={c.id}
-                    candidato={c}
-                    elegido={c.id === elegido?.id}
-                    activo={i === indiceActivo}
-                    anadido={anadidos.includes(c.id)}
-                    ocupado={ocupado}
-                    onElegir={() => elegir(c.id)}
-                    onAnadir={() => {
-                      setElegidoId(c.id);
-                      void anadir(c);
-                    }}
-                  />
-                ))}
-              </ul>
+              <>
+                <ul aria-label="Cuentas">
+                  {resultados.map((c, i) => (
+                    <FilaCandidato
+                      key={c.id}
+                      candidato={c}
+                      elegido={c.id === elegido?.id}
+                      activo={i === indiceActivo}
+                      anadido={anadidos.some((a) => a.id === c.id)}
+                      onElegir={() => elegir(c.id)}
+                      onAnadir={() => {
+                        setElegidoId(c.id);
+                        anadir(c);
+                      }}
+                    />
+                  ))}
+                </ul>
+                {hayMas ? <div ref={centinela} aria-hidden data-final-de-lista className="h-px" /> : null}
+                {cargandoMas ? (
+                  <p role="status" className="px-3.5 py-3 text-cuerpo text-tinta-suave">
+                    Cargando más cuentas…
+                  </p>
+                ) : null}
+                {fallaMas !== null ? (
+                  <div role="alert" className="flex flex-col items-start gap-2 px-3.5 py-3 text-cuerpo font-medium text-peligro">
+                    <p>{fallaMas}</p>
+                    <Button type="button" variant="outline" onClick={reintentarMas} className="text-nav font-semibold">
+                      Reintentar
+                    </Button>
+                  </div>
+                ) : null}
+              </>
             )}
           </div>
         </div>
 
         <div className="flex flex-col gap-4">
-          {error ? (
-            <p role="alert" className="rounded-tarjeta bg-peligro-fondo px-4 py-3 text-nav font-medium text-peligro">
-              {error}
+          {fallos.map((f) => (
+            <p
+              key={f.id}
+              role="alert"
+              className="rounded-tarjeta bg-peligro-fondo px-4 py-3 text-nav font-medium text-peligro"
+            >
+              {f.mensaje}
             </p>
-          ) : null}
+          ))}
           {elegido ? (
             <DetalleCuenta
               candidato={elegido}
               campania={datos.campania}
-              anadido={anadidos.includes(elegido.id)}
-              ocupado={ocupado}
-              onAnadir={() => void anadir(elegido)}
+              anadido={anadidos.some((a) => a.id === elegido.id)}
+              onAnadir={() => anadir(elegido)}
             />
           ) : (
             <p className="rounded-tarjeta border border-dashed border-borde px-[22px] py-5 text-nav text-tinta-suave">
@@ -561,14 +624,7 @@ export function AnadirColportor({
       {avisos.length > 0 ? (
         <div className="fixed bottom-6 left-1/2 z-20 flex -translate-x-1/2 flex-col items-stretch gap-2">
           {avisos.map((a) => (
-            <AvisoAnadido
-              key={a.id}
-              id={a.id}
-              nombre={a.nombre}
-              campania={datos.campania}
-              onDeshacer={deshacer}
-              onExpirar={expirarAviso}
-            />
+            <AvisoAnadido key={a.id} id={a.id} nombre={a.nombre} campania={datos.campania} onDeshacer={alDeshacer} />
           ))}
         </div>
       ) : null}

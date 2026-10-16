@@ -51,6 +51,18 @@ describe("crearClienteRpc", () => {
     expect(causaDe(error)).toBe("rechazo");
   });
 
+  it("el `details` de la RPC llega en `detalle` (CI007 manda ahí la campaña en conflicto) y sin `details` queda vacío", async () => {
+    const detalle = JSON.stringify({ campania_id: "c2", campania_nombre: "Otoño Norte" });
+    const conDetalle = crearSupabasePrueba(() => errorDePostgrest(400, "CI007", "Está en campaña Otoño Norte. Reasignar primero.", detalle));
+    const sinDetalle = crearSupabasePrueba(() => errorDePostgrest(400, "CI004", "ya está inscripta"));
+
+    const a = await crearClienteRpc(conDetalle.supabase).llamarRpc("inscribir_colportor", {}).catch((e: unknown) => e);
+    const b = await crearClienteRpc(sinDetalle.supabase).llamarRpc("inscribir_colportor", {}).catch((e: unknown) => e);
+
+    expect(a).toMatchObject({ codigo: "CI007", detalle });
+    expect(b).toMatchObject({ codigo: "CI004", detalle: "" });
+  });
+
   it("un JWT que la base no acepta es una sesión vencida", async () => {
     const { supabase } = crearSupabasePrueba(() => errorDePostgrest(401, "PGRST301", "JWT expired"));
 

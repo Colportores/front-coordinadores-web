@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { crearFuenteEquipoSupabase } from "@/datos/equipo/supabase";
 import type { ClienteSupabase } from "@/datos/supabase/cliente";
 
@@ -33,7 +32,7 @@ describe("fuenteEquipoSupabase", () => {
   it("lee la campaña vigente del coordinador y sus inscriptos con colportores_de_campania", async () => {
     const { cliente, consultar, llamarRpc } = clienteCon([CAMPANIA], [CON_ZONA]);
 
-    await crearFuenteEquipoSupabase(cliente, fuenteEquipoSimulada).obtenerEquipo();
+    await crearFuenteEquipoSupabase(cliente).obtenerEquipo();
 
     expect(consultar).toHaveBeenCalledWith(expect.stringMatching(/^campania\?select=.*&limit=1$/));
     expect(llamarRpc).toHaveBeenCalledWith("colportores_de_campania", { p_campania_id: "camp-1" });
@@ -42,7 +41,7 @@ describe("fuenteEquipoSupabase", () => {
   it("arma la región con las ciudades y una fila por inscripto, con su zona", async () => {
     const { cliente } = clienteCon([CAMPANIA], [CON_ZONA]);
 
-    const equipo = await crearFuenteEquipoSupabase(cliente, fuenteEquipoSimulada).obtenerEquipo();
+    const equipo = await crearFuenteEquipoSupabase(cliente).obtenerEquipo();
 
     expect(equipo.region).toBe("Montevideo");
     expect(equipo.colportores).toEqual([
@@ -60,7 +59,7 @@ describe("fuenteEquipoSupabase", () => {
   it("lo que no tiene fuente real queda vacío o con «—», sin números inventados", async () => {
     const { cliente } = clienteCon([CAMPANIA], [CON_ZONA]);
 
-    const equipo = await crearFuenteEquipoSupabase(cliente, fuenteEquipoSimulada).obtenerEquipo();
+    const equipo = await crearFuenteEquipoSupabase(cliente).obtenerEquipo();
 
     expect(equipo.colportores[0]).toMatchObject({ horasSemana: "—", ventas: "—", ultimaSync: "—", sincronizacionVieja: false });
     expect(equipo.preciosPorCiudad).toEqual([]);
@@ -75,7 +74,7 @@ describe("fuenteEquipoSupabase", () => {
   it("el inscripto sin zona aparece en la tabla como «Sin asignar» y en la lista de sin zona, con su correo", async () => {
     const { cliente } = clienteCon([CAMPANIA], [CON_ZONA, SIN_ZONA]);
 
-    const equipo = await crearFuenteEquipoSupabase(cliente, fuenteEquipoSimulada).obtenerEquipo();
+    const equipo = await crearFuenteEquipoSupabase(cliente).obtenerEquipo();
 
     expect(equipo.colportores.find((c) => c.id === "u-2")).toMatchObject({ nombre: "Ana", zonas: [] });
     expect(equipo.sinZonaAsignada).toEqual([{ id: "u-2", nombre: "Ana", nota: "ana@example.com" }]);
@@ -84,7 +83,7 @@ describe("fuenteEquipoSupabase", () => {
   it("una campaña sin ciudades usa su propio nombre como región", async () => {
     const { cliente } = clienteCon([{ ...CAMPANIA, campania_ciudad: [] }], [CON_ZONA]);
 
-    const equipo = await crearFuenteEquipoSupabase(cliente, fuenteEquipoSimulada).obtenerEquipo();
+    const equipo = await crearFuenteEquipoSupabase(cliente).obtenerEquipo();
 
     expect(equipo.region).toBe("Campaña Montevideo (demo)");
     expect(equipo.colportores[0].ciudadNombre).toBe("Campaña Montevideo (demo)");
@@ -97,7 +96,7 @@ describe("fuenteEquipoSupabase", () => {
     };
     const { cliente } = clienteCon([dos], [CON_ZONA]);
 
-    const equipo = await crearFuenteEquipoSupabase(cliente, fuenteEquipoSimulada).obtenerEquipo();
+    const equipo = await crearFuenteEquipoSupabase(cliente).obtenerEquipo();
 
     expect(equipo.region).toBe("Montevideo, Las Piedras");
     expect(equipo.colportores[0].ciudadId).toBe("ciu-1");
@@ -106,7 +105,7 @@ describe("fuenteEquipoSupabase", () => {
   it("sin campaña vigente devuelve el equipo vacío y no consulta inscriptos", async () => {
     const { cliente, llamarRpc } = clienteCon([], []);
 
-    const equipo = await crearFuenteEquipoSupabase(cliente, fuenteEquipoSimulada).obtenerEquipo();
+    const equipo = await crearFuenteEquipoSupabase(cliente).obtenerEquipo();
 
     expect(equipo.region).toBe("Sin campaña vigente");
     expect(equipo.colportores).toEqual([]);
@@ -121,24 +120,28 @@ describe("fuenteEquipoSupabase", () => {
       llamarRpc: vi.fn(),
     } as unknown as ClienteSupabase;
 
-    await expect(crearFuenteEquipoSupabase(cliente, fuenteEquipoSimulada).obtenerEquipo()).rejects.toThrow("500");
+    await expect(crearFuenteEquipoSupabase(cliente).obtenerEquipo()).rejects.toThrow("500");
   });
 
-  it("añadir e inscribir colportores siguen siendo los simulados", async () => {
-    const simulada = {
-      obtenerEquipo: vi.fn(),
-      obtenerAnadirColportor: vi.fn(async () => ({ campaniaId: "x", campania: "x", candidatos: [], equipoActual: [] })),
-      inscribirColportor: vi.fn(async () => ({ ok: true as const })),
-    };
-    const { cliente, consultar, llamarRpc } = clienteCon([], []);
-    const fuente = crearFuenteEquipoSupabase(cliente, simulada);
+  it("la vista de añadir colportores va por las RPC (`rpc.ts`), no por la tabla ni por datos simulados", async () => {
+    const llamarRpc = vi.fn(async (nombre: string): Promise<unknown> => {
+      if (nombre === "campanias_del_coordinador") return [];
+      throw new Error(`RPC inesperada: ${nombre}`);
+    });
+    const consultar = vi.fn();
+    const fuente = crearFuenteEquipoSupabase({ consultar, llamarRpc } as unknown as ClienteSupabase);
 
-    await fuente.obtenerAnadirColportor();
-    await fuente.inscribirColportor("camp-1", "u-9");
-
-    expect(simulada.obtenerAnadirColportor).toHaveBeenCalledOnce();
-    expect(simulada.inscribirColportor).toHaveBeenCalledWith("camp-1", "u-9");
+    expect(await fuente.obtenerAnadirColportor()).toBeNull();
+    expect(llamarRpc).toHaveBeenCalledWith("campanias_del_coordinador", {});
     expect(consultar).not.toHaveBeenCalled();
-    expect(llamarRpc).not.toHaveBeenCalled();
+
+    llamarRpc.mockImplementation(async (nombre: string): Promise<unknown> => {
+      if (nombre === "inscribir_colportor") return {};
+      throw new Error(`RPC inesperada: ${nombre}`);
+    });
+    const ana = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const campania = "11111111-1111-4111-8111-111111111111";
+    expect(await fuente.inscribirColportor(campania, ana)).toEqual({ ok: true });
+    expect(llamarRpc).toHaveBeenCalledWith("inscribir_colportor", { p_campania_id: campania, p_usuario_id: ana });
   });
 });
