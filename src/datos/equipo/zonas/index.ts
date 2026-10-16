@@ -1,10 +1,17 @@
 /**
  * Único punto de selección de la fuente de datos de la vista 24 (zonas).
- * Al conectar el BFF se cambia esta línea por la implementación real;
- * las vistas importan `fuenteZonas` y no se tocan.
+ * Las vistas importan `fuenteZonas` y no se tocan.
+ *
+ * Mientras no haya sesión real del coordinador, y solo en desarrollo, si hay variables de Supabase
+ * (`src/datos/supabase/config.ts`) la fuente llama a las RPC de la demo con la cuenta de ese puente (issue #45), igual que
+ * Equipo. En cualquier build de producción la configuración se ignora y queda la simulada, igual que en el sitio de
+ * prueba de Pages.
  */
 import type { FuenteDatosZonas } from "@/datos/equipo/zonas/contrato";
+import { crearFuenteZonasRpc } from "@/datos/equipo/zonas/rpc";
 import { fuenteZonasSimulada } from "@/datos/equipo/zonas/simulado";
+import { crearClienteSupabase } from "@/datos/supabase/cliente";
+import { leerConfigSupabase } from "@/datos/supabase/config";
 
 export type {
   CalleMapa,
@@ -25,8 +32,13 @@ export type {
   ResultadoGuardarZona,
   TipoForma,
   VistaPreviaEntrada,
+  VistaPreviaRechazada,
   VistaPreviaZona,
   ZonaDeCiudad,
 } from "@/datos/equipo/zonas/contrato";
 
-export const fuenteZonas: FuenteDatosZonas = fuenteZonasSimulada;
+const configSupabase = leerConfigSupabase();
+
+export const fuenteZonas: FuenteDatosZonas = configSupabase
+  ? crearFuenteZonasRpc(crearClienteSupabase(configSupabase))
+  : fuenteZonasSimulada;

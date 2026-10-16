@@ -18,16 +18,17 @@ import type {
   VistaPreviaZona,
   ZonaDeCiudad,
 } from "@/datos/equipo/zonas";
+import { colorParaZonaNueva } from "@/datos/equipo/zonas/paleta";
 import { BuscadorCiudad } from "@/features/equipo/zonas/BuscadorCiudad";
 import { MapaZonas } from "@/features/equipo/zonas/MapaZonas";
 import { PanelDetalleZona } from "@/features/equipo/zonas/PanelDetalleZona";
 import { formaCompleta, PanelFormularioZona, RADIO_INICIAL_M, textoColportoresSinZona } from "@/features/equipo/zonas/PanelFormularioZona";
 import { PanelListaZonas } from "@/features/equipo/zonas/PanelListaZonas";
-import { type DibujoEnMapa, TEXTO_CUENTA_SUSPENDIDA } from "@/features/equipo/zonas/tipos";
+import { type DibujoEnMapa, nombreEsquina, TEXTO_CUENTA_SUSPENDIDA } from "@/features/equipo/zonas/tipos";
 import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
 
-/** Las operaciones que la vista le pide al BFF, ya atadas a la campaña por la página (server actions). */
+/** Las operaciones que la vista le pide a la fuente de datos, ya atadas a la campaña por la página (server actions). */
 export interface AccionesZonas {
   esquinaMasCercana: FuenteDatosZonas["esquinaMasCercana"];
   tramoPorCalles: FuenteDatosZonas["tramoPorCalles"];
@@ -48,11 +49,13 @@ interface EstadoDibujo {
   tramos: Punto[][];
   nombreCentro: string | null;
   vistaPrevia: VistaPreviaZona | null;
-  /** Guardando o eliminando: nada más se puede tocar hasta que conteste el BFF. */
+  /** Guardando o eliminando: nada más se puede tocar hasta que conteste la fuente de datos. */
   guardando: boolean;
   /** Se tocó «Eliminar zona» y falta la confirmación. */
   confirmandoBaja: boolean;
   error: string | null;
+  /** El texto de `error` cuando la que falló fue la vista previa por la red: ese aviso trae «Reintentar». */
+  fallaVistaPrevia: string | null;
 }
 
 type Panel =
@@ -64,7 +67,6 @@ const MS_ESPERA_HOVER = 120;
 const MS_ESPERA_VISTA_PREVIA = 150;
 
 const mismaEsquina = (a: Esquina, b: Esquina) => a.lon === b.lon && a.lat === b.lat;
-const nombreEsquina = (e: Esquina) => `${e.calleA} y ${e.calleB}`;
 
 function textoCantidadZonas(cantidad: number): string {
   if (cantidad === 0) return "sin zonas";
@@ -86,6 +88,7 @@ function dibujoNuevo(): Panel {
     guardando: false,
     confirmandoBaja: false,
     error: null,
+    fallaVistaPrevia: null,
   };
 }
 
@@ -105,6 +108,7 @@ function dibujoDeZona(zona: ZonaDeCiudad): Panel {
     guardando: false,
     confirmandoBaja: false,
     error: null,
+    fallaVistaPrevia: null,
   };
 }
 
@@ -132,7 +136,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const versionHover = useRef(0);
   const temporizadorHover = useRef<ReturnType<typeof setTimeout>>(undefined);
   const versionVistaPrevia = useRef(0);
-  // Cada vez que se empieza o se abandona un dibujo cambia la sesión: lo que vuelva del BFF de una sesión vieja se descarta.
+  // Cada vez que se empieza o se abandona un dibujo cambia la sesión: lo que vuelva de la fuente de datos de una sesión vieja se descarta.
   const sesion = useRef(0);
   // La forma vigente, al día dentro de un mismo turno: los clics encolados la leen de acá y no de un render viejo.
   const formaVigente = useRef<FormaZona | null>(null);
@@ -143,6 +147,10 @@ export function ZonasCampania({ datos, acciones }: Props) {
   // Al cerrar el formulario o el detalle el foco vuelve a la fila de la zona (o a «+ Nueva zona»), no al body.
   const raiz = useRef<HTMLDivElement>(null);
   const volverFoco = useRef<string | null>(null);
+  // Al abrir el formulario o el detalle, o tras asignar o quitar, el foco va a un lugar útil del panel nuevo (no queda en el <body>).
+  const focoPendiente = useRef<string | null>(null);
+  // Cada «Reintentar» de la vista previa suma uno: vuelve a correr el efecto que la pide.
+  const [reintentosVistaPrevia, setReintentosVistaPrevia] = useState(0);
 
   const ciudad = ciudades.find((c) => c.id === ciudadId) ?? ciudades[0];
   const catalogoEnCampania = useMemo(() => new Set(ciudades.map((c) => c.catalogoId)), [ciudades]);
@@ -162,15 +170,24 @@ export function ZonasCampania({ datos, acciones }: Props) {
     const temporizador = setTimeout(() => {
       acciones
         .vistaPreviaZona({ ciudadId: ciudad.id, zonaId: zonaEnEdicionId, forma })
-        .then((vistaPrevia) => {
-          if (version === versionVistaPrevia.current) cambiarDibujo(() => ({ vistaPrevia, error: null }));
+        .then((resultado) => {
+          if (version !== versionVistaPrevia.current) return;
+          // La base la rechazó (la campaña terminó, la ciudad se quitó, no hay permiso): su texto dice qué hacer, y sin vista previa no se guarda.
+          cambiarDibujo(() =>
+            "rechazo" in resultado
+              ? { vistaPrevia: null, error: resultado.rechazo, fallaVistaPrevia: null }
+              : { vistaPrevia: resultado, error: null, fallaVistaPrevia: null },
+          );
         })
         .catch(() => {
-          if (version === versionVistaPrevia.current) cambiarDibujo(() => ({ error: mensajeSinConexion("calcular las ubicaciones de la zona") }));
+          if (version !== versionVistaPrevia.current) return;
+          // Una caída de la red no es un rechazo: se puede reintentar sin tocar la forma.
+          const mensaje = mensajeSinConexion("calcular las ubicaciones de la zona");
+          cambiarDibujo(() => ({ error: mensaje, fallaVistaPrevia: mensaje }));
         });
     }, MS_ESPERA_VISTA_PREVIA);
     return () => clearTimeout(temporizador);
-  }, [forma, ciudad, zonaEnEdicionId, acciones, cambiarDibujo]);
+  }, [forma, ciudad, zonaEnEdicionId, acciones, cambiarDibujo, reintentosVistaPrevia]);
 
   useEffect(() => () => clearTimeout(temporizadorHover.current), []);
 
@@ -183,11 +200,18 @@ export function ZonasCampania({ datos, acciones }: Props) {
     destino?.focus();
   }, [tipoPanel]);
 
+  // Corre después de cada render: el foco pendiente se pide justo antes del cambio de panel, así que cae en el panel nuevo.
+  useEffect(() => {
+    const selector = focoPendiente.current;
+    focoPendiente.current = null;
+    if (selector) raiz.current?.querySelector<HTMLElement>(selector)?.focus();
+  });
+
   const actualizarForma = useCallback(
     (nueva: FormaZona, resto: Partial<EstadoDibujo> = {}) => {
       formaVigente.current = nueva;
       versionVistaPrevia.current++;
-      cambiarDibujo(() => ({ forma: nueva, vistaPrevia: null, ...resto }));
+      cambiarDibujo(() => ({ forma: nueva, vistaPrevia: null, fallaVistaPrevia: null, ...resto }));
     },
     [cambiarDibujo],
   );
@@ -246,6 +270,12 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const zonaEnEdicion = zonaEnEdicionId ? zonas.find((z) => z.id === zonaEnEdicionId) : undefined;
   const zonaElegidaId = zonaDetalle?.id ?? zonaEnEdicionId ?? null;
 
+  /** «Reintentar» del aviso de la vista previa caída: la vuelve a pedir con la misma forma. */
+  function reintentarVistaPrevia() {
+    cambiarDibujo(() => ({ error: null, fallaVistaPrevia: null }));
+    setReintentosVistaPrevia((n) => n + 1);
+  }
+
   function abandonarDibujo() {
     sesion.current++;
     versionVistaPrevia.current++;
@@ -258,6 +288,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   function empezarDibujo(nuevo: Panel) {
     abandonarDibujo();
     if (nuevo.tipo === "dibujo") formaVigente.current = nuevo.forma;
+    focoPendiente.current = '[data-foco="nombre-zona"]';
     setPanel(nuevo);
     setBuscador((b) => (b?.ocupado ? b : null));
     setAviso(null);
@@ -276,6 +307,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
     if (panel.tipo === "dibujo" || agregando) return;
     if (panel.tipo === "detalle" && panel.ocupado) return;
     const colportorId = panel.tipo === "lista" ? panel.asignandoA : null;
+    focoPendiente.current = '[data-foco="titulo-zona"]';
     setPanel({ tipo: "detalle", zonaId, colportorId, ocupado: false, error: null });
     setAviso(null);
   }
@@ -380,13 +412,16 @@ export function ZonasCampania({ datos, acciones }: Props) {
     if (panel.tipo !== "dibujo" || !ciudad || guardandoAhora.current) return;
     guardandoAhora.current = true;
     const deSesion = sesion.current;
-    cambiarDibujo(() => ({ guardando: true, error: null }));
+    cambiarDibujo(() => ({ guardando: true, error: null, fallaVistaPrevia: null }));
     try {
       const resultado = await acciones.guardarZona({
         ciudadId: ciudad.id,
         zonaId: panel.zonaId,
         nombre: panel.nombre,
         forma: panel.forma,
+        // Al editar va el color de la zona (guardar sin color se lo borraría), salvo que no tenga: entonces no se le inventa uno.
+        // Al crear, el que le toca de la paleta.
+        color: zonaEnEdicion ? (zonaEnEdicion.sinColor ? undefined : zonaEnEdicion.color) : colorParaZonaNueva(zonas.length),
       });
       if (deSesion !== sesion.current) return;
       if (!resultado.ok) {
@@ -396,16 +431,20 @@ export function ZonasCampania({ datos, acciones }: Props) {
       const guardada = resultado.zona;
       setCiudades((todas) =>
         todas.map((c) => {
-          if (c.id !== ciudad.id) return c;
+          // La zona de un colportor es una por campaña: el nuevo nombre se ve en la lista de colportores de todas las ciudades.
+          const colportores = c.colportores.map((p) => (p.zonaId === guardada.id ? { ...p, zonaNombre: guardada.nombre } : p));
+          if (c.id !== ciudad.id) return { ...c, colportores };
           const existe = c.zonas.some((z) => z.id === guardada.id);
           return {
             ...c,
-            zonas: existe ? c.zonas.map((z) => (z.id === guardada.id ? guardada : z)) : [...c.zonas, guardada],
-            colportores: c.colportores.map((p) => (p.zonaId === guardada.id ? { ...p, zonaNombre: guardada.nombre } : p)),
+            // Redibujar una zona no cambia quién la trabaja: se conservan los colportores que ya tenía.
+            zonas: existe ? c.zonas.map((z) => (z.id === guardada.id ? { ...guardada, colportores: z.colportores } : z)) : [...c.zonas, guardada],
+            colportores,
           };
         }),
       );
       abandonarDibujo();
+      focoPendiente.current = '[data-foco="titulo-zona"]';
       setPanel({ tipo: "detalle", zonaId: guardada.id, colportorId: null, ocupado: false, error: null });
       setAviso(`Zona «${guardada.nombre}» guardada.`);
     } catch {
@@ -417,23 +456,21 @@ export function ZonasCampania({ datos, acciones }: Props) {
 
   /** Pone (o, con `null`, saca) la zona de un colportor en la lista de la ciudad y en los colportores de cada zona. */
   function ponerZona(colportorId: string, zona: ZonaDeCiudad | null) {
+    const persona = ciudad.colportores.find((p) => p.id === colportorId);
+    // La zona de un colportor es una por campaña, de la ciudad que sea: al cambiarla acá, deja la que tenía en otra ciudad.
     setCiudades((todas) =>
-      todas.map((c) => {
-        if (c.id !== ciudad.id) return c;
-        const persona = c.colportores.find((p) => p.id === colportorId);
-        return {
-          ...c,
-          colportores: c.colportores.map((p) =>
-            p.id === colportorId ? { ...p, zonaId: zona?.id ?? null, zonaNombre: zona?.nombre ?? null } : p,
-          ),
-          zonas: c.zonas.map((z) => {
-            const sinEl = z.colportores.filter((p) => p.id !== colportorId);
-            return z.id === zona?.id && persona
-              ? { ...z, colportores: [...sinEl, { id: persona.id, nombre: persona.nombre, suspendido: persona.suspendido }] }
-              : { ...z, colportores: sinEl };
-          }),
-        };
-      }),
+      todas.map((c) => ({
+        ...c,
+        colportores: c.colportores.map((p) =>
+          p.id === colportorId ? { ...p, zonaId: zona?.id ?? null, zonaNombre: zona?.nombre ?? null } : p,
+        ),
+        zonas: c.zonas.map((z) => {
+          const sinEl = z.colportores.filter((p) => p.id !== colportorId);
+          return z.id === zona?.id && persona
+            ? { ...z, colportores: [...sinEl, { id: persona.id, nombre: persona.nombre, suspendido: persona.suspendido }] }
+            : { ...z, colportores: sinEl };
+        }),
+      })),
     );
   }
 
@@ -456,6 +493,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
         return;
       }
       ponerZona(colportorId, accion === "asignar" ? zona : null);
+      // El botón que se tocó queda apagado («ya trabaja esta zona») o desaparece con el colportor: el foco va al desplegable.
+      focoPendiente.current = '[data-foco="desplegable-colportor"]';
       setPanel((p) =>
         p.tipo === "detalle" && p.zonaId === zona.id ? { ...p, colportorId: null, ocupado: false, error: null } : p,
       );
@@ -474,7 +513,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
     guardandoAhora.current = true;
     const zonaId = panel.zonaId;
     const nombre = zonas.find((z) => z.id === zonaId)?.nombre ?? panel.nombre;
-    cambiarDibujo(() => ({ guardando: true, error: null }));
+    cambiarDibujo(() => ({ guardando: true, error: null, fallaVistaPrevia: null }));
     try {
       const resultado = await acciones.eliminarZona(zonaId);
       if (!resultado.ok) {
@@ -482,17 +521,15 @@ export function ZonasCampania({ datos, acciones }: Props) {
         return;
       }
       setCiudades((todas) =>
-        todas.map((c) =>
-          c.id !== ciudad.id
-            ? c
-            : {
-                ...c,
-                zonas: c.zonas.filter((z) => z.id !== zonaId),
-                colportores: c.colportores.map((p) => (p.zonaId === zonaId ? { ...p, zonaId: null, zonaNombre: null } : p)),
-              },
-        ),
+        todas.map((c) => ({
+          ...c,
+          zonas: c.id === ciudad.id ? c.zonas.filter((z) => z.id !== zonaId) : c.zonas,
+          // Los asignados quedan sin zona en la lista de colportores de todas las ciudades (la zona es una por campaña).
+          colportores: c.colportores.map((p) => (p.zonaId === zonaId ? { ...p, zonaId: null, zonaNombre: null } : p)),
+        })),
       );
       abandonarDibujo();
+      volverFoco.current = '[data-foco="nueva-zona"]';
       setPanel({ tipo: "lista", asignandoA: null });
       setAviso(
         resultado.colportoresSinZona > 0
@@ -620,6 +657,9 @@ export function ZonasCampania({ datos, acciones }: Props) {
               onQuitarEsquina={quitarEsquina}
               onGuardar={() => void guardarZona()}
               onCancelar={cerrarDibujo}
+              onReintentarVistaPrevia={
+                panel.error !== null && panel.error === panel.fallaVistaPrevia ? reintentarVistaPrevia : undefined
+              }
             />
           ) : panel.tipo === "detalle" && zonaDetalle ? (
             <PanelDetalleZona

@@ -3,7 +3,7 @@ import type { AccionesZonas } from "@/features/equipo/zonas/ZonasCampania";
 
 /**
  * Server actions de la vista 24: el navegador pide y el servidor le habla a la
- * fuente (hoy simulada, después el BFF). `campaniaId` queda atado a cada acción
+ * fuente (las RPC de Supabase bajo el puente de desarrollo, la simulada en cualquier build de producción). `campaniaId` queda atado a cada acción
  * (Next lo cifra), el navegador no lo puede cambiar.
  *
  * Este módulo no entra al build exportado del sitio de prueba (no hay servidor

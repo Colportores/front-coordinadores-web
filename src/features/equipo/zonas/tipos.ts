@@ -33,3 +33,8 @@ export interface PropsMapaZonas {
 
 /** Lo que se le dice al coordinador de una cuenta suspendida: no se le puede asignar zona (decisión del 30/09, coord #20). */
 export const TEXTO_CUENTA_SUSPENDIDA = "Cuenta suspendida. Pedile a un administrador que la reactive.";
+
+/** «Pororó y Heredia». Una esquina sin calles conocidas (`calle_a` y `calle_b` nulables en la base) no inventa nombres. */
+export function nombreEsquina(esquina: Esquina): string {
+  return [esquina.calleA, esquina.calleB].filter((calle) => calle !== "").join(" y ") || "Esquina sin nombre de calles";
+}

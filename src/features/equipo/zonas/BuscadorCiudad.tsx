@@ -110,11 +110,11 @@ export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, on
                 type="button"
                 disabled={ocupado}
                 onClick={() => onElegir(c)}
-                aria-label={`Agregar ${c.nombre}, ${c.provincia}`}
+                aria-label={c.provincia ? `Agregar ${c.nombre}, ${c.provincia}` : `Agregar ${c.nombre}`}
                 className="flex w-full cursor-pointer items-baseline justify-between gap-3 px-3 py-2 text-left hover:bg-fondo focus-visible:bg-fondo focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <span className="min-w-0 text-nav font-semibold break-words text-tinta">{c.nombre}</span>
-                <span className="flex-none text-chico text-tinta-suave">{c.provincia}</span>
+                {c.provincia ? <span className="flex-none text-chico text-tinta-suave">{c.provincia}</span> : null}
               </button>
             </li>
           ))}

@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import type { Esquina, FormaZona, TipoForma, VistaPreviaZona } from "@/datos/equipo/zonas";
+import type { FormaZona, TipoForma, VistaPreviaZona } from "@/datos/equipo/zonas";
+import { nombreEsquina } from "@/features/equipo/zonas/tipos";
 import { cn } from "@/lib/utils";
 
 export const NOMBRE_MAX = 40;
@@ -46,14 +47,14 @@ interface Props {
   onQuitarEsquina: () => void;
   onGuardar: () => void;
   onCancelar: () => void;
+  /** Solo cuando el aviso de error es el de la vista previa caída por la red: agrega «Reintentar» al aviso. */
+  onReintentarVistaPrevia?: () => void;
 }
 
 const OPCIONES_FORMA: { tipo: TipoForma; etiqueta: string }[] = [
   { tipo: "RADIAL", etiqueta: "◯ Radial" },
   { tipo: "ESQUINAS", etiqueta: "⌐ Por esquinas" },
 ];
-
-const nombreEsquina = (e: Esquina) => `${e.calleA} y ${e.calleB}`;
 
 function Rotulo({ id, children }: { id?: string; children: React.ReactNode }) {
   return (
@@ -84,6 +85,7 @@ export function PanelFormularioZona({
   onQuitarEsquina,
   onGuardar,
   onCancelar,
+  onReintentarVistaPrevia,
 }: Props) {
   const esquinas = forma.esquinas ?? [];
   const confirmacion = useRef<HTMLDivElement>(null);
@@ -102,7 +104,10 @@ export function PanelFormularioZona({
   }, [confirmando]);
   // Lo que se está tecleando en el radio cuando todavía no es un número válido (vacío o 0): `null` sigue a la forma.
   const [radioTexto, setRadioTexto] = useState<string | null>(null);
-  const nombreLargo = nombre.trim().length > NOMBRE_MAX;
+  // La base cuenta caracteres (`char_length`), no unidades UTF-16: 21 emojis son 21, no 42.
+  const nombreLargo = Array.from(nombre.trim()).length > NOMBRE_MAX;
+  // El deslizador siempre tiene un valor: el de la forma, o el inicial mientras no hay centro.
+  const radioDelDeslizador = forma.radioM ?? RADIO_INICIAL_M;
   const puedeGuardar =
     nombre.trim() !== "" &&
     !nombreLargo &&
@@ -132,6 +137,7 @@ export function PanelFormularioZona({
         <input
           type="text"
           value={nombre}
+          data-foco="nombre-zona"
           onChange={(e) => onNombre(e.target.value)}
           aria-invalid={nombreLargo || undefined}
           aria-describedby={nombreLargo ? "aviso-nombre-largo" : undefined}
@@ -181,40 +187,61 @@ export function PanelFormularioZona({
               {forma.centro ? (
                 <span className="text-tinta">{nombreCentro ?? "Punto elegido en el mapa"}</span>
               ) : (
-                <span className="text-tinta-tenue">Sin elegir</span>
+                <span className="text-tinta-suave">Sin elegir</span>
               )}
               <span className="text-chico text-tinta-suave">clic en el mapa</span>
             </div>
           </div>
-          <label className="flex flex-col gap-1.5">
-            <Rotulo>RADIO</Rotulo>
-            <span className="flex min-h-10 items-center gap-2 rounded-control border border-grafico-neutro bg-superficie px-3 focus-within:ring-2 focus-within:ring-acento">
+          <div role="group" aria-labelledby="radio-zona" className="flex flex-col gap-2">
+            <Rotulo id="radio-zona">RADIO</Rotulo>
+            <div className="flex items-center gap-3">
+              {/* Deslizador del artboard 02 (decisión del 16/10): mismo valor que el campo y que el asa del mapa, de 1 a 3000 m
+                  de a 1 m. Con el foco, flechas, RePág/AvPág e Inicio/Fin los maneja el navegador. */}
               <input
-                type="number"
+                type="range"
+                aria-labelledby="radio-zona"
+                aria-valuetext={`${radioDelDeslizador} m`}
                 min={RADIO_MIN_M}
                 max={RADIO_MAX_M}
-                step={50}
-                value={radioTexto ?? forma.radioM ?? ""}
-                placeholder={String(RADIO_INICIAL_M)}
+                step={1}
+                value={radioDelDeslizador}
                 disabled={!forma.centro}
                 onChange={(e) => {
-                  const valor = Number(e.target.value);
-                  if (e.target.value.trim() !== "" && Number.isFinite(valor) && valor > 0) {
-                    setRadioTexto(null);
-                    onRadio(Math.min(RADIO_MAX_M, Math.max(RADIO_MIN_M, valor)));
-                  } else {
-                    // Se puede borrar con Backspace para teclear otro valor; hasta entonces no se guarda.
-                    setRadioTexto(e.target.value);
-                  }
+                  setRadioTexto(null);
+                  onRadio(Math.min(RADIO_MAX_M, Math.max(RADIO_MIN_M, Number(e.target.value))));
                 }}
-                onBlur={() => setRadioTexto(null)}
-                className="min-w-0 flex-1 bg-transparent text-nav text-tinta outline-none disabled:text-tinta-tenue"
+                className="h-6 min-w-0 flex-1 cursor-pointer rounded-control accent-marca focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               />
-              <span aria-hidden className="text-nav text-tinta-suave">
-                m
+              <span className="flex min-h-10 w-[104px] flex-none items-center gap-1 rounded-control border border-grafico-neutro bg-superficie px-2.5 focus-within:ring-2 focus-within:ring-acento">
+                <input
+                  type="number"
+                  aria-labelledby="radio-zona"
+                  min={RADIO_MIN_M}
+                  max={RADIO_MAX_M}
+                  step={1}
+                  value={radioTexto ?? forma.radioM ?? ""}
+                  placeholder={String(RADIO_INICIAL_M)}
+                  disabled={!forma.centro}
+                  onChange={(e) => {
+                    const valor = Number(e.target.value);
+                    if (e.target.value.trim() !== "" && Number.isFinite(valor) && valor > 0) {
+                      setRadioTexto(null);
+                      // Metros enteros: el deslizador y el servidor los redondean, y el campo y el «N m» que anuncia el lector deben decir lo mismo.
+                      onRadio(Math.min(RADIO_MAX_M, Math.max(RADIO_MIN_M, Math.round(valor))));
+                    } else {
+                      // Se puede borrar con Backspace para teclear otro valor; hasta entonces no se guarda.
+                      setRadioTexto(e.target.value);
+                    }
+                  }}
+                  onBlur={() => setRadioTexto(null)}
+                  className="min-w-0 flex-1 bg-transparent font-mono text-nav text-tinta outline-none disabled:text-tinta-tenue"
+                />
+                <span aria-hidden className="text-nav text-tinta-suave">
+                  m
+                </span>
               </span>
-            </span>
-          </label>
+            </div>
+          </div>
         </>
       ) : (
         <div className="flex flex-col gap-1.5">
@@ -257,9 +284,14 @@ export function PanelFormularioZona({
         </p>
       ) : null}
       {error ? (
-        <p role="alert" className="rounded-control bg-peligro-fondo px-3 py-2 text-cuerpo font-medium text-peligro">
-          {error}
-        </p>
+        <div role="alert" className="flex flex-col items-start gap-2 rounded-control bg-peligro-fondo px-3 py-2 text-cuerpo font-medium text-peligro">
+          <p>{error}</p>
+          {onReintentarVistaPrevia ? (
+            <Button type="button" variant="outline" size="sm" onClick={onReintentarVistaPrevia} className="text-chico font-semibold text-tinta-2">
+              Reintentar
+            </Button>
+          ) : null}
+        </div>
       ) : null}
 
       <p className="text-chico text-tinta-suave">{forma.tipoForma === "RADIAL" ? AYUDA_RADIAL : AYUDA_ESQUINAS}</p>

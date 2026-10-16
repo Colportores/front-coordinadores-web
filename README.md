@@ -60,6 +60,14 @@ Después `docker compose -f compose.dev.yml up` y abrí `/equipo`. El servidor i
 - **Lo que todavía no tiene fuente real** queda vacío o con «—»: horas, ventas, cobro, última sincronización, precios por ciudad y acompañamientos. La vista de **añadir colportor** (`/equipo/anadir`, issue #41) va por las RPC `campanias_del_coordinador()`, `buscar_candidatos()`, `colportores_de_campania()` e `inscribir_colportor()` (`src/datos/equipo/rpc.ts`): usa la primera campaña del coordinador (cómo se elige cuando tiene varias está pendiente de decisión) y, sin una campaña en curso, lo dice en vez de mostrar el buscador.
 - **No lo dejes en el entorno al correr `npm run build:pages`:** ese build rechaza a propósito cualquier `.env*` o variable de Supabase.
 
+### Ciudades y zonas con datos reales de Supabase (solo desarrollo)
+
+La pestaña **Ciudades** (vista 24, issue #40) usa el mismo puente y las mismas cuatro variables: con ellas lee y escribe por las RPC `ciudades_de_campania()`, `zonas_de_ciudad()`, `colportores_de_campania()`, `ciudades_del_catalogo()`, `agregar_ciudad_a_campania()`, `guardar_zona()`, `baja_zona()`, `asignar_zona()` y `quitar_zona()` (`src/datos/equipo/zonas/rpc.ts`). Se apaga sola igual que Equipo (sin variables, o en cualquier build de producción, queda la simulada).
+
+- **Campaña:** la primera de `campanias_del_coordinador()` (`src/datos/supabase/campania-provisoria.ts`); cómo se elige cuando el coordinador tiene varias está pendiente de decisión. Sin una campaña en curso ni por empezar, la vista lo dice en vez de mostrar el mapa.
+- **Lo que todavía no está conectado:** las zonas **por esquinas** (marcar una esquina, el borde por calles y guardarlas) esperan a `backend-supabase#25`; la **superposición** con otra zona y el aviso de **calle compartida** no los calcula ninguna RPC, así que no se muestran; el buscador de ciudades no trae provincia porque el catálogo de la base no la tiene.
+- **Colportores:** cada ciudad lista a todos los inscriptos de la campaña con su zona (la zona de un colportor es una por campaña, de la ciudad que sea).
+
 ## Acceso del coordinador y conexión a Supabase
 
 El panel inicia sesión **directo con Supabase Auth** (`@supabase/supabase-js`, [ADR-015](https://github.com/Colportores/docs-organizacion/blob/main/docs/decisiones/ADR-015-paneles-web-nextjs-shadcn.md)) y pide los datos por RPC con el JWT del coordinador ([ADR-013](https://github.com/Colportores/docs-organizacion/blob/main/docs/decisiones/ADR-013-clientes-directo-a-rpc-de-supabase.md)). Está la lógica; falta la pantalla de acceso y la guarda de las rutas (ver el issue #18).

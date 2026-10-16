@@ -69,14 +69,21 @@ export function PanelDetalleZona({
   return (
     <section aria-label={`Zona ${zona.nombre}`} className="flex flex-col gap-3.5 rounded-tarjeta border border-borde bg-superficie px-[18px] py-4">
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-3">
+        <div className="flex min-w-0 items-start gap-3">
           <span
             aria-hidden
             style={{ backgroundColor: zona.color }}
             className={cn("mt-1.5 size-3.5 flex-none", zona.tipoForma === "RADIAL" ? "rounded-full" : "rounded-[3px]")}
           />
-          <div className="flex flex-col gap-0.5">
-            <h3 className="font-serif text-titulo font-semibold break-words text-tinta">{zona.nombre}</h3>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            {/* Al abrir la zona el foco llega acá (ZonasCampania): el lector anuncia de qué zona se trata. */}
+            <h3
+              tabIndex={-1}
+              data-foco="titulo-zona"
+              className="rounded-control font-serif text-titulo font-semibold wrap-anywhere text-tinta outline-none focus-visible:ring-2 focus-visible:ring-acento"
+            >
+              {zona.nombre}
+            </h3>
             <span className="text-chico text-tinta-suave">
               {descripcionForma(zona)} · {zona.ubicacionesRegistradas} ubicaciones
             </span>
@@ -87,7 +94,7 @@ export function PanelDetalleZona({
           onClick={onCerrar}
           disabled={ocupado || bloqueado}
           aria-label="Cerrar el detalle de la zona"
-          className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-control px-1.5 text-nav text-tinta-suave hover:text-tinta disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-6 flex-none min-w-6 cursor-pointer items-center justify-center rounded-control px-1.5 text-nav text-tinta-suave hover:text-tinta disabled:cursor-not-allowed disabled:opacity-50"
         >
           ✕
         </button>
@@ -105,7 +112,7 @@ export function PanelDetalleZona({
               <li key={c.id} className="flex items-center gap-2.5 text-nav text-tinta">
                 <Avatar nombre={c.nombre} />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="break-words">{c.nombre}</span>
+                  <span className="wrap-anywhere">{c.nombre}</span>
                   {c.suspendido ? <span className="text-chico text-peligro">⊘ Suspendida</span> : null}
                 </span>
                 <Button
@@ -140,6 +147,7 @@ export function PanelDetalleZona({
         >
           <button
             ref={botonDesplegable}
+            data-foco="desplegable-colportor"
             type="button"
             aria-haspopup="listbox"
             aria-expanded={abierto}
@@ -147,8 +155,10 @@ export function PanelDetalleZona({
             onClick={() => setAbierto((a) => !a)}
             className="flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-control border border-grafico-neutro bg-superficie px-3 text-left text-nav text-tinta focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none"
           >
-            <span id="valor-colportor">{elegido ? elegido.nombre : "Elegir colportor"}</span>
-            <span aria-hidden className="text-tinta-suave">
+            <span id="valor-colportor" className="min-w-0 wrap-anywhere">
+              {elegido ? elegido.nombre : "Elegir colportor"}
+            </span>
+            <span aria-hidden className="flex-none text-tinta-suave">
               {abierto ? "▴" : "▾"}
             </span>
           </button>
@@ -188,8 +198,8 @@ export function PanelDetalleZona({
                   )}
                 >
                   <Avatar nombre={c.nombre} alerta={c.zonaId === null} />
-                  <span className="flex flex-col">
-                    <span className="text-nav font-semibold text-tinta">{c.nombre}</span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="text-nav font-semibold wrap-anywhere text-tinta">{c.nombre}</span>
                     {c.suspendido ? (
                       <span className="text-chico text-peligro">⊘ {TEXTO_CUENTA_SUSPENDIDA}</span>
                     ) : (
@@ -214,12 +224,13 @@ export function PanelDetalleZona({
         </p>
       ) : null}
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2.5">
         <Button
           type="button"
           disabled={!elegido || yaEstaAhi || ocupado}
           onClick={() => elegido && onAsignar(elegido.id)}
-          className="min-h-9 text-nav font-semibold disabled:bg-borde disabled:text-tinta-suave disabled:opacity-100"
+          // `shrink`: el Button trae `shrink-0` y con él `min-w-0` no alcanza; un nombre de 40 letras sin espacios sobresalía de la tarjeta.
+          className="h-auto min-h-9 min-w-0 shrink text-left text-nav font-semibold whitespace-normal wrap-anywhere disabled:bg-borde disabled:text-tinta-suave disabled:opacity-100"
         >
           Asignar a {zona.nombre}
         </Button>
