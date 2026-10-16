@@ -54,6 +54,24 @@ describe("fuenteEquipo (selector)", () => {
     expect(fetchFalso).toHaveBeenCalledTimes(2);
   });
 
+  it("en desarrollo la vista de añadir colportores va por las RPC y no por la simulada", async () => {
+    fijar("development");
+    const fetchFalso = vi.fn(async (url: string | URL | Request) =>
+      String(url).includes("/auth/v1/token")
+        ? new Response(JSON.stringify({ access_token: "t", expires_in: 3600 }))
+        : new Response(JSON.stringify([])),
+    );
+    vi.stubGlobal("fetch", fetchFalso);
+
+    const { fuenteEquipo } = await importarSelector();
+    const datos = await fuenteEquipo.obtenerAnadirColportor();
+
+    // El proyecto no tiene campañas del coordinador: no hay a quién añadir, y no se inventan datos de prueba.
+    expect(datos).toBeNull();
+    const rutas = fetchFalso.mock.calls.map(([url]) => new URL(String(url)).pathname);
+    expect(rutas).toContain("/rest/v1/rpc/campanias_del_coordinador");
+  });
+
   it("en un build de producción (staging, producción, Pages) es la simulada aunque estén las variables", async () => {
     fijar("production");
 

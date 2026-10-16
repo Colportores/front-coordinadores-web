@@ -3,6 +3,7 @@ import { fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { AnadirColportor } from "@/features/equipo/AnadirColportor";
 import { AnadirColportorLocal } from "@/features/equipo/AnadirColportorLocal";
+import { SinCampaniaParaAnadir } from "@/features/equipo/SinCampaniaParaAnadir";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
 /** Vista 23 (HU-CAM-004): añadir colportor a la campaña. Cuelga de la pestaña Equipo. */
@@ -16,19 +17,31 @@ export default async function AnadirColportorPagina() {
 
     return (
       <ContenidoPestana titulo="Añadir colportor">
-        <SeccionHu hu="HU-CAM-004">
-          <AnadirColportorLocal datos={datos} />
-        </SeccionHu>
+        <SeccionHu hu="HU-CAM-004">{datos ? <AnadirColportorLocal datos={datos} /> : <SinCampaniaParaAnadir />}</SeccionHu>
       </ContenidoPestana>
     );
   } else {
     const datos = await fuenteEquipo.obtenerAnadirColportor();
+    if (!datos) {
+      return (
+        <ContenidoPestana titulo="Añadir colportor">
+          <SeccionHu hu="HU-CAM-004">
+            <SinCampaniaParaAnadir />
+          </SeccionHu>
+        </ContenidoPestana>
+      );
+    }
     const { crearInscribirServidor } = await import("./inscribir-servidor");
+    const { crearBuscarServidor } = await import("./buscar-servidor");
 
     return (
       <ContenidoPestana titulo="Añadir colportor">
         <SeccionHu hu="HU-CAM-004">
-          <AnadirColportor datos={datos} inscribir={crearInscribirServidor(datos.campaniaId)} />
+          <AnadirColportor
+            datos={datos}
+            inscribir={crearInscribirServidor(datos.campaniaId)}
+            buscar={crearBuscarServidor(datos.campaniaId)}
+          />
         </SeccionHu>
       </ContenidoPestana>
     );

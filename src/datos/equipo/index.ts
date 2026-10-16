@@ -27,6 +27,7 @@ export type {
   MiembroEquipo,
   PrecioProductoCiudad,
   PreciosDeCiudad,
+  ResultadoBusqueda,
   ResultadoInscripcion,
   UltimoAcompanamiento,
 } from "@/datos/equipo/contrato";
@@ -34,5 +35,5 @@ export type {
 const configSupabase = leerConfigSupabase();
 
 export const fuenteEquipo: FuenteDatosEquipo = configSupabase
-  ? crearFuenteEquipoSupabase(crearClienteSupabase(configSupabase), fuenteEquipoSimulada)
+  ? crearFuenteEquipoSupabase(crearClienteSupabase(configSupabase))
   : fuenteEquipoSimulada;

@@ -130,13 +130,32 @@ describe("crearClienteSupabase", () => {
     expect((error as ErrorSupabase).estado).toBe(400);
   });
 
-  it("un error de PostgREST trae el mensaje y el código de la base", async () => {
+  it("un error de PostgREST trae el mensaje, el código y el detalle de la base, tal cual", async () => {
     const { fn } = fetchFalso((l) =>
-      esLogin(l) ? sesion("t") : json({ message: "campaña no vigente", code: "CZ002" }, 400),
+      esLogin(l)
+        ? sesion("t")
+        : json({ message: "campaña no vigente", code: "CZ002", details: '{"campania_id":"c-1"}', hint: null }, 400),
     );
     const cliente = crearClienteSupabase(CONFIG, fn);
 
-    await expect(cliente.llamarRpc("x", {})).rejects.toThrow("Supabase respondió 400: campaña no vigente (CZ002)");
+    const error = await cliente.llamarRpc("x", {}).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ErrorSupabase);
+    expect(error).toMatchObject({
+      message: "campaña no vigente",
+      estado: 400,
+      codigo: "CZ002",
+      detalle: '{"campania_id":"c-1"}',
+    });
+  });
+
+  it("sin detalle en la respuesta, el detalle queda vacío", async () => {
+    const { fn } = fetchFalso((l) =>
+      esLogin(l) ? sesion("t") : json({ message: "no", code: "CI006", details: null, hint: null }, 400),
+    );
+    const cliente = crearClienteSupabase(CONFIG, fn);
+
+    await expect(cliente.llamarRpc("x", {})).rejects.toMatchObject({ codigo: "CI006", detalle: "" });
   });
 
   it("una respuesta que no es JSON cae al texto del estado HTTP", async () => {

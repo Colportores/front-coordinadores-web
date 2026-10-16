@@ -120,23 +120,48 @@ export interface MiembroEquipo {
 }
 
 /**
- * Datos de la vista 23 (añadir colportor). La búsqueda por email o nombre
- * todavía no tiene decisión de backend (coord #19): mientras tanto la fuente
- * entrega `candidatos` completos y la vista filtra en el cliente.
+ * Datos de la vista 23 (añadir colportor) con los que abre la página: la campaña, los sugeridos y el
+ * equipo que ya tiene. La búsqueda es del servidor (decisión de Cristian, 30/09): la vista pide cada
+ * página con `buscarCandidatos`, no filtra una lista completa en el cliente.
  */
 export interface DatosAnadirColportor {
   campaniaId: string;
   /** P. ej. "Verano 2026". */
   campania: string;
-  candidatos: CandidatoColportor[];
+  /** Sin texto de búsqueda: hasta 5 cuentas pendientes de asignación, de la más nueva a la más antigua. */
+  sugeridos: CandidatoColportor[];
   equipoActual: MiembroEquipo[];
 }
 
-/** Respuesta a `POST /v1/campanias/:campaniaId/colportores {usuarioId}` (bff-coordinadores#3). */
-export type ResultadoInscripcion = { ok: true } | { ok: false; mensaje: string };
+/** Cuántas cuentas trae cada página de la búsqueda (`buscar_candidatos()`). Una página llena avisa que puede haber más. */
+export const CUENTAS_POR_PAGINA = 10;
+
+/** Una página de la búsqueda; `hayMas` es que la página vino llena y la siguiente puede traer más. */
+export type ResultadoBusqueda =
+  | { ok: true; candidatos: CandidatoColportor[]; hayMas: boolean }
+  /**
+   * `reiniciar`: el cursor de la página ya no sirve (la cuenta de la que seguía no existe más); hay que buscar
+   * de nuevo desde el principio, reintentar la misma página no arregla nada.
+   */
+  | { ok: false; mensaje: string; reiniciar?: boolean };
+
+/**
+ * Respuesta a inscribir (`inscribir_colportor()`). `mensaje` es el texto para mostrar. Si la cuenta ya está en otra
+ * campaña (`CI007`), `campaniaEnConflicto` dice cuál.
+ */
+export type ResultadoInscripcion =
+  | { ok: true }
+  | { ok: false; mensaje: string; campaniaEnConflicto?: { id: string; nombre: string } };
 
 export interface FuenteDatosEquipo {
   obtenerEquipo(): Promise<DatosEquipo>;
-  obtenerAnadirColportor(): Promise<DatosAnadirColportor>;
+  /** `null`: el coordinador no tiene una campaña en curso a la que añadir colportores. */
+  obtenerAnadirColportor(): Promise<DatosAnadirColportor | null>;
+  /**
+   * Una página de cuentas que coinciden con `texto` (no vacío), primero las que empiezan con él y después por orden
+   * alfabético. `despuesDe` es el id de la última cuenta de la página anterior (`null` para la primera).
+   * Un rechazo de la regla vuelve como `ok: false`; una falla de conexión, como excepción.
+   */
+  buscarCandidatos(campaniaId: string, texto: string, despuesDe: string | null): Promise<ResultadoBusqueda>;
   inscribirColportor(campaniaId: string, usuarioId: string): Promise<ResultadoInscripcion>;
 }

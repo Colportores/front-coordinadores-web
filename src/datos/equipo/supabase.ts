@@ -1,4 +1,5 @@
 import type { DatosEquipo, FilaColportor, FuenteDatosEquipo } from "@/datos/equipo/contrato";
+import { crearFuenteAnadirRpc } from "@/datos/equipo/rpc";
 import type { ClienteSupabase } from "@/datos/supabase/cliente";
 
 /**
@@ -7,8 +8,8 @@ import type { ClienteSupabase } from "@/datos/supabase/cliente";
  *
  * Lee la campaña del coordinador de la sesión y sus inscriptos con `colportores_de_campania()` (HU-CAM-004
  * y HU-CAM-006). Lo que todavía no tiene fuente real queda vacío o con «—», sin inventar números: horas,
- * ventas, cobro, última sincronización, precios por ciudad y acompañamientos. Añadir e inscribir colportores
- * (`obtenerAnadirColportor`, `inscribirColportor`) siguen siendo los simulados.
+ * ventas, cobro, última sincronización, precios por ciudad y acompañamientos. La vista 23 (añadir colportor:
+ * sugeridos, búsqueda e inscripción) va por las RPC de `rpc.ts`.
  */
 
 interface CampaniaRemota {
@@ -70,11 +71,10 @@ const DATOS_VACIOS: DatosEquipo = {
   },
 };
 
-export function crearFuenteEquipoSupabase(
-  cliente: ClienteSupabase,
-  simulada: FuenteDatosEquipo,
-): FuenteDatosEquipo {
+export function crearFuenteEquipoSupabase(cliente: ClienteSupabase): FuenteDatosEquipo {
   return {
+    ...crearFuenteAnadirRpc(cliente),
+
     async obtenerEquipo() {
       const [campania] = await cliente.consultar<CampaniaRemota[]>(CONSULTA_CAMPANIA);
       if (!campania) return DATOS_VACIOS;
@@ -94,8 +94,5 @@ export function crearFuenteEquipoSupabase(
           .map((c) => ({ id: c.usuario_id, nombre: nombreCompleto(c), nota: c.email })),
       };
     },
-
-    obtenerAnadirColportor: () => simulada.obtenerAnadirColportor(),
-    inscribirColportor: (campaniaId, usuarioId) => simulada.inscribirColportor(campaniaId, usuarioId),
   };
 }
