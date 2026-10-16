@@ -387,10 +387,117 @@ describe("AnadirColportor", () => {
       expect(within(screen.getByRole("list", { name: "Cuentas" })).getAllByRole("listitem")).toHaveLength(300);
     });
 
+    it("si el coordinador ya está escribiendo en el buscador cuando contesta el servidor, no se le roba el foco", async () => {
+      let liberar: () => void = () => undefined;
+      montar(() => new Promise((r) => (liberar = () => r({ ok: true }))));
+      const buscador = screen.getByRole("textbox", { name: "Buscar por email o nombre" });
+      await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+      await userEvent.click(buscador);
+      // Ana sigue entre los resultados: es donde el viejo `enfocarFila` le habría llevado el foco.
+      await userEvent.type(buscador, "ana");
+
+      await act(async () => liberar());
+
+      expect(buscador).toHaveFocus();
+      expect(buscador).toHaveValue("ana");
+      expect(await screen.findByRole("status")).toHaveTextContent("Añadiste a Ana Martínez a Verano 2026.");
+    });
+
+    it("lo mismo si el servidor contesta con un error: el foco sigue donde estaba", async () => {
+      let liberar: () => void = () => undefined;
+      montar(() => new Promise((_, rechazar) => (liberar = () => rechazar(new Error("sin red")))));
+      const buscador = screen.getByRole("textbox", { name: "Buscar por email o nombre" });
+      await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+      await userEvent.click(buscador);
+      // Ana sigue entre los resultados: es donde el viejo `enfocarFila` le habría llevado el foco.
+      await userEvent.type(buscador, "ana");
+
+      await act(async () => liberar());
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(mensajeAnadirSinConexion("Ana Martínez"));
+      expect(buscador).toHaveFocus();
+    });
+
+    it("si el foco pasó a otro botón mientras contestaba, tampoco se lo roba", async () => {
+      let liberar: () => void = () => undefined;
+      montar(() => new Promise((r) => (liberar = () => r({ ok: true }))));
+      await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
+      const otra = screen.getByRole("button", { name: "Elegir a Gonzalo Sosa" });
+      await userEvent.click(otra);
+      expect(otra).toHaveFocus();
+
+      await act(async () => liberar());
+
+      expect(otra).toHaveFocus();
+    });
+
+    it("desde el detalle: el foco vuelve a la fila de la cuenta cuando sigue en «Añadir a Verano 2026»", async () => {
+      montar();
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Ana Martínez" }));
+      const detalle = screen.getByRole("region", { name: "Detalle de Ana Martínez" });
+      await userEvent.click(within(detalle).getByRole("button", { name: "Añadir a Verano 2026" }));
+
+      await screen.findByText(/Añadiste a Ana Martínez/);
+      expect(screen.getByRole("button", { name: "Elegir a Ana Martínez" }).closest("li")).toHaveFocus();
+    });
+
+    it("con un nombre de campaña larguísimo, el título y el botón del detalle cortan línea en vez de desbordar", async () => {
+      const campania = "Campaña de verano de la región metropolitana oeste y el litoral, segunda etapa 2026-2027";
+      montar(undefined, { ...DATOS_ANADIR_COLPORTOR_SIMULADO, campania });
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Ana Martínez" }));
+
+      const titulo = screen.getByRole("heading", { name: `Añadir colportor a ${campania}` });
+      expect(titulo).toHaveClass("break-words");
+      expect(titulo).not.toHaveClass("whitespace-nowrap");
+      const boton = within(screen.getByRole("region", { name: "Detalle de Ana Martínez" })).getByRole("button", {
+        name: `Añadir a ${campania}`,
+      });
+      expect(boton).toHaveClass("whitespace-normal", "h-auto", "max-w-full");
+    });
+
     it("con un solo resultado habla en singular", async () => {
       montar();
       await userEvent.type(screen.getByRole("textbox", { name: "Buscar por email o nombre" }), "martinez");
       expect(screen.getByRole("heading", { name: "1 RESULTADO PARA “MARTINEZ”" })).toBeInTheDocument();
+    });
+  });
+
+  describe("reactivar una inscripción borrada (decisión del 02/10)", () => {
+    const quitado = {
+      id: "usr-tomas-rivero",
+      nombre: "Tomás Rivero",
+      email: "tomas.rivero@example.com",
+      estadoCuenta: "pendiente_asignacion" as const,
+      campaniaActual: null,
+      cuentaCreada: "2026-08-18",
+    };
+
+    it("quien el coordinador quitó (HU-CAM-005) aparece como cualquier cuenta pendiente, sin bloqueo ni aviso aparte", async () => {
+      montar(undefined, { ...DATOS_ANADIR_COLPORTOR_SIMULADO, candidatos: [...DATOS_ANADIR_COLPORTOR_SIMULADO.candidatos, quitado] });
+
+      await userEvent.type(screen.getByRole("textbox", { name: "Buscar por email o nombre" }), "rivero");
+
+      expect(screen.getByRole("heading", { name: "1 RESULTADO PARA “RIVERO”" })).toBeInTheDocument();
+      expect(screen.getByText("◔ Pendiente de asignación")).toBeInTheDocument();
+      expect(screen.queryByRole("note")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Añadir a Tomás Rivero" })).toBeEnabled();
+    });
+
+    it("al volver a sumarlo, la vista llama a la misma inscripción y lo muestra en «Ya en tu equipo» sin zona", async () => {
+      const inscribir = montar(undefined, {
+        ...DATOS_ANADIR_COLPORTOR_SIMULADO,
+        candidatos: [...DATOS_ANADIR_COLPORTOR_SIMULADO.candidatos, quitado],
+      });
+      await userEvent.type(screen.getByRole("textbox", { name: "Buscar por email o nombre" }), "tomas.rivero");
+
+      await userEvent.click(screen.getByRole("button", { name: "Añadir a Tomás Rivero" }));
+
+      expect(inscribir).toHaveBeenCalledExactlyOnceWith("usr-tomas-rivero");
+      expect(await screen.findByRole("status")).toHaveTextContent("Añadiste a Tomás Rivero a Verano 2026.");
+      const fila = within(screen.getByRole("region", { name: "Ya en tu equipo" }))
+        .getByText("Tomás Rivero")
+        .closest("li");
+      expect(fila).toHaveTextContent("Sin zona");
     });
   });
 

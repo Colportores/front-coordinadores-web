@@ -118,6 +118,16 @@ function AvisoAnadido({
   );
 }
 
+/**
+ * ¿El foco sigue en el «Añadir» de esa cuenta (o no está en ningún lado, como cuando el botón se apaga)?
+ * Si el coordinador ya se fue a escribir o a otro botón mientras contestaba el servidor, no se le roba el foco.
+ */
+function focoSigueEnAnadir(id: string): boolean {
+  const activo = document.activeElement;
+  if (!(activo instanceof HTMLElement) || activo === document.body) return true;
+  return activo.closest(`[data-anadir-id="${id}"]`) !== null;
+}
+
 interface FilaProps {
   candidato: CandidatoColportor;
   elegido: boolean;
@@ -169,6 +179,7 @@ function FilaCandidato({ candidato, elegido, activo, anadido, ocupado, onElegir,
         variant={elegido ? "default" : "outline"}
         disabled={deshabilitado}
         onClick={onAnadir}
+        data-anadir-id={candidato.id}
         aria-label={`Añadir a ${candidato.nombre}`}
         className={cn(
           "min-h-9 text-nav font-semibold",
@@ -224,12 +235,14 @@ function DetalleCuenta({ candidato, campania, anadido, ocupado, onAnadir }: Deta
         <DatoDetalle etiqueta="Cuenta creada">{fechaCorta(candidato.cuentaCreada)}</DatoDetalle>
       </dl>
       {bloqueo ? <AvisoBloqueo texto={bloqueo} /> : null}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button
           type="button"
           disabled={bloqueo !== null || anadido || ocupado}
           onClick={onAnadir}
-          className="min-h-9 text-nav font-semibold disabled:bg-borde disabled:text-tinta-suave disabled:opacity-100"
+          data-anadir-id={candidato.id}
+          // Con una campaña de nombre largo el texto corta línea en vez de desbordar la columna.
+          className="h-auto min-h-9 max-w-full py-1.5 text-left text-nav font-semibold whitespace-normal disabled:bg-borde disabled:text-tinta-suave disabled:opacity-100"
         >
           {anadido ? "Añadido ✓" : `Añadir a ${campania}`}
         </Button>
@@ -341,7 +354,8 @@ export function AnadirColportor({
       } finally {
         inscribiendo.current = false;
         setOcupado(false);
-        enfocarFila(candidato.id);
+        // Si ya está escribiendo en el buscador o fue a otro botón, el foco se queda ahí (no se le corta lo que teclea).
+        if (focoSigueEnAnadir(candidato.id)) enfocarFila(candidato.id);
       }
     },
     [anadidos, inscribir, enfocarFila],
@@ -407,7 +421,7 @@ export function AnadirColportor({
         <span aria-hidden>/</span>
         <span aria-current="page">Añadir colportor</span>
       </nav>
-      <h2 className="font-serif text-[21px] font-semibold whitespace-nowrap text-tinta">
+      <h2 className="font-serif text-[21px] font-semibold break-words text-tinta">
         Añadir colportor a {datos.campania}
       </h2>
 
