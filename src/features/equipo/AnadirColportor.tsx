@@ -293,8 +293,13 @@ export function AnadirColportor({
   /**
    * Cuentas que la base rechazó por estar en otra campaña (`CI007`) y la campaña que dijo: la fila pasa a mostrarse
    * bloqueada con el literal de la HU, en vez de seguir «sin campaña» con «Añadir» habilitado para repetir el rechazo.
+   * La marca vale hasta que el servidor contesta una búsqueda nueva (`recibidas`): ese dato es más nuevo, y si trae la
+   * cuenta libre (alguien la liberó) la fila vuelve a poder añadirse; si la trae todavía en otra campaña, se muestra esa.
    */
-  const [enOtraCampania, setEnOtraCampania] = useState<ReadonlyMap<string, string>>(() => new Map());
+  const [enOtraCampania, setEnOtraCampania] = useState<ReadonlyMap<string, { campania: string; recibidas: number }>>(
+    () => new Map(),
+  );
+  const recibidasAhora = useRef(0);
 
   const {
     consulta,
@@ -303,6 +308,7 @@ export function AnadirColportor({
     texto,
     buscando,
     resultados: encontrados,
+    recibidas,
     hayMas,
     cargandoMas,
     falla,
@@ -311,6 +317,10 @@ export function AnadirColportor({
     reintentar,
     reintentarMas,
   } = useBusquedaCandidatos(buscar, datos.sugeridos);
+
+  useEffect(() => {
+    recibidasAhora.current = recibidas;
+  });
 
   /** Lleva el foco a la fila de la cuenta (o, si ya no está en los resultados, al buscador). */
   const enfocarFila = useCallback((id: string) => {
@@ -340,7 +350,8 @@ export function AnadirColportor({
     setFallos((previos) => [...previos, { id: cuenta.id, mensaje }]);
     if (causa.tipo === "rechazo" && causa.campaniaEnConflicto) {
       const { nombre } = causa.campaniaEnConflicto;
-      setEnOtraCampania((previas) => new Map(previas).set(cuenta.id, nombre));
+      const marca = { campania: nombre, recibidas: recibidasAhora.current };
+      setEnOtraCampania((previas) => new Map(previas).set(cuenta.id, marca));
     }
   }, []);
 
@@ -365,10 +376,10 @@ export function AnadirColportor({
       enOtraCampania.size === 0
         ? encontrados
         : encontrados.map((c) => {
-            const campania = enOtraCampania.get(c.id);
-            return campania === undefined ? c : { ...c, campaniaActual: campania };
+            const marca = enOtraCampania.get(c.id);
+            return marca === undefined || marca.recibidas !== recibidas ? c : { ...c, campaniaActual: marca.campania };
           }),
-    [encontrados, enOtraCampania],
+    [encontrados, enOtraCampania, recibidas],
   );
   const elegido = resultados.find((c) => c.id === elegidoId) ?? null;
   useEffect(() => {

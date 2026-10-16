@@ -40,6 +40,8 @@ export function useBusquedaCandidatos(buscar: BuscarCandidatos, sugeridos: Candi
   const [consulta, setConsulta] = useState("");
   const [intento, setIntento] = useState(0);
   const [respuesta, setRespuesta] = useState<Respuesta | null>(null);
+  /** Cuántas primeras páginas del servidor llegaron: quien guarda algo sobre una cuenta sabe cuándo ya hay un dato más nuevo. */
+  const [recibidas, setRecibidas] = useState(0);
   const texto = consulta.trim();
 
   const buscarRef = useRef(buscar);
@@ -65,7 +67,10 @@ export function useBusquedaCandidatos(buscar: BuscarCandidatos, sugeridos: Candi
       } catch {
         nueva = { ...base, falla: mensajeSinConexion("buscar cuentas") };
       }
-      if (vigente) setRespuesta(nueva);
+      if (vigente) {
+        setRespuesta(nueva);
+        setRecibidas((n) => n + 1);
+      }
     }, MS_ESPERA_BUSQUEDA);
     return () => {
       vigente = false;
@@ -119,6 +124,8 @@ export function useBusquedaCandidatos(buscar: BuscarCandidatos, sugeridos: Candi
     /** La primera página de este texto todavía no llegó. */
     buscando: hayConsulta && actual === null,
     resultados: hayConsulta ? (actual?.candidatos ?? []) : sugeridos,
+    /** Cuántas veces el servidor contestó una búsqueda nueva (la primera página; las siguientes no cuentan). */
+    recibidas,
     hayMas: hayConsulta && actual !== null && actual.hayMas,
     cargandoMas: actual?.cargandoMas ?? false,
     falla: actual?.falla ?? null,
