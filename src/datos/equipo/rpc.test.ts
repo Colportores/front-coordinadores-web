@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { CUENTAS_POR_PAGINA } from "@/datos/equipo/contrato";
-import { crearFuenteAnadirRpc, RespuestaInesperada } from "@/datos/equipo/rpc";
+import { crearFuenteAnadirRpc } from "@/datos/equipo/rpc";
 import { ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
+import { RespuestaInesperada } from "@/datos/supabase/respuesta";
 import { crearClienteRpc } from "@/datos/supabase/sdk";
 import { crearSupabasePrueba, json, respuestaDeSesion } from "@/test/supabase";
 

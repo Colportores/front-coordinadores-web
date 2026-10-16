@@ -24,6 +24,12 @@ describe("campaniaProvisoria", () => {
     expect(llamarRpc).toHaveBeenCalledWith("campanias_del_coordinador", {});
   });
 
+  it("devuelve la primera aunque todavía no haya empezado: qué hacer con eso lo decide cada vista", async () => {
+    const { cliente } = clienteQueContesta([{ id: "c-3", nombre: "Verano 2027", tipo: "VERANO", estado: "POR_EMPEZAR" }]);
+
+    expect(await campaniaProvisoria(cliente)).toEqual({ id: "c-3", nombre: "Verano 2027" });
+  });
+
   it("sin ninguna campaña que no haya terminado es null", async () => {
     expect(await campaniaProvisoria(clienteQueContesta([]).cliente)).toBeNull();
   });
