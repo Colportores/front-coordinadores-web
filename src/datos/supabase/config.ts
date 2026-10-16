@@ -1,8 +1,8 @@
 /**
  * Conexión de desarrollo a Supabase (demo del 07/10, issue #45).
  *
- * El panel no habla con Supabase en staging ni en producción: ahí va el BFF (ADR-013). Esta
- * configuración solo existe para correr el panel en local contra el proyecto de la demo, con la
+ * Puente de desarrollo: el panel real inicia sesión con cada coordinador (`config-publica.ts`, `src/auth`).
+ * Esta configuración solo existe para correr el panel en local contra el proyecto de la demo, con la
  * sesión de una cuenta de coordinador cargada en el servidor. Se ignora (devuelve `null`) cuando:
  *   - `NODE_ENV` es `production` (`next build` y `next start`: staging, producción y Pages), o
  *   - falta alguna de las cuatro variables.

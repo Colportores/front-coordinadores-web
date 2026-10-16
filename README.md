@@ -2,13 +2,13 @@
 
 Panel web del coordinador: seguimiento de sus equipos de colportores, asignación de zonas, control de jornadas y reportes de su asociación.
 
-**Estado: UI en construcción con datos simulados** (Sprint 4). Cada HU se conecta al BFF en su sprint, según [plan-sprints.md](https://github.com/Colportores/docs-organizacion/blob/main/docs/plan-sprints.md).
+**Estado: UI en construcción con datos simulados.** Cada HU se conecta a las RPC de Supabase en su sprint, según [plan-sprints.md](https://github.com/Colportores/docs-organizacion/blob/main/docs/plan-sprints.md).
 
 ## Contexto
 
 Parte del sistema [Colportaje App](https://github.com/Colportores). La arquitectura, los flujos y las decisiones viven en la [documentación de la organización](https://github.com/Colportores/docs-organizacion).
 
-- Habla únicamente con su BFF ([bff-coordinadores](https://github.com/Colportores/bff-coordinadores)); nunca con Supabase directo ([ADR-013](https://github.com/Colportores/docs-organizacion/blob/main/docs/decisiones/ADR-013-un-bff-por-aplicacion-en-workers.md)).
+- Habla directo con Supabase, sin BFF: el login con `supabase-js` y los datos por RPC con el JWT del coordinador, nunca `.from()` sobre tablas ([ADR-013](https://github.com/Colportores/docs-organizacion/blob/main/docs/decisiones/ADR-013-clientes-directo-a-rpc-de-supabase.md)). El BFF queda como implementación futura.
 - Stack: Next.js (App Router) + React + TypeScript + Tailwind CSS + shadcn/ui ([ADR-015](https://github.com/Colportores/docs-organizacion/blob/main/docs/decisiones/ADR-015-paneles-web-nextjs-shadcn.md)).
 - Nomenclatura de repos: [ADR-016](https://github.com/Colportores/docs-organizacion/blob/main/docs/decisiones/ADR-016-multi-repo-capa-usuario-plataforma.md).
 
@@ -43,7 +43,7 @@ Las pestañas **Stock** y **Cuentas** muestran datos simulados hasta su conexió
 
 ### Equipo con datos reales de Supabase (solo desarrollo)
 
-Para la demo, la pestaña **Equipo** puede leer la campaña y los colportores reales de un proyecto de Supabase en vez de los simulados (issue #45). Es un puente de desarrollo: la conexión definitiva va por el BFF ([ADR-013](https://github.com/Colportores/docs-organizacion/blob/main/docs/decisiones/ADR-013-un-bff-por-aplicacion-en-workers.md)).
+Para la demo, la pestaña **Equipo** puede leer la campaña y los colportores reales de un proyecto de Supabase en vez de los simulados (issue #45). Es un puente de desarrollo con la cuenta de un coordinador cargada en el servidor: la conexión definitiva usa el login del coordinador (sección siguiente) y la RPC de cada pestaña.
 
 Creá un `.env.local` en la raíz del repo (git lo ignora; Next lo carga solo, también adentro de Docker) con la cuenta de un coordinador:
 
@@ -59,6 +59,17 @@ Después `docker compose -f compose.dev.yml up` y abrí `/equipo`. El servidor i
 - **Se apaga sola** si falta alguna de las cuatro variables y **siempre en un build de producción** (`next build` / `next start`: staging, producción y el sitio de Pages), aunque estén definidas. Los tests lo prueban.
 - **Lo que todavía no tiene fuente real** queda vacío o con «—»: horas, ventas, cobro, última sincronización, precios por ciudad y acompañamientos. Añadir e inscribir colportores siguen simulados.
 - **No lo dejes en el entorno al correr `npm run build:pages`:** ese build rechaza a propósito cualquier `.env*` o variable de Supabase.
+
+## Acceso del coordinador y conexión a Supabase
+
+El panel inicia sesión **directo con Supabase Auth** (`@supabase/supabase-js`, [ADR-015](https://github.com/Colportores/docs-organizacion/blob/main/docs/decisiones/ADR-015-paneles-web-nextjs-shadcn.md)) y pide los datos por RPC con el JWT del coordinador ([ADR-013](https://github.com/Colportores/docs-organizacion/blob/main/docs/decisiones/ADR-013-clientes-directo-a-rpc-de-supabase.md)). Está la lógica; falta la pantalla de acceso y la guarda de las rutas (ver el issue #18).
+
+- **Variables por entorno** (públicas por diseño: la clave anónima viaja en el navegador y los datos los protege la RLS): `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`. `src/datos/supabase/config-publica.ts` las lee y **no acepta una clave de servicio** (`sb_secret_…` o un JWT con rol `service_role`): con `NEXT_PUBLIC_` iría al navegador de todos. Next incrusta esas variables en el build antes de que corra ese módulo, así que el chequeo está **en el arranque**: `next.config.ts` llama a `verificarEntornoSupabase` y `next dev` / `next build` fallan, sin escribir la clave. La URL tiene que ser `https://`; `http://` solo vale para `localhost`, `127.0.0.1` y `[::1]` (el Supabase local). El sitio de prueba de Pages las rechaza igual que al resto de las variables de Supabase (y deja pasar el código del panel que menciona `service_role` como texto: la guarda busca claves y la variable `SERVICE_ROLE_KEY`, no la palabra).
+- **`src/datos/supabase/sdk.ts`**: `crearSupabase(config, opciones)` crea el cliente del SDK (renueva el token solo; no elige dónde se guarda la sesión, pero se queda con el lugar para poder borrarla: `borrarSesionGuardada`) y `crearClienteRpc(supabase)` es el cliente que comparten las fuentes de `src/datos/*`. Un rechazo sale como `ErrorSupabase` con el estado y el código de la RPC.
+- **`src/datos/supabase/fetch-auth.ts`**: el `fetch` del cliente, solo para los pedidos a Auth. Les pone un tope de 5 s (un pedido colgado deja trabado al SDK), hace pasar un 429 al renovar el token por una caída de red (el SDK borra la sesión ante cualquier otro rechazo) y no deja que una renovación en camino vuelva a guardar una sesión que ya se cerró.
+- **`src/auth/acceso.ts`**: `iniciarSesion`, `verificarAcceso` y `cerrarSesion`, con resultados tipados. El rol lo decide la base (`tiene_rol('COORDINADOR')`: vigencia y bajas); la autoridad de cada dato sigue en la RLS de cada RPC.
+- **Falla de conexión o de configuración ≠ sesión vencida** (`src/datos/supabase/errores.ts`, el mismo criterio que tenía el BFF): sin red, Supabase caído o una clave anónima mal cargada dan `no-disponible` y **no** mandan a iniciar sesión de nuevo; solo el rechazo del token (`PGRST3xx`) es una sesión vencida. Inicio de sesión, comprobación y cierre esperan a Supabase 5 s como máximo. **Cerrar sesión nunca deja la sesión abierta en este navegador**: si no se pudo avisar al servidor (sin red, token vencido que no se pudo renovar, servidor colgado) igual la borra y el resultado es `cerrada-sin-revocar`. Un intento de inicio de sesión que ya venció no pisa ni cierra la sesión del siguiente.
+- **Tests**: usan el `supabase-js` real con un `fetch` falso (`src/test/supabase.ts`), así que prueban lo que hace el SDK con cada respuesta.
 
 ## Sitio de prueba (GitHub Pages)
 
@@ -104,7 +115,9 @@ El botón «Run workflow» (`workflow_dispatch`) aparece cuando el workflow lleg
 src/
 ├── app/                 ← rutas (App Router): /inicio /equipo /stock /cuentas /reportes
 ├── features/<pestaña>/  ← componentes de cada pestaña
-├── datos/<pestaña>/     ← contrato.ts (tipos + interfaz del BFF) · simulado.ts · index.ts (selección)
+├── datos/<pestaña>/     ← contrato.ts (tipos + interfaz de la fuente) · simulado.ts · index.ts (selección)
+├── datos/supabase/      ← conexión a Supabase: config, cliente `supabase-js`, cliente de RPC y clases de falla
+├── auth/                ← acceso del coordinador: iniciar y cerrar sesión, comprobar el rol
 ├── shell/               ← topbar, navegación, contenedor de pestaña
 ├── dev/                 ← modo dev: registro de HU, SeccionHu, ChipHu, panel "Estado de HU"
 ├── config/              ← flags

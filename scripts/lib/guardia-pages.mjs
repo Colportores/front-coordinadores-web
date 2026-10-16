@@ -50,7 +50,10 @@ const PATRONES_EN_SALIDA = [
   { motivo: "un JWT (clave de Supabase o de sesión)", patron: /eyJ[A-Za-z0-9_-]{15,}\.eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{10,}/ },
   { motivo: "una clave de Supabase (sb_secret_/sb_publishable_)", patron: /\bsb_(secret|publishable)_[A-Za-z0-9_-]{8,}/ },
   { motivo: "una URL de proyecto de Supabase", patron: /[a-z0-9-]+\.supabase\.(co|in)\b/i },
-  { motivo: "el rol de servicio de Supabase", patron: /service_role/i },
+  // El nombre de la variable de la clave de servicio, no la palabra `service_role` suelta: esa la lleva, como texto
+  // y sin ninguna clave, `src/datos/supabase/config-publica.ts` (rechaza las claves de servicio) cuando entra a un
+  // archivo del navegador. Una clave de servicio de verdad la agarran el JWT y `sb_secret_`.
+  { motivo: "la variable de la clave de servicio de Supabase", patron: /SERVICE_ROLE_KEY/i },
 ];
 
 /** Lo que el texto de un archivo de la salida no debería tener. Devuelve los motivos encontrados. */

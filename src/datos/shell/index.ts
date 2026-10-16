@@ -1,6 +1,6 @@
 /**
  * Único punto de selección de la fuente de datos del shell.
- * Al conectar el BFF se cambia esta línea por la implementación real;
+ * Al conectar la RPC del perfil propio (backend-supabase#54) se cambia esta línea por la implementación real;
  * las vistas importan `fuenteShell` y no se tocan.
  */
 import type { FuenteDatosShell } from "@/datos/shell/contrato";
