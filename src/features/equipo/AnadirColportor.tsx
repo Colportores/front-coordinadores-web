@@ -23,6 +23,14 @@ export const MS_DESHACER = 8000;
 /** Falla de red al añadir: dice la acción (convención §10). */
 export const mensajeAnadirSinConexion = (nombre: string) => mensajeSinConexion(`añadir a ${nombre}`);
 
+/**
+ * Rechazo del servidor cuando la cuenta elegida en ese momento no es la que falló (eligió otra mientras
+ * contestaba, o soltó la elegida al cambiar la búsqueda): el aviso nombra a quien falló para que no se lea
+ * como un reproche al detalle que se ve. Si sigue elegida la misma, queda el literal de la HU
+ * («Está en campaña X. Reasignar primero.»). Decisión del orquestador, mapa §2 «casos límite de UI», 15/10.
+ */
+export const mensajeAnadirRechazado = (nombre: string, mensaje: string) => `No se pudo añadir a ${nombre}. ${mensaje}`;
+
 const ETIQUETA_ESTADO = {
   pendiente_asignacion: "◔ Pendiente de asignación",
   activa: "● Activa",
@@ -118,6 +126,16 @@ function AvisoAnadido({
   );
 }
 
+/**
+ * ¿El foco sigue en el «Añadir» de esa cuenta (o no está en ningún lado, como cuando el botón se apaga)?
+ * Si el coordinador ya se fue a escribir o a otro botón mientras contestaba el servidor, no se le roba el foco.
+ */
+function focoSigueEnAnadir(id: string): boolean {
+  const activo = document.activeElement;
+  if (!(activo instanceof HTMLElement) || activo === document.body) return true;
+  return activo.closest(`[data-anadir-id="${id}"]`) !== null;
+}
+
 interface FilaProps {
   candidato: CandidatoColportor;
   elegido: boolean;
@@ -169,6 +187,7 @@ function FilaCandidato({ candidato, elegido, activo, anadido, ocupado, onElegir,
         variant={elegido ? "default" : "outline"}
         disabled={deshabilitado}
         onClick={onAnadir}
+        data-anadir-id={candidato.id}
         aria-label={`Añadir a ${candidato.nombre}`}
         className={cn(
           "min-h-9 text-nav font-semibold",
@@ -224,12 +243,14 @@ function DetalleCuenta({ candidato, campania, anadido, ocupado, onAnadir }: Deta
         <DatoDetalle etiqueta="Cuenta creada">{fechaCorta(candidato.cuentaCreada)}</DatoDetalle>
       </dl>
       {bloqueo ? <AvisoBloqueo texto={bloqueo} /> : null}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button
           type="button"
           disabled={bloqueo !== null || anadido || ocupado}
           onClick={onAnadir}
-          className="min-h-9 text-nav font-semibold disabled:bg-borde disabled:text-tinta-suave disabled:opacity-100"
+          data-anadir-id={candidato.id}
+          // Con una campaña de nombre largo el texto corta línea en vez de desbordar la columna.
+          className="h-auto min-h-9 max-w-full py-1.5 text-left text-nav font-semibold whitespace-normal disabled:bg-borde disabled:text-tinta-suave disabled:opacity-100"
         >
           {anadido ? "Añadido ✓" : `Añadir a ${campania}`}
         </Button>
@@ -268,6 +289,8 @@ export function AnadirColportor({
   const [avisos, setAvisos] = useState<{ id: string; nombre: string }[]>([]);
   // Dos toques seguidos antes de que el estado se actualice: el ref corta el segundo.
   const inscribiendo = useRef(false);
+  // La cuenta elegida «ahora»: cuando contesta el servidor, el `anadir` que lo pidió ya quedó atrás en el tiempo.
+  const elegidoAhora = useRef<string | null>(null);
 
   const hayConsulta = consulta.trim() !== "";
   const resultados = useMemo(
@@ -275,6 +298,10 @@ export function AnadirColportor({
     [datos.candidatos, consulta, hayConsulta],
   );
   const elegido = resultados.find((c) => c.id === elegidoId) ?? null;
+  const idDelDetalle = elegido?.id ?? null;
+  useEffect(() => {
+    elegidoAhora.current = idDelDetalle;
+  }, [idDelDetalle]);
 
   const equipo = useMemo(
     () => [
@@ -330,7 +357,11 @@ export function AnadirColportor({
       try {
         const resultado = await inscribir(candidato.id);
         if (!resultado.ok) {
-          setError(resultado.mensaje);
+          setError(
+            elegidoAhora.current === candidato.id
+              ? resultado.mensaje
+              : mensajeAnadirRechazado(candidato.nombre, resultado.mensaje),
+          );
           return;
         }
         setAnadidos((previos) => [...previos, candidato.id]);
@@ -341,7 +372,8 @@ export function AnadirColportor({
       } finally {
         inscribiendo.current = false;
         setOcupado(false);
-        enfocarFila(candidato.id);
+        // Si ya está escribiendo en el buscador o fue a otro botón, el foco se queda ahí (no se le corta lo que teclea).
+        if (focoSigueEnAnadir(candidato.id)) enfocarFila(candidato.id);
       }
     },
     [anadidos, inscribir, enfocarFila],
@@ -407,7 +439,7 @@ export function AnadirColportor({
         <span aria-hidden>/</span>
         <span aria-current="page">Añadir colportor</span>
       </nav>
-      <h2 className="font-serif text-[21px] font-semibold whitespace-nowrap text-tinta">
+      <h2 className="font-serif text-[21px] font-semibold break-words text-tinta">
         Añadir colportor a {datos.campania}
       </h2>
 
