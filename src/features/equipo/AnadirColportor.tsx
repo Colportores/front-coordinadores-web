@@ -28,7 +28,7 @@ import {
   type CausaFallo,
 } from "@/features/equipo/useInscripcionesDiferidas";
 import { cn } from "@/lib/utils";
-import { esperarTrabajoPendiente } from "@/shell/trabajo-pendiente";
+import { estaEsperando, esperarTrabajoPendiente } from "@/shell/trabajo-pendiente";
 
 export { MS_DESHACER, mensajeAnadirRechazado, mensajeAnadirSinConexion } from "@/features/equipo/useInscripcionesDiferidas";
 
@@ -285,7 +285,6 @@ export function AnadirColportor({
   const buscador = useRef<HTMLInputElement>(null);
   const raiz = useRef<HTMLDivElement>(null);
   const centinela = useRef<HTMLDivElement>(null);
-  const saliendo = useRef(false);
   const [elegidoId, setElegidoId] = useState<string | null>(null);
   const [indiceActivo, setIndiceActivo] = useState(-1);
   /** Inscripciones que no prosperaron, una por cuenta: no se pisan entre sí ni se borran al escribir. */
@@ -398,20 +397,15 @@ export function AnadirColportor({
   /**
    * Vuelve a Equipo. Con inscripciones dentro del plazo o en camino las manda y espera a que contesten: si alguna
    * falla, se queda para que el aviso no se pierda al cambiar de pantalla (con un tope, por si el servidor no contesta).
+   * Es el mismo camino que el menú de secciones y que atrás/adelante del navegador: una sola espera a la vez (si ya hay
+   * otra, esta se ignora y gana el primer destino) y el menú muestra su estado.
    */
   const salir = useCallback(async () => {
-    if (saliendo.current) return;
-    if (!hayTrabajoPendiente) {
+    if (!hayTrabajoPendiente && !estaEsperando()) {
       router.push("/equipo");
       return;
     }
-    saliendo.current = true;
-    try {
-      // El mismo camino que el menú de secciones (`Topbar`): manda, espera con el tope de 10 s y no sale si algo falla.
-      if (await esperarTrabajoPendiente()) router.push("/equipo");
-    } finally {
-      saliendo.current = false;
-    }
+    if ((await esperarTrabajoPendiente()) === "listo") router.push("/equipo");
   }, [router, hayTrabajoPendiente]);
 
   useEffect(() => {
@@ -501,7 +495,7 @@ export function AnadirColportor({
   function alVolverAEquipo(evento: React.MouseEvent<HTMLAnchorElement>) {
     // Un clic con modificador abre otra pestaña y esta se queda como está.
     if (evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) return;
-    if (!hayTrabajoPendiente) return;
+    if (!hayTrabajoPendiente && !estaEsperando()) return;
     evento.preventDefault();
     void salir();
   }

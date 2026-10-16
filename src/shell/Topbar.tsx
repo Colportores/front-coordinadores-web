@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useRef, useState } from "react";
 
 import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import type { ResumenCoordinador } from "@/datos/shell/contrato";
@@ -11,10 +10,16 @@ import { CLASES_ESTADO } from "@/dev/estilos";
 import { useModoDev } from "@/dev/ProveedorModoDev";
 import { cn } from "@/lib/utils";
 import type { DefinicionPestana } from "@/shell/pestanas";
-import { esperarTrabajoPendiente, hayTrabajoPendiente } from "@/shell/trabajo-pendiente";
+import {
+  esperarTrabajoPendiente,
+  estaEsperando,
+  hayQueEsperar,
+  useEsperandoTrabajo,
+} from "@/shell/trabajo-pendiente";
+import { useFrenoDeAtrasYAdelante } from "@/shell/useFrenoDeAtrasYAdelante";
 
-/** Provisorio (mapa §2: no hay diseño del estado): lo que se ve mientras el menú espera a que contesten las inscripciones. */
-export const TEXTO_ESPERANDO_ENVIOS = "Enviando las inscripciones pendientes…";
+/** Decidido el 16/10 (mapa §2: el canvas no dibuja este estado): lo que se ve mientras se espera a que contesten las inscripciones. */
+export const TEXTO_ESPERANDO_ENVIOS = "Guardando lo que añadiste a la campaña…";
 
 function EstadoPestana({ pestana }: { pestana: DefinicionPestana }) {
   const { chipsVisibles } = useModoDev();
@@ -35,28 +40,22 @@ function EstadoPestana({ pestana }: { pestana: DefinicionPestana }) {
 export function Topbar({ resumen, pestanas }: { resumen: ResumenCoordinador; pestanas: DefinicionPestana[] }) {
   const ruta = usePathname();
   const router = useRouter();
-  const [esperando, setEsperando] = useState(false);
-  const yaEsperando = useRef(false);
+  // Se espera desde el menú, desde «‹ Equipo», con Esc o con atrás/adelante del navegador: el estado es el mismo.
+  const esperando = useEsperandoTrabajo();
+  useFrenoDeAtrasYAdelante();
 
   /**
    * Cambiar de pestaña con inscripciones dentro del plazo o sin contestar (vista 23): se mandan ahora, se espera la respuesta
    * y se cambia solo si todas salieron bien; si alguna falla, la vista se queda con su aviso. Sin nada pendiente el enlace
-   * navega como siempre. Igual que «‹ Equipo» y Esc (decisión del 16/10 en #41).
+   * navega como siempre. Igual que «‹ Equipo», Esc y atrás/adelante (decisión del 16/10 en #41). Una sola espera a la vez:
+   * un clic mientras otra espera se ignora y gana el primer destino.
    */
   async function alElegirPestana(evento: React.MouseEvent<HTMLAnchorElement>, destino: string) {
     // Un clic con modificador abre otra pestaña del navegador y esta se queda como está.
     if (evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) return;
-    if (!hayTrabajoPendiente()) return;
+    if (!estaEsperando() && !hayQueEsperar()) return;
     evento.preventDefault();
-    if (yaEsperando.current) return;
-    yaEsperando.current = true;
-    setEsperando(true);
-    try {
-      if (await esperarTrabajoPendiente()) router.push(destino);
-    } finally {
-      yaEsperando.current = false;
-      setEsperando(false);
-    }
+    if ((await esperarTrabajoPendiente()) === "listo") router.push(destino);
   }
 
   return (

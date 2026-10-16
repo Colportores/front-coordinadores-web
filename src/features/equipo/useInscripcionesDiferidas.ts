@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ResultadoInscripcion } from "@/datos/equipo/contrato";
 import { mensajeSinConexion } from "@/lib/mensajes";
-import { registrarEnvio, registrarFuente, trabajoCambio } from "@/shell/trabajo-pendiente";
+import { fueAbandonado, registrarEnvio, registrarFuente, trabajoCambio } from "@/shell/trabajo-pendiente";
 
 /** Cuánto demora la inscripción tras «Añadir», y cuánto dura el aviso con «Deshacer» (decisión de Cristian, 30/09; diseño 23). */
 export const MS_DESHACER = 8000;
@@ -137,10 +137,13 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
     return true;
   }, []);
 
-  /** Manda ya las que están dentro del plazo y espera a todos los envíos. Devuelve si todos prosperaron. */
+  /**
+   * Manda ya las que están dentro del plazo y espera a todos los envíos, menos los que ya agotaron el tope de una espera
+   * (un servidor colgado no hace esperar otros 10 s a cada intento de irse). Devuelve si todos prosperaron.
+   */
   const confirmarTodas = useCallback(async (): Promise<boolean> => {
     for (const { cuenta } of [...plazos.current.values()]) void enviar(cuenta);
-    const resultados = await Promise.all([...envios.current.values()]);
+    const resultados = await Promise.all([...envios.current.values()].filter((envio) => !fueAbandonado(envio)));
     return resultados.every(Boolean);
   }, [enviar]);
 
@@ -162,7 +165,7 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
   useEffect(
     () =>
       registrarFuente({
-        hayPendiente: () => plazos.current.size > 0 || envios.current.size > 0,
+        hayPorMandar: () => plazos.current.size > 0,
         confirmar: confirmarTodas,
       }),
     [confirmarTodas],
