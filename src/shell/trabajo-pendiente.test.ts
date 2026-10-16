@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   esperarTrabajoPendiente,
+  esperarYSalir,
   estaEsperando,
   type FuenteDeTrabajo,
   fueAbandonado,
@@ -13,6 +14,7 @@ import {
   registrarFuente,
   reiniciarTrabajoPendiente,
   trabajoCambio,
+  ubicacionActual,
   useEsperandoTrabajo,
 } from "@/shell/trabajo-pendiente";
 
@@ -393,5 +395,171 @@ describe("la espera que ya venció", () => {
     contestar();
     await vi.advanceTimersByTimeAsync(0);
     expect(salida).toBe("listo");
+  });
+});
+
+describe("esperar y salir (no navegar si la persona ya se fue por su cuenta)", () => {
+  afterEach(() => {
+    Reflect.deleteProperty(window, "navigation");
+    window.history.replaceState(null, "", "/");
+  });
+
+  function instalarNavegacion(clave: string | undefined) {
+    const navegacion = { currentEntry: clave === undefined ? null : { key: clave } };
+    Object.defineProperty(window, "navigation", { configurable: true, value: navegacion });
+    return navegacion;
+  }
+
+  it("la ubicación es la clave de la entrada del historial si hay Navigation API, y si no, la ruta", () => {
+    window.history.replaceState(null, "", "/equipo/anadir");
+    expect(ubicacionActual()).toBe("ruta:/equipo/anadir");
+
+    const navegacion = instalarNavegacion("clave-1");
+    expect(ubicacionActual()).toBe("entrada:clave-1");
+
+    navegacion.currentEntry = { key: "clave-2" };
+    expect(ubicacionActual()).not.toBe("entrada:clave-1");
+
+    // Sin entrada actual (o sin clave de texto) cae a la ruta.
+    navegacion.currentEntry = null;
+    expect(ubicacionActual()).toBe("ruta:/equipo/anadir");
+  });
+
+  it("sin nada que esperar, va ya", async () => {
+    const irA = vi.fn();
+
+    await expect(esperarYSalir(irA)).resolves.toBe("listo");
+
+    expect(irA).toHaveBeenCalledTimes(1);
+  });
+
+  it("con trabajo, va recién cuando todo salió bien", async () => {
+    const pendientes = { n: 1 };
+    let contestar: (ok: boolean) => void = () => undefined;
+    registrarFuente(
+      fuenteCon(
+        pendientes,
+        () =>
+          new Promise<boolean>((resolver) => {
+            contestar = (ok) => {
+              pendientes.n = 0;
+              resolver(ok);
+            };
+          }),
+      ),
+    );
+    const irA = vi.fn();
+    const salida = esperarYSalir(irA);
+    await dejarCorrer();
+    expect(irA).not.toHaveBeenCalled();
+
+    contestar(true);
+
+    await expect(salida).resolves.toBe("listo");
+    expect(irA).toHaveBeenCalledTimes(1);
+  });
+
+  it("si algo falla, no va y avisa «fallo»", async () => {
+    const pendientes = { n: 1 };
+    registrarFuente(fuenteCon(pendientes, async () => false));
+    const irA = vi.fn();
+
+    await expect(esperarYSalir(irA)).resolves.toBe("fallo");
+
+    expect(irA).not.toHaveBeenCalled();
+  });
+
+  it("si ya había otra espera, no va y avisa «ocupado»", async () => {
+    const pendientes = { n: 1 };
+    registrarFuente(fuenteCon(pendientes, () => new Promise<boolean>(() => undefined)));
+    vi.useFakeTimers();
+    const primera = vi.fn();
+    const segunda = vi.fn();
+    void esperarYSalir(primera);
+
+    await expect(esperarYSalir(segunda)).resolves.toBe("ocupado");
+
+    expect(segunda).not.toHaveBeenCalled();
+    expect(primera).not.toHaveBeenCalled();
+  });
+
+  it("si mientras espera la persona cambia de entrada del historial, no va (y la espera termina)", async () => {
+    const navegacion = instalarNavegacion("clave-1");
+    const pendientes = { n: 1 };
+    let contestar: (ok: boolean) => void = () => undefined;
+    registrarFuente(
+      fuenteCon(
+        pendientes,
+        () =>
+          new Promise<boolean>((resolver) => {
+            contestar = (ok) => {
+              pendientes.n = 0;
+              resolver(ok);
+            };
+          }),
+      ),
+    );
+    const irA = vi.fn();
+    const salida = esperarYSalir(irA);
+    await dejarCorrer();
+    expect(estaEsperando()).toBe(true);
+
+    navegacion.currentEntry = { key: "clave-2" };
+    contestar(true);
+
+    await expect(salida).resolves.toBe("listo");
+    expect(irA).not.toHaveBeenCalled();
+    expect(estaEsperando()).toBe(false);
+  });
+
+  it("sin Navigation API, si cambia la ruta mientras espera, tampoco va", async () => {
+    window.history.replaceState(null, "", "/equipo/anadir");
+    const pendientes = { n: 1 };
+    let contestar: (ok: boolean) => void = () => undefined;
+    registrarFuente(
+      fuenteCon(
+        pendientes,
+        () =>
+          new Promise<boolean>((resolver) => {
+            contestar = (ok) => {
+              pendientes.n = 0;
+              resolver(ok);
+            };
+          }),
+      ),
+    );
+    const irA = vi.fn();
+    const salida = esperarYSalir(irA);
+    await dejarCorrer();
+
+    window.history.pushState(null, "", "/reportes");
+    contestar(true);
+
+    await salida;
+    expect(irA).not.toHaveBeenCalled();
+  });
+
+  it("si vence el tope y la persona sigue donde estaba, va igual", async () => {
+    vi.useFakeTimers();
+    registrarEnvio(new Promise<boolean>(() => undefined));
+    const irA = vi.fn();
+    void esperarYSalir(irA);
+
+    await vi.advanceTimersByTimeAsync(MS_TOPE_ESPERA);
+
+    expect(irA).toHaveBeenCalledTimes(1);
+  });
+
+  it("si vence el tope pero ya se había ido por su cuenta, no va", async () => {
+    vi.useFakeTimers();
+    const navegacion = instalarNavegacion("clave-1");
+    registrarEnvio(new Promise<boolean>(() => undefined));
+    const irA = vi.fn();
+    void esperarYSalir(irA);
+
+    navegacion.currentEntry = { key: "clave-2" };
+    await vi.advanceTimersByTimeAsync(MS_TOPE_ESPERA);
+
+    expect(irA).not.toHaveBeenCalled();
   });
 });
