@@ -8,7 +8,18 @@ import {
   type ResultadoBusqueda,
   type ResultadoInscripcion,
 } from "@/datos/equipo/contrato";
+import { campaniaProvisoria } from "@/datos/supabase/campania-provisoria";
 import { causaDe, ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
+import {
+  cadena,
+  cadenaONula,
+  esObjeto,
+  filas,
+  nombreVisible,
+  type Objeto,
+  RespuestaInesperada,
+  UUID,
+} from "@/datos/supabase/respuesta";
 
 /**
  * Fuente de la vista 23 (HU-CAM-004) contra las RPC de Supabase (ADR-013): `campanias_del_coordinador()`,
@@ -22,45 +33,6 @@ import { causaDe, ErrorSupabase, type ClienteRpc } from "@/datos/supabase/client
 
 /** Cuántos caracteres de la búsqueda se mandan; el resto se descarta (un nombre o un email no pasan de ahí). */
 const MAX_TEXTO_BUSQUEDA = 100;
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** La respuesta de una RPC no tiene la forma del contrato (migración 0015, 0033): un cambio en el backend, no un rechazo. */
-export class RespuestaInesperada extends Error {
-  constructor(rpc: string, detalle: string) {
-    super(`La RPC ${rpc} devolvió algo que el panel no entiende: ${detalle}.`);
-    this.name = "RespuestaInesperada";
-  }
-}
-
-type Objeto = Record<string, unknown>;
-
-function esObjeto(valor: unknown): valor is Objeto {
-  return typeof valor === "object" && valor !== null && !Array.isArray(valor);
-}
-
-function filas(rpc: string, respuesta: unknown): Objeto[] {
-  if (!Array.isArray(respuesta) || !respuesta.every(esObjeto)) throw new RespuestaInesperada(rpc, "no es una lista de filas");
-  return respuesta;
-}
-
-function cadena(rpc: string, fila: Objeto, campo: string): string {
-  const valor = fila[campo];
-  if (typeof valor !== "string") throw new RespuestaInesperada(rpc, `\`${campo}\` no es un texto`);
-  return valor;
-}
-
-function cadenaONula(rpc: string, fila: Objeto, campo: string): string | null {
-  const valor = fila[campo];
-  if (valor === null || valor === undefined) return null;
-  if (typeof valor !== "string") throw new RespuestaInesperada(rpc, `\`${campo}\` no es un texto ni null`);
-  return valor;
-}
-
-/** «Nombre Apellido»; si la cuenta no tiene ninguno, su email, para que la fila no quede sin título. */
-function nombreVisible(nombre: string, apellido: string, email: string): string {
-  return `${nombre} ${apellido}`.trim() || email;
-}
 
 const ESTADOS: Record<string, EstadoCuenta> = {
   PENDIENTE_ASIGNACION: "pendiente_asignacion",
@@ -179,13 +151,12 @@ type FuenteAnadir = Pick<FuenteDatosEquipo, "obtenerAnadirColportor" | "buscarCa
 export function crearFuenteAnadirRpc(cliente: ClienteRpc): FuenteAnadir {
   return {
     async obtenerAnadirColportor(): Promise<DatosAnadirColportor | null> {
-      // La campaña del panel: la primera de la lista, que viene con las en curso antes (backend 0033). Cuál es la que
-      // elige el coordinador cuando tiene varias es una decisión de Cristian (`panel-18-impl-p3-campania-panel`).
-      const campanias = filas("campanias_del_coordinador", await cliente.llamarRpc("campanias_del_coordinador", {}));
-      const campania = campanias[0];
+      // La campaña del panel es la misma que usa la vista 24 (`campaniaProvisoria`: la primera de la lista, con las en curso
+      // antes). Acá una campaña que todavía no empezó equivale a «sin campaña en curso»: la base no deja inscribir (`CI002`,
+      // más abajo) y la pantalla es `SinCampaniaParaAnadir`. La vista 24, en cambio, sí trabaja con una por empezar.
+      const campania = await campaniaProvisoria(cliente);
       if (!campania) return null;
-      const campaniaId = cadena("campanias_del_coordinador", campania, "id");
-      const nombre = cadena("campanias_del_coordinador", campania, "nombre");
+      const { id: campaniaId, nombre } = campania;
 
       try {
         const [sugeridos, equipo] = await Promise.all([

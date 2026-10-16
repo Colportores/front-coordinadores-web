@@ -293,8 +293,15 @@ export function AnadirColportor({
   /**
    * Cuentas que la base rechazó por estar en otra campaña (`CI007`) y la campaña que dijo: la fila pasa a mostrarse
    * bloqueada con el literal de la HU, en vez de seguir «sin campaña» con «Añadir» habilitado para repetir el rechazo.
+   * En los resultados de una búsqueda vale hasta que el servidor contesta otra (`recibidas`): ese dato es más nuevo, y si
+   * trae la cuenta libre (alguien la liberó) la fila vuelve a poder añadirse; si la trae todavía en otra campaña, se muestra
+   * esa. En los sugeridos vale siempre: son los de la carga de la página y no se refrescan, así que volver a ellos tras
+   * buscar y borrar el texto no tiene un dato más nuevo que lo contradiga.
    */
-  const [enOtraCampania, setEnOtraCampania] = useState<ReadonlyMap<string, string>>(() => new Map());
+  const [enOtraCampania, setEnOtraCampania] = useState<ReadonlyMap<string, { campania: string; recibidas: number }>>(
+    () => new Map(),
+  );
+  const recibidasAhora = useRef(0);
 
   const {
     consulta,
@@ -303,6 +310,7 @@ export function AnadirColportor({
     texto,
     buscando,
     resultados: encontrados,
+    recibidas,
     hayMas,
     cargandoMas,
     falla,
@@ -311,6 +319,10 @@ export function AnadirColportor({
     reintentar,
     reintentarMas,
   } = useBusquedaCandidatos(buscar, datos.sugeridos);
+
+  useEffect(() => {
+    recibidasAhora.current = recibidas;
+  });
 
   /** Lleva el foco a la fila de la cuenta (o, si ya no está en los resultados, al buscador). */
   const enfocarFila = useCallback((id: string) => {
@@ -340,7 +352,8 @@ export function AnadirColportor({
     setFallos((previos) => [...previos, { id: cuenta.id, mensaje }]);
     if (causa.tipo === "rechazo" && causa.campaniaEnConflicto) {
       const { nombre } = causa.campaniaEnConflicto;
-      setEnOtraCampania((previas) => new Map(previas).set(cuenta.id, nombre));
+      const marca = { campania: nombre, recibidas: recibidasAhora.current };
+      setEnOtraCampania((previas) => new Map(previas).set(cuenta.id, marca));
     }
   }, []);
 
@@ -365,10 +378,11 @@ export function AnadirColportor({
       enOtraCampania.size === 0
         ? encontrados
         : encontrados.map((c) => {
-            const campania = enOtraCampania.get(c.id);
-            return campania === undefined ? c : { ...c, campaniaActual: campania };
+            const marca = enOtraCampania.get(c.id);
+            const vigente = marca !== undefined && (!hayConsulta || marca.recibidas === recibidas);
+            return vigente ? { ...c, campaniaActual: marca.campania } : c;
           }),
-    [encontrados, enOtraCampania],
+    [encontrados, enOtraCampania, recibidas, hayConsulta],
   );
   const elegido = resultados.find((c) => c.id === elegidoId) ?? null;
   useEffect(() => {
