@@ -7,7 +7,7 @@ import { AvisoVersionDePrueba } from "@/shell/AvisoVersionDePrueba";
 import { MarcoDelPanel } from "@/shell/MarcoDelPanel";
 import { pestanasVisibles } from "@/shell/pestanas";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/inicio" }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/inicio", useRouter: () => ({ push: vi.fn() }) }));
 
 const TEXTO = "Versión de prueba con datos simulados. Lo que hagas no se guarda: al recargar la página vuelve a los datos de ejemplo.";
 

@@ -9,7 +9,7 @@ import { Topbar } from "@/shell/Topbar";
 import { fijarFlags } from "@/test/flags";
 
 const ruta = vi.hoisted(() => ({ actual: "/equipo" }));
-vi.mock("next/navigation", () => ({ usePathname: () => ruta.actual }));
+vi.mock("next/navigation", () => ({ usePathname: () => ruta.actual, useRouter: () => ({ push: vi.fn() }) }));
 
 function renderTopbar(modoDev: boolean) {
   fijarFlags({ modoDev });
