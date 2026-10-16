@@ -168,8 +168,8 @@ describe("QA · accesibilidad (axe A/AA, sin contraste) en cada estado", () => {
 
     espia.mockResolvedValueOnce({ ok: false, mensaje: "La cuenta ya está en otra campaña." });
     await userEvent.click(screen.getByRole("button", { name: "Añadir a Gonzalo Sosa" }));
-    // Esc cierra los avisos y manda lo pendiente ya, sin esperar los 8 s.
-    await userEvent.keyboard("{Escape}");
+    // Esc cierra los avisos y manda lo pendiente ya, sin esperar los 8 s (el primero solo devuelve el foco del «Deshacer»).
+    await userEvent.keyboard("{Escape}{Escape}");
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(await violaciones(contenedor)).toEqual([]);
   });
@@ -208,13 +208,12 @@ describe("QA · hallazgos resueltos (contraste, objetivo táctil, foco)", () => 
     expect(screen.getByRole("button", { name: /Deshacer/ })).toHaveClass("min-h-6", "min-w-6");
   });
 
-  it("tras «Añadir» el foco queda en la fila de la cuenta y no en el body", async () => {
+  it("tras «Añadir» el foco pasa al «Deshacer» del aviso y no cae al body", async () => {
     montar();
     await buscarTexto("ana");
     await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
     await screen.findByText(/Añadiste a Ana Martínez/);
-    const fila = screen.getByRole("button", { name: "Elegir a Ana Martínez" }).closest("li");
-    expect(fila).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Deshacer: Ana Martínez" })).toHaveFocus();
   });
 
   it("tras un «Añadir» que falla el foco queda en la fila y el botón vuelve a estar habilitado", async () => {
@@ -222,7 +221,7 @@ describe("QA · hallazgos resueltos (contraste, objetivo táctil, foco)", () => 
       throw new Error("sin red");
     });
     await userEvent.click(screen.getByRole("button", { name: "Añadir a Ana Martínez" }));
-    await userEvent.keyboard("{Escape}");
+    await userEvent.keyboard("{Escape}{Escape}"); // el primero devuelve el foco del «Deshacer»; el segundo manda ya
     await screen.findByRole("alert");
     expect(screen.getByRole("button", { name: "Añadir a Ana Martínez" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Elegir a Ana Martínez" }).closest("li")).toHaveFocus();

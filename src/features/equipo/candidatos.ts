@@ -21,8 +21,18 @@ export function iniciales(nombre: string): string {
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
+    // `Array.from` parte por caracteres, no por unidades UTF-16: `p[0]` cortaría un emoji a la mitad («�»).
+    .map((p) => Array.from(p)[0]?.toUpperCase())
     .join("");
+}
+
+/** Cuántos caracteres del texto buscado se repiten en el título de la lista; el resto se ve en el buscador. */
+export const MAX_CARACTERES_TITULO = 60;
+
+/** Acorta el texto a `max` caracteres (no unidades UTF-16: un emoji no se parte) y lo marca con «…». */
+export function recortarConPuntos(texto: string, max: number): string {
+  const caracteres = Array.from(texto);
+  return caracteres.length <= max ? texto : `${caracteres.slice(0, max).join("").trimEnd()}…`;
 }
 
 /** "2026-09-22" pasa a "22/09/2026" (sin usar Date: no depende de la zona horaria). */

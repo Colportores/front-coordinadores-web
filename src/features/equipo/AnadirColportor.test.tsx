@@ -678,6 +678,10 @@ describe("AnadirColportor", () => {
       await userEvent.click(await screen.findByRole("button", { name: "Añadir a Gonzalo Sosa" }));
       expect(screen.getAllByRole("status")).toHaveLength(2);
 
+      // El foco está en el «Deshacer» del último aviso: el primer Esc solo lo devuelve (los avisos siguen con su plazo)...
+      await userEvent.keyboard("{Escape}");
+      expect(screen.getAllByRole("status")).toHaveLength(2);
+      // ...y el siguiente, ya con el foco fuera de los avisos, manda todo ya.
       await userEvent.keyboard("{Escape}");
 
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -693,7 +697,7 @@ describe("AnadirColportor", () => {
       let contestar: (r: ResultadoInscripcion) => void = () => undefined;
       const { inscribir } = montar({ inscribir: () => new Promise((resolver) => (contestar = resolver)) });
       await userEvent.click(anadirEnFila("Ana Martínez"));
-      await userEvent.keyboard("{Escape}");
+      await userEvent.keyboard("{Escape}{Escape}"); // el primero devuelve el foco del «Deshacer»; el segundo manda ya
       await waitFor(() => expect(inscribir).toHaveBeenCalledTimes(1));
 
       await userEvent.keyboard("{Escape}");
@@ -707,7 +711,7 @@ describe("AnadirColportor", () => {
       let contestar: (r: ResultadoInscripcion) => void = () => undefined;
       const { inscribir } = montar({ inscribir: () => new Promise((resolver) => (contestar = resolver)) });
       await userEvent.click(anadirEnFila("Ana Martínez"));
-      await userEvent.keyboard("{Escape}");
+      await userEvent.keyboard("{Escape}{Escape}"); // el primero devuelve el foco del «Deshacer»; el segundo manda ya
       await waitFor(() => expect(inscribir).toHaveBeenCalledTimes(1));
 
       await userEvent.keyboard("{Escape}");
@@ -722,7 +726,7 @@ describe("AnadirColportor", () => {
       let contestar: (r: ResultadoInscripcion) => void = () => undefined;
       const { inscribir } = montar({ inscribir: () => new Promise((resolver) => (contestar = resolver)) });
       await userEvent.click(anadirEnFila("Ana Martínez"));
-      await userEvent.keyboard("{Escape}");
+      await userEvent.keyboard("{Escape}{Escape}"); // el primero devuelve el foco del «Deshacer»; el segundo manda ya
       await waitFor(() => expect(inscribir).toHaveBeenCalledTimes(1));
       await userEvent.keyboard("{Escape}");
 
@@ -1028,20 +1032,20 @@ describe("AnadirColportor", () => {
   });
 
   describe("foco", () => {
-    it("tras «Añadir» el foco queda en la fila de la cuenta y no en el body", async () => {
+    it("tras «Añadir» el foco pasa al «Deshacer» del aviso y no cae al body", async () => {
       montar();
       await userEvent.click(anadirEnFila("Ana Martínez"));
 
-      expect(screen.getByRole("button", { name: "Elegir a Ana Martínez" }).closest("li")).toHaveFocus();
+      expect(screen.getByRole("button", { name: "Deshacer: Ana Martínez" })).toHaveFocus();
     });
 
-    it("desde el detalle: el foco va a la fila de la cuenta", async () => {
+    it("desde el detalle: el foco también va al «Deshacer» del aviso", async () => {
       montar();
       await userEvent.click(screen.getByRole("button", { name: "Elegir a Ana Martínez" }));
       const detalle = screen.getByRole("region", { name: "Detalle de Ana Martínez" });
       await userEvent.click(within(detalle).getByRole("button", { name: "Añadir a Verano 2026" }));
 
-      expect(screen.getByRole("button", { name: "Elegir a Ana Martínez" }).closest("li")).toHaveFocus();
+      expect(screen.getByRole("button", { name: "Deshacer: Ana Martínez" })).toHaveFocus();
     });
 
     it("si ya está escribiendo en el buscador cuando falla el envío, no se le roba el foco", async () => {

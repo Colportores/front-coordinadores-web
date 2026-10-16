@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { CANDIDATOS_SIMULADOS } from "@/datos/equipo/simulado";
-import { ayudaBloqueo, fechaCorta, iniciales, motivoBloqueo } from "@/features/equipo/candidatos";
+import {
+  ayudaBloqueo,
+  fechaCorta,
+  iniciales,
+  MAX_CARACTERES_TITULO,
+  motivoBloqueo,
+  recortarConPuntos,
+} from "@/features/equipo/candidatos";
 
 const porId = (id: string) => {
   const c = CANDIDATOS_SIMULADOS.find((x) => x.id === id);
@@ -39,5 +46,33 @@ describe("candidatos", () => {
     expect(iniciales("Ana Martínez")).toBe("AM");
     expect(iniciales("Cher")).toBe("C");
     expect(fechaCorta("2026-09-22")).toBe("22/09/2026");
+  });
+
+  it("iniciales toma caracteres enteros: un emoji no se parte (se vio como «A�»)", () => {
+    expect(iniciales("Ana 🌳 Núñez")).toBe("A🌳");
+    expect(iniciales("🌳 Ana")).toBe("🌳A");
+    expect(iniciales("🌳🌳")).toBe("🌳");
+    expect(iniciales("   ")).toBe("");
+  });
+
+  describe("recortarConPuntos", () => {
+    it("deja igual lo que entra en el máximo, incluido el justo", () => {
+      expect(recortarConPuntos("abc", 3)).toBe("abc");
+      expect(recortarConPuntos("", 3)).toBe("");
+    });
+
+    it("corta en el máximo y marca con «…»", () => {
+      expect(recortarConPuntos("abcd", 3)).toBe("abc…");
+      expect(recortarConPuntos("x".repeat(5000), MAX_CARACTERES_TITULO)).toBe(`${"x".repeat(MAX_CARACTERES_TITULO)}…`);
+    });
+
+    it("cuenta caracteres, no unidades UTF-16: no parte un emoji ni deja de contarlo", () => {
+      expect(recortarConPuntos("🌳🌳🌳", 3)).toBe("🌳🌳🌳");
+      expect(recortarConPuntos("🌳🌳🌳🌳", 3)).toBe("🌳🌳🌳…");
+    });
+
+    it("no deja un espacio antes de los puntos", () => {
+      expect(recortarConPuntos("ana  perez", 4)).toBe("ana…");
+    });
   });
 });

@@ -11,7 +11,14 @@ import type {
   ResultadoBusqueda,
   ResultadoInscripcion,
 } from "@/datos/equipo/contrato";
-import { ayudaBloqueo, fechaCorta, iniciales, motivoBloqueo } from "@/features/equipo/candidatos";
+import {
+  ayudaBloqueo,
+  fechaCorta,
+  iniciales,
+  MAX_CARACTERES_TITULO,
+  motivoBloqueo,
+  recortarConPuntos,
+} from "@/features/equipo/candidatos";
 import { useBusquedaCandidatos } from "@/features/equipo/useBusquedaCandidatos";
 import {
   mensajeAnadirRechazado,
@@ -81,6 +88,8 @@ function AvisoBloqueo({ texto }: { texto: string }) {
   );
 }
 
+const idTextoAviso = (id: string) => `aviso-anadido-${id}`;
+
 /** Aviso con «Deshacer»: cada añadido tiene el suyo y su propio plazo de 8 s (lo cuenta `useInscripcionesDiferidas`). */
 function AvisoAnadido({
   id,
@@ -99,12 +108,18 @@ function AvisoAnadido({
       data-aviso-id={id}
       className="flex items-center gap-4 rounded-tarjeta bg-marca px-4 py-3 text-nav text-superficie shadow-lg"
     >
-      <span>
+      <span id={idTextoAviso(id)}>
         Añadiste a {nombre} a {campania}.
       </span>
       <button
         type="button"
         onClick={() => onDeshacer(id)}
+        // El foco llega acá solo al aparecer el aviso (decisión del 16/10): el lector lee el texto del aviso y después «Deshacer».
+        aria-describedby={idTextoAviso(id)}
+        // Con Enter sostenido en «Añadir», el foco ya pasó a este botón: las repeticiones de la tecla no lo aprietan.
+        onKeyDown={(e) => {
+          if (e.repeat) e.preventDefault();
+        }}
         aria-label={`Deshacer: ${nombre}`}
         className="inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-control px-1 font-semibold underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-superficie focus-visible:outline-none"
       >
@@ -278,13 +293,19 @@ export function AnadirColportor({
   /** Inscripciones que no prosperaron, una por cuenta: no se pisan entre sí ni se borran al escribir. */
   const [fallos, setFallos] = useState<{ id: string; mensaje: string }[]>([]);
 
+  /**
+   * Cuentas que la base rechazó por estar en otra campaña (`CI007`) y la campaña que dijo: la fila pasa a mostrarse
+   * bloqueada con el literal de la HU, en vez de seguir «sin campaña» con «Añadir» habilitado para repetir el rechazo.
+   */
+  const [enOtraCampania, setEnOtraCampania] = useState<ReadonlyMap<string, string>>(() => new Map());
+
   const {
     consulta,
     setConsulta,
     hayConsulta,
     texto,
     buscando,
-    resultados,
+    resultados: encontrados,
     hayMas,
     cargandoMas,
     falla,
@@ -300,6 +321,14 @@ export function AnadirColportor({
     (fila ?? buscador.current)?.focus();
   }, []);
 
+  /**
+   * Foco y «Deshacer» (decisión del 16/10, WCAG 2.1.1): al aparecer el aviso el foco pasa a su «Deshacer», así un solo Enter
+   * desde «Añadir» lo deshace sin recorrer la página dentro de los 8 s. Al cerrarse el aviso (por los 8 s o por «Deshacer»)
+   * o con Esc, el foco vuelve a donde estaba, que es la fila de la cuenta (su «Añadir» queda apagado) y, si la cuenta ya no
+   * está en los resultados, el buscador (lo resuelve `enfocarFila`).
+   */
+  const avisoPorEnfocar = useRef<string | null>(null);
+
   /** La cuenta cuyo detalle se ve ahora: si falla justo esa, el aviso no necesita nombrarla. */
   const elegidaVisible = useRef<string | null>(null);
 
@@ -312,6 +341,10 @@ export function AnadirColportor({
           ? causa.mensaje
           : mensajeAnadirRechazado(cuenta.nombre, causa.mensaje);
     setFallos((previos) => [...previos, { id: cuenta.id, mensaje }]);
+    if (causa.tipo === "rechazo" && causa.campaniaEnConflicto) {
+      const { nombre } = causa.campaniaEnConflicto;
+      setEnOtraCampania((previas) => new Map(previas).set(cuenta.id, nombre));
+    }
   }, []);
 
   // Si el plazo vence con el foco en «Deshacer», ese botón desaparece: el foco vuelve a la fila.
@@ -330,11 +363,29 @@ export function AnadirColportor({
     alVencerPlazo,
   });
 
+  const resultados = useMemo(
+    () =>
+      enOtraCampania.size === 0
+        ? encontrados
+        : encontrados.map((c) => {
+            const campania = enOtraCampania.get(c.id);
+            return campania === undefined ? c : { ...c, campaniaActual: campania };
+          }),
+    [encontrados, enOtraCampania],
+  );
   const elegido = resultados.find((c) => c.id === elegidoId) ?? null;
   useEffect(() => {
     elegidaVisible.current = elegido?.id ?? null;
   });
   const hayTrabajoPendiente = avisos.length > 0 || enviando;
+
+  // El aviso nuevo ya está en pantalla: el foco pasa a su «Deshacer» (el más nuevo si hay varios).
+  useEffect(() => {
+    const id = avisoPorEnfocar.current;
+    if (id === null) return;
+    avisoPorEnfocar.current = null;
+    raiz.current?.querySelector<HTMLElement>(`[data-aviso-id="${id}"] button`)?.focus();
+  }, [avisos]);
 
   const equipo = useMemo(
     () => [
@@ -357,13 +408,18 @@ export function AnadirColportor({
       return;
     }
     saliendo.current = true;
+    let tope: ReturnType<typeof setTimeout> | undefined;
     try {
       const sinFallas = await Promise.race([
         confirmarTodas(),
-        new Promise<boolean>((resolver) => setTimeout(() => resolver(true), MS_TOPE_SALIDA)),
+        new Promise<boolean>((resolver) => {
+          tope = setTimeout(() => resolver(true), MS_TOPE_SALIDA);
+        }),
       ]);
       if (sinFallas) router.push("/equipo");
     } finally {
+      // Si los envíos contestaron antes, el tope de 10 s ya no hace falta.
+      clearTimeout(tope);
       saliendo.current = false;
     }
   }, [router, hayTrabajoPendiente, confirmarTodas]);
@@ -371,6 +427,12 @@ export function AnadirColportor({
   useEffect(() => {
     function alTeclear(evento: KeyboardEvent) {
       if (evento.key === "Escape") {
+        // Con el foco en un aviso, Esc solo lo devuelve a donde estaba: el aviso sigue con su plazo y nada más cambia.
+        const aviso = evento.target instanceof Element ? evento.target.closest<HTMLElement>("[data-aviso-id]") : null;
+        if (aviso?.dataset.avisoId) {
+          enfocarFila(aviso.dataset.avisoId);
+          return;
+        }
         // Provisorio (no hay diseño ni patrón para salir con trabajo a medias): Esc va de a un paso y no pierde nada sin aviso.
         if (consulta !== "") {
           setConsulta("");
@@ -393,7 +455,7 @@ export function AnadirColportor({
     }
     document.addEventListener("keydown", alTeclear);
     return () => document.removeEventListener("keydown", alTeclear);
-  }, [consulta, setConsulta, avisos.length, confirmarTodas, salir]);
+  }, [consulta, setConsulta, avisos.length, confirmarTodas, salir, enfocarFila]);
 
   // La página siguiente se pide cuando el final de la lista entra en pantalla. Sin `IntersectionObserver` quedan
   // el «↓» del teclado y el aviso de abajo.
@@ -411,9 +473,10 @@ export function AnadirColportor({
   function anadir(candidato: CandidatoColportor) {
     if (motivoBloqueo(candidato) !== null) return;
     setFallos((previos) => previos.filter((f) => f.id !== candidato.id));
-    programar({ id: candidato.id, nombre: candidato.nombre });
-    // El botón se apaga al añadir: el foco pasa a la fila en vez de caer al body (salvo que ya esté escribiendo en otro lado).
-    if (focoSigueEnAnadir(candidato.id)) enfocarFila(candidato.id);
+    const nueva = programar({ id: candidato.id, nombre: candidato.nombre });
+    // El botón se apaga al añadir y aparece el aviso con «Deshacer»: el foco va ahí en vez de caer al body (salvo que ya
+    // esté escribiendo en otro lado). Un doble toque no suma un segundo aviso ni mueve nada.
+    if (nueva && focoSigueEnAnadir(candidato.id)) avisoPorEnfocar.current = candidato.id;
   }
 
   function alDeshacer(id: string) {
@@ -453,7 +516,9 @@ export function AnadirColportor({
     void salir();
   }
 
-  const busqueda = texto.toUpperCase();
+  // El título repite lo buscado en mayúsculas: un texto pegado muy largo (una lista de emails) se acorta, y lo que sigue sin
+  // espacios se parte, para que no empuje el título por debajo de la columna del detalle. El texto entero queda en el buscador.
+  const busqueda = recortarConPuntos(texto, MAX_CARACTERES_TITULO).toUpperCase();
   const titulo = !hayConsulta
     ? `PENDIENTES DE ASIGNACIÓN · ${resultados.length}`
     : buscando
@@ -522,7 +587,7 @@ export function AnadirColportor({
 
           <div className="px-1 pb-2">
             <div className="px-3.5 pt-3.5 pb-1.5">
-              <h3 className="text-etiqueta font-semibold tracking-etiqueta text-tinta-suave">{titulo}</h3>
+              <h3 className="text-etiqueta font-semibold tracking-etiqueta wrap-anywhere text-tinta-suave">{titulo}</h3>
             </div>
             {buscando ? (
               <p role="status" className="px-3.5 py-4 text-cuerpo text-tinta-suave">
@@ -610,10 +675,13 @@ export function AnadirColportor({
               {equipo.map((m) => (
                 <li
                   key={m.id}
-                  className="flex justify-between border-b border-borde-suave px-4 py-2 text-cuerpo text-tinta"
+                  className="flex justify-between gap-3 border-b border-borde-suave px-4 py-2 text-cuerpo text-tinta"
                 >
-                  <span>{m.nombre}</span>
-                  <span className="text-tinta-suave">{m.zonaNombre ?? "Sin zona"}</span>
+                  {/* Un nombre o una zona largos sin espacios se parten en vez de empujar al otro fuera de la tarjeta. */}
+                  <span className="min-w-0 wrap-anywhere">{m.nombre}</span>
+                  <span className="max-w-[45%] flex-none text-right wrap-anywhere text-tinta-suave">
+                    {m.zonaNombre ?? "Sin zona"}
+                  </span>
                 </li>
               ))}
             </ul>

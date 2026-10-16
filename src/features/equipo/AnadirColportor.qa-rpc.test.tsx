@@ -19,7 +19,7 @@ import { MS_ESPERA_BUSQUEDA } from "@/features/equipo/useBusquedaCandidatos";
 /**
  * QA de la vista 23 conectada a las RPC (PR #51, issue #41), 16/10: los estados y casos límite que se agregaron con la
  * búsqueda en el servidor y el «Deshacer» de 8 s. Lo que ya cubren `AnadirColportor.test.tsx` y `.qa.test.tsx` no se repite.
- * Los `it.skip` documentan un hallazgo del QA: quien lo arregla saca el `skip`.
+ * Los de «hallazgos» fueron `it.skip` hasta que se arreglaron.
  */
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -202,8 +202,8 @@ describe("QA #41 · sin campaña en curso", () => {
   });
 });
 
-describe("QA #41 · hallazgos (con skip hasta que se arreglen)", () => {
-  it.skip("QA #41 · un texto pegado muy largo no se repite entero en el título de la lista: se corta o se parte (si no, pisa la columna del detalle)", async () => {
+describe("QA #41 · hallazgos de la corrida del 16/10 (arreglados)", () => {
+  it("QA #41 · un texto pegado muy largo no se repite entero en el título de la lista: se corta o se parte (si no, pisa la columna del detalle)", async () => {
     montar();
     await userEvent.click(caja());
     await userEvent.paste("x".repeat(5000));
@@ -214,7 +214,7 @@ describe("QA #41 · hallazgos (con skip hasta que se arreglen)", () => {
     expect(sePartePorSiSolo || (titulo.textContent ?? "").length <= 140).toBe(true);
   });
 
-  it.skip("QA #41 · el avatar de una cuenta con emoji en el nombre no muestra media letra («�»)", async () => {
+  it("QA #41 · el avatar de una cuenta con emoji en el nombre no muestra media letra («�»)", async () => {
     expect(iniciales("Ana 🌳 Núñez")).not.toMatch(TIENE_MITAD_DE_EMOJI);
     expect(iniciales("🌳 Ana")).not.toMatch(TIENE_MITAD_DE_EMOJI);
 
@@ -227,7 +227,7 @@ describe("QA #41 · hallazgos (con skip hasta que se arreglen)", () => {
     expect(document.body.textContent).not.toMatch(TIENE_MITAD_DE_EMOJI);
   });
 
-  it.skip("QA #41 · un nombre largo sin espacios en «Ya en tu equipo» se parte (o se acorta) y deja ver la zona", () => {
+  it("QA #41 · un nombre largo sin espacios en «Ya en tu equipo» se parte (o se acorta) y deja ver la zona", () => {
     const largo = "N".repeat(90);
     montar({
       datos: {
@@ -240,7 +240,7 @@ describe("QA #41 · hallazgos (con skip hasta que se arreglen)", () => {
     expect(nombre.className).toMatch(/wrap-anywhere|break-all|min-w-0|truncate/);
   });
 
-  it.skip("QA #41 · tras un rechazo por estar en otra campaña (CI007) la fila lo refleja: no sigue «sin campaña» con «Añadir» habilitado para repetir el mismo rechazo", async () => {
+  it("QA #41 · tras un rechazo por estar en otra campaña (CI007) la fila lo refleja: no sigue «sin campaña» con «Añadir» habilitado para repetir el mismo rechazo", async () => {
     vi.useFakeTimers();
     montar({
       inscribir: async () => ({
@@ -256,12 +256,245 @@ describe("QA #41 · hallazgos (con skip hasta que se arreglen)", () => {
     expect(anadirEnFila("Ana Martínez")).toBeDisabled();
   });
 
-  it.skip("QA #41 · un texto de 100+ caracteres con un emoji en el límite manda al servidor un texto bien formado (sin media letra)", async () => {
+  it("QA #41 · un texto de 100+ caracteres con un emoji en el límite manda al servidor un texto bien formado (sin media letra)", async () => {
     const llamarRpc = vi.fn(async (): Promise<unknown> => []);
     const fuente = crearFuenteAnadirRpc({ llamarRpc: llamarRpc as never });
     await fuente.buscarCandidatos("00000000-0000-4000-8000-000000000001", `${"a".repeat(99)}🌳🌳`, null);
 
     const enviado = (llamarRpc.mock.calls[0] as unknown as [string, { p_texto: string }])[1].p_texto;
     expect(enviado).not.toMatch(TIENE_MITAD_DE_EMOJI);
+  });
+
+  it("el texto buscado se manda de a lo sumo 100 caracteres (no unidades) y un emoji en el límite entra entero", async () => {
+    const llamarRpc = vi.fn(async (): Promise<unknown> => []);
+    const fuente = crearFuenteAnadirRpc({ llamarRpc: llamarRpc as never });
+    await fuente.buscarCandidatos("00000000-0000-4000-8000-000000000001", `${"a".repeat(99)}🌳🌳`, null);
+    await fuente.buscarCandidatos("00000000-0000-4000-8000-000000000001", `${"b".repeat(98)}🌳🌳`, null);
+
+    const enviados = llamarRpc.mock.calls.map((llamada) => (llamada as unknown as [string, { p_texto: string }])[1].p_texto);
+    expect(enviados[0]).toBe(`${"a".repeat(99)}🌳`);
+    expect(enviados[1]).toBe(`${"b".repeat(98)}🌳🌳`);
+    expect(enviados.map((t) => Array.from(t).length)).toEqual([100, 100]);
+  });
+
+  it("el título de la lista corta el texto buscado en 60 caracteres con «…» y el buscador conserva todo lo pegado", async () => {
+    montar();
+    await userEvent.click(caja());
+    await userEvent.paste("x".repeat(70));
+    await waitFor(() => expect(screen.queryByText("Buscando cuentas…")).not.toBeInTheDocument());
+
+    expect(screen.getByRole("heading", { level: 3, name: `0 RESULTADOS PARA “${"X".repeat(60)}…”` })).toBeInTheDocument();
+    expect(caja()).toHaveValue("x".repeat(70));
+  });
+
+  it("el título no corta un emoji en el límite de 60 caracteres", async () => {
+    montar();
+    await userEvent.click(caja());
+    await userEvent.paste(`${"y".repeat(59)}🌳🌳🌳`);
+    await waitFor(() => expect(screen.queryByText("Buscando cuentas…")).not.toBeInTheDocument());
+
+    const titulo = screen.getByRole("heading", { level: 3, name: /^0 RESULTADOS PARA/ });
+    expect(titulo.textContent).toBe(`0 RESULTADOS PARA “${"Y".repeat(59)}🌳…”`);
+    expect(titulo.textContent).not.toMatch(TIENE_MITAD_DE_EMOJI);
+  });
+
+  it("un texto de hasta 60 caracteres se muestra entero, sin «…»", async () => {
+    montar();
+    await userEvent.type(caja(), "z".repeat(60));
+    await waitFor(() => expect(screen.queryByText("Buscando cuentas…")).not.toBeInTheDocument());
+
+    expect(screen.getByRole("heading", { level: 3, name: `0 RESULTADOS PARA “${"Z".repeat(60)}”` })).toBeInTheDocument();
+  });
+
+  it("tras el rechazo por otra campaña (CI007) la fila y el detalle muestran la campaña y el motivo, y «Añadir» queda apagado en los dos", async () => {
+    vi.useFakeTimers();
+    montar({
+      inscribir: async () => ({
+        ok: false,
+        mensaje: "Está en campaña Otoño Norte. Reasignar primero.",
+        campaniaEnConflicto: { id: "camp-otonio", nombre: "Otoño Norte" },
+      }),
+    });
+    await tocar(anadirEnFila("Ana Martínez"));
+    await pasar(MS_DESHACER);
+
+    const detalle = screen.getByRole("region", { name: "Detalle de Ana Martínez" });
+    expect(within(detalle).getByRole("button", { name: /^Añadir a Verano 2026$/ })).toBeDisabled();
+    expect(within(detalle).getByText("Pedile al coordinador de Otoño Norte que lo libere.")).toBeInTheDocument();
+    const fila = screen.getByRole("button", { name: "Elegir a Ana Martínez" }).closest("li");
+    expect(fila).toHaveTextContent("Campaña actual: Otoño Norte");
+    expect(fila).toHaveTextContent("Está en campaña Otoño Norte. Reasignar primero.");
+  });
+
+  it("el rechazo por otra campaña de una cuenta no bloquea a las demás", async () => {
+    vi.useFakeTimers();
+    montar({
+      inscribir: async () => ({
+        ok: false,
+        mensaje: "Está en campaña Otoño Norte. Reasignar primero.",
+        campaniaEnConflicto: { id: "camp-otonio", nombre: "Otoño Norte" },
+      }),
+    });
+    await tocar(anadirEnFila("Ana Martínez"));
+    await pasar(MS_DESHACER);
+
+    expect(anadirEnFila("Ana Martínez")).toBeDisabled();
+    expect(anadirEnFila("Gonzalo Sosa")).toBeEnabled();
+  });
+
+  it("un rechazo por otro motivo (sin campaña en conflicto) deja la fila como estaba, con «Añadir» habilitado", async () => {
+    vi.useFakeTimers();
+    montar({ inscribir: async () => ({ ok: false, mensaje: "La campaña no está activa: solo se inscribe en una campaña vigente." }) });
+    await tocar(anadirEnFila("Ana Martínez"));
+    await pasar(MS_DESHACER);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("La campaña no está activa");
+    expect(anadirEnFila("Ana Martínez")).toBeEnabled();
+  });
+
+  it("«‹ Equipo» con un envío en camino no deja el tope de 10 s corriendo cuando contestan antes", async () => {
+    vi.useFakeTimers();
+    montar();
+    await tocar(anadirEnFila("Ana Martínez"));
+    await pasar(0);
+    const conElPlazo = vi.getTimerCount();
+
+    await tocar(screen.getByRole("link", { name: "‹ Equipo" }));
+    await pasar(0);
+
+    // Se fue el plazo de «Deshacer» (se mandó la inscripción) y el tope de salida se pidió y se canceló: queda uno menos.
+    expect(vi.getTimerCount()).toBe(conElPlazo - 1);
+  });
+});
+
+describe("QA #41 · «Deshacer» con el teclado (decisión del 16/10, WCAG 2.1.1)", () => {
+  const filaDe = (nombre: string) => screen.getByRole("button", { name: `Elegir a ${nombre}` }).closest("li");
+  const deshacerDe = (nombre: string) => screen.getByRole("button", { name: `Deshacer: ${nombre}` });
+  /** Esc con el foco donde esté (con tiempo falso no se puede usar `userEvent`: se cuelga esperando el reloj). */
+  const escape = () =>
+    act(async () => {
+      fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+    });
+
+  it("un solo Enter desde «Añadir» deshace: el foco pasa a «Deshacer», el otro Enter lo aprieta y el foco vuelve a la fila", async () => {
+    const { inscribir } = montar();
+    await act(async () => anadirEnFila("Ana Martínez").focus());
+
+    await userEvent.keyboard("{Enter}");
+    expect(deshacerDe("Ana Martínez")).toHaveFocus();
+
+    await userEvent.keyboard("{Enter}");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(anadirEnFila("Ana Martínez")).toBeEnabled();
+    expect(anadirEnFila("Ana Martínez")).toHaveTextContent("Añadir");
+    expect(filaDe("Ana Martínez")).toHaveFocus();
+    expect(inscribir).not.toHaveBeenCalled();
+  });
+
+  it("«Deshacer» describe el aviso: el lector lee «Añadiste a <nombre> a <campaña>.» y después «Deshacer»", async () => {
+    montar();
+    await userEvent.click(anadirEnFila("Ana Martínez"));
+
+    expect(deshacerDe("Ana Martínez")).toHaveAccessibleDescription("Añadiste a Ana Martínez a Verano 2026.");
+  });
+
+  it("Esc sobre el aviso devuelve el foco a la fila sin cerrarlo ni mandar nada; el aviso sigue con su plazo", async () => {
+    vi.useFakeTimers();
+    const { inscribir } = montar();
+    await tocar(anadirEnFila("Ana Martínez"));
+    expect(deshacerDe("Ana Martínez")).toHaveFocus();
+
+    await escape();
+
+    expect(filaDe("Ana Martínez")).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent("Añadiste a Ana Martínez a Verano 2026.");
+    expect(inscribir).not.toHaveBeenCalled();
+    expect(anadirEnFila("Ana Martínez")).toHaveTextContent("Añadido ✓");
+
+    await pasar(MS_DESHACER);
+    expect(inscribir).toHaveBeenCalledExactlyOnceWith("usr-ana-martinez");
+  });
+
+  it("Esc con el buscador escrito y el foco en el aviso no limpia la búsqueda: solo devuelve el foco", async () => {
+    vi.useFakeTimers();
+    montar();
+    await tocar(anadirEnFila("Ana Martínez"));
+    await act(async () => {
+      fireEvent.change(caja(), { target: { value: "ana" } });
+    });
+    await pasar(MS_ESPERA_BUSQUEDA);
+    expect(deshacerDe("Ana Martínez")).toHaveFocus();
+
+    await escape();
+
+    expect(caja()).toHaveValue("ana");
+    expect(filaDe("Ana Martínez")).toHaveFocus();
+  });
+
+  it("con varios avisos, el foco va al «Deshacer» del más nuevo", async () => {
+    montar();
+    await userEvent.click(anadirEnFila("Ana Martínez"));
+    expect(deshacerDe("Ana Martínez")).toHaveFocus();
+
+    await userEvent.click(anadirEnFila("Gonzalo Sosa"));
+
+    expect(deshacerDe("Gonzalo Sosa")).toHaveFocus();
+    expect(screen.getAllByRole("status")).toHaveLength(2);
+  });
+
+  it("un doble toque en «Añadir» no suma un segundo aviso", async () => {
+    montar();
+    await userEvent.dblClick(anadirEnFila("Ana Martínez"));
+
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+  });
+
+  it("si el plazo vence con el foco en «Deshacer», el foco vuelve a la fila de la cuenta", async () => {
+    vi.useFakeTimers();
+    montar();
+    await tocar(anadirEnFila("Ana Martínez"));
+    expect(deshacerDe("Ana Martínez")).toHaveFocus();
+
+    await pasar(MS_DESHACER);
+
+    expect(filaDe("Ana Martínez")).toHaveFocus();
+  });
+
+  it("si al vencer el plazo la cuenta ya no está en los resultados, el foco va al buscador", async () => {
+    vi.useFakeTimers();
+    montar();
+    await tocar(anadirEnFila("Ana Martínez"));
+    await act(async () => {
+      fireEvent.change(caja(), { target: { value: "zzzzqq" } }); // sin foco en el buscador: el foco sigue en «Deshacer»
+    });
+    await pasar(MS_ESPERA_BUSQUEDA);
+    expect(deshacerDe("Ana Martínez")).toHaveFocus();
+
+    await pasar(MS_DESHACER);
+
+    expect(caja()).toHaveFocus();
+  });
+
+  it("si el foco ya está escribiendo en el buscador cuando se añade, no se le roba", async () => {
+    vi.useFakeTimers();
+    montar();
+    await act(async () => {
+      caja().focus();
+      anadirEnFila("Ana Martínez").click(); // un clic programático (un lector de pantalla, una extensión) no mueve el foco
+    });
+
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    expect(caja()).toHaveFocus();
+  });
+
+  it("el Enter sostenido en «Añadir» no aprieta «Deshacer» cuando el foco ya pasó al aviso (las repeticiones se ignoran)", async () => {
+    montar();
+    await userEvent.click(anadirEnFila("Ana Martínez"));
+    const deshacer = deshacerDe("Ana Martínez");
+
+    const siguioElPorDefecto = fireEvent.keyDown(deshacer, { key: "Enter", repeat: true });
+    expect(siguioElPorDefecto).toBe(false); // preventDefault: el navegador no dispara el clic
+    expect(fireEvent.keyDown(deshacer, { key: "Enter" })).toBe(true); // la primera pulsación sigue andando
+    expect(screen.getByRole("status")).toBeInTheDocument();
   });
 });

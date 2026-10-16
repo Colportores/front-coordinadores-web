@@ -24,7 +24,14 @@ export interface Anadido {
 }
 
 /** Por qué no prosperó el envío: la base lo rechazó (con su texto) o la llamada se cayó. */
-export type CausaFallo = { tipo: "rechazo"; mensaje: string } | { tipo: "sin-conexion" };
+export type CausaFallo =
+  | {
+      tipo: "rechazo";
+      mensaje: string;
+      /** `CI007`: la campaña donde ya está la cuenta (la vista la marca como bloqueada). */
+      campaniaEnConflicto?: { id: string; nombre: string };
+    }
+  | { tipo: "sin-conexion" };
 
 interface Opciones {
   inscribir: (usuarioId: string) => Promise<ResultadoInscripcion>;
@@ -72,7 +79,10 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
       let causa: CausaFallo | null = null;
       try {
         const resultado = await ultimo.current.inscribir(cuenta.id);
-        if (!resultado.ok) causa = { tipo: "rechazo", mensaje: resultado.mensaje };
+        if (!resultado.ok) {
+          causa = { tipo: "rechazo", mensaje: resultado.mensaje };
+          if (resultado.campaniaEnConflicto) causa.campaniaEnConflicto = resultado.campaniaEnConflicto;
+        }
       } catch {
         // Si la llamada se cae, nada queda «enviándose»: se puede volver a intentar.
         causa = { tipo: "sin-conexion" };
@@ -90,9 +100,10 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
     return envio;
   }, []);
 
+  /** Deja la cuenta como añadida con su plazo. Devuelve `false` si ya lo estaba (el doble toque no suma un segundo aviso). */
   const programar = useCallback(
-    (cuenta: Anadido) => {
-      if (conocidos.current.has(cuenta.id)) return;
+    (cuenta: Anadido): boolean => {
+      if (conocidos.current.has(cuenta.id)) return false;
       conocidos.current.add(cuenta.id);
       setAnadidos((previos) => [...previos, cuenta]);
       setAvisos((previos) => [...previos, cuenta]);
@@ -101,6 +112,7 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
         void enviar(cuenta);
       }, MS_DESHACER);
       plazos.current.set(cuenta.id, { cuenta, temporizador });
+      return true;
     },
     [enviar],
   );

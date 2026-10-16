@@ -44,7 +44,7 @@ describe("AnadirColportorLocal (vista 23 en el sitio de prueba)", () => {
 
     await userEvent.click(screen.getByRole("button", { name: `Añadir a ${sugerido.nombre}` }));
     expect(espia).not.toHaveBeenCalled();
-    await userEvent.keyboard("{Escape}");
+    await userEvent.keyboard("{Escape}{Escape}"); // el primero devuelve el foco del «Deshacer»; el segundo manda ya
 
     await vi.waitFor(() => expect(espia).toHaveBeenCalledExactlyOnceWith(DATOS_ANADIR_COLPORTOR_SIMULADO.campaniaId, sugerido.id));
   });

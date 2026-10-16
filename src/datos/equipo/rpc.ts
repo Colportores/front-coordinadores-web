@@ -85,7 +85,9 @@ function diaEnMontevideo(rpc: string, instante: string): string {
 /**
  * Una fila de `buscar_candidatos()`. El `motivo_bloqueo` de la fila no se lee: la vista lo deduce del estado de la
  * cuenta y de su campaña vigente, que son las dos reglas con las que la base lo calcula (`motivo_rechazo_inscripcion()`):
- * suspendida, o en otra campaña. Las demás (email sin verificar, ya inscripta, baja) la base ya las deja fuera de la lista.
+ * suspendida (`USUARIO_SUSPENDIDO`), o en otra campaña (`EN_OTRA_CAMPANIA`). Las demás (email sin verificar, ya inscripta)
+ * la base ya las deja fuera de la lista, y desde la migración 0028 la baja de esta campaña ya no bloquea (se reactiva).
+ * Leerlo solo serviría el día que el backend sume un motivo nuevo, y ese motivo vendría sin texto para mostrar.
  */
 function aCandidato(fila: Objeto): CandidatoColportor {
   const rpc = "buscar_candidatos";
@@ -204,7 +206,8 @@ export function crearFuenteAnadirRpc(cliente: ClienteRpc): FuenteAnadir {
     },
 
     async buscarCandidatos(campaniaId, texto, despuesDe): Promise<ResultadoBusqueda> {
-      const buscado = texto.trim().slice(0, MAX_TEXTO_BUSQUEDA).trim();
+      // Por caracteres, no por unidades UTF-16: `slice` en el límite partiría un emoji y mandaría media letra.
+      const buscado = Array.from(texto.trim()).slice(0, MAX_TEXTO_BUSQUEDA).join("").trim();
       if (buscado === "") return { ok: true, candidatos: [], hayMas: false };
       // El cursor viene del navegador: si no es una cuenta, no hay de dónde seguir.
       if (despuesDe !== null && !UUID.test(despuesDe)) return { ok: false, mensaje: CURSOR_PERDIDO, reiniciar: true };
