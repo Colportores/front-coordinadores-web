@@ -11,7 +11,7 @@ import { useModoDev } from "@/dev/ProveedorModoDev";
 import { cn } from "@/lib/utils";
 import type { DefinicionPestana } from "@/shell/pestanas";
 import {
-  esperarTrabajoPendiente,
+  esperarYSalir,
   estaEsperando,
   hayQueEsperar,
   useEsperandoTrabajo,
@@ -55,7 +55,7 @@ export function Topbar({ resumen, pestanas }: { resumen: ResumenCoordinador; pes
     if (evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) return;
     if (!estaEsperando() && !hayQueEsperar()) return;
     evento.preventDefault();
-    if ((await esperarTrabajoPendiente()) === "listo") router.push(destino);
+    await esperarYSalir(() => router.push(destino));
   }
 
   return (
