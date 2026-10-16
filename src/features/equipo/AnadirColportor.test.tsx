@@ -457,7 +457,22 @@ describe("AnadirColportor", () => {
       const boton = within(screen.getByRole("region", { name: "Detalle de Ana Martínez" })).getByRole("button", {
         name: `Añadir a ${campania}`,
       });
-      expect(boton).toHaveClass("whitespace-normal", "h-auto", "max-w-full");
+      expect(boton).toHaveClass("whitespace-normal", "wrap-anywhere", "h-auto", "max-w-full");
+    });
+
+    it("un nombre de campaña larguísimo y sin espacios también se parte: el botón del detalle lleva `wrap-anywhere`", async () => {
+      // Sin espacios `whitespace-normal` no tiene dónde cortar, y `break-words` no alcanza en un botón `inline-flex`: su texto es un
+      // ítem flex que no baja de la palabra más larga. En Chromium a 1280 px, con `break-words` el texto medía 553 px dentro de un
+      // botón de 474 (desbordaba) y con `wrap-anywhere` mide 474. jsdom no mide el diseño, así que acá se comprueba la clase.
+      const campania = "CampañaDeVeranoDeLaRegionMetropolitanaOesteYElLitoralSegundaEtapaDosMilVeintiseisVeintisiete";
+      montar(undefined, { ...DATOS_ANADIR_COLPORTOR_SIMULADO, campania });
+      await userEvent.click(screen.getByRole("button", { name: "Elegir a Ana Martínez" }));
+
+      const boton = within(screen.getByRole("region", { name: "Detalle de Ana Martínez" })).getByRole("button", {
+        name: `Añadir a ${campania}`,
+      });
+      expect(boton).toHaveClass("wrap-anywhere", "whitespace-normal", "max-w-full");
+      expect(screen.getByRole("heading", { name: `Añadir colportor a ${campania}` })).toHaveClass("break-words");
     });
 
     it("con un solo resultado habla en singular", async () => {

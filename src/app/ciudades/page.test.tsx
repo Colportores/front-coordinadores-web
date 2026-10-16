@@ -70,11 +70,24 @@ describe("carga y error de la ruta de zonas", () => {
   });
 
   it("si no las puede traer avisa qué hacer y deja reintentar", async () => {
-    const reset = vi.fn();
-    render(<ErrorZonas error={new Error("sin red")} reset={reset} />);
+    const retry = vi.fn();
+    render(<ErrorZonas error={new Error("sin red")} retry={retry} />);
 
     expect(screen.getByRole("alert")).toHaveTextContent("No se pudieron cargar las zonas de la campaña. Revisá tu conexión y probá de nuevo.");
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-    expect(reset).toHaveBeenCalledTimes(1);
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("«Reintentar» usa `retry` (vuelve a pedir los datos) y no `reset` (solo repinta el error guardado)", async () => {
+    const retry = vi.fn();
+    const reset = vi.fn();
+    // Next 16 le pasa las dos al boundary; el spread evita que el tipo de la vista (que ya no pide `reset`) lo rechace.
+    const props = { error: new Error("sin red"), retry, reset };
+    render(<ErrorZonas {...props} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(reset).not.toHaveBeenCalled();
   });
 });

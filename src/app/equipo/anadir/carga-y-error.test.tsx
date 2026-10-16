@@ -14,19 +14,32 @@ describe("carga y error de la ruta de la vista 23 (añadir colportor)", () => {
   });
 
   it("si no los puede traer avisa qué hacer, deja reintentar y deja volver a Equipo", async () => {
-    const reset = vi.fn();
-    render(<ErrorAnadirColportor error={new Error("sin red")} reset={reset} />);
+    const retry = vi.fn();
+    render(<ErrorAnadirColportor error={new Error("sin red")} retry={retry} />);
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "No se pudieron cargar las cuentas para añadir a la campaña. Revisá tu conexión y probá de nuevo.",
     );
     expect(screen.getByRole("link", { name: "‹ Equipo" })).toHaveAttribute("href", "/equipo");
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-    expect(reset).toHaveBeenCalledTimes(1);
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("«Reintentar» usa `retry` (vuelve a pedir los datos) y no `reset` (solo repinta el error guardado)", async () => {
+    const retry = vi.fn();
+    const reset = vi.fn();
+    // Next 16 le pasa las dos al boundary; el spread evita que el tipo de la vista (que ya no pide `reset`) lo rechace.
+    const props = { error: new Error("sin red"), retry, reset };
+    render(<ErrorAnadirColportor {...props} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(reset).not.toHaveBeenCalled();
   });
 
   it("el aviso de error no muestra el detalle técnico del fallo", () => {
-    render(<ErrorAnadirColportor error={new Error("ECONNREFUSED 10.0.0.5:5432 usuario=secreto")} reset={() => undefined} />);
+    render(<ErrorAnadirColportor error={new Error("ECONNREFUSED 10.0.0.5:5432 usuario=secreto")} retry={() => undefined} />);
 
     expect(screen.getByRole("alert")).not.toHaveTextContent(/ECONNREFUSED|secreto/);
   });
