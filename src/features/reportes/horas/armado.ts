@@ -47,6 +47,10 @@ export interface ReporteArmado {
   resuelto: AmbitoResuelto;
   titulo: string;
   subtitulo: string;
+  /** El período que se mira y contra cuál se compara: «S7 contra S6». Vacío si todavía no hay un período completo. */
+  periodo: string;
+  /** El rótulo del período que se mira («S7»), o `null` si todavía no hay uno completo. */
+  rotuloDelPeriodo: string | null;
   /** Con un colportor elegido: la ciudad a la que se vuelve. */
   volverA: { nombre: string; ambito: Ambito } | null;
   tarjetas: TarjetaArmada[];
@@ -134,6 +138,7 @@ export function armarReporte(
           return {
             clave: c.clave,
             valor: formatearCifra(cifra, false, c.clave),
+            crudo: cifra.hayDatos ? cifra.valor : null,
             sinDatos: !cifra.hayDatos,
             // Cada fila compara con la anterior; la que está en curso no lleva tendencia.
             tendencia: i > 0 && !p.enCurso ? tendenciaDeCifra(c.clave, cifra, cifrasDePeriodos[i - 1][k]) : null,
@@ -170,6 +175,7 @@ export function armarReporte(
             return {
               clave: c.clave,
               valor: formatearCifra(actual, false, c.clave),
+              crudo: actual.hayDatos ? actual.valor : null,
               sinDatos: !actual.hayDatos,
               tendencia: propia ? tendenciaDeCifra(c.clave, propia.actual, propia.base) : null,
             };
@@ -183,6 +189,8 @@ export function armarReporte(
     resuelto,
     titulo: resuelto.titulo,
     subtitulo: [ubicacion, frasePeriodo].filter(Boolean).join(" · "),
+    periodo: frasePeriodo,
+    rotuloDelPeriodo: rotuloActual,
     volverA: elegido ? { nombre: elegido.ciudad.nombre, ambito: { tipo: "ciudad", ciudadId: elegido.ciudad.id } } : null,
     tarjetas,
     tabla: { descripcion, primeraColumna, columnas: cifras.map((c) => ({ clave: c.clave, encabezado: c.columna })), filas },

@@ -34,10 +34,10 @@ describe("PestanaReportes (vista 32, HU-REP-001 y HU-REP-002)", () => {
     expect([hu("HORAS"), hu("PRESENTACIONES"), hu("VENTAS")]).toEqual(["HU-REP-001", "HU-REP-002", "HU-REP-002"]);
   });
 
-  it("marca como no disponibles las acciones de exportar, que son de otra HU", async () => {
+  it("trae las acciones de exportar (HU-REP-005) listas para usar", async () => {
     render(<ProveedorModoDev activo={false}>{await PestanaReportes()}</ProveedorModoDev>);
     for (const nombre of ["Informe PDF", "Datos CSV"]) {
-      expect(screen.getByRole("button", { name: nombre })).toHaveAttribute("aria-disabled", "true");
+      expect(screen.getByRole("button", { name: nombre })).not.toHaveAttribute("aria-disabled");
     }
   });
 

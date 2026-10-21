@@ -8,6 +8,8 @@ export interface CeldaDeTabla {
   clave: MedidaMostrada;
   /** La cifra ya formateada; «—» si no hay datos. */
   valor: string;
+  /** La cifra sin formato (para exportar); `null` si no hay datos. */
+  crudo: number | null;
   sinDatos: boolean;
   tendencia: Tendencia | null;
 }

@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import type { DatosHoras } from "@/datos/reportes/contrato";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { cn } from "@/lib/utils";
 
+import { AvisoDeExportacion, BotonesDeExportar } from "../exportar/BotonesDeExportar";
+import { useExportacion } from "../exportar/useExportacion";
 import { AMBITO_TODAS, construirLista, construirRiel, mismoAmbito, type Ambito } from "./ambito";
 import { armarReporte, textoSinDatosDesde } from "./armado";
 import type { Granularidad } from "./calculo";
@@ -45,6 +46,8 @@ export function ReporteHoras({ datos, mostrarPorCobrar = MOSTRAR_POR_COBRAR }: {
     [datos, reporte.resuelto],
   );
   const riel = useMemo(() => construirRiel(datos, reporte.resuelto), [datos, reporte.resuelto]);
+  const contextoDeExportacion = useMemo(() => ({ granularidad, hoy: datos.hoy }), [granularidad, datos.hoy]);
+  const exportacion = useExportacion(reporte, contextoDeExportacion);
 
   useEffect(() => {
     const clave = focoPendiente.current;
@@ -109,32 +112,32 @@ export function ReporteHoras({ datos, mostrarPorCobrar = MOSTRAR_POR_COBRAR }: {
             <h2 className="font-serif text-[22px] font-semibold wrap-anywhere text-tinta">{reporte.titulo}</h2>
             <p className="text-chico text-tinta-suave">{reporte.subtitulo}</p>
           </div>
-          <div className="flex flex-none items-center gap-2">
-            <div role="group" aria-label="Agrupar por" className="flex overflow-hidden rounded-control border border-borde bg-superficie">
-              {GRANULARIDADES.map(({ valor, etiqueta }) => {
-                const activa = valor === granularidad;
-                return (
-                  <button
-                    key={valor}
-                    type="button"
-                    aria-pressed={activa}
-                    onClick={() => setGranularidad(valor)}
-                    className={cn(
-                      "inline-flex min-h-8 items-center border-r border-borde px-3.5 text-chico font-semibold last:border-r-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-acento",
-                      activa ? "bg-marca text-superficie" : "bg-superficie text-tinta-2 hover:bg-marca-clara",
-                    )}
-                  >
-                    {etiqueta}
-                  </button>
-                );
-              })}
+          <div className="flex flex-none flex-col items-end gap-1.5">
+            <div className="flex items-center gap-2">
+              <div role="group" aria-label="Agrupar por" className="flex overflow-hidden rounded-control border border-borde bg-superficie">
+                {GRANULARIDADES.map(({ valor, etiqueta }) => {
+                  const activa = valor === granularidad;
+                  return (
+                    <button
+                      key={valor}
+                      type="button"
+                      aria-pressed={activa}
+                      onClick={() => setGranularidad(valor)}
+                      className={cn(
+                        "inline-flex min-h-8 items-center border-r border-borde px-3.5 text-chico font-semibold last:border-r-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-acento",
+                        activa ? "bg-marca text-superficie" : "bg-superficie text-tinta-2 hover:bg-marca-clara",
+                      )}
+                    >
+                      {etiqueta}
+                    </button>
+                  );
+                })}
+              </div>
+              <SeccionHu hu="HU-REP-005" className="flex items-center gap-2">
+                <BotonesDeExportar estado={exportacion} />
+              </SeccionHu>
             </div>
-            <AccionNoDisponible className="inline-flex min-h-8 items-center rounded-control bg-marca px-3.5 text-chico font-semibold text-superficie">
-              Informe PDF
-            </AccionNoDisponible>
-            <AccionNoDisponible className="inline-flex min-h-8 items-center rounded-control border border-grafico-neutro bg-superficie px-3.5 text-chico font-semibold text-marca">
-              Datos CSV
-            </AccionNoDisponible>
+            <AvisoDeExportacion estado={exportacion} />
           </div>
         </div>
 
