@@ -8,6 +8,9 @@ import { armarCsv, BOM_UTF8 } from "./csv";
 import { descargarArchivo, imprimirDocumento, retirarDocumentoDeImpresion } from "./descargar";
 import { armarInformeHtml } from "./informe";
 
+/** Cuánto sigue ocupado el botón de «Datos CSV» después de bajar el archivo (un doble clic cuenta como uno). */
+export const PAUSA_DEL_DOBLE_CLIC_MS = 600;
+
 /** Lo que pasó con el último pedido de exportar, para decírselo a la persona. */
 export type ResultadoDeExportacion =
   | { tipo: "listo"; formato: FormatoDeExportacion; archivo: string }
@@ -53,11 +56,16 @@ export function useExportacion(reporte: ReporteArmado, contexto: ContextoDeExpor
       setAviso(null);
       const archivo = nombreDeArchivo(reporte.titulo, contexto.granularidad, contexto.hoy, formato);
 
-      const terminar = (resultado: ResultadoDeExportacion) => {
+      const liberar = () => {
         enCurso.current = null;
-        if (!montado.current) return;
-        setOcupado(null);
-        setAviso({ para: reporte, resultado });
+        if (montado.current) setOcupado(null);
+      };
+      const terminar = (resultado: ResultadoDeExportacion) => {
+        if (montado.current) setAviso({ para: reporte, resultado });
+        // El CSV se arma al instante: sin esta pausa el botón quedaría libre antes del segundo clic de un doble clic
+        // y el navegador bajaría dos archivos. Si falló, se libera ya para poder reintentar.
+        if (formato === "csv" && resultado.tipo === "listo") setTimeout(liberar, PAUSA_DEL_DOBLE_CLIC_MS);
+        else liberar();
       };
 
       // `async`: una falla al armar el archivo (no solo al bajarlo) también termina en el aviso de error.

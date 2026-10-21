@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,6 +24,15 @@ const botonPdf = () => screen.getByRole("button", { name: /Informe PDF|Preparand
 const botonCsv = () => screen.getByRole("button", { name: /Datos CSV|Generando datos/ });
 const lista = () => screen.getByRole("navigation", { name: "Ciudades" });
 const estaApagado = (boton: HTMLElement) => boton.getAttribute("aria-disabled") === "true";
+/** Espera a que los dos botones estén libres (el de CSV queda ocupado un rato después de bajar). */
+const libres = () =>
+  waitFor(
+    () => {
+      expect(estaApagado(botonPdf())).toBe(false);
+      expect(estaApagado(botonCsv())).toBe(false);
+    },
+    { timeout: 3000 },
+  );
 
 /** Una promesa que se resuelve o rechaza cuando el test lo decide (el cuadro de impresión abierto). */
 function pendiente() {
@@ -56,7 +65,9 @@ describe("ReporteHoras · Datos CSV (HU-REP-005)", () => {
     expect(contenido.startsWith("﻿Ciudad,Colportor,Período,Horas,Presentaciones,Ventas,Monto ($U),Nota\r\n")).toBe(true);
     expect(contenido).toContain("Rivera,Ana Silva,S2,36,30,12,9000,");
     expect(screen.getByRole("status")).toHaveTextContent("Se descargó «reportes-todas-las-ciudades-semanas-2026-10-21.csv» con lo que ves en pantalla.");
-    expect(estaApagado(botonCsv())).toBe(false);
+    expect(botonCsv()).toHaveTextContent("Generando datos…"); // pausa de doble clic
+    await libres();
+    expect(botonCsv()).toHaveTextContent("Datos CSV");
   });
 
   it("exporta el ámbito y la agrupación que se ven, no los de la primera carga", async () => {
@@ -66,6 +77,7 @@ describe("ReporteHoras · Datos CSV (HU-REP-005)", () => {
     await user.click(screen.getByRole("button", { name: "Días" }));
 
     await user.click(botonCsv());
+    await libres();
 
     const [nombre, contenido] = bajar.mock.calls[0];
     expect(nombre).toBe("reportes-rivera-dias-2026-10-21.csv");
@@ -80,6 +92,7 @@ describe("ReporteHoras · Datos CSV (HU-REP-005)", () => {
     await user.click(within(lista()).getByRole("button", { name: /Ana Silva/ }));
 
     await user.click(botonCsv());
+    await libres();
 
     const [nombre, contenido] = bajar.mock.calls[0];
     expect(nombre).toBe("reportes-ana-silva-semanas-2026-10-21.csv");
@@ -94,28 +107,46 @@ describe("ReporteHoras · Datos CSV (HU-REP-005)", () => {
     render(<ReporteHoras datos={datosDePruebaConVentas()} />);
 
     await user.click(botonCsv());
+    await libres();
 
     expect(screen.getByRole("alert")).toHaveTextContent("No se pudo generar el archivo CSV. El reporte sigue en pantalla: probá de nuevo.");
     expect(estaApagado(botonCsv())).toBe(false);
     expect(botonCsv()).not.toHaveAttribute("aria-busy");
 
     await user.click(botonCsv());
+    await libres();
     expect(bajar).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(/^Se descargó/);
   });
 
-  it("dos clics seguidos bajan un solo archivo por clic, sin pisarse (el segundo ya es otro pedido)", async () => {
+  it("un doble clic baja un solo archivo: el botón sigue ocupado ~600 ms aunque el CSV ya esté listo", async () => {
     const user = userEvent.setup();
     render(<ReporteHoras datos={datosDePruebaConVentas()} />);
-    await act(async () => {
-      botonCsv().click();
-      botonCsv().click();
-    });
-    // Los dos clics caen en el mismo instante: el segundo se ignora mientras el primero se arma.
+
+    await user.dblClick(botonCsv());
     expect(bajar).toHaveBeenCalledTimes(1);
+    expect(botonCsv()).toHaveTextContent("Generando datos…");
+    expect(estaApagado(botonPdf())).toBe(true);
+    // el aviso de éxito ya está, aunque el botón siga en pausa
+    expect(screen.getByRole("status")).toHaveTextContent(/^Se descargó/);
+
+    await libres();
+    expect(botonCsv()).toHaveTextContent("Datos CSV");
+    // pasada la pausa, un clic nuevo es otro pedido: vuelve a bajar
     await user.click(botonCsv());
     expect(bajar).toHaveBeenCalledTimes(2);
+  });
+
+  it("si el CSV falla, el botón se libera enseguida para reintentar (sin la pausa)", async () => {
+    const user = userEvent.setup();
+    bajar.mockImplementationOnce(() => {
+      throw new Error("x");
+    });
+    render(<ReporteHoras datos={datosDePruebaConVentas()} />);
+    await user.click(botonCsv());
+    expect(estaApagado(botonCsv())).toBe(false);
+    expect(botonCsv()).toHaveTextContent("Datos CSV");
   });
 });
 
@@ -176,6 +207,7 @@ describe("ReporteHoras · Informe PDF (HU-REP-005)", () => {
 
     await act(async () => abierto.resolver());
     await user.click(botonCsv());
+    await libres();
     expect(bajar).toHaveBeenCalledTimes(1);
   });
 
@@ -253,11 +285,13 @@ describe("ReporteHoras · el aviso de la exportación", () => {
     render(<ReporteHoras datos={datosDePruebaConVentas()} />);
 
     await user.click(botonCsv());
+    await libres();
     expect(screen.getByRole("status")).toHaveTextContent(/^Se descargó/);
     await user.click(screen.getByRole("button", { name: "Días" }));
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
 
     await user.click(botonCsv());
+    await libres();
     expect(screen.getByRole("status")).toHaveTextContent(/^Se descargó/);
     await user.click(within(lista()).getByRole("button", { name: /^Rivera/ }));
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
@@ -270,6 +304,7 @@ describe("ReporteHoras · el aviso de la exportación", () => {
     });
     render(<ReporteHoras datos={datosDePruebaConVentas()} />);
     await user.click(botonCsv());
+    await libres();
     expect(screen.getByRole("alert")).toBeInTheDocument();
     await user.click(botonPdf());
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -316,6 +351,7 @@ describe("ReporteHoras · exportar con datos límite", () => {
     await user.click(within(lista()).getByRole("button", { name: /^Rivera/ }));
 
     await user.click(botonCsv());
+    await libres();
     await user.click(botonPdf());
 
     expect(bajar.mock.calls[0][1].split("\r\n")).toHaveLength(502); // encabezado + 500 + línea final vacía
@@ -331,6 +367,7 @@ describe("ReporteHoras · exportar con datos límite", () => {
     await user.click(within(lista()).getByRole("button", { name: /^San Antonio/ }));
 
     await user.click(botonCsv());
+    await libres();
 
     expect(bajar.mock.calls[0][0].length).toBeLessThan(80);
     expect(bajar.mock.calls[0][0]).toMatch(/^reportes-san-antonio-de-las-canas-.*-semanas-2026-10-21\.csv$/);
@@ -341,6 +378,7 @@ describe("ReporteHoras · exportar con datos límite", () => {
     const user = userEvent.setup();
     render(<ReporteHoras datos={crearHorasSimuladas()} />);
     await user.click(botonCsv());
+    await libres();
     await user.click(botonPdf());
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(bajar.mock.calls[0][1].split("\r\n")).toHaveLength(27);
@@ -353,6 +391,7 @@ describe("ReporteHoras · exportar con datos límite", () => {
     try {
       render(<ReporteHoras datos={datosDePruebaConVentas()} />);
       await user.click(botonCsv());
+      await libres();
       await user.click(botonPdf());
       expect(red).not.toHaveBeenCalled();
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -391,6 +430,7 @@ describe("ReporteHoras · exportar, teclado y accesibilidad", () => {
     expect(await violaciones(container)).toEqual([]);
 
     await user.click(botonCsv());
+    await libres();
     expect(await violaciones(container)).toEqual([]);
 
     await user.click(botonPdf());
