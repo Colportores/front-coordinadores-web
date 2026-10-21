@@ -18,7 +18,8 @@ const tarjetas = () =>
   screen
     .getAllByRole("region")
     .map((r) => r.getAttribute("aria-label") ?? "")
-    .filter((nombre) => !nombre.startsWith("DEPTO."));
+    // las tarjetas se llaman en mayúsculas; la lista de ciudades (DEPTO. …) y el área de la tabla no son tarjetas
+    .filter((nombre) => nombre === nombre.toUpperCase() && !nombre.startsWith("DEPTO."));
 
 /** Las celdas de cifras de una fila, en texto («36,0= 0%» → se lee con la tendencia pegada). */
 const celdasDe = (fila: HTMLElement) => within(fila).getAllByRole("cell").map((c) => c.textContent ?? "");

@@ -33,7 +33,7 @@ function campania(colportores: ColportorHoras[], extra: Partial<DatosHoras> = {}
 afterEach(() => vi.restoreAllMocks());
 
 describe("QA #61 · accesibilidad de la tabla", () => {
-  it.skip("QA #61: el área de la tabla que se desplaza no tiene tabindex, rol ni nombre (axe scrollable-region-focusable, A/AA)", () => {
+  it("QA #61: el área de la tabla que se desplaza tiene tabindex, rol y nombre (axe scrollable-region-focusable, A/AA)", () => {
     render(<ReporteHoras datos={datosDePruebaConVentas()} />);
     const area = tabla().parentElement as HTMLElement;
     // axe en el navegador marca esta región con la tabla larga (25 colportores): el lector de teclado la alcanza solo en Chromium
