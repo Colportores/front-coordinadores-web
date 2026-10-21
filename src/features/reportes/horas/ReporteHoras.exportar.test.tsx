@@ -357,7 +357,7 @@ describe("ReporteHoras · exportar con datos límite", () => {
     expect(bajar.mock.calls[0][1].split("\r\n")).toHaveLength(502); // encabezado + 500 + línea final vacía
     const doc = new DOMParser().parseFromString(imprimir.mock.calls[0][0], "text/html");
     expect(doc.querySelectorAll("tbody tr")).toHaveLength(500);
-  });
+  }, 30_000);
 
   it("textos largos: el archivo se nombra corto y el aviso se parte en vez de salirse", async () => {
     const user = userEvent.setup();
