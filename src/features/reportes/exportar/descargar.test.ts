@@ -79,7 +79,7 @@ describe("imprimirDocumento", () => {
 
   const marco = () => document.querySelector("iframe");
   const cargar = () => marco()!.dispatchEvent(new Event("load"));
-  const alTerminarDeImprimir = () => ventana.addEventListener.mock.calls.find(([nombre]) => nombre === "afterprint")![1]();
+  const alTerminarDeImprimir = () => ventana.addEventListener.mock.calls.filter(([nombre]) => nombre === "afterprint").at(-1)![1]();
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -177,6 +177,39 @@ describe("imprimirDocumento", () => {
     cargar();
     await segundo;
     expect(ventana.print).toHaveBeenCalledTimes(2);
+  });
+
+  it("devuelve el foco al botón que lo tenía, esté en el marco o ya caído al <body>", async () => {
+    const boton = document.createElement("button");
+    document.body.appendChild(boton);
+    ventana.focus.mockImplementation(() => marco()!.focus());
+    for (const cae of [false, true]) {
+      boton.focus();
+      const hecho = imprimirDocumento("x");
+      cargar();
+      await hecho;
+      expect(document.activeElement).toBe(marco());
+      if (cae) (document.activeElement as HTMLElement).blur();
+      alTerminarDeImprimir();
+      expect(document.activeElement).toBe(boton);
+    }
+    boton.remove();
+  });
+
+  it("si la persona ya movió el foco a otro lado, no se lo quita", async () => {
+    const boton = document.createElement("button");
+    const otro = document.createElement("button");
+    document.body.append(boton, otro);
+    ventana.focus.mockImplementation(() => marco()!.focus());
+    boton.focus();
+    const hecho = imprimirDocumento("x");
+    cargar();
+    await hecho;
+    otro.focus();
+    alTerminarDeImprimir();
+    expect(document.activeElement).toBe(otro);
+    boton.remove();
+    otro.remove();
   });
 
   it("si la pantalla se cierra mientras carga, se retira el marco y no se imprime", async () => {

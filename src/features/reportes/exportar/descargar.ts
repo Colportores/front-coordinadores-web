@@ -33,13 +33,21 @@ export function descargarArchivo(nombre: string, contenido: string, tipo: string
 let marco: HTMLIFrameElement | null = null;
 let temporizadores: ReturnType<typeof setTimeout>[] = [];
 let alCancelar: (() => void) | null = null;
+/** Lo que tenía el foco antes de enfocar el marco de impresión (el botón «Informe PDF»): ahí vuelve al retirarlo. */
+let focoAnterior: HTMLElement | null = null;
 
 /** Retira el documento oculto de la impresión anterior (o el que sigue cargando, si la pantalla se cerró). */
 export function retirarDocumentoDeImpresion(): void {
   for (const t of temporizadores) clearTimeout(t);
   temporizadores = [];
+  // Si el foco quedó en el marco (o cayó al <body> al quitarlo), vuelve a donde estaba; si la persona ya lo movió, no se toca.
+  const activo = document.activeElement;
+  const devolverFoco = marco !== null && (activo === marco || activo === document.body || activo === null) && focoAnterior?.isConnected === true;
+  const destino = focoAnterior;
+  focoAnterior = null;
   marco?.remove();
   marco = null;
+  if (devolverFoco) destino?.focus();
   const cancelar = alCancelar;
   alCancelar = null;
   cancelar?.();
@@ -87,6 +95,8 @@ export function imprimirDocumento(html: string): Promise<void> {
         if (!ventana) throw new Error("El informe no tiene ventana donde imprimir.");
         ventana.addEventListener("afterprint", cerrar);
         temporizadores.push(setTimeout(cerrar, RETIRO_DE_RESPALDO_MS));
+        const activo = document.activeElement;
+        focoAnterior = activo instanceof HTMLElement && activo !== iframe && activo !== document.body ? activo : null;
         ventana.focus();
         ventana.print();
         resolver();

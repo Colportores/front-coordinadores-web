@@ -174,7 +174,7 @@ describe("QA #62 · el foco y los avisos con el teclado", () => {
   // QA #62 (bloqueante): `imprimirDocumento` hace `ventana.focus()` sobre el marco oculto y, al terminar de imprimir,
   // retira el marco: el foco cae al <body> y quien usa el teclado pierde el lugar (WCAG 2.4.3). Reproducido en
   // Chromium real: antes de `print()` activeElement = IFRAME; tras `afterprint` = BODY.
-  it.skip("QA #62: tras imprimir el informe, el foco vuelve a «Informe PDF» (no cae al <body>)", async () => {
+  it("QA #62: tras imprimir el informe, el foco vuelve a «Informe PDF» (no cae al <body>)", async () => {
     const user = userEvent.setup();
     let alTerminar: (() => void) | undefined;
     let ventanaFalsa: unknown;
