@@ -18,8 +18,8 @@ import {
   type Serie,
 } from "./calculo";
 
-const constante = (horas: number): Serie => () => ({ horas, hayDatos: true });
-const con = (horas: number): Cifra => ({ horas, hayDatos: true });
+const constante = (valor: number): Serie => () => ({ valor, hayDatos: true });
+const con = (valor: number): Cifra => ({ valor, hayDatos: true });
 
 describe("crearCalendario", () => {
   it("cuenta los días de la campaña hasta hoy sin los domingos", () => {
@@ -122,8 +122,8 @@ describe("compararPeriodos", () => {
     const terminada = crearCalendario("2026-08-03", "2026-10-05", "2026-09-30");
     const c = compararPeriodos("mes", constante(5), terminada);
     expect(c).toMatchObject({ rotulo: "sep.", contra: "contra ago." });
-    expect(c?.actual.horas).toBe(26 * 5);
-    expect(c?.base?.horas).toBe(25 * 5);
+    expect(c?.actual.valor).toBe(26 * 5);
+    expect(c?.base?.valor).toBe(25 * 5);
   });
 
   it("sin período completo todavía no hay comparación; el primer mes se muestra sin período anterior", () => {

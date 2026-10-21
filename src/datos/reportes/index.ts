@@ -16,6 +16,7 @@ export type {
   MarcadorMapaRegion,
   ResumenCampania,
   VentaSemanal,
+  VentasDelDia,
 } from "@/datos/reportes/contrato";
 
 export const fuenteReportes: FuenteDatosReportes = fuenteReportesSimulada;

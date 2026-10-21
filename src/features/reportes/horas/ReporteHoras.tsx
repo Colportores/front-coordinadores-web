@@ -4,13 +4,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import type { DatosHoras } from "@/datos/reportes/contrato";
+import { SeccionHu } from "@/dev/SeccionHu";
 import { cn } from "@/lib/utils";
 
 import { AMBITO_TODAS, construirLista, construirRiel, mismoAmbito, type Ambito } from "./ambito";
 import { armarReporte, textoSinDatosDesde } from "./armado";
 import type { Granularidad } from "./calculo";
 import { ListaDeCiudades, RielDeCiudades } from "./ListaDeCiudades";
-import { TablaDeHoras } from "./TablaDeHoras";
+import { MOSTRAR_POR_COBRAR } from "./metricas";
+import { TablaDeReporte } from "./TablaDeReporte";
 import { TarjetaDeCifra } from "./TarjetaDeCifra";
 
 const GRANULARIDADES: { valor: Granularidad; etiqueta: string }[] = [
@@ -20,12 +22,13 @@ const GRANULARIDADES: { valor: Granularidad; etiqueta: string }[] = [
 ];
 
 /**
- * Vista 32 (HU-REP-001): el reporte de horas por ciudad y colportor. A la izquierda la lista de ciudades por
- * departamento (que se contrae); a la derecha la cifra de horas con su tendencia y la tabla, en días, semanas o meses.
- * Todo se calcula en el navegador a partir de las horas de cada día: cambiar de ámbito o de período no pide nada al
- * servidor, así que no hay nada que pueda quedar a medias.
+ * Vista 32 (HU-REP-001 y HU-REP-002): el reporte de horas, presentaciones y ventas por ciudad y colportor. A la
+ * izquierda la lista de ciudades por departamento (que se contrae); a la derecha las cifras con su tendencia y la
+ * tabla, en días, semanas o meses. Todo se calcula en el navegador a partir de lo que pasó cada día: cambiar de
+ * ámbito o de período no pide nada al servidor, así que no hay nada que pueda quedar a medias. El % por cobrar es V2
+ * y no se muestra hasta que se conecte (`mostrarPorCobrar`).
  */
-export function ReporteHoras({ datos }: { datos: DatosHoras }) {
+export function ReporteHoras({ datos, mostrarPorCobrar = MOSTRAR_POR_COBRAR }: { datos: DatosHoras; mostrarPorCobrar?: boolean }) {
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_TODAS);
   const [granularidad, setGranularidad] = useState<Granularidad>("semana");
   const [listaAbierta, setListaAbierta] = useState(true);
@@ -33,7 +36,10 @@ export function ReporteHoras({ datos }: { datos: DatosHoras }) {
   // Al apagar el botón que tenía el foco (volver a la ciudad, contraer la lista) el foco se devuelve a su par.
   const focoPendiente = useRef<string | null>(null);
 
-  const reporte = useMemo(() => armarReporte(datos, ambito, granularidad), [datos, ambito, granularidad]);
+  const reporte = useMemo(
+    () => armarReporte(datos, ambito, granularidad, { porCobrar: mostrarPorCobrar }),
+    [datos, ambito, granularidad, mostrarPorCobrar],
+  );
   const lista = useMemo(
     () => construirLista(datos, reporte.resuelto, textoSinDatosDesde),
     [datos, reporte.resuelto],
@@ -132,14 +138,23 @@ export function ReporteHoras({ datos }: { datos: DatosHoras }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-3.5">
-          <TarjetaDeCifra etiqueta="HORAS" {...reporte.cifra} />
+        <div className="grid gap-3.5" style={{ gridTemplateColumns: `repeat(${reporte.tarjetas.length}, minmax(0, 1fr))` }}>
+          {reporte.tarjetas.map(({ clave, ...tarjeta }) =>
+            clave === "horas" ? (
+              <TarjetaDeCifra key={clave} {...tarjeta} />
+            ) : (
+              // Presentaciones, ventas y % por cobrar son de HU-REP-002: en modo dev se marcan aparte de las horas.
+              <SeccionHu key={clave} hu="HU-REP-002" className="flex min-w-0 *:min-w-0 *:flex-1">
+                <TarjetaDeCifra {...tarjeta} />
+              </SeccionHu>
+            ),
+          )}
         </div>
 
-        <TablaDeHoras
+        <TablaDeReporte
           descripcion={reporte.tabla.descripcion}
           primeraColumna={reporte.tabla.primeraColumna}
-          columna="HORAS"
+          columnas={reporte.tabla.columnas}
           filas={reporte.tabla.filas}
           mensajeVacio="Todavía no hay colportores para mostrar acá."
         />
