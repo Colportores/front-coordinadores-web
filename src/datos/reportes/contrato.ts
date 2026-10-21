@@ -1,7 +1,8 @@
 /**
  * Contrato de datos de la pestaña Reportes: lo que las vistas necesitan y la
- * interfaz de la fuente de datos. Es lo que después implementa el BFF
- * (bff-coordinadores). Datos agregados de la región: nunca datos de clientes.
+ * interfaz de la fuente de datos. Es lo que después implementan las RPC de
+ * Supabase (el BFF es implementación futura, ADR-013). Datos agregados de la
+ * región: nunca datos de clientes.
  */
 
 /** Venta agregada de la región en una semana de la campaña. */
@@ -12,15 +13,6 @@ export interface VentaSemanal {
   montoMiles: number;
   /** Semana en curso: todavía no cerró, sus datos son parciales. */
   semanaActual?: boolean;
-}
-
-/** Horas trabajadas por un colportor en la semana en curso. */
-export interface HorasColportor {
-  id: string;
-  nombre: string;
-  horas: number;
-  /** Por debajo del mínimo esperado de horas semanales: se resalta como alerta. */
-  horasBajas?: boolean;
 }
 
 /** Agregados de toda la campaña para la región del coordinador. */
@@ -47,11 +39,59 @@ export interface MarcadorMapaRegion {
 export interface DatosReportes {
   region: string;
   ventasPorSemana: VentaSemanal[];
-  horasPorColportor: HorasColportor[];
   resumenCampania: ResumenCampania;
   marcadoresMapa: MarcadorMapaRegion[];
 }
 
+/**
+ * Fecha de calendario `AAAA-MM-DD`, en el día de Montevideo (el de la jornada, no el del navegador).
+ * Nunca lleva hora: el panel no hace cuentas con zonas horarias.
+ */
+export type Fecha = string;
+
+/**
+ * Un colportor de la campaña con sus horas por día (vista 32, HU-REP-001).
+ * Solo el nombre: ni correo, ni clientes, ni ubicaciones, ni la hora de inicio y fin de cada jornada.
+ */
+export interface ColportorHoras {
+  id: string;
+  /** Nombre y apellido, tal cual se muestran. */
+  nombre: string;
+  /**
+   * Horas trabajadas en cada día con datos (jornadas cerradas, sumadas por día). Un día que no figura es un día
+   * sin datos —el colportor no tiene jornadas cerradas ese día—, no un día de 0 horas: se muestra con guion y no
+   * lleva tendencia. Una jornada sin `fin` no suma horas hasta que se cierre (HU-JOR-002).
+   */
+  horasPorDia: Readonly<Record<Fecha, number>>;
+  /**
+   * Su último día con datos, solo si dejó de llegar información y hace falta avisarlo: el panel escribe «sin datos
+   * desde el 17/10». Cuándo corresponde avisar lo decide la fuente; el panel solo lo muestra.
+   */
+  sinDatosDesde: Fecha | null;
+}
+
+/** Una ciudad de la campaña con los colportores de sus zonas (la ciudad de un colportor sale de su zona actual). */
+export interface CiudadHoras {
+  id: string;
+  nombre: string;
+  /** Departamento de la ciudad, para agrupar la lista. `null` si la fuente todavía no lo sabe. */
+  departamento: string | null;
+  colportores: ColportorHoras[];
+}
+
+/** Lo que necesita el reporte de horas de la vista 32: las ciudades de la campaña y sus colportores, día por día. */
+export interface DatosHoras {
+  /** Primer día de la campaña: de ahí se cuentan las semanas (S1, S2…). */
+  inicioCampania: Fecha;
+  /** Último día de la campaña; `null` si no tiene fecha de fin. Una campaña terminada se lee igual (se liquidan viáticos). */
+  finCampania: Fecha | null;
+  /** El día de hoy en Montevideo. Lo que cae hoy está en curso: no se compara. */
+  hoy: Fecha;
+  ciudades: CiudadHoras[];
+}
+
 export interface FuenteDatosReportes {
   obtenerReportes(): Promise<DatosReportes>;
+  /** Las horas de la campaña por ciudad y colportor, o `null` si el coordinador no tiene una campaña que consultar. */
+  obtenerHoras(): Promise<DatosHoras | null>;
 }

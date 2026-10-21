@@ -1,15 +1,18 @@
 /**
  * Único punto de selección de la fuente de datos de Reportes.
- * Al conectar el BFF se cambia esta línea por la implementación real;
+ * Al conectar la RPC de horas (backend-supabase#95) se cambia esta línea por la implementación real;
  * las vistas importan `fuenteReportes` y no se tocan.
  */
 import type { FuenteDatosReportes } from "@/datos/reportes/contrato";
 import { fuenteReportesSimulada } from "@/datos/reportes/simulado";
 
 export type {
+  CiudadHoras,
+  ColportorHoras,
+  DatosHoras,
   DatosReportes,
+  Fecha,
   FuenteDatosReportes,
-  HorasColportor,
   MarcadorMapaRegion,
   ResumenCampania,
   VentaSemanal,
