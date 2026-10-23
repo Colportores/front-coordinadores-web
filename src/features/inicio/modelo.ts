@@ -25,6 +25,26 @@ export type Seleccion =
 
 export const TODAS: Seleccion = { tipo: "todas" };
 
+const ORDEN = new Intl.Collator("es", { sensitivity: "base" });
+
+/**
+ * La clave con que se agrupan y se eligen los departamentos: sin mayúsculas, tildes ni espacios de más (como
+ * `normalizar_busqueda` en la base), para que «Paysandu» y «Paysandú» sean un solo departamento.
+ */
+export function claveDeDepartamento(nombre: string): string {
+  return nombre.normalize("NFD").replace(/\p{M}/gu, "").trim().replace(/\s+/g, " ").toLocaleLowerCase("es");
+}
+
+/** Cómo se muestra un departamento: el primero de sus nombres crudos en orden A-Z. */
+export function etiquetaDeDepartamento(clave: string, ciudades: CiudadDelDia[]): string {
+  const nombres = ciudades
+    .map((c) => c.departamento)
+    .filter((d): d is string => d !== null && claveDeDepartamento(d) === clave)
+    .map((d) => d.trim().replace(/\s+/g, " "))
+    .sort((a, b) => ORDEN.compare(a, b));
+  return nombres[0] ?? clave;
+}
+
 /** El texto con que se recuerda la elección. */
 export function claveDe(seleccion: Seleccion): string {
   if (seleccion.tipo === "departamento") return `departamento:${seleccion.nombre}`;
@@ -35,7 +55,8 @@ export function claveDe(seleccion: Seleccion): string {
 export function seleccionDe(clave: unknown): Seleccion {
   if (typeof clave !== "string") return TODAS;
   if (clave.startsWith("departamento:") && clave.length > "departamento:".length) {
-    return { tipo: "departamento", nombre: clave.slice("departamento:".length) };
+    // Lo recordado antes de normalizar puede traer el nombre crudo: se pasa a la clave.
+    return { tipo: "departamento", nombre: claveDeDepartamento(clave.slice("departamento:".length)) };
   }
   if (clave.startsWith("ciudad:") && clave.length > "ciudad:".length) return { tipo: "ciudad", id: clave.slice("ciudad:".length) };
   return TODAS;
@@ -44,7 +65,10 @@ export function seleccionDe(clave: unknown): Seleccion {
 /** Departamentos con más de una ciudad: son los únicos que ofrecen «Todo el departamento». */
 function departamentosConVarias(ciudades: CiudadDelDia[]): Set<string> {
   const cuenta = new Map<string, number>();
-  for (const c of ciudades) if (c.departamento) cuenta.set(c.departamento, (cuenta.get(c.departamento) ?? 0) + 1);
+  for (const c of ciudades) {
+    const clave = c.departamento === null ? "" : claveDeDepartamento(c.departamento);
+    if (clave !== "") cuenta.set(clave, (cuenta.get(clave) ?? 0) + 1);
+  }
   return new Set([...cuenta].filter(([, n]) => n > 1).map(([nombre]) => nombre));
 }
 
@@ -59,7 +83,7 @@ export function seleccionVigente(seleccion: Seleccion, ciudades: CiudadDelDia[])
 
 export function ciudadesDe(seleccion: Seleccion, ciudades: CiudadDelDia[]): CiudadDelDia[] {
   if (seleccion.tipo === "ciudad") return ciudades.filter((c) => c.id === seleccion.id);
-  if (seleccion.tipo === "departamento") return ciudades.filter((c) => c.departamento === seleccion.nombre);
+  if (seleccion.tipo === "departamento") return ciudades.filter((c) => c.departamento !== null && claveDeDepartamento(c.departamento) === seleccion.nombre);
   return ciudades;
 }
 
@@ -106,8 +130,6 @@ export type ElementoDeLista =
   | { tipo: "grupo"; clave: string; etiqueta: string }
   | { tipo: "item"; clave: string; seleccion: Seleccion; nombre: string; sigla: string; resumen: Resumen };
 
-const ORDEN = new Intl.Collator("es", { sensitivity: "base" });
-
 /** «Riv.», «Art.», «B. Un.»: la sigla de la barra angosta. El nombre completo va en el `title` y en el nombre accesible. */
 export function sigla(nombre: string): string {
   const palabras = nombre.trim().split(/\s+/).filter(Boolean);
@@ -135,16 +157,25 @@ export function elementosDeLista(ciudades: CiudadDelDia[]): ElementoDeLista[] {
       resumen: resumenDe(ciudades),
     },
   ];
+  // Se agrupa por la clave normalizada: «Paysandu» y «Paysandú» (o «artigas» y «Artigas») son un solo departamento.
   const grupos = new Map<string | null, CiudadDelDia[]>();
-  for (const ciudad of ciudades) grupos.set(ciudad.departamento, [...(grupos.get(ciudad.departamento) ?? []), ciudad]);
-  const nombres = [...grupos.keys()].sort((a, b) => (a === null ? 1 : b === null ? -1 : ORDEN.compare(a, b)));
+  for (const ciudad of ciudades) {
+    const clave = ciudad.departamento === null ? "" : claveDeDepartamento(ciudad.departamento);
+    const grupo = clave === "" ? null : clave;
+    grupos.set(grupo, [...(grupos.get(grupo) ?? []), ciudad]);
+  }
+  const etiquetas = new Map<string | null, string>();
+  for (const clave of grupos.keys()) if (clave !== null) etiquetas.set(clave, etiquetaDeDepartamento(clave, ciudades));
+  const nombres = [...grupos.keys()].sort((a, b) =>
+    a === null ? 1 : b === null ? -1 : ORDEN.compare(etiquetas.get(a) ?? a, etiquetas.get(b) ?? b),
+  );
 
   for (const departamento of nombres) {
     const delGrupo = grupos.get(departamento) ?? [];
     elementos.push({
       tipo: "grupo",
       clave: `grupo:${departamento ?? ""}`,
-      etiqueta: departamento === null ? SIN_DEPARTAMENTO : `DEPTO. ${departamento.toLocaleUpperCase("es")}`,
+      etiqueta: departamento === null ? SIN_DEPARTAMENTO : `DEPTO. ${(etiquetas.get(departamento) ?? departamento).toLocaleUpperCase("es")}`,
     });
     if (departamento !== null && delGrupo.length > 1) {
       const seleccion: Seleccion = { tipo: "departamento", nombre: departamento };
@@ -180,10 +211,12 @@ export function encabezadoDe(seleccion: Seleccion, ciudades: CiudadDelDia[]): { 
     const departamento = elegidas[0]?.departamento;
     return {
       titulo: elegidas[0]?.nombre ?? "",
-      subtitulo: departamento ? `Departamento ${departamento} · ${jornada}` : jornada,
+      subtitulo: departamento ? `Departamento ${etiquetaDeDepartamento(claveDeDepartamento(departamento), ciudades)} · ${jornada}` : jornada,
     };
   }
-  if (seleccion.tipo === "departamento") return { titulo: `Departamento ${seleccion.nombre}`, subtitulo: jornada };
+  if (seleccion.tipo === "departamento") {
+    return { titulo: `Departamento ${etiquetaDeDepartamento(seleccion.nombre, ciudades)}`, subtitulo: jornada };
+  }
   return { titulo: "Todas las ciudades", subtitulo: jornada };
 }
 
@@ -397,7 +430,7 @@ function tarjetaSinZona(personas: ColportorSinZona[], ahora: string): TarjetaPen
     return {
       id: "sin-zona",
       etiqueta: "EQUIPO",
-      titulo: "Colportora sin zona asignada",
+      titulo: "Colportor sin zona asignada",
       detalle: `${persona.nombre} · se sumó ${cuandoSeSumoTexto(persona.inscriptoAt, ahora)}`,
       acciones: [accion],
     };

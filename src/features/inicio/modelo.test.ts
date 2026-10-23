@@ -139,7 +139,7 @@ describe("elección y lista de ciudades", () => {
   const todas = [art, bu, riv];
 
   it("la elección se recuerda como texto y vuelve igual; lo ilegible es «todas»", () => {
-    for (const s of [TODAS, { tipo: "departamento", nombre: "Artigas" }, { tipo: "ciudad", id: "riv" }] as const) {
+    for (const s of [TODAS, { tipo: "departamento", nombre: "artigas" }, { tipo: "ciudad", id: "riv" }] as const) {
       expect(seleccionDe(claveDe(s))).toEqual(s);
     }
     expect(seleccionDe(null)).toEqual(TODAS);
@@ -151,20 +151,38 @@ describe("elección y lista de ciudades", () => {
   it("una elección que ya no existe vuelve a «todas»", () => {
     expect(seleccionVigente({ tipo: "ciudad", id: "riv" }, todas)).toEqual({ tipo: "ciudad", id: "riv" });
     expect(seleccionVigente({ tipo: "ciudad", id: "salto" }, todas)).toEqual(TODAS);
-    expect(seleccionVigente({ tipo: "departamento", nombre: "Artigas" }, todas)).toEqual({ tipo: "departamento", nombre: "Artigas" });
+    expect(seleccionVigente({ tipo: "departamento", nombre: "artigas" }, todas)).toEqual({ tipo: "departamento", nombre: "artigas" });
     // «Todo el departamento» solo existe con más de una ciudad: Rivera tiene una sola.
-    expect(seleccionVigente({ tipo: "departamento", nombre: "Rivera" }, todas)).toEqual(TODAS);
+    expect(seleccionVigente({ tipo: "departamento", nombre: "rivera" }, todas)).toEqual(TODAS);
   });
 
   it("las ciudades de cada elección", () => {
     expect(ciudadesDe(TODAS, todas)).toEqual(todas);
-    expect(ciudadesDe({ tipo: "departamento", nombre: "Artigas" }, todas)).toEqual([art, bu]);
+    expect(ciudadesDe({ tipo: "departamento", nombre: "artigas" }, todas)).toEqual([art, bu]);
     expect(ciudadesDe({ tipo: "ciudad", id: "riv" }, todas)).toEqual([riv]);
   });
 
   it("la lista: todas, y por departamento «Todo el departamento» solo si tiene más de una ciudad", () => {
     const lista = elementosDeLista(todas).map((e) => (e.tipo === "grupo" ? `# ${e.etiqueta}` : e.nombre));
     expect(lista).toEqual(["Todas las ciudades", "# DEPTO. ARTIGAS", "Todo el departamento", "Artigas", "Bella Unión", "# DEPTO. RIVERA", "Rivera"]);
+  });
+
+  it("el departamento va por su clave normalizada: «Paysandu», «Paysandú» y «paysandú » son uno solo", () => {
+    const ciudades = [
+      ciudad("a", "Paysandú", "Paysandu"),
+      ciudad("b", "Guichón", "Paysandú"),
+      ciudad("c", "Piedras Coloradas", " paysandú "),
+      ciudad("d", "Rivera", "rivera"),
+    ];
+    const lista = elementosDeLista(ciudades).map((e) => (e.tipo === "grupo" ? `# ${e.etiqueta}` : e.nombre));
+    // La etiqueta es la del primer nombre en orden A-Z; «Todo el departamento» una sola vez.
+    expect(lista).toEqual(["Todas las ciudades", "# DEPTO. PAYSANDU", "Todo el departamento", "Paysandú", "Guichón", "Piedras Coloradas", "# DEPTO. RIVERA", "Rivera"]);
+
+    const eleccion = seleccionDe("departamento:Paysandú");
+    expect(eleccion).toEqual({ tipo: "departamento", nombre: "paysandu" });
+    expect(ciudadesDe(eleccion, ciudades).map((c) => c.id)).toEqual(["a", "b", "c"]);
+    expect(seleccionVigente(eleccion, ciudades)).toEqual(eleccion);
+    expect(encabezadoDe(eleccion, ciudades).titulo).toBe("Departamento Paysandu");
   });
 
   it("una ciudad sin departamento va al final, en su grupo, sin «Todo el departamento»", () => {
@@ -187,7 +205,7 @@ describe("elección y lista de ciudades", () => {
 
   it("encabezado: título y «Departamento X · N de M en jornada»", () => {
     expect(encabezadoDe({ tipo: "ciudad", id: "riv" }, todas)).toEqual({ titulo: "Rivera", subtitulo: "Departamento Rivera · 1 de 1 en jornada" });
-    expect(encabezadoDe({ tipo: "departamento", nombre: "Artigas" }, todas)).toEqual({ titulo: "Departamento Artigas", subtitulo: "0 de 2 en jornada" });
+    expect(encabezadoDe({ tipo: "departamento", nombre: "artigas" }, todas)).toEqual({ titulo: "Departamento Artigas", subtitulo: "0 de 2 en jornada" });
     expect(encabezadoDe(TODAS, todas)).toEqual({ titulo: "Todas las ciudades", subtitulo: "1 de 3 en jornada" });
     expect(encabezadoDe({ tipo: "ciudad", id: "x" }, [ciudad("x", "Salto", null)])).toEqual({ titulo: "Salto", subtitulo: "0 de 0 en jornada" });
   });
@@ -257,7 +275,7 @@ describe("pendientes de acción", () => {
     const tablero = { ...base, pendientes: [], sinZona };
     for (const seleccion of [TODAS, { tipo: "ciudad", id: "riv" } as const]) {
       const [tarjeta] = tarjetasPendientes(tablero, seleccion);
-      expect(tarjeta).toMatchObject({ etiqueta: "EQUIPO", titulo: "Colportora sin zona asignada", detalle: "Rocío Benítez · se sumó hoy a las 11:02" });
+      expect(tarjeta).toMatchObject({ etiqueta: "EQUIPO", titulo: "Colportor sin zona asignada", detalle: "Rocío Benítez · se sumó hoy a las 11:02" });
       expect(tarjeta.acciones).toEqual([{ texto: "Asignar zona", tono: "primaria", destino: { pestana: "ciudades", href: "/ciudades" } }]);
     }
   });

@@ -105,7 +105,7 @@ describe("InicioVista · artboard 01 «Principal · 10:40 · Rivera elegida»", 
     expect(within(ticket).getByText(/Lucía Fernández · Rivera · \$U 9\.000 · ayer 14:40/)).toBeInTheDocument();
     expect(within(ticket).getByRole("link", { name: "Validar" })).toHaveAttribute("href", "/cuentas");
 
-    const sinZona = within(pendientes).getByRole("heading", { name: "Colportora sin zona asignada" }).closest("article")!;
+    const sinZona = within(pendientes).getByRole("heading", { name: "Colportor sin zona asignada" }).closest("article")!;
     expect(within(sinZona).getByText("Rocío Benítez · se sumó hoy a las 09:10")).toBeInTheDocument();
     expect(within(sinZona).getByRole("link", { name: "Asignar zona" })).toHaveAttribute("href", "/ciudades");
     // El pedido de libros es de Bella Unión.
@@ -115,7 +115,7 @@ describe("InicioVista · artboard 01 «Principal · 10:40 · Rivera elegida»", 
 
 describe("InicioVista · artboard 02 «Departamento Artigas elegido»", () => {
   it("las dos ciudades agrupadas, cada una con su cabecera, sus colportores y los pendientes de las dos", async () => {
-    recordar({ seleccion: "departamento:Artigas" });
+    recordar({ seleccion: "departamento:artigas" });
     await montar();
 
     expect(screen.getByRole("heading", { level: 2, name: "Departamento Artigas" })).toBeInTheDocument();
@@ -150,7 +150,7 @@ describe("InicioVista · artboard 02 «Departamento Artigas elegido»", () => {
     await userEvent.click(screen.getByRole("button", { name: /^Todo el departamento/ }));
     expect(screen.getByRole("heading", { level: 2, name: "Departamento Artigas" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Todo el departamento/ })).toHaveAttribute("aria-pressed", "true");
-    expect(JSON.parse(window.localStorage.getItem("inicio-ajustes")!)).toMatchObject({ seleccion: "departamento:Artigas" });
+    expect(JSON.parse(window.localStorage.getItem("inicio-ajustes")!)).toMatchObject({ seleccion: "departamento:artigas" });
 
     await userEvent.click(screen.getByRole("button", { name: /^Bella Unión/ }));
     expect(screen.getByRole("heading", { level: 2, name: "Bella Unión" })).toBeInTheDocument();
@@ -185,7 +185,7 @@ describe("InicioVista · artboard 03 «Primera hora · 07:50»", () => {
     recordar({ seleccion: "ciudad:rivera" });
     await montar({ tablero: await primeraHora() });
 
-    expect(screen.getByText(/Actualizado 07:50 · Recién empieza la jornada: las cifras se suman a medida que cada colportor sincroniza\./)).toBeInTheDocument();
+    expect(screen.getByText(/Actualizado 07:50 · Todavía no hay presentaciones ni ventas hoy: las cifras se suman a medida que cada colportor sincroniza\./)).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     const cifras = screen.getByText("Horas", { selector: "dt" }).closest("dl")!;
     expect(within(cifras).getByText("0,3 h")).toBeInTheDocument();
@@ -198,7 +198,7 @@ describe("InicioVista · artboard 03 «Primera hora · 07:50»", () => {
   it("la nota de la primera hora no sale en un día anterior ni cuando ya hay presentaciones", async () => {
     recordar({ seleccion: "ciudad:rivera" });
     await montar();
-    expect(screen.queryByText(/Recién empieza/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Todavía no hay presentaciones/)).not.toBeInTheDocument();
   });
 });
 
@@ -213,7 +213,7 @@ describe("InicioVista · artboard 04 «Solo Artigas · 11:20»", () => {
     expect(celdas("Martina Correa")[0]).toBe("Sin iniciar");
     expect(screen.getByRole("heading", { name: "Ticket de depósito por validar" })).toBeInTheDocument();
     expect(screen.getByText(/Sofía Cabral · Artigas · \$U 18\.500 · hoy 09:10/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Colportora sin zona asignada" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Colportor sin zona asignada" })).toBeInTheDocument();
   });
 
   it("la colportora sin zona no entra en las cifras de ninguna ciudad", async () => {
@@ -226,7 +226,7 @@ describe("InicioVista · artboard 04 «Solo Artigas · 11:20»", () => {
   it("quien ya se dio de baja no recibe «Asignar zona»", async () => {
     const tablero = await tableroDeHoy();
     await montar({ tablero: { ...tablero, sinZona: tablero.sinZona.map((p) => ({ ...p, deBaja: true })) } });
-    expect(screen.queryByText("Colportora sin zona asignada")).not.toBeInTheDocument();
+    expect(screen.queryByText("Colportor sin zona asignada")).not.toBeInTheDocument();
   });
 
   it("sin pendientes: «Nada pendiente en esta ciudad.» (ciudad) o «Nada pendiente.» (varias)", async () => {
@@ -334,6 +334,24 @@ describe("InicioVista · recordar al volver", () => {
     await userEvent.click(screen.getByRole("button", { name: /^Rivera/ }));
 
     expect(screen.getByRole("heading", { level: 2, name: "Rivera" })).toBeInTheDocument();
+  });
+});
+
+describe("InicioVista · almacenamiento lleno", () => {
+  it("si solo falla guardar (cuota llena) la vista sigue respondiendo y recuerda en memoria", async () => {
+    await montar();
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("quota", "QuotaExceededError");
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /^Rivera/ }));
+    expect(screen.getByRole("heading", { level: 2, name: "Rivera" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /^Todo el departamento/ }));
+    expect(screen.getByRole("heading", { level: 2, name: "Departamento Artigas" })).toBeInTheDocument();
+    // Colapsar una columna tampoco queda mudo, y el foco llega al botón de la otra versión.
+    await userEvent.click(screen.getByRole("button", { name: "Contraer ciudades" }));
+    expect(screen.getByRole("button", { name: "Expandir ciudades" })).toHaveFocus();
   });
 });
 

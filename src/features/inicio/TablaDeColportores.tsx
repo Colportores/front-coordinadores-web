@@ -89,15 +89,15 @@ export function TablaDeColportores({ ciudades, ahora, titulo }: { ciudades: Ciud
       tabIndex={0}
       className="min-h-0 flex-1 overflow-auto rounded-tarjeta border border-borde bg-superficie focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none"
     >
-      <table className="w-full table-fixed border-collapse">
+      <table className="w-full min-w-[720px] table-fixed border-collapse">
         <caption className="sr-only">Colportores de {titulo}: horas, presentaciones y ventas del día</caption>
         <colgroup>
-          <col className="w-[22%]" />
-          <col className="w-[14%]" />
-          <col className="w-[10%]" />
-          <col className="w-[18%]" />
-          <col className="w-[9%]" />
-          <col className="w-[14%]" />
+          <col className="w-[21%]" />
+          <col className="w-[12%]" />
+          <col className="w-[8%]" />
+          <col className="w-[16%]" />
+          <col className="w-[8%]" />
+          <col className="w-[12%]" />
           <col className="w-[160px]" />
         </colgroup>
         <thead>

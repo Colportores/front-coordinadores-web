@@ -46,7 +46,7 @@ describe("InicioVista · QA · la tabla de colportores en el ancho mínimo del p
   // (112), «VENTAS» (57) y «$U 12.345» (80).
   const MINIMOS = { Colportor: 150, Estado: 85, Horas: 55, Presentaciones: 112, Ventas: 57, Monto: 80 };
 
-  it.skip("QA #59: a 1280 px la tabla recorta nombres y encabezados («Presentacion», «Venta») y «En jornada» pisa a «Horas»", async () => {
+  it("QA #59: a 1280 px la tabla no recorta nombres y encabezados («Presentacion», «Venta») y «En jornada» pisa a «Horas»", async () => {
     const tablero = await fuente.obtenerTablero();
     const { container } = render(<TablaDeColportores ciudades={tablero.ciudades} ahora={tablero.calculadoA} titulo="Rivera" />);
     const tabla = container.querySelector("table")!;

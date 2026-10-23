@@ -20,8 +20,12 @@ export const AJUSTES_POR_DEFECTO: Ajustes = { seleccion: TODAS, ciudadesCerrada:
 
 const oyentes = new Set<() => void>();
 let respaldo: string | null = null;
+// Se enciende cuando `setItem` falla (cuota llena, datos bloqueados) aunque `getItem` ande: desde ahí manda la memoria,
+// o la vista no reflejaría lo que la coordinadora acaba de tocar.
+let almacenamientoRoto = false;
 
 function leerCrudo(): string | null {
+  if (almacenamientoRoto) return respaldo;
   try {
     return window.localStorage.getItem(CLAVE);
   } catch {
@@ -34,7 +38,8 @@ function escribirCrudo(texto: string) {
   try {
     window.localStorage.setItem(CLAVE, texto);
   } catch {
-    // Sin almacenamiento: queda en `respaldo`.
+    // Sin almacenamiento: queda en `respaldo`, que desde ahora es la fuente de lo recordado.
+    almacenamientoRoto = true;
   }
   oyentes.forEach((oyente) => oyente());
 }
@@ -67,6 +72,7 @@ export function interpretar(crudo: string | null): Ajustes {
 /** Solo para los tests: olvida lo recordado en memoria. */
 export function olvidarAjustes() {
   respaldo = null;
+  almacenamientoRoto = false;
 }
 
 export function useAjustesDeInicio(): [Ajustes, (cambios: Partial<Ajustes>) => void] {

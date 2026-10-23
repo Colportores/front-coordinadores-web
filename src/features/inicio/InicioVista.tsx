@@ -111,7 +111,9 @@ export function InicioVista({ tablero: inicial, acciones }: { tablero: TableroDe
   const nota = tablero
     ? [
         tablero.esHoy ? `Actualizado ${horaDeActualizacion(tablero.calculadoA)}` : "",
-        recienEmpieza(resumen, tablero.esHoy) ? "Recién empieza la jornada: las cifras se suman a medida que cada colportor sincroniza." : "",
+        recienEmpieza(resumen, tablero.esHoy)
+          ? "Todavía no hay presentaciones ni ventas hoy: las cifras se suman a medida que cada colportor sincroniza."
+          : "",
       ]
         .filter(Boolean)
         .join(" · ")
