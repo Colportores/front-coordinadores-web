@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { campaniaProvisoria } from "@/datos/supabase/campania-provisoria";
+import { campaniaProvisoria, campaniaProvisoriaConFechas } from "@/datos/supabase/campania-provisoria";
 import { ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
 import { RespuestaInesperada } from "@/datos/supabase/respuesta";
 
@@ -46,5 +46,37 @@ describe("campaniaProvisoria", () => {
 
     await expect(campaniaProvisoria(clienteQueContesta(caida).cliente)).rejects.toBe(caida);
     await expect(campaniaProvisoria(clienteQueContesta(servicio).cliente)).rejects.toBe(servicio);
+  });
+});
+
+describe("campaniaProvisoriaConFechas", () => {
+  const fila = { id: "c-1", nombre: "Verano 2026", tipo: "VERANO", fecha_inicio: "2026-09-01", fecha_fin: "2026-12-19" };
+
+  it("es la misma campaña que campaniaProvisoria, con sus fechas", async () => {
+    const { cliente } = clienteQueContesta([fila, { ...fila, id: "c-2" }]);
+
+    expect(await campaniaProvisoriaConFechas(cliente)).toEqual({ id: "c-1", nombre: "Verano 2026", fechaInicio: "2026-09-01", fechaFin: "2026-12-19" });
+  });
+
+  it("una campaña sin fecha de fin la deja en null", async () => {
+    const { cliente } = clienteQueContesta([{ ...fila, fecha_fin: null }]);
+
+    expect(await campaniaProvisoriaConFechas(cliente)).toMatchObject({ fechaFin: null });
+  });
+
+  it("sin ninguna campaña que no haya terminado es null", async () => {
+    expect(await campaniaProvisoriaConFechas(clienteQueContesta([]).cliente)).toBeNull();
+  });
+
+  it("una fecha que no es un día, o que falta, es una respuesta inesperada", async () => {
+    for (const mala of [{ ...fila, fecha_inicio: "1/9" }, { ...fila, fecha_fin: "después" }, { id: "c-1", nombre: "Verano" }]) {
+      await expect(campaniaProvisoriaConFechas(clienteQueContesta([mala]).cliente)).rejects.toBeInstanceOf(RespuestaInesperada);
+    }
+  });
+
+  it("una falla de la red no es «sin campaña»", async () => {
+    const caida = new TypeError("fetch failed");
+
+    await expect(campaniaProvisoriaConFechas(clienteQueContesta(caida).cliente)).rejects.toBe(caida);
   });
 });

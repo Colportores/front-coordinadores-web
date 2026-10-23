@@ -47,10 +47,11 @@ describe("fuenteEquipo (selector)", () => {
     vi.stubGlobal("fetch", fetchFalso);
 
     const { fuenteEquipo, fuenteEquipoSimulada } = await importarSelector();
-    const equipo = await fuenteEquipo.obtenerEquipo();
+    const equipo = await fuenteEquipo.obtenerEquipoPorCiudad();
 
     expect(fuenteEquipo).not.toBe(fuenteEquipoSimulada);
-    expect(equipo.region).toBe("Sin campaña vigente");
+    // El proyecto no tiene campañas del coordinador: no hay equipo que mostrar, y no se inventan datos de prueba.
+    expect(equipo).toBeNull();
     expect(fetchFalso).toHaveBeenCalledTimes(2);
   });
 

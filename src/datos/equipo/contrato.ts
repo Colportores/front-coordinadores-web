@@ -1,101 +1,102 @@
 /**
- * Contrato de datos de la pestaña Equipo: colportores del coordinador (con su
- * ciudad y sus zonas), precios por ciudad y acompañamientos. Es lo que después implementa el BFF
- * (bff-coordinadores).
+ * Contrato de datos de la pestaña Equipo: la vista 33 (zonas y acompañamientos de cada colportor, por ciudad) y la
+ * vista 23 (añadir colportor a la campaña). Es lo que después implementa el BFF (bff-coordinadores).
  */
 
-export type EstadoCobro = "bien" | "atencion" | "critico";
-
-export interface FilaColportor {
+/**
+ * Una ciudad de la campaña. `departamento` es `null` mientras la base no lo entregue (`ciudad.departamento`,
+ * backend-supabase#92): la lista de ciudades pone esas ciudades al final, sin título de departamento.
+ */
+export interface CiudadDeEquipo {
   id: string;
   nombre: string;
-  /** Ciudad de la campaña a la que pertenece el colportor (los precios son por ciudad). */
-  ciudadId: string;
-  ciudadNombre: string;
-  /** Zonas asignadas (solo visual); vacío mientras no tenga ninguna: se muestra «Sin asignar». */
-  zonas: string[];
-  /** Formateado como en el diseño, p. ej. "28,4 h". */
-  horasSemana: string;
-  /** Formateado como en el diseño, p. ej. "$U 84K". */
-  ventas: string;
-  porcentajeCobrado: number;
-  /**
-   * Estado visual del % cobrado (verde/ámbar/rojo). El umbral numérico exacto
-   * no está definido en el diseño ni en la documentación: se refleja tal cual
-   * el diseño por fila; el criterio real lo define el negocio al conectar la HU.
-   */
-  estadoCobro: EstadoCobro;
-  /** Formateado como en el diseño, p. ej. "hace 20 min". */
-  ultimaSync: string;
-  /**
-   * Si la última sincronización es "vieja" y hay que alertar. El umbral exacto
-   * (cuántas horas/días) no está definido en el diseño ni en la documentación:
-   * lo decide el BFF al conectar la HU. Acá se refleja tal cual el diseño.
-   */
-  sincronizacionVieja: boolean;
+  departamento: string | null;
 }
 
-export interface ColportorSinZona {
+/** La zona que tiene hoy el colportor. */
+export interface ZonaActualDeColportor {
   id: string;
   nombre: string;
-  nota: string;
+  /** Día en que la tiene, `AAAA-MM-DD`. */
+  desde: string;
+  /** `true`: el día es una cota (la zona ya la tenía cuando se empezó a guardar el historial), no la asignación real. */
+  desdeInicial: boolean;
 }
 
-export interface PrecioProductoCiudad {
-  id: string;
-  producto: string;
-  /** Formateado como en el diseño, p. ej. "$U 1.450". */
-  precioBase: string;
-  /** Precio configurado para la ciudad, formateado, p. ej. "$U 1.500". */
-  precioCiudad: string;
+/** Una zona que el colportor tuvo y ya no tiene, con las fechas en que la tuvo (`AAAA-MM-DD`, ambas incluidas). */
+export interface ZonaAnterior {
+  nombre: string;
+  desde: string;
+  hasta: string;
+  /** La zona se dio de baja después: figura igual, con el nombre que tenía. */
+  eliminada: boolean;
+  /** Ver `ZonaActualDeColportor.desdeInicial`. */
+  inicial: boolean;
 }
 
-/** Precios de los productos de una ciudad de la campaña (`campania_ciudad`). */
-export interface PreciosDeCiudad {
-  ciudadId: string;
-  ciudadNombre: string;
-  productos: PrecioProductoCiudad[];
-}
-
-/** Último acompañamiento registrado: a quién, qué día y quién acompañó. */
-export interface UltimoAcompanamiento {
-  id: string;
-  colportor: string;
-  /** Día de la jornada, en texto como lo muestra el panel, p. ej. "ayer" o "lun 28/09". */
+/** Una jornada acompañada de un colportor: la fila del historial de acompañamientos. */
+export interface AcompanamientoDeColportor {
+  jornadaId: string;
+  /** Día de la jornada, `AAAA-MM-DD`. */
   dia: string;
-  acompaniante: string;
+  /** Horas de la jornada; `null` si todavía sigue abierta. */
+  horas: number | null;
+  /** Nombre de quien acompañó (cualquier coordinador, o un colportor). */
+  acompanante: string;
 }
 
-/** Jornada finalizada reciente del equipo, candidata a registrarle un acompañamiento. */
-export interface JornadaReciente {
+/** Un colportor inscripto en la campaña, con lo que muestran las dos tablas de la vista 33. */
+export interface ColportorDeEquipo {
   id: string;
-  colportor: string;
-  /** Día de la jornada, p. ej. "ayer". */
+  nombre: string;
+  /** Ciudad de su zona actual; `null` mientras no tenga zona. */
+  ciudadId: string | null;
+  zonaActual: ZonaActualDeColportor | null;
+  /** Del más viejo al más nuevo. */
+  zonasAnteriores: ZonaAnterior[];
+  /** Casas que cargó en las ciudades de la campaña, sin mirar la zona: las de una zona vieja siguen contando. */
+  casasRegistradas: number;
+  /** El más nuevo primero. Los «días sin acompañar» se cuentan desde el primero o, si no hay, desde el inicio de la campaña. */
+  acompanamientos: AcompanamientoDeColportor[];
+}
+
+/** Los datos de la vista 33 de la campaña del coordinador. */
+export interface DatosEquipoPorCiudad {
+  campaniaId: string;
+  campania: string;
+  /** Inicio de la campaña, `AAAA-MM-DD`: de ahí salen las semanas S1, S2… de la tabla de acompañamientos. */
+  campaniaInicio: string;
+  /** Fin de la campaña, `AAAA-MM-DD`; `null` si no tiene. */
+  campaniaFin: string | null;
+  /** El día de hoy en Montevideo, `AAAA-MM-DD`: lo pone el servidor, de ahí salen los «días sin acompañar». */
+  hoy: string;
+  ciudades: CiudadDeEquipo[];
+  /** Los de la lista de la campaña, con zona o sin ella. */
+  colportores: ColportorDeEquipo[];
+  /** Personas que pidieron entrar a la campaña y esperan una respuesta; sin fuente real todavía, siempre 0. */
+  solicitudesPendientes: number;
+}
+
+/** Una jornada terminada del colportor entre las que elegir para registrar un acompañamiento. */
+export interface JornadaParaAcompanar {
+  id: string;
+  /** `AAAA-MM-DD` */
   dia: string;
-  /** P. ej. "3,4 h · Cerro Norte". */
-  detalle: string;
+  horas: number;
+  /** Quien ya la acompañó; `null` si nadie: solo esas se pueden registrar. */
+  acompanante: string | null;
 }
 
-export interface DatosAcompanamiento {
-  /** Más reciente primero. */
-  ultimosAcompanamientos: UltimoAcompanamiento[];
-  /** Últimas jornadas del equipo sin acompañamiento, para elegir al registrar uno. */
-  jornadasRecientes: JornadaReciente[];
-  /** Quien registra (el coordinador de la sesión): figura como acompañante. */
-  acompaniante: string;
-  /** Jornadas finalizadas de la campaña con acompañamiento registrado. */
-  jornadasAcompanadas: number;
-  /** Jornadas finalizadas de la campaña: el % acompañado se calcula con estos dos números. */
-  jornadasTotales: number;
-}
+export type ResultadoJornadas = { ok: true; jornadas: JornadaParaAcompanar[] } | { ok: false; mensaje: string };
 
-export interface DatosEquipo {
-  region: string;
-  colportores: FilaColportor[];
-  sinZonaAsignada: ColportorSinZona[];
-  preciosPorCiudad: PreciosDeCiudad[];
-  acompanamiento: DatosAcompanamiento;
-}
+/**
+ * Respuesta a registrar un acompañamiento (`agregar_acompaniamiento()`). `yaEstaba`: ya figuraba a nombre del mismo
+ * coordinador (un reintento o un doble toque): no se tocó nada. `recargar`: la jornada cambió y la lista que se está
+ * viendo ya no es cierta.
+ */
+export type ResultadoAcompanamiento =
+  | { ok: true; dia: string; acompanante: string; yaEstaba: boolean }
+  | { ok: false; mensaje: string; recargar?: boolean };
 
 /** Estado de la cuenta de un candidato (HU-CAM-004). `suspendida` no se puede añadir. */
 export type EstadoCuenta = "pendiente_asignacion" | "activa" | "suspendida";
@@ -154,7 +155,15 @@ export type ResultadoInscripcion =
   | { ok: false; mensaje: string; campaniaEnConflicto?: { id: string; nombre: string } };
 
 export interface FuenteDatosEquipo {
-  obtenerEquipo(): Promise<DatosEquipo>;
+  /** `null`: el coordinador no tiene una campaña que no haya terminado. */
+  obtenerEquipoPorCiudad(): Promise<DatosEquipoPorCiudad | null>;
+  /**
+   * Las jornadas terminadas de un colportor de la campaña, la más nueva primero. Un rechazo de la regla vuelve como
+   * `ok: false`; una falla de conexión, como excepción.
+   */
+  jornadasParaAcompanar(campaniaId: string, colportorId: string): Promise<ResultadoJornadas>;
+  /** El coordinador de la sesión se anota como acompañante de esa jornada. */
+  registrarAcompanamiento(campaniaId: string, jornadaId: string): Promise<ResultadoAcompanamiento>;
   /** `null`: el coordinador no tiene una campaña en curso a la que añadir colportores. */
   obtenerAnadirColportor(): Promise<DatosAnadirColportor | null>;
   /**
