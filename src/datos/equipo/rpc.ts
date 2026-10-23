@@ -148,13 +148,20 @@ function esRechazo(error: unknown): error is ErrorSupabase {
 
 type FuenteAnadir = Pick<FuenteDatosEquipo, "obtenerAnadirColportor" | "buscarCandidatos" | "inscribirColportor">;
 
-export function crearFuenteAnadirRpc(cliente: ClienteRpc): FuenteAnadir {
+/**
+ * @param campaniaElegida la campaña que eligió la coordinadora en el topbar (#70), si hay; sin ella o si ya no figura en
+ *   su lista, la primera (`campaniaProvisoria`).
+ */
+export function crearFuenteAnadirRpc(
+  cliente: ClienteRpc,
+  campaniaElegida: () => Promise<string | null> = async () => null,
+): FuenteAnadir {
   return {
     async obtenerAnadirColportor(): Promise<DatosAnadirColportor | null> {
-      // La campaña del panel es la misma que usa la vista 24 (`campaniaProvisoria`: la primera de la lista, con las en curso
-      // antes). Acá una campaña que todavía no empezó equivale a «sin campaña en curso»: la base no deja inscribir (`CI002`,
+      // La campaña del panel es la misma que usa la vista 24 (`campaniaProvisoria`: la elegida en el topbar o, si no, la
+      // primera de la lista, con las en curso antes). Acá una campaña que todavía no empezó equivale a «sin campaña en curso»: la base no deja inscribir (`CI002`,
       // más abajo) y la pantalla es `SinCampaniaParaAnadir`. La vista 24, en cambio, sí trabaja con una por empezar.
-      const campania = await campaniaProvisoria(cliente);
+      const campania = await campaniaProvisoria(cliente, await campaniaElegida());
       if (!campania) return null;
       const { id: campaniaId, nombre } = campania;
 

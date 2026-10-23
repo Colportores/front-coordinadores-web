@@ -71,9 +71,12 @@ const DATOS_VACIOS: DatosEquipo = {
   },
 };
 
-export function crearFuenteEquipoSupabase(cliente: ClienteSupabase): FuenteDatosEquipo {
+export function crearFuenteEquipoSupabase(
+  cliente: ClienteSupabase,
+  campaniaElegida?: () => Promise<string | null>,
+): FuenteDatosEquipo {
   return {
-    ...crearFuenteAnadirRpc(cliente),
+    ...crearFuenteAnadirRpc(cliente, campaniaElegida),
 
     async obtenerEquipo() {
       const [campania] = await cliente.consultar<CampaniaRemota[]>(CONSULTA_CAMPANIA);

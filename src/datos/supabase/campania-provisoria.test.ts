@@ -48,3 +48,33 @@ describe("campaniaProvisoria", () => {
     await expect(campaniaProvisoria(clienteQueContesta(servicio).cliente)).rejects.toBe(servicio);
   });
 });
+
+describe("campaniaProvisoria con una campaña elegida (#70)", () => {
+  const lista = [
+    { id: "c-1", nombre: "Verano 2026", tipo: "VERANO" },
+    { id: "c-2", nombre: "Permanente 2026", tipo: "PERMANENTE" },
+    { id: "c-3", nombre: "Verano 2027", tipo: "VERANO" },
+  ];
+
+  it("es la elegida si figura en la lista, aunque no sea la primera ni haya empezado", async () => {
+    const { cliente } = clienteQueContesta(lista);
+    expect(await campaniaProvisoria(cliente, "c-3")).toEqual({ id: "c-3", nombre: "Verano 2027" });
+  });
+
+  it("si la elegida ya no figura (terminó, se dio de baja o la cookie es ajena), vuelve a la primera", async () => {
+    const { cliente } = clienteQueContesta(lista);
+    expect(await campaniaProvisoria(cliente, "c-9")).toEqual({ id: "c-1", nombre: "Verano 2026" });
+    expect(await campaniaProvisoria(cliente, "")).toEqual({ id: "c-1", nombre: "Verano 2026" });
+  });
+
+  it("sin elegir ninguna (null o undefined), es la primera", async () => {
+    const { cliente } = clienteQueContesta(lista);
+    expect(await campaniaProvisoria(cliente, null)).toEqual({ id: "c-1", nombre: "Verano 2026" });
+    expect(await campaniaProvisoria(cliente, undefined)).toEqual({ id: "c-1", nombre: "Verano 2026" });
+  });
+
+  it("la elegida no inventa una campaña: sin lista sigue siendo null", async () => {
+    const { cliente } = clienteQueContesta([]);
+    expect(await campaniaProvisoria(cliente, "c-1")).toBeNull();
+  });
+});

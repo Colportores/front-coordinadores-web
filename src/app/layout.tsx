@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { modoDevActivo } from "@/config/flags";
 import { fuenteShell } from "@/datos/shell";
+import type { ResultadoCampanias } from "@/datos/shell";
 import { PanelEstadoHu } from "@/dev/PanelEstadoHu";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 import { MarcoDelPanel } from "@/shell/MarcoDelPanel";
@@ -47,12 +48,22 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const resumen = await fuenteShell.obtenerResumenCoordinador();
   const modoDev = modoDevActivo();
 
+  // La lista de campañas del topbar se pide al abrir el selector, con una server action. Sitio de prueba (export estático,
+  // sin servidor): no hay server actions, así que el topbar usa la lista simulada desde el navegador. La condición es
+  // literal y el `import()` está en el `else` para que el módulo con la acción no entre al build exportado.
+  let pedirCampanias: (() => Promise<ResultadoCampanias>) | undefined;
+  if (process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1") {
+    pedirCampanias = undefined;
+  } else {
+    pedirCampanias = (await import("./acciones-campanias")).listarCampaniasAccion;
+  }
+
   return (
     <html lang="es" className={`${sourceSerif.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
         <ProveedorModoDev activo={modoDev}>
           <TooltipProvider>
-            <MarcoDelPanel resumen={resumen} pestanas={pestanasVisibles()}>
+            <MarcoDelPanel resumen={resumen} pestanas={pestanasVisibles()} pedirCampanias={pedirCampanias}>
               {children}
             </MarcoDelPanel>
             <PanelEstadoHu />

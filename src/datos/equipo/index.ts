@@ -10,6 +10,7 @@
 import type { FuenteDatosEquipo } from "@/datos/equipo/contrato";
 import { fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { crearFuenteEquipoSupabase } from "@/datos/equipo/supabase";
+import { leerCampaniaElegida } from "@/datos/shell/campania-elegida-servidor";
 import { crearClienteSupabase } from "@/datos/supabase/cliente";
 import { leerConfigSupabase } from "@/datos/supabase/config";
 
@@ -35,5 +36,5 @@ export type {
 const configSupabase = leerConfigSupabase();
 
 export const fuenteEquipo: FuenteDatosEquipo = configSupabase
-  ? crearFuenteEquipoSupabase(crearClienteSupabase(configSupabase))
+  ? crearFuenteEquipoSupabase(crearClienteSupabase(configSupabase), leerCampaniaElegida)
   : fuenteEquipoSimulada;
