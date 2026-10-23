@@ -37,7 +37,7 @@ describe("fuente simulada de la vista 33", () => {
     const datos = await datosDe();
     const sofia = datos.colportores.find((c) => c.nombre === "Sofía Cabral");
 
-    expect(sofia?.zonaActual).toMatchObject({ nombre: "Rampla", desde: "2026-10-12" });
+    expect(sofia?.zonaActual).toMatchObject({ nombre: "Centro", desde: "2026-10-12" });
     expect(sofia?.zonasAnteriores.map((z) => [z.nombre, z.desde, z.hasta])).toEqual([
       ["Ayuí", "2026-09-01", "2026-09-20"],
       ["Rampla", "2026-09-21", "2026-10-11"],
