@@ -18,9 +18,9 @@ import { SinCampaniaParaEquipo } from "./SinCampaniaParaEquipo";
  * documentan un hallazgo del QA: el implementador saca el `skip` cuando lo arregla.
  */
 
-const J1: JornadaParaAcompanar = { id: "j1", dia: "2026-10-20", horas: 5.5, acompanante: null };
-const J2: JornadaParaAcompanar = { id: "j2", dia: "2026-10-19", horas: 4, acompanante: "Tomás Ibarra" };
-const J3: JornadaParaAcompanar = { id: "j3", dia: "2026-10-17", horas: 3.2, acompanante: null };
+const J1: JornadaParaAcompanar = { id: "j1", dia: "2026-10-20", horas: 5.5, acompanante: null, acompananteEsVos: false };
+const J2: JornadaParaAcompanar = { id: "j2", dia: "2026-10-19", horas: 4, acompanante: "Tomás Ibarra", acompananteEsVos: false };
+const J3: JornadaParaAcompanar = { id: "j3", dia: "2026-10-17", horas: 3.2, acompanante: null, acompananteEsVos: false };
 
 const ok = (dia: string): ResultadoAcompanamiento => ({ ok: true, dia, acompanante: "Mariana Pérez", yaEstaba: false });
 
@@ -70,8 +70,8 @@ describe("QA #63 · HU-JOR-004, criterios de aceptación", () => {
           id: "x",
           nombre: "Colportor X",
           acompanamientos: [
-            { jornadaId: "a", dia: "2026-10-09", horas: 4, acompanante: "Mariana Pérez" },
-            { jornadaId: "b", dia: "2026-10-02", horas: 5, acompanante: "Mariana Pérez" },
+            { jornadaId: "a", dia: "2026-10-09", horas: 4, acompanante: "Mariana Pérez", acompananteEsVos: true },
+            { jornadaId: "b", dia: "2026-10-02", horas: 5, acompanante: "Mariana Pérez", acompananteEsVos: true },
           ],
         }),
       ],
@@ -181,7 +181,7 @@ describe("QA #63 · los cinco estados", () => {
     const aviso = await screen.findByRole("status");
     expect(aviso).toHaveTextContent("Acompañamiento registrado");
     const lista = screen.getByRole("list", { name: /Jornadas terminadas de Florencia/ });
-    expect(within(lista).getAllByText("Acompañó Mariana Pérez").length).toBeGreaterThan(0);
+    expect(within(lista).getAllByText(/Acompañó Mariana Pérez/).length).toBeGreaterThan(0);
   });
 });
 
@@ -265,7 +265,7 @@ describe("QA #63 · casos límite de «Registrar acompañamiento»", () => {
   it("datos límite: una jornada en curso (sin horas) o un acompañamiento posterior a hoy no dan días negativos ni «NaN»", async () => {
     const datos = datosDePrueba({
       colportores: [
-        colportor({ id: "f", nombre: "Futuro", acompanamientos: [{ jornadaId: "f1", dia: "2026-10-25", horas: null, acompanante: "Mariana Pérez" }] }),
+        colportor({ id: "f", nombre: "Futuro", acompanamientos: [{ jornadaId: "f1", dia: "2026-10-25", horas: null, acompanante: "Mariana Pérez", acompananteEsVos: true }] }),
       ],
     });
     const { u } = mostrar(datos);
