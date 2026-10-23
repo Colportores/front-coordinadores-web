@@ -68,7 +68,10 @@ function clienteCon(respuestas: Respuestas) {
   return { cliente: { llamarRpc } as unknown as ClienteRpc, llamarRpc };
 }
 
+const perfil = [{ usuario_id: "m", nombre: "Mariana", apellido: "Pérez" }];
+
 const completas = (cambios: Respuestas = {}): Respuestas => ({
+  mi_perfil: perfil,
   campanias_del_coordinador: [campania],
   ciudades_de_campania: ciudades,
   zonas_por_colportor: [zonas()],
@@ -102,7 +105,7 @@ describe("obtenerEquipoPorCiudad", () => {
           zonaActual: { id: "z-1", nombre: "Santa Isabel", desde: "2026-10-06", desdeInicial: false },
           zonasAnteriores: [{ nombre: "Bisso", desde: "2026-09-01", hasta: "2026-10-05", eliminada: false, inicial: false }],
           casasRegistradas: 340,
-          acompanamientos: [{ jornadaId: JORNADA, dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez" }],
+          acompanamientos: [{ jornadaId: JORNADA, dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true }],
         },
       ],
       solicitudesPendientes: 0,
@@ -149,11 +152,25 @@ describe("obtenerEquipoPorCiudad", () => {
     const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
 
     expect(datos?.colportores[0].acompanamientos).toEqual([
-      { jornadaId: "j-3", dia: "2026-10-21", horas: null, acompanante: "Mariana Pérez" },
-      { jornadaId: "j-2", dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez" },
+      { jornadaId: "j-3", dia: "2026-10-21", horas: null, acompanante: "Mariana Pérez", acompananteEsVos: true },
+      { jornadaId: "j-2", dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true },
       // Sin nombre ni apellido, la fila no queda sin acompañante.
-      { jornadaId: "j-1", dia: "2026-09-08", horas: 4.5, acompanante: "Cuenta sin nombre" },
+      { jornadaId: "j-1", dia: "2026-09-08", horas: 4.5, acompanante: "Cuenta sin nombre", acompananteEsVos: true },
     ]);
+  });
+
+  it("«(vos)» solo donde acompañó quien tiene la sesión (`mi_perfil`); sin perfil, en ninguno", async () => {
+    const otro = historial({ jornada_id: "j-otro", acompaniante_id: "t", acompaniante_nombre: "Tomás", acompaniante_apellido: "Ibarra" });
+    const { cliente } = clienteCon(completas({ historial_de_acompaniamientos: [historial(), otro] }));
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+    expect(datos?.colportores[0].acompanamientos.map((a) => [a.acompanante, a.acompananteEsVos])).toEqual([
+      ["Mariana Pérez", true],
+      ["Tomás Ibarra", false],
+    ]);
+
+    const sinPerfil = clienteCon(completas({ mi_perfil: [], historial_de_acompaniamientos: [historial()] }));
+    const otroDatos = await crearFuentePestanaRpc(sinPerfil.cliente, AHORA).obtenerEquipoPorCiudad();
+    expect(otroDatos?.colportores[0].acompanamientos[0].acompananteEsVos).toBe(false);
   });
 
   it("una zona de una ciudad que la lista de la campaña no trae suma esa ciudad", async () => {
@@ -222,7 +239,12 @@ describe("jornadasParaAcompanar", () => {
 
   it("devuelve las jornadas terminadas con quién las acompañó, o null si nadie", async () => {
     const { cliente, llamarRpc } = clienteCon({
-      jornadas_cerradas_de_colportor: [jornada(), jornada({ jornada_id: "otra", acompaniante_id: "m", acompaniante_nombre: "Tomás", acompaniante_apellido: "Ibarra" })],
+      mi_perfil: perfil,
+      jornadas_cerradas_de_colportor: [
+        jornada(),
+        jornada({ jornada_id: "otra", acompaniante_id: "t", acompaniante_nombre: "Tomás", acompaniante_apellido: "Ibarra" }),
+        jornada({ jornada_id: "mia", acompaniante_id: "m", acompaniante_nombre: "Mariana", acompaniante_apellido: "Pérez" }),
+      ],
     });
 
     const r = await crearFuentePestanaRpc(cliente).jornadasParaAcompanar(CAMPANIA, EMILIANO);
@@ -230,15 +252,16 @@ describe("jornadasParaAcompanar", () => {
     expect(r).toEqual({
       ok: true,
       jornadas: [
-        { id: JORNADA, dia: "2026-10-20", horas: 5.5, acompanante: null },
-        { id: "otra", dia: "2026-10-20", horas: 5.5, acompanante: "Tomás Ibarra" },
+        { id: JORNADA, dia: "2026-10-20", horas: 5.5, acompanante: null, acompananteEsVos: false },
+        { id: "otra", dia: "2026-10-20", horas: 5.5, acompanante: "Tomás Ibarra", acompananteEsVos: false },
+        { id: "mia", dia: "2026-10-20", horas: 5.5, acompanante: "Mariana Pérez", acompananteEsVos: true },
       ],
     });
     expect(llamarRpc).toHaveBeenCalledWith("jornadas_cerradas_de_colportor", { p_campania_id: CAMPANIA, p_colportor_id: EMILIANO });
   });
 
   it("un colportor que no es de la campaña da la lista vacía", async () => {
-    const { cliente } = clienteCon({ jornadas_cerradas_de_colportor: [] });
+    const { cliente } = clienteCon({ mi_perfil: perfil, jornadas_cerradas_de_colportor: [] });
 
     expect(await crearFuentePestanaRpc(cliente).jornadasParaAcompanar(CAMPANIA, EMILIANO)).toEqual({ ok: true, jornadas: [] });
   });
@@ -253,23 +276,23 @@ describe("jornadasParaAcompanar", () => {
   });
 
   it("traduce los rechazos y deja pasar las caídas", async () => {
-    const sinPermiso = clienteCon({ jornadas_cerradas_de_colportor: rechazo("42501", "x", 403) });
+    const sinPermiso = clienteCon({ mi_perfil: perfil, jornadas_cerradas_de_colportor: rechazo("42501", "x", 403) });
     expect(await crearFuentePestanaRpc(sinPermiso.cliente).jornadasParaAcompanar(CAMPANIA, EMILIANO)).toEqual({
       ok: false,
       mensaje: "Solo el coordinador de la campaña puede ver las jornadas de su equipo.",
     });
 
-    const inexistente = clienteCon({ jornadas_cerradas_de_colportor: rechazo("CZ001", "La campaña no existe.") });
+    const inexistente = clienteCon({ mi_perfil: perfil, jornadas_cerradas_de_colportor: rechazo("CZ001", "La campaña no existe.") });
     expect(await crearFuentePestanaRpc(inexistente.cliente).jornadasParaAcompanar(CAMPANIA, EMILIANO)).toEqual({ ok: false, mensaje: "La campaña no existe." });
 
-    const rarisimo = clienteCon({ jornadas_cerradas_de_colportor: rechazo("XX999", "interno") });
+    const rarisimo = clienteCon({ mi_perfil: perfil, jornadas_cerradas_de_colportor: rechazo("XX999", "interno") });
     expect(await crearFuentePestanaRpc(rarisimo.cliente).jornadasParaAcompanar(CAMPANIA, EMILIANO)).toEqual({
       ok: false,
       mensaje: "No se pudieron traer las jornadas. Probá de nuevo más tarde.",
     });
 
     const caida = new TypeError("fetch failed");
-    await expect(crearFuentePestanaRpc(clienteCon({ jornadas_cerradas_de_colportor: caida }).cliente).jornadasParaAcompanar(CAMPANIA, EMILIANO)).rejects.toBe(caida);
+    await expect(crearFuentePestanaRpc(clienteCon({ mi_perfil: perfil, jornadas_cerradas_de_colportor: caida }).cliente).jornadasParaAcompanar(CAMPANIA, EMILIANO)).rejects.toBe(caida);
   });
 });
 

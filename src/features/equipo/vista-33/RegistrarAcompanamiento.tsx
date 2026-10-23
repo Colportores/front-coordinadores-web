@@ -7,7 +7,7 @@ import { diaConSemana } from "@/lib/dias";
 import { mensajeSinConexion } from "@/lib/mensajes";
 
 import type { AccionesEquipo } from "./acciones";
-import { textoHoras } from "./modelo";
+import { nombreDeAcompanante, textoHoras } from "./modelo";
 import { CLASE_BOTON_PRIMARIO, CLASE_BOTON_SECUNDARIO } from "./TablaZonas";
 
 type Carga =
@@ -119,7 +119,7 @@ export function RegistrarAcompanamiento({
         );
         setCarga((actual) =>
           actual.tipo === "lista"
-            ? { tipo: "lista", jornadas: actual.jornadas.map((j) => (j.id === jornada.id ? { ...j, acompanante: respuesta.acompanante } : j)) }
+            ? { tipo: "lista", jornadas: actual.jornadas.map((j) => (j.id === jornada.id ? { ...j, acompanante: respuesta.acompanante, acompananteEsVos: true } : j)) }
             : actual,
         );
         focoPendiente.current = jornada.id;
@@ -210,7 +210,7 @@ export function RegistrarAcompanamiento({
                         {ocupada ? "Registrando…" : "Registrar"}
                       </button>
                     ) : (
-                      <span className="ml-auto min-w-0 text-chico wrap-anywhere text-tinta-suave">Acompañó {j.acompanante}</span>
+                      <span className="ml-auto min-w-0 text-chico wrap-anywhere text-tinta-suave">Acompañó {nombreDeAcompanante(j.acompanante, j.acompananteEsVos)}</span>
                     )}
                   </div>
                   {rechazo && (

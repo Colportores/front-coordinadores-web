@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-import type { Ambito, ItemRiel, ModeloLista, NodoLista } from "./modelo";
+import { pluralColportores, type Ambito, type ItemRiel, type ModeloLista, type NodoLista } from "./modelo";
 
 const BOTON_ALTERNAR =
   "grid min-h-8 min-w-8 place-items-center rounded-control border border-borde bg-superficie text-nav text-marca-media hover:bg-marca-clara focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento";
@@ -15,7 +15,7 @@ function Nodo({ nodo, alElegir }: { nodo: NodoLista; alElegir: (ambito: Ambito) 
         data-foco={nodo.clave}
         aria-current={nodo.seleccionado ? "true" : undefined}
         title={nodo.nombre}
-        aria-label={`${nodo.nombre}, ${nodo.cantidad} ${nodo.cantidad === 1 ? "colportor" : "colportores"}`}
+        aria-label={`${nodo.nombre}, ${pluralColportores(nodo.cantidad)}${nodo.sinZona > 0 ? ` y ${nodo.sinZona} sin zona` : ""}`}
         onClick={() => alElegir(nodo.ambito)}
         className={cn(
           "flex min-h-9 w-full min-w-0 items-center justify-between gap-2 rounded-control px-3 py-[9px] text-left hover:bg-marca-clara focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-acento",
@@ -25,6 +25,7 @@ function Nodo({ nodo, alElegir }: { nodo: NodoLista; alElegir: (ambito: Ambito) 
         <span className="truncate text-nav font-semibold text-tinta">{nodo.nombre}</span>
         <span aria-hidden="true" className="flex-none font-mono text-[10.5px] text-tinta-suave">
           {nodo.cantidad}
+          {nodo.sinZona > 0 && ` + ${nodo.sinZona} sin zona`}
         </span>
       </button>
     </li>
@@ -75,11 +76,6 @@ export function ListaDeCiudades({
             </ul>
           </section>
         ))}
-        {lista.sinZona && (
-          <ul className="flex flex-col gap-0.5 pt-3.5">
-            <Nodo nodo={lista.sinZona} alElegir={alElegir} />
-          </ul>
-        )}
       </div>
     </nav>
   );

@@ -8,9 +8,9 @@ import type { AccionesEquipo } from "./acciones";
 import { colportor, datosDePrueba, HOY } from "./datos-de-prueba";
 import { EquipoVista } from "./EquipoVista";
 
-const J1: JornadaParaAcompanar = { id: "j1", dia: "2026-10-20", horas: 5.5, acompanante: null };
-const J2: JornadaParaAcompanar = { id: "j2", dia: "2026-10-19", horas: 4, acompanante: "Tomás Ibarra" };
-const J3: JornadaParaAcompanar = { id: "j3", dia: "2026-10-17", horas: 3.2, acompanante: null };
+const J1: JornadaParaAcompanar = { id: "j1", dia: "2026-10-20", horas: 5.5, acompanante: null, acompananteEsVos: false };
+const J2: JornadaParaAcompanar = { id: "j2", dia: "2026-10-19", horas: 4, acompanante: "Tomás Ibarra", acompananteEsVos: false };
+const J3: JornadaParaAcompanar = { id: "j3", dia: "2026-10-17", horas: 3.2, acompanante: null, acompananteEsVos: false };
 
 function ok(dia: string): ResultadoAcompanamiento {
   return { ok: true, dia, acompanante: "Mariana Pérez", yaEstaba: false };
@@ -41,7 +41,7 @@ describe("EquipoVista · la lista de ciudades", () => {
     mostrar();
 
     expect(screen.getByRole("heading", { level: 2, name: "Todas las ciudades" })).toBeInTheDocument();
-    expect(screen.getByText("5 colportores")).toBeInTheDocument();
+    expect(screen.getByText("4 colportores + 1 sin zona")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Zonas" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("table", { name: "Zonas de cada colportor" })).toBeInTheDocument();
   });
@@ -52,11 +52,12 @@ describe("EquipoVista · la lista de ciudades", () => {
 
     expect(within(nav).getByRole("heading", { name: "DEPTO. ARTIGAS" })).toBeInTheDocument();
     expect(within(nav).getByRole("heading", { name: "DEPTO. RIVERA" })).toBeInTheDocument();
-    expect(within(nav).getByRole("button", { name: "Todas las ciudades, 5 colportores" })).toHaveAttribute("aria-current", "true");
-    expect(within(nav).getByRole("button", { name: "Todo el departamento, 2 colportores" })).toBeInTheDocument();
-    expect(within(nav).getByRole("button", { name: "Rivera, 2 colportores" })).toBeInTheDocument();
-    expect(within(nav).getByRole("button", { name: "Bella Unión, 1 colportor" })).toBeInTheDocument();
-    expect(within(nav).getByRole("button", { name: "Sin zona asignada, 1 colportor" })).toBeInTheDocument();
+    expect(within(nav).getByRole("button", { name: "Todas las ciudades, 4 colportores y 1 sin zona" })).toHaveAttribute("aria-current", "true");
+    expect(within(nav).getByRole("button", { name: "Todo el departamento, 2 colportores y 1 sin zona" })).toBeInTheDocument();
+    expect(within(nav).getByRole("button", { name: "Rivera, 2 colportores y 1 sin zona" })).toBeInTheDocument();
+    expect(within(nav).getByRole("button", { name: "Bella Unión, 1 colportor y 1 sin zona" })).toBeInTheDocument();
+    // Los que no tienen zona se suman a cada renglón: no tienen uno propio.
+    expect(within(nav).queryByRole("button", { name: /^Sin zona asignada/ })).not.toBeInTheDocument();
   });
 
   it("elegir una ciudad muestra solo a sus colportores, sin cabeceras, con el departamento en el subtítulo", async () => {
@@ -65,10 +66,10 @@ describe("EquipoVista · la lista de ciudades", () => {
     await usuario.click(screen.getByRole("button", { name: /^Rivera/ }));
 
     expect(screen.getByRole("heading", { level: 2, name: "Rivera" })).toBeInTheDocument();
-    expect(screen.getByText("2 colportores · Departamento Rivera")).toBeInTheDocument();
+    expect(screen.getByText("2 colportores + 1 sin zona · Departamento Rivera")).toBeInTheDocument();
     expect(fila(/Emiliano Sosa/)).toBeInTheDocument();
     expect(screen.queryByRole("row", { name: /Sofía Cabral/ })).not.toBeInTheDocument();
-    expect(within(screen.getByRole("table")).queryByText("Rivera")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("Sin zona asignada")).toBeInTheDocument();
   });
 
   it("«Todo el departamento» junta sus ciudades, cada una con su cabecera", async () => {
@@ -84,15 +85,16 @@ describe("EquipoVista · la lista de ciudades", () => {
     expect(fila(/Federico Da Rosa/)).toBeInTheDocument();
   });
 
-  it("los que no tienen zona tienen su propio renglón y no aparecen en ninguna ciudad", async () => {
+  it("quien no tiene zona aparece dentro de cada ciudad, al final y bajo «Sin zona asignada», y una sola vez en Todas", async () => {
     const { usuario } = mostrar();
 
+    expect(screen.getAllByRole("row", { name: /Rocío Benítez/ })).toHaveLength(1);
     await usuario.click(screen.getByRole("button", { name: /^Rivera/ }));
-    expect(screen.queryByRole("row", { name: /Rocío Benítez/ })).not.toBeInTheDocument();
-
-    await usuario.click(screen.getByRole("button", { name: /^Sin zona asignada/ }));
-    expect(screen.getByRole("heading", { level: 2, name: "Sin zona asignada" })).toBeInTheDocument();
     expect(fila(/Rocío Benítez/)).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: /^Bella Unión/ }));
+    expect(fila(/Rocío Benítez/)).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: /^Todo el departamento/ }));
+    expect(screen.getAllByRole("row", { name: /Rocío Benítez/ })).toHaveLength(1);
   });
 
   it("la lista se contrae a abreviaturas, el foco queda en el botón y se puede elegir desde ahí", async () => {
@@ -111,7 +113,7 @@ describe("EquipoVista · la lista de ciudades", () => {
   });
 
   it("una ciudad sin colportores lo dice y dice qué hacer", async () => {
-    const datos = datosDePrueba({ colportores: datosDePrueba().colportores.filter((c) => c.ciudadId !== "bu") });
+    const datos = datosDePrueba({ colportores: datosDePrueba().colportores.filter((c) => c.ciudadId !== "bu" && c.zonaActual !== null) });
     const { usuario } = mostrar(datos);
 
     await usuario.click(screen.getByRole("button", { name: /^Bella Unión/ }));
@@ -188,12 +190,12 @@ describe("EquipoVista · pendientes de acción", () => {
     expect(screen.queryByRole("list", { name: "Pendientes de acción" })).not.toBeInTheDocument();
   });
 
-  it("en una ciudad que no tiene colportores sin zona, tampoco hay aviso de zona", async () => {
+  it("en una ciudad el aviso de quien no tiene zona sigue, porque no tiene ciudad", async () => {
     const { usuario } = mostrar();
 
     await irAAcompanamientos(usuario, "Rivera");
 
-    expect(screen.queryByText(/no tiene zona asignada/)).not.toBeInTheDocument();
+    expect(screen.getByText("Rocío Benítez no tiene zona asignada")).toBeInTheDocument();
   });
 });
 
@@ -269,10 +271,9 @@ describe("EquipoVista · pestaña Acompañamientos", () => {
     const { usuario } = mostrar();
     await irAAcompanamientos(usuario, "Rivera");
 
-    const filas = screen.getAllByRole("row").slice(1);
-    expect(filas.map((f) => within(f).getByRole("rowheader").textContent)).toEqual(["Florencia Pintos", "Emiliano Sosa"]);
+    expect(screen.getAllByRole("rowheader").map((c) => c.textContent)).toEqual(["Florencia Pintos", "Emiliano Sosa", "Rocío Benítez"]);
     expect(screen.getByRole("columnheader", { name: "SEMANAS S1 A S8" })).toBeInTheDocument();
-    expect(screen.getByText("2 colportores · Departamento Rivera · 2 acompañamientos en la campaña · ordenado por días sin acompañar")).toBeInTheDocument();
+    expect(screen.getByText("2 colportores + 1 sin zona · Departamento Rivera · 2 acompañamientos en la campaña · ordenado por días sin acompañar")).toBeInTheDocument();
 
     const emiliano = within(fila(/Emiliano Sosa/));
     expect(emiliano.getByText("hace 19 días")).toBeInTheDocument();
@@ -297,8 +298,8 @@ describe("EquipoVista · pestaña Acompañamientos", () => {
       hoy: "2026-09-02",
       colportores: [
         colportor({ id: "n", nombre: "Nunca Uno" }),
-        colportor({ id: "h", nombre: "Hoy Dos", acompanamientos: [{ jornadaId: "1", dia: "2026-09-02", horas: 1, acompanante: "X" }] }),
-        colportor({ id: "a", nombre: "Ayer Tres", acompanamientos: [{ jornadaId: "2", dia: "2026-09-01", horas: 1, acompanante: "X" }] }),
+        colportor({ id: "h", nombre: "Hoy Dos", acompanamientos: [{ jornadaId: "1", dia: "2026-09-02", horas: 1, acompanante: "X", acompananteEsVos: false }] }),
+        colportor({ id: "a", nombre: "Ayer Tres", acompanamientos: [{ jornadaId: "2", dia: "2026-09-01", horas: 1, acompanante: "X", acompananteEsVos: false }] }),
       ],
     });
     const { usuario } = mostrar(datos);
@@ -321,7 +322,7 @@ describe("EquipoVista · pestaña Acompañamientos", () => {
     const { usuario } = mostrar();
     await irAAcompanamientos(usuario, "Artigas");
 
-    expect(screen.getByText("1 colportor · Departamento Artigas · 1 acompañamiento en la campaña · ordenado por días sin acompañar")).toBeInTheDocument();
+    expect(screen.getByText("1 colportor + 1 sin zona · Departamento Artigas · 1 acompañamiento en la campaña · ordenado por días sin acompañar")).toBeInTheDocument();
   });
 
   it("«Ver historial» abre debajo de la fila cada acompañamiento con su fecha, sus horas y quién acompañó", async () => {
@@ -336,9 +337,10 @@ describe("EquipoVista · pestaña Acompañamientos", () => {
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent("vie 02/10");
     expect(items[0]).toHaveTextContent("4,5 h");
-    expect(items[0]).toHaveTextContent("Mariana Pérez");
+    expect(items[0]).toHaveTextContent("Mariana Pérez (vos)");
     expect(items[1]).toHaveTextContent("mar 08/09");
     expect(items[1]).toHaveTextContent("Tomás Ibarra");
+    expect(items[1]).not.toHaveTextContent("(vos)");
     const boton = screen.getByRole("button", { name: "Ocultar historial de Emiliano Sosa" });
     expect(boton).toHaveAttribute("aria-expanded", "true");
   });
@@ -373,7 +375,7 @@ describe("EquipoVista · pestaña Acompañamientos", () => {
   it("una jornada todavía abierta figura «en curso»", async () => {
     const datos = datosDePrueba({
       colportores: [
-        colportor({ id: "a", nombre: "Abierta", acompanamientos: [{ jornadaId: "1", dia: HOY, horas: null, acompanante: "Mariana Pérez" }] }),
+        colportor({ id: "a", nombre: "Abierta", acompanamientos: [{ jornadaId: "1", dia: HOY, horas: null, acompanante: "Mariana Pérez", acompananteEsVos: true }] }),
       ],
     });
     const { usuario } = mostrar(datos);
@@ -443,7 +445,7 @@ describe("EquipoVista · registrar un acompañamiento", () => {
     expect(florencia.getByText("último: mar 20/10")).toBeInTheDocument();
     expect(florencia.getByRole("cell", { name: "1" })).toBeInTheDocument();
     const lista = screen.getByRole("list", { name: /Jornadas terminadas/ });
-    expect(within(lista).getAllByRole("listitem")[0]).toHaveTextContent("Acompañó Mariana Pérez");
+    expect(within(lista).getAllByRole("listitem")[0]).toHaveTextContent("Acompañó Mariana Pérez (vos)");
     expect(within(lista).getAllByRole("listitem")[0]).toHaveFocus();
     // Y el historial de la fila lo muestra.
     await usuario.click(screen.getByRole("button", { name: "Ver historial de Florencia Pintos" }));
@@ -508,8 +510,8 @@ describe("EquipoVista · registrar un acompañamiento", () => {
     expect(florencia.getByRole("cell", { name: "2" })).toBeInTheDocument();
     expect(florencia.getByText("ayer")).toBeInTheDocument();
     const items = within(screen.getByRole("list", { name: /Jornadas terminadas/ })).getAllByRole("listitem");
-    expect(items[0]).toHaveTextContent("Acompañó Mariana Pérez");
-    expect(items[2]).toHaveTextContent("Acompañó Mariana Pérez");
+    expect(items[0]).toHaveTextContent("Acompañó Mariana Pérez (vos)");
+    expect(items[2]).toHaveTextContent("Acompañó Mariana Pérez (vos)");
   });
 
   it("si la jornada cambió (otra persona ya la acompañó), muestra el rechazo y vuelve a pedir la lista", async () => {
@@ -712,6 +714,7 @@ describe("EquipoVista · datos límite", () => {
       dia: new Date(Date.UTC(2026, 8, 1 + (i % 50))).toISOString().slice(0, 10),
       horas: 4,
       acompanante: "Mariana Pérez",
+      acompananteEsVos: true,
     }));
     const { usuario } = mostrar(datosDePrueba({ colportores: [colportor({ id: "m", nombre: "Muchos", acompanamientos: lista })] }));
     await irAAcompanamientos(usuario);

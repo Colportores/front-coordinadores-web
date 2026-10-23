@@ -88,7 +88,7 @@ function aAnterior(rpc: string, tramo: Objeto): ZonaAnterior {
 }
 
 /** Las jornadas acompañadas de la campaña por colportor, la más nueva primero (el orden en que las manda la base). */
-function acompanamientosPorColportor(filasHistorial: Objeto[]): Map<string, AcompanamientoDeColportor[]> {
+function acompanamientosPorColportor(filasHistorial: Objeto[], yo: string | null): Map<string, AcompanamientoDeColportor[]> {
   const rpc = "historial_de_acompaniamientos";
   const porColportor = new Map<string, AcompanamientoDeColportor[]>();
   for (const fila of filasHistorial) {
@@ -103,21 +103,31 @@ function acompanamientosPorColportor(filasHistorial: Objeto[]): Map<string, Acom
         cadenaONula(rpc, fila, "acompaniante_apellido") ?? "",
         CUENTA_SIN_NOMBRE,
       ),
+      acompananteEsVos: yo !== null && cadenaONula(rpc, fila, "acompaniante_id") === yo,
     });
     porColportor.set(colportorId, lista);
   }
   return porColportor;
 }
 
-function aJornada(fila: Objeto): JornadaParaAcompanar {
+/** El id de quien tiene la sesión (`mi_perfil()`), para escribir «(vos)» donde el acompañante es el propio coordinador. */
+async function miId(cliente: ClienteRpc): Promise<string | null> {
+  const rpc = "mi_perfil";
+  const [fila] = filas(rpc, await cliente.llamarRpc(rpc, {}));
+  return fila ? cadena(rpc, fila, "usuario_id") : null;
+}
+
+function aJornada(fila: Objeto, yo: string | null): JornadaParaAcompanar {
   const rpc = "jornadas_cerradas_de_colportor";
   const nombre = cadenaONula(rpc, fila, "acompaniante_nombre") ?? "";
   const apellido = cadenaONula(rpc, fila, "acompaniante_apellido") ?? "";
+  const acompananteId = cadenaONula(rpc, fila, "acompaniante_id");
   return {
     id: cadena(rpc, fila, "jornada_id"),
     dia: dia(rpc, fila, "dia"),
     horas: numero(rpc, fila, "horas"),
-    acompanante: cadenaONula(rpc, fila, "acompaniante_id") === null ? null : nombreVisible(nombre, apellido, CUENTA_SIN_NOMBRE),
+    acompanante: acompananteId === null ? null : nombreVisible(nombre, apellido, CUENTA_SIN_NOMBRE),
+    acompananteEsVos: acompananteId !== null && acompananteId === yo,
   };
 }
 
@@ -141,12 +151,13 @@ export function crearFuentePestanaRpc(cliente: ClienteRpc, ahora: () => Date = (
           cliente.llamarRpc("ciudades_de_campania", argumentos),
           cliente.llamarRpc("zonas_por_colportor", argumentos),
           cliente.llamarRpc("historial_de_acompaniamientos", { ...argumentos, p_colportor_id: null }),
+          miId(cliente),
         ]);
       } catch (error) {
         if (campaniaYaNoVigente(error)) return null;
         throw error;
       }
-      const [ciudadesCrudas, colportoresCrudos, historialCrudo] = respuestas;
+      const [ciudadesCrudas, colportoresCrudos, historialCrudo, yo] = respuestas as [unknown, unknown, unknown, string | null];
 
       const ciudades = new Map<string, CiudadDeEquipo>();
       for (const fila of filas("ciudades_de_campania", ciudadesCrudas)) {
@@ -154,7 +165,7 @@ export function crearFuentePestanaRpc(cliente: ClienteRpc, ahora: () => Date = (
         ciudades.set(id, { id, nombre: cadena("ciudades_de_campania", fila, "nombre"), departamento: null });
       }
 
-      const acompanamientos = acompanamientosPorColportor(filas("historial_de_acompaniamientos", historialCrudo));
+      const acompanamientos = acompanamientosPorColportor(filas("historial_de_acompaniamientos", historialCrudo), yo);
       const rpc = "zonas_por_colportor";
       const colportores: ColportorDeEquipo[] = filas(rpc, colportoresCrudos).map((fila) => {
         const id = cadena(rpc, fila, "colportor_id");
@@ -200,11 +211,11 @@ export function crearFuentePestanaRpc(cliente: ClienteRpc, ahora: () => Date = (
       // El id del colportor viene del navegador: si no es una cuenta, no hay jornadas que pedir.
       if (!UUID.test(colportorId)) return { ok: false, mensaje: COLPORTOR_FUERA_DE_CAMPANIA };
       try {
-        const jornadas = filas(
-          "jornadas_cerradas_de_colportor",
-          await cliente.llamarRpc("jornadas_cerradas_de_colportor", { p_campania_id: campaniaId, p_colportor_id: colportorId }),
-        ).map(aJornada);
-        return { ok: true, jornadas };
+        const [crudas, yo] = await Promise.all([
+          cliente.llamarRpc("jornadas_cerradas_de_colportor", { p_campania_id: campaniaId, p_colportor_id: colportorId }),
+          miId(cliente),
+        ]);
+        return { ok: true, jornadas: filas("jornadas_cerradas_de_colportor", crudas).map((f) => aJornada(f, yo)) };
       } catch (error) {
         if (esRechazo(error)) return { ok: false, mensaje: textoDeRechazo(error, SIN_PERMISO_JORNADAS, JORNADAS_RECHAZADAS) };
         throw error;

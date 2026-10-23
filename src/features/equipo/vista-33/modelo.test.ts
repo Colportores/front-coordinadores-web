@@ -24,36 +24,45 @@ describe("resolverAmbito", () => {
     expect(r.titulo).toBe("Todas las ciudades");
     expect(r.grupos.map((g) => g.nombre)).toEqual(["Artigas", "Bella Unión", "Rivera", "Sin zona asignada"]);
     expect(r.colportores).toHaveLength(5);
+    expect(r.conZona).toBe(4);
     expect(r.conCabeceras).toBe(true);
   });
 
-  it("una ciudad: sus colportores, sin cabeceras, con el departamento", () => {
+  it("una ciudad: sus colportores y, al final, los que no tienen zona, con el departamento", () => {
     const r = resolverAmbito(datos, { tipo: "ciudad", ciudadId: "riv" });
 
-    expect(r).toMatchObject({ titulo: "Rivera", departamento: "Rivera", conCabeceras: false });
-    expect(r.colportores.map((c) => c.nombre)).toEqual(["Emiliano Sosa", "Florencia Pintos"]);
+    expect(r).toMatchObject({ titulo: "Rivera", departamento: "Rivera", conZona: 2, conCabeceras: true });
+    expect(r.grupos.map((g) => g.nombre)).toEqual(["Rivera", "Sin zona asignada"]);
+    expect(r.colportores.map((c) => c.nombre)).toEqual(["Emiliano Sosa", "Florencia Pintos", "Rocío Benítez"]);
+  });
+
+  it("una ciudad sin nadie sin zona no abre un grupo de más ni cabeceras", () => {
+    const sinRocio = datosDePrueba({ colportores: datos.colportores.filter((c) => c.zonaActual !== null) });
+    const r = resolverAmbito(sinRocio, { tipo: "ciudad", ciudadId: "riv" });
+
+    expect(r).toMatchObject({ conCabeceras: false, conZona: 2 });
+    expect(r.sinZona).toEqual([]);
   });
 
   it("un departamento: las ciudades que tiene, cada una con su cabecera", () => {
     const r = resolverAmbito(datos, { tipo: "departamento", departamento: "Artigas" });
 
     expect(r.titulo).toBe("Departamento Artigas");
-    expect(r.grupos.map((g) => g.nombre)).toEqual(["Artigas", "Bella Unión"]);
+    expect(r.grupos.map((g) => g.nombre)).toEqual(["Artigas", "Bella Unión", "Sin zona asignada"]);
     expect(r.conCabeceras).toBe(true);
   });
 
-  it("los que no tienen zona", () => {
-    const r = resolverAmbito(datos, { tipo: "sin-zona" });
-
-    expect(r.colportores.map((c) => c.nombre)).toEqual(["Rocío Benítez"]);
-    expect(r.conCabeceras).toBe(false);
+  it("los que no tienen zona figuran una sola vez en cada ámbito, nunca repetidos", () => {
+    for (const ambito of [AMBITO_TODAS, { tipo: "departamento", departamento: "Artigas" } as const, { tipo: "ciudad", ciudadId: "bu" } as const]) {
+      const r = resolverAmbito(datos, ambito);
+      expect(r.colportores.filter((c) => c.nombre === "Rocío Benítez")).toHaveLength(1);
+      expect(r.sinZona.map((c) => c.nombre)).toEqual(["Rocío Benítez"]);
+    }
   });
 
-  it("una ciudad, un departamento o un grupo sin zona que ya no existen vuelven a «todas»", () => {
+  it("una ciudad o un departamento que ya no existen vuelven a «todas»", () => {
     expect(resolverAmbito(datos, { tipo: "ciudad", ciudadId: "no-esta" }).ambito).toEqual(AMBITO_TODAS);
     expect(resolverAmbito(datos, { tipo: "departamento", departamento: "Salto" }).ambito).toEqual(AMBITO_TODAS);
-    const todosConZona = datosDePrueba({ colportores: datos.colportores.filter((c) => c.zonaActual !== null) });
-    expect(resolverAmbito(todosConZona, { tipo: "sin-zona" }).ambito).toEqual(AMBITO_TODAS);
   });
 
   it("una zona de una ciudad que ya no está en la lista figura con los que no tienen zona", () => {
@@ -66,7 +75,10 @@ describe("resolverAmbito", () => {
     const sinBellaUnion = datosDePrueba({ colportores: datos.colportores.filter((c) => c.ciudadId !== "bu") });
 
     expect(resolverAmbito(sinBellaUnion, AMBITO_TODAS).grupos.map((g) => g.nombre)).toEqual(["Artigas", "Rivera", "Sin zona asignada"]);
-    expect(resolverAmbito(sinBellaUnion, { tipo: "ciudad", ciudadId: "bu" }).colportores).toEqual([]);
+    // Queda solo quien no tiene zona, que figura en cualquier ciudad.
+    expect(resolverAmbito(sinBellaUnion, { tipo: "ciudad", ciudadId: "bu" }).colportores.map((c) => c.nombre)).toEqual(["Rocío Benítez"]);
+    const nadie = datosDePrueba({ colportores: sinBellaUnion.colportores.filter((c) => c.zonaActual !== null) });
+    expect(resolverAmbito(nadie, { tipo: "ciudad", ciudadId: "bu" }).colportores).toEqual([]);
   });
 });
 
@@ -76,12 +88,13 @@ describe("construirLista", () => {
   it("agrupa por departamento, con «Todo el departamento» solo donde hay más de una ciudad", () => {
     const lista = construirLista(datos, resolverAmbito(datos, AMBITO_TODAS));
 
-    expect(lista.todas).toMatchObject({ nombre: "Todas las ciudades", cantidad: 5, seleccionado: true });
+    expect(lista.todas).toMatchObject({ nombre: "Todas las ciudades", cantidad: 4, sinZona: 1, seleccionado: true });
     expect(lista.grupos.map((g) => [g.titulo, g.nodos.map((n) => `${n.nombre}:${n.cantidad}`)])).toEqual([
       ["DEPTO. ARTIGAS", ["Todo el departamento:2", "Artigas:1", "Bella Unión:1"]],
       ["DEPTO. RIVERA", ["Rivera:2"]],
     ]);
-    expect(lista.sinZona).toMatchObject({ nombre: "Sin zona asignada", cantidad: 1 });
+    // Los que no tienen zona se suman a cada renglón («8 + 1 sin zona»); no tienen renglón propio.
+    expect(lista.grupos.flatMap((g) => g.nodos).every((n) => n.sinZona === 1)).toBe(true);
   });
 
   it("marca como seleccionado el ámbito actual", () => {
@@ -103,13 +116,13 @@ describe("construirLista", () => {
     const lista = construirLista(sinDepartamento, resolverAmbito(sinDepartamento, AMBITO_TODAS));
 
     expect(lista.grupos.map((g) => g.titulo)).toEqual(["DEPTO. ARTIGAS", null]);
-    expect(lista.sinZona).toBeNull();
+    expect(lista.todas.sinZona).toBe(0);
   });
 
   it("la lista contraída trae una abreviatura por renglón", () => {
     const lista = construirLista(datos, resolverAmbito(datos, AMBITO_TODAS));
 
-    expect(construirRiel(lista).map((i) => i.abreviatura)).toEqual(["Todas", "Dpto.", "Art.", "B. Un.", "Riv.", "Sin zona"]);
+    expect(construirRiel(lista).map((i) => i.abreviatura)).toEqual(["Todas", "Dpto.", "Art.", "B. Un.", "Riv."]);
   });
 
   it("abrevia nombres de una y de varias palabras", () => {
@@ -123,7 +136,6 @@ describe("construirLista", () => {
     expect(mismoAmbito({ tipo: "todas" }, AMBITO_TODAS)).toBe(true);
     expect(mismoAmbito({ tipo: "ciudad", ciudadId: "a" }, { tipo: "ciudad", ciudadId: "b" })).toBe(false);
     expect(mismoAmbito({ tipo: "departamento", departamento: "A" }, { tipo: "departamento", departamento: "A" })).toBe(true);
-    expect(mismoAmbito({ tipo: "sin-zona" }, { tipo: "todas" })).toBe(false);
   });
 });
 
@@ -143,9 +155,9 @@ describe("días sin acompañar", () => {
       id: "d",
       nombre: "D",
       acompanamientos: [
-        { jornadaId: "1", dia: "2026-09-08", horas: 1, acompanante: "X" },
-        { jornadaId: "2", dia: "2026-10-18", horas: 1, acompanante: "X" },
-        { jornadaId: "3", dia: "2026-10-01", horas: 1, acompanante: "X" },
+        { jornadaId: "1", dia: "2026-09-08", horas: 1, acompanante: "X", acompananteEsVos: false },
+        { jornadaId: "2", dia: "2026-10-18", horas: 1, acompanante: "X", acompananteEsVos: false },
+        { jornadaId: "3", dia: "2026-10-01", horas: 1, acompanante: "X", acompananteEsVos: false },
       ],
     });
 
@@ -153,7 +165,7 @@ describe("días sin acompañar", () => {
   });
 
   it("acompañado hoy son 0 días y una campaña que todavía no empezó no da negativos", () => {
-    const hoy = colportor({ id: "h", nombre: "H", acompanamientos: [{ jornadaId: "1", dia: HOY, horas: 1, acompanante: "X" }] });
+    const hoy = colportor({ id: "h", nombre: "H", acompanamientos: [{ jornadaId: "1", dia: HOY, horas: 1, acompanante: "X", acompananteEsVos: false }] });
 
     expect(diasSinAcompanar(hoy, INICIO, HOY)).toBe(0);
     expect(diasSinAcompanar(florencia, "2026-11-01", HOY)).toBe(0);

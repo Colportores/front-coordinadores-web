@@ -10,8 +10,7 @@ import { diasEntre, lunesDe, sumarDias } from "@/lib/dias";
 export type Ambito =
   | { tipo: "todas" }
   | { tipo: "departamento"; departamento: string }
-  | { tipo: "ciudad"; ciudadId: string }
-  | { tipo: "sin-zona" };
+  | { tipo: "ciudad"; ciudadId: string };
 
 export const AMBITO_TODAS: Ambito = { tipo: "todas" };
 
@@ -20,8 +19,7 @@ export type VistaEquipo = "zonas" | "acompanamientos";
 export function mismoAmbito(a: Ambito, b: Ambito): boolean {
   switch (a.tipo) {
     case "todas":
-    case "sin-zona":
-      return a.tipo === b.tipo;
+      return b.tipo === "todas";
     case "departamento":
       return b.tipo === "departamento" && b.departamento === a.departamento;
     case "ciudad":
@@ -50,7 +48,12 @@ export interface AmbitoResuelto {
   /** «Departamento Artigas» cuando el ámbito es una sola ciudad con departamento. */
   departamento: string | null;
   grupos: GrupoDeColportores[];
+  /** Todos los que se ven, cada uno una sola vez. */
   colportores: ColportorDeEquipo[];
+  /** Cuántos de ellos tienen zona (los demás figuran al final, bajo «Sin zona asignada»). */
+  conZona: number;
+  /** Los que no tienen zona: no tienen ciudad, así que figuran en cualquier ámbito (una sola vez). */
+  sinZona: ColportorDeEquipo[];
   /** Hay más de un grupo: la tabla pone una cabecera por ciudad. */
   conCabeceras: boolean;
 }
@@ -76,54 +79,49 @@ function sinZona(datos: DatosEquipoPorCiudad): ColportorDeEquipo[] {
   return datos.colportores.filter((c) => c.ciudadId === null || !ciudades.has(c.ciudadId));
 }
 
-/** Un ámbito que ya no existe en los datos (la ciudad o el departamento desaparecieron) vuelve a «todas». */
+/**
+ * Un ámbito que ya no existe en los datos (la ciudad o el departamento desaparecieron) vuelve a «todas». Los que no
+ * tienen zona no tienen ciudad: figuran en cualquier ámbito, una sola vez, al final y bajo «Sin zona asignada» (decisión
+ * «Ciudad colp.», artboard 33-05).
+ */
 export function resolverAmbito(datos: DatosEquipoPorCiudad, ambito: Ambito): AmbitoResuelto {
   const ciudades = ciudadesOrdenadas(datos);
+  const sin = sinZona(datos);
   const delaCiudad = (id: string) => datos.colportores.filter((c) => c.ciudadId === id);
   const grupoDe = (id: string, nombre: string): GrupoDeColportores => ({ clave: id, nombre, colportores: delaCiudad(id) });
+  const armar = (
+    ambitoResuelto: Ambito,
+    titulo: string,
+    departamento: string | null,
+    deCiudades: GrupoDeColportores[],
+  ): AmbitoResuelto => {
+    const conGente = deCiudades.filter((g) => g.colportores.length > 0);
+    const grupos = sin.length > 0 ? [...conGente, { clave: "sin-zona", nombre: SIN_ZONA, colportores: sin }] : conGente;
+    return {
+      ambito: ambitoResuelto,
+      titulo,
+      departamento,
+      grupos,
+      colportores: grupos.flatMap((g) => g.colportores),
+      conZona: conGente.reduce((suma, g) => suma + g.colportores.length, 0),
+      sinZona: sin,
+      conCabeceras: grupos.length > 1,
+    };
+  };
 
   if (ambito.tipo === "departamento") {
     const delDepartamento = ciudades.filter((c) => c.departamento === ambito.departamento);
     if (delDepartamento.length > 0) {
-      const grupos = delDepartamento.map((c) => grupoDe(c.id, c.nombre));
-      return {
-        ambito,
-        titulo: `Departamento ${ambito.departamento}`,
-        departamento: null,
-        grupos,
-        colportores: grupos.flatMap((g) => g.colportores),
-        conCabeceras: grupos.length > 1,
-      };
+      return armar(ambito, `Departamento ${ambito.departamento}`, null, delDepartamento.map((c) => grupoDe(c.id, c.nombre)));
     }
   }
 
   if (ambito.tipo === "ciudad") {
     const ciudad = ciudades.find((c) => c.id === ambito.ciudadId);
-    if (ciudad) {
-      const grupo = grupoDe(ciudad.id, ciudad.nombre);
-      return { ambito, titulo: ciudad.nombre, departamento: ciudad.departamento, grupos: [grupo], colportores: grupo.colportores, conCabeceras: false };
-    }
+    if (ciudad) return armar(ambito, ciudad.nombre, ciudad.departamento, [grupoDe(ciudad.id, ciudad.nombre)]);
   }
 
-  if (ambito.tipo === "sin-zona") {
-    const colportores = sinZona(datos);
-    if (colportores.length > 0) {
-      return { ambito, titulo: SIN_ZONA, departamento: null, grupos: [{ clave: "sin-zona", nombre: SIN_ZONA, colportores }], colportores, conCabeceras: false };
-    }
-  }
-
-  // Todas: las ciudades con gente, y al final los que no tienen zona. Una ciudad vacía no abre una cabecera sin filas.
-  const grupos = ciudades.map((c) => grupoDe(c.id, c.nombre)).filter((g) => g.colportores.length > 0);
-  const sin = sinZona(datos);
-  if (sin.length > 0) grupos.push({ clave: "sin-zona", nombre: SIN_ZONA, colportores: sin });
-  return {
-    ambito: AMBITO_TODAS,
-    titulo: "Todas las ciudades",
-    departamento: null,
-    grupos,
-    colportores: grupos.flatMap((g) => g.colportores),
-    conCabeceras: grupos.length > 1,
-  };
+  return armar(AMBITO_TODAS, "Todas las ciudades", null, ciudades.map((c) => grupoDe(c.id, c.nombre)));
 }
 
 /** Un renglón de la lista de ciudades. */
@@ -131,8 +129,10 @@ export interface NodoLista {
   clave: string;
   ambito: Ambito;
   nombre: string;
-  /** La cantidad de colportores. */
+  /** Colportores con zona en el ámbito. */
   cantidad: number;
+  /** Los que no tienen zona y figuran en el ámbito además de los anteriores. */
+  sinZona: number;
   seleccionado: boolean;
 }
 
@@ -147,16 +147,16 @@ export interface GrupoLista {
 export interface ModeloLista {
   todas: NodoLista;
   grupos: GrupoLista[];
-  /** Los que no tienen zona, si hay alguno. */
-  sinZona: NodoLista | null;
 }
 
 export function construirLista(datos: DatosEquipoPorCiudad, resuelto: AmbitoResuelto): ModeloLista {
+  const ninguna = sinZona(datos).length;
   const nodo = (clave: string, ambito: Ambito, nombre: string, cantidad: number): NodoLista => ({
     clave,
     ambito,
     nombre,
     cantidad,
+    sinZona: ninguna,
     seleccionado: mismoAmbito(ambito, resuelto.ambito),
   });
   const cuantos = (idCiudad: string) => datos.colportores.filter((c) => c.ciudadId === idCiudad).length;
@@ -186,12 +186,7 @@ export function construirLista(datos: DatosEquipoPorCiudad, resuelto: AmbitoResu
     }
   }
 
-  const ninguna = sinZona(datos).length;
-  return {
-    todas: nodo("todas", AMBITO_TODAS, "Todas las ciudades", datos.colportores.length),
-    grupos,
-    sinZona: ninguna > 0 ? nodo("sin-zona", { tipo: "sin-zona" }, SIN_ZONA, ninguna) : null,
-  };
+  return { todas: nodo("todas", AMBITO_TODAS, "Todas las ciudades", datos.colportores.length - ninguna), grupos };
 }
 
 /** Un renglón de la lista contraída: solo la abreviatura. */
@@ -226,7 +221,6 @@ export function construirRiel(lista: ModeloLista): ItemRiel[] {
       items.push(item(nodoDeLista, nodoDeLista.ambito.tipo === "departamento" ? "Dpto." : abreviar(nodoDeLista.nombre)));
     }
   }
-  if (lista.sinZona) items.push(item(lista.sinZona, "Sin zona"));
   return items;
 }
 
@@ -288,4 +282,9 @@ export function semanasAcompanadas(colportor: ColportorDeEquipo, semanas: Semana
 /** «4,2 h»; sin horas, la jornada sigue abierta. */
 export function textoHoras(horas: number | null): string {
   return horas === null ? "en curso" : `${horas.toFixed(1).replace(".", ",")} h`;
+}
+
+/** «Mariana Pérez (vos)» cuando quien acompañó es quien tiene la sesión, como en el canvas. */
+export function nombreDeAcompanante(nombre: string, esVos: boolean): string {
+  return esVos ? `${nombre} (vos)` : nombre;
 }

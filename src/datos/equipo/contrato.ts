@@ -43,6 +43,8 @@ export interface AcompanamientoDeColportor {
   horas: number | null;
   /** Nombre de quien acompañó (cualquier coordinador, o un colportor). */
   acompanante: string;
+  /** Quien acompañó es quien tiene la sesión: el panel lo escribe «Nombre (vos)». */
+  acompananteEsVos: boolean;
 }
 
 /** Un colportor inscripto en la campaña, con lo que muestran las dos tablas de la vista 33. */
@@ -73,7 +75,10 @@ export interface DatosEquipoPorCiudad {
   ciudades: CiudadDeEquipo[];
   /** Los de la lista de la campaña, con zona o sin ella. */
   colportores: ColportorDeEquipo[];
-  /** Personas que pidieron entrar a la campaña y esperan una respuesta; sin fuente real todavía, siempre 0. */
+  /**
+   * Personas que pidieron entrar a la campaña y esperan una respuesta. Siempre 0 hasta que exista el flujo «Unirse a una
+   * campaña» (HU-CAM-009, después del 20/11): con 0 la franja «SOLICITUD» no aparece.
+   */
   solicitudesPendientes: number;
 }
 
@@ -85,6 +90,8 @@ export interface JornadaParaAcompanar {
   horas: number;
   /** Quien ya la acompañó; `null` si nadie: solo esas se pueden registrar. */
   acompanante: string | null;
+  /** Ver `AcompanamientoDeColportor.acompananteEsVos`. */
+  acompananteEsVos: boolean;
 }
 
 export type ResultadoJornadas = { ok: true; jornadas: JornadaParaAcompanar[] } | { ok: false; mensaje: string };

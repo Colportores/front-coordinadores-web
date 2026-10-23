@@ -167,7 +167,13 @@ export function crearEquipoSimulado(): Pick<
     jornadas
       .filter((j) => j.colportorId === colportorId && j.acompanante !== null)
       .sort((a, b) => (a.dia < b.dia ? 1 : a.dia > b.dia ? -1 : 0))
-      .map((j) => ({ jornadaId: j.id, dia: j.dia, horas: j.horas, acompanante: j.acompanante as string }));
+      .map((j) => ({
+        jornadaId: j.id,
+        dia: j.dia,
+        horas: j.horas,
+        acompanante: j.acompanante as string,
+        acompananteEsVos: j.acompanante === COORDINADOR_SIMULADO,
+      }));
 
   return {
     async obtenerEquipoPorCiudad(): Promise<DatosEquipoPorCiudad> {
@@ -179,7 +185,8 @@ export function crearEquipoSimulado(): Pick<
         hoy: HOY_SIMULADO,
         ciudades: CIUDADES,
         colportores: base.map((c) => ({ ...c, acompanamientos: acompanamientosDe(c.id) })),
-        solicitudesPendientes: 1,
+        // Sin flujo de «pedir entrar» (HU-CAM-009, después del 20/11): la franja «SOLICITUD» no aparece.
+        solicitudesPendientes: 0,
       };
     },
 
@@ -190,7 +197,7 @@ export function crearEquipoSimulado(): Pick<
         jornadas: jornadas
           .filter((j) => j.colportorId === colportorId)
           .sort((a, b) => (a.dia < b.dia ? 1 : a.dia > b.dia ? -1 : 0))
-          .map((j) => ({ id: j.id, dia: j.dia, horas: j.horas, acompanante: j.acompanante })),
+          .map((j) => ({ id: j.id, dia: j.dia, horas: j.horas, acompanante: j.acompanante, acompananteEsVos: j.acompanante === COORDINADOR_SIMULADO })),
       };
     },
 

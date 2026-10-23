@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import type { AccionesEquipo } from "./acciones";
 import {
   diasSinAcompanar,
+  nombreDeAcompanante,
   ordenarPorDiasSinAcompanar,
   pluralColportores,
   semanasAcompanadas,
@@ -89,7 +90,7 @@ function Historial({ colportor }: { colportor: ColportorDeEquipo }) {
               <span className="font-mono text-tinta-2">{textoHoras(a.horas)}</span>
               <span className="wrap-anywhere">
                 <span className="sr-only">Acompañó: </span>
-                {a.acompanante}
+                {nombreDeAcompanante(a.acompanante, a.acompananteEsVos)}
               </span>
             </li>
           ))}

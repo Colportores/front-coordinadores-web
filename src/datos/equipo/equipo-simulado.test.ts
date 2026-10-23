@@ -22,7 +22,7 @@ describe("fuente simulada de la vista 33", () => {
     const rocio = datos.colportores.find((c) => c.nombre === "Rocío Benítez");
     expect(rocio).toMatchObject({ ciudadId: null, zonaActual: null, acompanamientos: [] });
     expect(datos.colportores.filter((c) => c.ciudadId === "riv")).toHaveLength(10);
-    expect(datos.solicitudesPendientes).toBe(1);
+    expect(datos.solicitudesPendientes).toBe(0);
   });
 
   it("Emiliano Sosa fue acompañado el 08/09 y el 02/10; Florencia Pintos, nunca", async () => {
@@ -78,7 +78,7 @@ describe("fuente simulada de la vista 33", () => {
     expect(await fuente.registrarAcompanamiento("c", libre.id)).toEqual({ ok: true, dia: libre.dia, acompanante: COORDINADOR_SIMULADO, yaEstaba: true });
 
     const despues = (await datosDe(fuente)).colportores.find((c) => c.nombre === "Florencia Pintos");
-    expect(despues?.acompanamientos).toEqual([{ jornadaId: libre.id, dia: libre.dia, horas: expect.any(Number), acompanante: COORDINADOR_SIMULADO }]);
+    expect(despues?.acompanamientos).toEqual([{ jornadaId: libre.id, dia: libre.dia, horas: expect.any(Number), acompanante: COORDINADOR_SIMULADO, acompananteEsVos: true }]);
   });
 
   it("no pisa el acompañamiento de otra persona y pide recargar", async () => {

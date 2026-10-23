@@ -119,22 +119,21 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
     setRegistrados((anteriores) => {
       const delColportor = anteriores[colportorId] ?? [];
       if (delColportor.some((r) => r.jornadaId === jornada.id)) return anteriores;
-      return { ...anteriores, [colportorId]: [{ jornadaId: jornada.id, dia, horas: jornada.horas, acompanante }, ...delColportor] };
+      return { ...anteriores, [colportorId]: [{ jornadaId: jornada.id, dia, horas: jornada.horas, acompanante, acompananteEsVos: true }, ...delColportor] };
     });
   }, []);
 
   const total = resuelto.colportores.length;
+  const sinZona = resuelto.sinZona.map((c) => c.nombre);
   const totalAcompanamientos = resuelto.colportores.reduce((suma, c) => suma + c.acompanamientos.length, 0);
   const subtitulo = [
-    pluralColportores(total),
+    pluralColportores(resuelto.conZona) + (sinZona.length > 0 ? ` + ${sinZona.length} sin zona` : ""),
     resuelto.departamento ? `Departamento ${resuelto.departamento}` : null,
     vista === "acompanamientos" ? `${pluralAcompanamientos(totalAcompanamientos)} en la campaña` : null,
     vista === "acompanamientos" ? "ordenado por días sin acompañar" : null,
   ]
     .filter((parte): parte is string => parte !== null)
     .join(" · ");
-
-  const sinZona = resuelto.colportores.filter((c) => c.zonaActual === null).map((c) => c.nombre);
 
   return (
     <div
