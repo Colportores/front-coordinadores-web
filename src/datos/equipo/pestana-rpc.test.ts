@@ -109,6 +109,8 @@ describe("obtenerEquipoPorCiudad", () => {
         },
       ],
       solicitudesPendientes: 0,
+      // Las becas (V2) todavía no tienen RPC: la vista lo dice en vez de mostrar una tabla vacía.
+      becas: null,
     });
     expect(llamarRpc).toHaveBeenCalledWith("zonas_por_colportor", { p_campania_id: CAMPANIA });
     expect(llamarRpc).toHaveBeenCalledWith("historial_de_acompaniamientos", { p_campania_id: CAMPANIA, p_colportor_id: null });
@@ -384,5 +386,21 @@ describe("registrarAcompanamiento", () => {
       const { cliente } = clienteCon({ agregar_acompaniamiento: respuesta });
       await expect(crearFuentePestanaRpc(cliente).registrarAcompanamiento(CAMPANIA, JORNADA)).rejects.toBeInstanceOf(RespuestaInesperada);
     }
+  });
+});
+
+describe("becas (V2, sin RPC todavía)", () => {
+  it("elegir la carrera o el tipo no llama a la base: avisa que las becas no están conectadas", async () => {
+    const { cliente, llamarRpc } = clienteCon({});
+    const fuente = crearFuentePestanaRpc(cliente);
+
+    const carrera = await fuente.elegirCarrera(CAMPANIA, EMILIANO, "sis");
+    const tipo = await fuente.asignarTipoDeBeca(CAMPANIA, EMILIANO, "media");
+
+    for (const respuesta of [carrera, tipo]) {
+      expect(respuesta).toMatchObject({ ok: false });
+      expect(respuesta.ok === false && respuesta.mensaje).toContain("Las becas todavía no están conectadas");
+    }
+    expect(llamarRpc).not.toHaveBeenCalled();
   });
 });

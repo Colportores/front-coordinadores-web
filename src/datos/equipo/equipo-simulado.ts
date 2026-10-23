@@ -5,6 +5,7 @@ import type {
   FuenteDatosEquipo,
   ZonaAnterior,
 } from "@/datos/equipo/contrato";
+import { crearBecasSimuladas } from "@/datos/equipo/becas-simuladas";
 import { diasEntre, sumarDias } from "@/lib/dias";
 
 /**
@@ -159,9 +160,10 @@ const SIN_JORNADA = "La jornada no existe o no es de un colportor de esta campa�
 /** Una fuente con su propio estado: registrar un acompañamiento cambia lo que ve la siguiente lectura. */
 export function crearEquipoSimulado(): Pick<
   FuenteDatosEquipo,
-  "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento"
+  "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
 > {
   const { base, jornadas } = armar();
+  const becas = crearBecasSimuladas(base, HOY_SIMULADO);
 
   const acompanamientosDe = (colportorId: string): AcompanamientoDeColportor[] =>
     jornadas
@@ -187,6 +189,7 @@ export function crearEquipoSimulado(): Pick<
         colportores: base.map((c) => ({ ...c, acompanamientos: acompanamientosDe(c.id) })),
         // Sin flujo de «pedir entrar» (HU-CAM-009, después del 20/11): la franja «SOLICITUD» no aparece.
         solicitudesPendientes: 0,
+        becas: becas.datos(),
       };
     },
 
@@ -216,6 +219,14 @@ export function crearEquipoSimulado(): Pick<
       }
       jornada.acompanante = COORDINADOR_SIMULADO;
       return { ok: true, dia: jornada.dia, acompanante: COORDINADOR_SIMULADO, yaEstaba: false };
+    },
+
+    async elegirCarrera(_campaniaId, colportorId, carreraId) {
+      return becas.elegirCarrera(colportorId, carreraId);
+    },
+
+    async asignarTipoDeBeca(_campaniaId, colportorId, tipo) {
+      return becas.asignarTipoDeBeca(colportorId, tipo);
     },
   };
 }
