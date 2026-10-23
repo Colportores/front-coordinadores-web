@@ -176,8 +176,12 @@ export function SelectorDeCampania({
       eligiendoAhora.current = false;
       setEligiendo(false);
     }
-    // Si algún envío falló (la vista se queda con su aviso) o la persona ya se fue, nada cambió: se cierra la lista.
-    if (!aplicada) cerrar(false);
+    // Si algún envío falló (la vista se queda con su aviso) o la persona ya se fue, nada cambió: se cierra la lista. El foco
+    // vuelve al botón si estaba en la lista (o se perdió en el <body>); si la persona lo puso en otro lado, ahí queda.
+    if (!aplicada) {
+      const activo = document.activeElement;
+      cerrar(activo === document.body || activo === null || (envoltorio.current?.contains(activo) ?? false));
+    }
   }
 
   function alTeclear(evento: EventoTeclado<HTMLDivElement>) {

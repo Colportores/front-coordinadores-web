@@ -64,7 +64,7 @@ afterEach(() => {
 });
 
 describe("QA · foco", () => {
-  it.skip(
+  it(
     "QA #70: si una inscripción falla al elegir con el teclado, el foco queda en el botón (no se pierde en <body>)",
     async () => {
       const baja = registrarFuente({ hayPorMandar: () => true, confirmar: async () => false });
