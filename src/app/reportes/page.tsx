@@ -1,45 +1,29 @@
 import { fuenteReportes } from "@/datos/reportes";
+import { fuenteReportesSimulada } from "@/datos/reportes/simulado";
 import { SeccionHu } from "@/dev/SeccionHu";
-import { ExportarReportes } from "@/features/reportes/ExportarReportes";
-import { FiltrosReportes } from "@/features/reportes/FiltrosReportes";
-import { GraficoVentasSemanales } from "@/features/reportes/GraficoVentasSemanales";
-import { HorasPorColportor } from "@/features/reportes/HorasPorColportor";
-import { MapaRegionPlaceholder } from "@/features/reportes/MapaRegionPlaceholder";
-import { ResumenCampania } from "@/features/reportes/ResumenCampania";
+import { ReporteHoras } from "@/features/reportes/horas/ReporteHoras";
+import { SinCampaniaParaReportes } from "@/features/reportes/horas/SinCampaniaParaReportes";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
+/** Vista 32 (HU-REP-001): horas por ciudad y colportor, en días, semanas o meses, con la tendencia de cada cifra. */
 export default async function PestanaReportes() {
-  const datos = await fuenteReportes.obtenerReportes();
+  // El sitio de prueba (export estático) es siempre simulado por construcción: nunca lee el selector de fuente.
+  const fuente = process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1" ? fuenteReportesSimulada : fuenteReportes;
+  const horas = await fuente.obtenerHoras();
 
   return (
-    <ContenidoPestana titulo="Reportes">
-      <div className="flex items-center justify-between">
-        <h2 className="font-serif text-[21px] font-semibold text-tinta">Reportes · {datos.region}</h2>
-        <FiltrosReportes />
-      </div>
-
-      <div className="grid grid-cols-[1.4fr_1fr] items-start gap-4">
-        <div className="flex flex-col gap-4">
-          <SeccionHu hu="HU-REP-002">
-            <GraficoVentasSemanales semanas={datos.ventasPorSemana} />
-          </SeccionHu>
+    <ContenidoPestana titulo="Reportes" className="gap-0 overflow-hidden p-0">
+      {horas ? (
+        <SeccionHu hu="HU-REP-001" className="flex min-h-0 flex-1 flex-col">
+          <ReporteHoras datos={horas} />
+        </SeccionHu>
+      ) : (
+        <div className="p-[22px]">
           <SeccionHu hu="HU-REP-001">
-            <HorasPorColportor colportores={datos.horasPorColportor} />
+            <SinCampaniaParaReportes />
           </SeccionHu>
         </div>
-
-        <div className="flex flex-col gap-4">
-          <SeccionHu hu="HU-REP-002">
-            <ResumenCampania resumen={datos.resumenCampania} />
-          </SeccionHu>
-          <SeccionHu hu="HU-REP-004">
-            <MapaRegionPlaceholder region={datos.region} marcadores={datos.marcadoresMapa} />
-          </SeccionHu>
-          <SeccionHu hu="HU-REP-005">
-            <ExportarReportes />
-          </SeccionHu>
-        </div>
-      </div>
+      )}
     </ContenidoPestana>
   );
 }
