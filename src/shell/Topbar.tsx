@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-import { AccionNoDisponible } from "@/components/AccionNoDisponible";
-import type { ResumenCoordinador } from "@/datos/shell/contrato";
+import type { ResultadoCampanias, ResumenCoordinador } from "@/datos/shell/contrato";
+import { fuenteShellSimulada } from "@/datos/shell/simulado";
 import { estadoDePestana, ETIQUETA_ESTADO } from "@/dev/estado-hu";
 import { CLASES_ESTADO } from "@/dev/estilos";
 import { useModoDev } from "@/dev/ProveedorModoDev";
 import { cn } from "@/lib/utils";
 import type { DefinicionPestana } from "@/shell/pestanas";
+import { SelectorDeCampania } from "@/shell/SelectorDeCampania";
 import {
   esperarYSalir,
   estaEsperando,
@@ -37,7 +38,21 @@ function EstadoPestana({ pestana }: { pestana: DefinicionPestana }) {
   );
 }
 
-export function Topbar({ resumen, pestanas }: { resumen: ResumenCoordinador; pestanas: DefinicionPestana[] }) {
+/** Sin una fuente propia (el sitio de prueba y los tests), el selector ofrece las campañas simuladas desde el navegador. */
+async function pedirCampaniasSimuladas(): Promise<ResultadoCampanias> {
+  return { ok: true, campanias: await fuenteShellSimulada.listarCampanias() };
+}
+
+export function Topbar({
+  resumen,
+  pestanas,
+  pedirCampanias = pedirCampaniasSimuladas,
+}: {
+  resumen: ResumenCoordinador;
+  pestanas: DefinicionPestana[];
+  /** La lista de campañas que se eligen (server action de `src/app/acciones-campanias.ts`); se pide al abrir el selector. */
+  pedirCampanias?: () => Promise<ResultadoCampanias>;
+}) {
   const ruta = usePathname();
   const router = useRouter();
   // Se espera desde el menú, desde «‹ Equipo», con Esc o con atrás/adelante del navegador: el estado es el mismo.
@@ -107,10 +122,7 @@ export function Topbar({ resumen, pestanas }: { resumen: ResumenCoordinador; pes
         ) : null}
       </div>
       <div className="flex items-center gap-3">
-        {/* Cambiar de región/campaña: el selector no está diseñado; queda sin comportamiento. */}
-        <AccionNoDisponible className="rounded-control border border-borde bg-superficie px-3 py-[7px] text-chico text-tinta-suave focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none">
-          {resumen.region} · {resumen.campania} <span aria-hidden>▾</span>
-        </AccionNoDisponible>
+        <SelectorDeCampania resumen={resumen} pedirCampanias={pedirCampanias} />
         <div
           role="img"
           aria-label={`Cuenta: ${resumen.nombre}`}
