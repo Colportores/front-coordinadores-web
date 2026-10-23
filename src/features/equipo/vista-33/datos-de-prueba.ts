@@ -1,4 +1,4 @@
-import type { ColportorDeEquipo, DatosEquipoPorCiudad } from "@/datos/equipo/contrato";
+import type { BecaDeColportor, ColportorDeEquipo, DatosDeBecas, DatosEquipoPorCiudad } from "@/datos/equipo/contrato";
 
 /** Hoy y el inicio de la campaña de los tests: 21/10/2026 es miércoles y la campaña empezó el martes 01/09 (50 días antes). */
 export const HOY = "2026-10-21";
@@ -12,6 +12,31 @@ export function colportor(datos: Partial<ColportorDeEquipo> & Pick<ColportorDeEq
     casasRegistradas: 100,
     acompanamientos: [],
     ...datos,
+  };
+}
+
+/** Sistemas: media = 120 libros o $U 180.000, completa el doble (como el canvas). «Contador» no tiene la meta cargada. */
+export function becasDePrueba(): DatosDeBecas {
+  const sistemas = { id: "sis", nombre: "Ingeniería en Sistemas", elegidaEl: "2026-09-01" };
+  const beca = (cambios: Partial<BecaDeColportor>): BecaDeColportor => ({
+    carrera: sistemas,
+    apuntaA: "media",
+    meta: { libros: 120, monto: 180000 },
+    avance: { libros: 64, monto: 90000 },
+    ...cambios,
+  });
+  return {
+    carreras: [
+      { id: "sis", nombre: "Ingeniería en Sistemas", metaMedia: { libros: 120, monto: 180000 }, metaCompleta: { libros: 240, monto: 360000 } },
+      { id: "teo", nombre: "Teología", metaMedia: { libros: 100, monto: 150000 }, metaCompleta: { libros: 200, monto: 300000 } },
+      { id: "cont", nombre: "Contador Público", metaMedia: null, metaCompleta: null },
+    ],
+    porColportor: {
+      emiliano: beca({}),
+      florencia: beca({ carrera: { id: "teo", nombre: "Teología", elegidaEl: "2026-09-01" }, apuntaA: "completa", meta: { libros: 200, monto: 300000 }, avance: { libros: 40, monto: 75000 } }),
+      sofia: beca({ apuntaA: null, meta: null, avance: { libros: 12, monto: 20000 } }),
+      federico: { carrera: null, apuntaA: null, meta: null, avance: { libros: 0, monto: 0 } },
+    },
   };
 }
 
@@ -60,6 +85,7 @@ export function datosDePrueba(cambios: Partial<DatosEquipoPorCiudad> = {}): Dato
       colportor({ id: "rocio", nombre: "Rocío Benítez", ciudadId: null, zonaActual: null, casasRegistradas: 0 }),
     ],
     solicitudesPendientes: 1,
+    becas: becasDePrueba(),
     ...cambios,
   };
 }

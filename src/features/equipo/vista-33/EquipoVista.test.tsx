@@ -21,7 +21,9 @@ function crearAcciones(jornadas: JornadaParaAcompanar[] = [J1, J2, J3]) {
   const registrarAcompanamiento = vi.fn<AccionesEquipo["registrarAcompanamiento"]>(async (id): Promise<ResultadoAcompanamiento> =>
     ok(jornadas.find((j) => j.id === id)?.dia ?? HOY),
   );
-  return { jornadasParaAcompanar, registrarAcompanamiento } satisfies AccionesEquipo;
+  const elegirCarrera = vi.fn<AccionesEquipo["elegirCarrera"]>(async () => ({ ok: false, mensaje: "Sin becas en este test." }));
+  const asignarTipoDeBeca = vi.fn<AccionesEquipo["asignarTipoDeBeca"]>(async () => ({ ok: false, mensaje: "Sin becas en este test." }));
+  return { jornadasParaAcompanar, registrarAcompanamiento, elegirCarrera, asignarTipoDeBeca } satisfies AccionesEquipo;
 }
 
 function mostrar(datos = datosDePrueba(), acciones: AccionesEquipo = crearAcciones()) {

@@ -19,5 +19,13 @@ export function crearAccionesEquipo(campaniaId: string): AccionesEquipo {
       "use server";
       return fuenteEquipo.registrarAcompanamiento(campaniaId, jornadaId);
     },
+    async elegirCarrera(colportorId, carreraId) {
+      "use server";
+      return fuenteEquipo.elegirCarrera(campaniaId, colportorId, carreraId);
+    },
+    async asignarTipoDeBeca(colportorId, tipo) {
+      "use server";
+      return fuenteEquipo.asignarTipoDeBeca(campaniaId, colportorId, tipo);
+    },
   };
 }

@@ -1,4 +1,5 @@
-import type { ColportorDeEquipo, DatosEquipoPorCiudad } from "@/datos/equipo/contrato";
+import type { BecaDeColportor, ColportorDeEquipo, DatosEquipoPorCiudad, MetaDeBeca, TipoDeBeca } from "@/datos/equipo/contrato";
+import { formatMonto } from "@/features/cuentas/formato";
 import { diasEntre, lunesDe, sumarDias } from "@/lib/dias";
 
 /**
@@ -14,7 +15,7 @@ export type Ambito =
 
 export const AMBITO_TODAS: Ambito = { tipo: "todas" };
 
-export type VistaEquipo = "zonas" | "acompanamientos";
+export type VistaEquipo = "zonas" | "becas" | "acompanamientos";
 
 export function mismoAmbito(a: Ambito, b: Ambito): boolean {
   switch (a.tipo) {
@@ -287,4 +288,64 @@ export function textoHoras(horas: number | null): string {
 /** «Mariana Pérez (vos)» cuando quien acompañó es quien tiene la sesión, como en el canvas. */
 export function nombreDeAcompanante(nombre: string, esVos: boolean): string {
   return esVos ? `${nombre} (vos)` : nombre;
+}
+
+/** En qué medida se ve el avance de la beca: es la misma meta en libros bonificables o en compra a la CES. */
+export type UnidadDeAvance = "libros" | "ces";
+
+export const UNIDAD_POR_DEFECTO: UnidadDeAvance = "libros";
+
+export function esUnidadDeAvance(valor: unknown): valor is UnidadDeAvance {
+  return valor === "libros" || valor === "ces";
+}
+
+export const ETIQUETA_DE_TIPO: Record<TipoDeBeca, string> = { media: "Media", completa: "Completa" };
+
+/** Lo que muestra la columna de avance de un colportor en la tabla «Becas». */
+export type AvanceDeBeca =
+  | { tipo: "sin-carrera" }
+  | { tipo: "sin-tipo" }
+  | {
+      tipo: "con-meta";
+      /** «64 de 120 libros · le faltan 56»; con la meta cumplida, «130 de 120 libros · meta alcanzada». */
+      texto: string;
+      /** De 0 a 100, para el ancho de la barra. */
+      porcentaje: number;
+      alcanzada: boolean;
+    };
+
+function enMedida(meta: MetaDeBeca, unidad: UnidadDeAvance): number {
+  return unidad === "libros" ? meta.libros : meta.monto;
+}
+
+/** «1 libro», «120 libros». */
+function libros(cantidad: number): string {
+  return `${cantidad} ${cantidad === 1 ? "libro" : "libros"}`;
+}
+
+/**
+ * El avance de un colportor hacia su meta, en libros bonificables o en compra a la CES (`unidad`). Sin carrera o sin
+ * tipo no hay meta («Sin meta: falta la carrera»); una meta en 0 tampoco se puede medir, así que cuenta como sin tipo.
+ */
+export function avanceDeBeca(beca: BecaDeColportor | undefined, unidad: UnidadDeAvance): AvanceDeBeca {
+  if (!beca || !beca.carrera) return { tipo: "sin-carrera" };
+  const meta = beca.meta;
+  if (!meta || beca.apuntaA === null || enMedida(meta, unidad) <= 0) return { tipo: "sin-tipo" };
+  const logrado = enMedida(beca.avance, unidad);
+  const objetivo = enMedida(meta, unidad);
+  const falta = Math.max(0, objetivo - logrado);
+  const alcanzada = falta === 0;
+  const cola = alcanzada ? "meta alcanzada" : `${falta === 1 ? "le falta" : "le faltan"} ${unidad === "libros" ? falta : formatMonto(falta)}`;
+  const texto =
+    unidad === "libros"
+      ? `${logrado} de ${libros(objetivo)} · ${cola}`
+      : `${formatMonto(logrado)} de ${formatMonto(objetivo)} · ${cola}`;
+  return { tipo: "con-meta", texto, porcentaje: Math.max(0, Math.min(100, Math.round((logrado / objetivo) * 100))), alcanzada };
+}
+
+/** «Rocío Benítez ahora apunta a beca completa: meta de 240 libros y $U 360.000 a la CES.» */
+export function avisoDeBecaAsignada(nombre: string, beca: BecaDeColportor): string {
+  if (!beca.apuntaA || !beca.meta) return `Quedó guardado el cambio de ${nombre}.`;
+  const tipo = beca.apuntaA === "completa" ? "beca completa" : "media beca";
+  return `${nombre} ahora apunta a ${tipo}: meta de ${libros(beca.meta.libros)} y ${formatMonto(beca.meta.monto)} a la CES.`;
 }

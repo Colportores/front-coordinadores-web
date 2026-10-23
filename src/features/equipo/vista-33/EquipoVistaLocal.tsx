@@ -20,7 +20,7 @@ function fuenteSimulada(): Promise<FuenteDatosEquipo> {
 
 /**
  * La vista 33 para el sitio de prueba (GitHub Pages, export estático): sin servidor no hay server actions, así que las
- * jornadas y el registro le hablan a la fuente simulada desde el navegador. El estado vive en la pestaña: al recargar
+ * jornadas, el registro y las becas le hablan a la fuente simulada desde el navegador. El estado vive en la pestaña: al recargar
  * vuelve a los datos de ejemplo.
  */
 export function EquipoVistaLocal({ datos }: { datos: DatosEquipoPorCiudad }) {
@@ -28,6 +28,8 @@ export function EquipoVistaLocal({ datos }: { datos: DatosEquipoPorCiudad }) {
     () => ({
       jornadasParaAcompanar: async (colportorId) => (await fuenteSimulada()).jornadasParaAcompanar(datos.campaniaId, colportorId),
       registrarAcompanamiento: async (jornadaId) => (await fuenteSimulada()).registrarAcompanamiento(datos.campaniaId, jornadaId),
+      elegirCarrera: async (colportorId, carreraId) => (await fuenteSimulada()).elegirCarrera(datos.campaniaId, colportorId, carreraId),
+      asignarTipoDeBeca: async (colportorId, tipo) => (await fuenteSimulada()).asignarTipoDeBeca(datos.campaniaId, colportorId, tipo),
     }),
     [datos.campaniaId],
   );
