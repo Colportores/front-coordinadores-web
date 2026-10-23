@@ -40,7 +40,9 @@ export default async function ZonasPagina() {
     return (
       <ContenidoPestana titulo="Ciudades">
         <SeccionHu hu="HU-CAM-006">
-          <ZonasCampania datos={datos} acciones={crearAccionesServidor(datos.campaniaId)} />
+          {/* `key`: al elegir otra campaña en el topbar la página se vuelve a pedir (`router.refresh()`), que conserva el estado de
+              cliente; sin `key` la vista seguiría con las ciudades y zonas de la campaña anterior (#70). */}
+          <ZonasCampania key={datos.campaniaId} datos={datos} acciones={crearAccionesServidor(datos.campaniaId)} />
         </SeccionHu>
       </ContenidoPestana>
     );

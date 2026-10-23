@@ -1,8 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import AnadirColportorPagina from "@/app/equipo/anadir/page";
-import { fuenteEquipoSimulada } from "@/datos/equipo/simulado";
+import { DATOS_ANADIR_COLPORTOR_SIMULADO, fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -19,6 +19,22 @@ describe("AnadirColportorPagina", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Añadir colportor" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Añadir colportor a Verano 2026" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Ya en tu equipo" })).toBeInTheDocument();
+  });
+
+  it("al elegir otra campaña (la página se vuelve a pedir) la vista arranca de cero: nada de la búsqueda de la anterior (#70)", async () => {
+    vi.spyOn(fuenteEquipoSimulada, "obtenerAnadirColportor")
+      .mockResolvedValueOnce({ ...DATOS_ANADIR_COLPORTOR_SIMULADO, campaniaId: "campania-a", campania: "Campaña A" })
+      .mockResolvedValueOnce({ ...DATOS_ANADIR_COLPORTOR_SIMULADO, campaniaId: "campania-b", campania: "Campaña B" });
+
+    const { rerender } = render(<ProveedorModoDev activo={false}>{await AnadirColportorPagina()}</ProveedorModoDev>);
+    const buscador = screen.getByRole("textbox", { name: "Buscar por email o nombre" });
+    fireEvent.change(buscador, { target: { value: "ana" } });
+    expect(buscador).toHaveValue("ana");
+
+    rerender(<ProveedorModoDev activo={false}>{await AnadirColportorPagina()}</ProveedorModoDev>);
+
+    expect(screen.getByRole("heading", { name: "Añadir colportor a Campaña B" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Buscar por email o nombre" })).toHaveValue("");
   });
 
   it("sin campaña en curso no arma el buscador: avisa y deja volver a Equipo", async () => {
