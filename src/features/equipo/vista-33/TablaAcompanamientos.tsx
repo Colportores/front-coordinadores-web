@@ -132,13 +132,14 @@ export function TablaAcompanamientos({
   return (
     <table aria-label="Acompañamientos de cada colportor" className="w-full table-fixed border-collapse">
       <colgroup>
-        <col className="w-[20%]" />
+        {/* La columna libre es «Sin acompañar»: a 1280 px con la lista de ciudades abierta (914 px de tabla) le quedan 130 px. */}
         <col className="w-[14%]" />
-        <col className="w-[196px]" />
-        <col className="w-[64px]" />
+        <col className="w-[9%]" />
+        <col className="w-[180px]" />
+        <col className="w-[56px]" />
         <col />
-        <col className="w-[140px]" />
-        <col className="w-[204px]" />
+        <col className="w-[144px]" />
+        <col className="w-[194px]" />
       </colgroup>
       <thead className="sticky top-0 z-10 bg-superficie">
         <tr className="border-b border-borde text-etiqueta font-semibold tracking-[0.06em] text-tinta-suave">
@@ -160,7 +161,7 @@ export function TablaAcompanamientos({
           <th scope="col" className="px-2 py-[9px] text-right font-semibold">
             <span className="sr-only">Historial</span>
           </th>
-          <th scope="col" className="px-[18px] py-[9px] text-right font-semibold">
+          <th scope="col" className="py-[9px] pr-[18px] pl-2 text-right font-semibold">
             <span className="sr-only">Registrar</span>
           </th>
         </tr>
@@ -202,7 +203,7 @@ export function TablaAcompanamientos({
                         {historialAbierto ? "Ocultar historial" : "Ver historial"}
                       </button>
                     </td>
-                    <td className="px-[18px] py-2.5 text-right align-middle">
+                    <td className="py-2.5 pr-[18px] pl-2 text-right align-middle">
                       <button
                         type="button"
                         data-foco={`registrar:${c.id}`}

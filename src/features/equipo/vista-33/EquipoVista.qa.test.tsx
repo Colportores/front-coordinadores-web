@@ -331,7 +331,7 @@ describe("QA #63 · tamaños: con la lista de ciudades abierta a 1280 px", () =>
    * 1280 − 320 − 44 (padding) − 2 (borde) = 914 px para la tabla. jsdom no hace layout, así que se calcula con el
    * `colgroup` real de la tabla: porcentajes y px fijos; el resto es lo que le queda a «Sin acompañar».
    */
-  it.skip("QA #63: a 1280 px con la lista abierta, «Sin acompañar» se queda sin ancho (0 px medidos en el navegador) y «hace 46 días» y «último:» se parten o se montan sobre el botón", async () => {
+  it("QA #63: a 1280 px con la lista abierta, «Sin acompañar» tiene ancho para «hace 46 días» y «último:» sin partirse ni montarse sobre el botón", async () => {
     const { u, container } = mostrar();
     await verAcompanamientos(u, "Rivera");
     const columnas = Array.from(container.querySelectorAll('table[aria-label="Acompañamientos de cada colportor"] colgroup col'));
