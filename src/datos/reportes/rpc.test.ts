@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { crearFuenteReportesRpc, ID_SIN_ZONA, NOMBRE_SIN_ZONA } from "@/datos/reportes/rpc";
+import { crearFuenteReportesRpc, ID_SIN_ZONA, NOMBRE_SIN_ZONA, TOPE_DIAS, TOPE_FILAS } from "@/datos/reportes/rpc";
 import { ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
 import { RespuestaInesperada } from "@/datos/supabase/respuesta";
+import { diasEntre, sumarDias } from "@/lib/dias";
 
 const CAMPANIA = "11111111-1111-4111-8111-111111111111";
 const OTRA = "22222222-2222-4222-8222-222222222222";
@@ -358,5 +359,107 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
     const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
 
     expect(datos?.ciudades[0].colportores[0].nombre).toBe("Colportor sin nombre");
+  });
+});
+
+describe("fuente de Reportes (horas): el tope de filas de PostgREST", () => {
+  type Pedido = { p_desde: string; p_hasta: string };
+
+  /**
+   * Una RPC que se comporta como PostgREST con `max_rows`: devuelve una fila por día × colportor, ordenada por día, y
+   * corta en silencio en `TOPE_FILAS`; rechaza los rangos de más de 366 días como la migración 0060 (22023).
+   */
+  function rpcConTope(colportores: number) {
+    const pedidos: Pedido[] = [];
+    const respuesta = (argumentos: Record<string, unknown>) => {
+      const { p_desde: desde, p_hasta: hasta } = argumentos as Pedido;
+      pedidos.push({ p_desde: desde, p_hasta: hasta });
+      if (diasEntre(desde, hasta) + 1 > TOPE_DIAS) throw new ErrorSupabase("El rango es demasiado largo", 400, "22023");
+      const todas: Record<string, unknown>[] = [];
+      for (let d = 0; d <= diasEntre(desde, hasta); d++) {
+        for (let c = 0; c < colportores; c++) {
+          todas.push(fila({ periodo_inicio: sumarDias(desde, d), colportor_id: `u-${c}`, nombre: `Col${c}`, apellido: "Prueba", horas: 1 }));
+        }
+      }
+      return todas.slice(0, TOPE_FILAS);
+    };
+    return { pedidos, respuesta };
+  }
+
+  it("con más de 1000 filas en el rango, parte el pedido y no pierde los días más nuevos", async () => {
+    // 25 colportores desde el 01/09 hasta el 21/10: 51 días x 25 = 1275 filas, más que el tope.
+    const { pedidos, respuesta } = rpcConTope(25);
+    const { cliente } = lecturas({ horas_por_ciudad_y_colportor: respuesta });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(pedidos.length).toBeGreaterThan(1);
+    const colportores = datos?.ciudades[0].colportores ?? [];
+    expect(colportores).toHaveLength(25);
+    for (const c of colportores) {
+      expect(Object.keys(c.horasPorDia)).toHaveLength(51);
+      expect(c.horasPorDia["2026-10-21"]).toBe(1);
+      expect(c.horasPorDia["2026-09-01"]).toBe(1);
+    }
+  });
+
+  it("los tramos cubren el rango entero sin superponerse y ninguno llega al tope", async () => {
+    const { pedidos, respuesta } = rpcConTope(25);
+    const { cliente } = lecturas({ horas_por_ciudad_y_colportor: respuesta });
+
+    await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    const hojas = pedidos.filter((p) => (diasEntre(p.p_desde, p.p_hasta) + 1) * 25 < TOPE_FILAS);
+    const ordenadas = [...hojas].sort((a, b) => (a.p_desde < b.p_desde ? -1 : 1));
+    expect(ordenadas[0].p_desde).toBe("2026-09-01");
+    expect(ordenadas[ordenadas.length - 1].p_hasta).toBe("2026-10-21");
+    for (let i = 1; i < ordenadas.length; i++) expect(ordenadas[i].p_desde).toBe(sumarDias(ordenadas[i - 1].p_hasta, 1));
+  });
+
+  it("si la respuesta no llega al tope, es un solo pedido", async () => {
+    const { pedidos, respuesta } = rpcConTope(3);
+    const { cliente } = lecturas({ horas_por_ciudad_y_colportor: respuesta });
+
+    await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(pedidos).toEqual([{ p_desde: "2026-09-01", p_hasta: "2026-10-21" }]);
+  });
+
+  it("una campaña de más de 366 días se pide en tramos de hasta 366 días (la RPC rechaza el rango entero)", async () => {
+    const { pedidos, respuesta } = rpcConTope(1);
+    const { cliente } = lecturas({
+      campanias_del_coordinador: [{ id: CAMPANIA, nombre: "Larga", fecha_inicio: "2025-07-01", fecha_fin: null }],
+      horas_por_ciudad_y_colportor: respuesta,
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(pedidos.length).toBeGreaterThan(1);
+    for (const p of pedidos) expect(diasEntre(p.p_desde, p.p_hasta) + 1).toBeLessThanOrEqual(TOPE_DIAS);
+    const dias = Object.keys(datos?.ciudades[0].colportores[0].horasPorDia ?? {});
+    expect(dias).toHaveLength(diasEntre("2025-07-01", "2026-10-21") + 1);
+  });
+
+  it("un solo día con el tope de filas no se puede partir: sale como error, no como datos a medias", async () => {
+    const { cliente } = lecturas({
+      campanias_del_coordinador: [{ id: CAMPANIA, nombre: "Hoy", fecha_inicio: "2026-10-21", fecha_fin: null }],
+      horas_por_ciudad_y_colportor: () => Array.from({ length: TOPE_FILAS }, (_, i) => fila({ colportor_id: `u-${i}` })),
+    });
+
+    await expect(crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras()).rejects.toBeInstanceOf(RespuestaInesperada);
+  });
+
+  it("una falla en uno de los tramos sale como excepción", async () => {
+    const { respuesta } = rpcConTope(25);
+    let llamadas = 0;
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: (argumentos: Record<string, unknown>) => {
+        llamadas++;
+        if (llamadas === 3) throw new TypeError("fetch failed");
+        return respuesta(argumentos);
+      },
+    });
+
+    await expect(crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras()).rejects.toThrow("fetch failed");
   });
 });

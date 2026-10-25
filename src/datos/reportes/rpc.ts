@@ -10,7 +10,7 @@ import {
   type Objeto,
   RespuestaInesperada,
 } from "@/datos/supabase/respuesta";
-import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
+import { diasEntre, esDiaIso, hoyEnMontevideo, sumarDias } from "@/lib/dias";
 
 /**
  * Fuente de la vista 32 (Reportes, HU-REP-001) contra las RPC de Supabase (ADR-013): `horas_por_ciudad_y_colportor()`
@@ -39,6 +39,16 @@ import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
  * Lo que queda sin conectar (ver los pendientes del PR): `sinDatosDesde` es siempre `null` (cuándo corresponde avisar «sin
  * datos desde» está a la espera de Cristian).
  *
+ * **El pedido se parte para que ninguna respuesta llegue al tope de filas.** PostgREST corta en silencio las respuestas de
+ * una función que devuelve `table` en `max_rows` (1000 por defecto y en `config.toml`): un 200 con las primeras 1000
+ * filas, sin error. La RPC ordena por período y esas filas son por día × colportor, así que el corte se comería los
+ * días más nuevos justo donde se miran. Por eso `leerHoras` pide el rango entero y, si la respuesta trae `TOPE_FILAS`
+ * o más (puede estar cortada), lo parte a la mitad por fechas y pide cada mitad, y así hasta que ninguna respuesta
+ * llegue al tope. Un rango de más de 366 días (que la RPC rechaza con `22023`) se parte antes de pedirlo. Partir por
+ * fechas no cambia lo que se arma: las filas con `jornadas = 0` dependen del día anterior pero el panel las ignora para
+ * `horasPorDia`. Un solo día con `TOPE_FILAS` filas o más no se puede partir por fechas: sale como error, nunca como
+ * datos a medias.
+ *
  * Una falla de conexión, de servicio o de sesión, y un rechazo de la base (`42501`, `22023`), salen como excepción: la
  * página la atrapa `error.tsx` y ofrece reintentar. **Ninguna falla se toma por «sin horas».** Solo una campaña que ya no
  * existe (`CZ001`, `CZ011`) o que todavía no empezó es «sin campaña que consultar» (`null`).
@@ -50,6 +60,11 @@ const RPC_INSCRIPTOS = "zonas_por_colportor";
 
 export const ID_SIN_ZONA = "sin-zona";
 export const NOMBRE_SIN_ZONA = "Sin zona asignada";
+
+/** Filas a partir de las cuales una respuesta puede estar cortada por PostgREST (`max_rows`, config.toml). */
+export const TOPE_FILAS = 1000;
+/** Lo más largo que acepta la RPC por pedido (`22023` si se pasa). */
+export const TOPE_DIAS = 366;
 
 const COLLATOR = new Intl.Collator("es", { sensitivity: "base" });
 
@@ -73,6 +88,40 @@ async function departamentos(cliente: ClienteRpc, campaniaId: string): Promise<M
     if (error instanceof ErrorSupabase && error.codigo === "CZ011") return new Map();
     throw error;
   }
+}
+
+/**
+ * Las filas de `horas_por_ciudad_y_colportor` por día entre `desde` y `hasta` (ambos incluidos), partiendo el pedido a la
+ * mitad mientras el rango pase de `TOPE_DIAS` o la respuesta pueda estar cortada (`TOPE_FILAS`). Los tramos no se
+ * superponen, así que no hay filas repetidas.
+ */
+async function leerHoras(cliente: ClienteRpc, campaniaId: string, desde: Fecha, hasta: Fecha): Promise<Objeto[]> {
+  const dias = diasEntre(desde, hasta) + 1;
+  const partir = async (): Promise<Objeto[]> => {
+    const mitad = sumarDias(desde, Math.floor(dias / 2) - 1);
+    const [primera, segunda] = await Promise.all([
+      leerHoras(cliente, campaniaId, desde, mitad),
+      leerHoras(cliente, campaniaId, sumarDias(mitad, 1), hasta),
+    ]);
+    return [...primera, ...segunda];
+  };
+
+  if (dias > TOPE_DIAS) return partir();
+
+  const leidas = filas(
+    RPC,
+    await cliente.llamarRpc(RPC, {
+      p_campania_id: campaniaId,
+      p_desde: desde,
+      p_hasta: hasta,
+      p_agrupar: "dia",
+      p_ciudad_id: null,
+      p_colportor_ids: null,
+    }),
+  );
+  if (leidas.length < TOPE_FILAS) return leidas;
+  if (dias === 1) throw new RespuestaInesperada(RPC, `el día ${desde} trae ${leidas.length} filas o más y la respuesta puede estar cortada`);
+  return partir();
 }
 
 interface ColportorAcumulado {
@@ -109,19 +158,12 @@ export function crearFuenteReportesRpc(
     if (campania.fechaInicio > hoy) return null;
     const hasta = campania.fechaFin !== null && campania.fechaFin < hoy ? campania.fechaFin : hoy;
 
-    let respuesta: unknown;
+    let filasDeHoras: Objeto[];
     let inscriptos: unknown;
     let departamentoDe: Map<string, string | null>;
     try {
-      [respuesta, inscriptos, departamentoDe] = await Promise.all([
-        cliente.llamarRpc(RPC, {
-          p_campania_id: campania.id,
-          p_desde: campania.fechaInicio,
-          p_hasta: hasta,
-          p_agrupar: "dia",
-          p_ciudad_id: null,
-          p_colportor_ids: null,
-        }),
+      [filasDeHoras, inscriptos, departamentoDe] = await Promise.all([
+        leerHoras(cliente, campania.id, campania.fechaInicio, hasta),
         cliente.llamarRpc(RPC_INSCRIPTOS, { p_campania_id: campania.id }),
         departamentos(cliente, campania.id),
       ]);
@@ -163,7 +205,7 @@ export function crearFuenteReportesRpc(
     };
 
     const conHoras = new Set<string>();
-    for (const fila of filas(RPC, respuesta)) {
+    for (const fila of filasDeHoras) {
       const acumulado = colportorDe(RPC, grupoDe(RPC, fila), fila);
       conHoras.add(acumulado.id);
 
