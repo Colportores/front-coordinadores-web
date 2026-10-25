@@ -13,13 +13,13 @@ const HU_DEL_PANEL = {
   inicio: ["HU-CAM-008"],
   equipo: ["HU-CAM-004", "HU-CAT-005", "HU-JOR-004"],
   ciudades: ["HU-CAM-006"],
-  stock: ["HU-STK-001", "HU-STK-003", "HU-STK-004", "HU-STK-005"],
+  stock: ["HU-STK-001", "HU-STK-003", "HU-STK-004", "HU-STK-005", "HU-STK-010"],
   cuentas: ["HU-CTA-005", "HU-COB-008", "HU-CTA-006"],
   reportes: ["HU-REP-001", "HU-REP-002", "HU-REP-005", "HU-REP-004"],
 } as const;
 
 describe("registro estado-hu", () => {
-  it("tiene exactamente las 16 HU del panel, sin duplicados", () => {
+  it("tiene exactamente las 17 HU del panel, sin duplicados", () => {
     const ids = HISTORIAS.map((h) => h.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.sort()).toEqual(Object.values(HU_DEL_PANEL).flat().sort());
@@ -91,6 +91,6 @@ describe("registro estado-hu", () => {
   });
 
   it("cuenta las HU por estado", () => {
-    expect(contarPorEstado()).toEqual({ bloqueada: 8, mockeada: 8, implementada: 0, "validada-qa": 0 });
+    expect(contarPorEstado()).toEqual({ bloqueada: 9, mockeada: 8, implementada: 0, "validada-qa": 0 });
   });
 });

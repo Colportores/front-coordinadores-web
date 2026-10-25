@@ -10,6 +10,7 @@
 import type { FuenteDatosZonas } from "@/datos/equipo/zonas/contrato";
 import { crearFuenteZonasRpc } from "@/datos/equipo/zonas/rpc";
 import { fuenteZonasSimulada } from "@/datos/equipo/zonas/simulado";
+import { leerCampaniaElegida } from "@/datos/shell/campania-elegida-servidor";
 import { crearClienteSupabase } from "@/datos/supabase/cliente";
 import { leerConfigSupabase } from "@/datos/supabase/config";
 
@@ -40,5 +41,5 @@ export type {
 const configSupabase = leerConfigSupabase();
 
 export const fuenteZonas: FuenteDatosZonas = configSupabase
-  ? crearFuenteZonasRpc(crearClienteSupabase(configSupabase))
+  ? crearFuenteZonasRpc(crearClienteSupabase(configSupabase), leerCampaniaElegida)
   : fuenteZonasSimulada;

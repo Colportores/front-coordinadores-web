@@ -10,30 +10,31 @@
 import type { FuenteDatosEquipo } from "@/datos/equipo/contrato";
 import { fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { crearFuenteEquipoSupabase } from "@/datos/equipo/supabase";
+import { leerCampaniaElegida } from "@/datos/shell/campania-elegida-servidor";
 import { crearClienteSupabase } from "@/datos/supabase/cliente";
 import { leerConfigSupabase } from "@/datos/supabase/config";
 
 export type {
+  AcompanamientoDeColportor,
   CandidatoColportor,
-  ColportorSinZona,
-  DatosAcompanamiento,
+  CiudadDeEquipo,
+  ColportorDeEquipo,
   DatosAnadirColportor,
-  DatosEquipo,
-  EstadoCobro,
+  DatosEquipoPorCiudad,
   EstadoCuenta,
-  FilaColportor,
   FuenteDatosEquipo,
-  JornadaReciente,
+  JornadaParaAcompanar,
   MiembroEquipo,
-  PrecioProductoCiudad,
-  PreciosDeCiudad,
+  ResultadoAcompanamiento,
   ResultadoBusqueda,
   ResultadoInscripcion,
-  UltimoAcompanamiento,
+  ResultadoJornadas,
+  ZonaActualDeColportor,
+  ZonaAnterior,
 } from "@/datos/equipo/contrato";
 
 const configSupabase = leerConfigSupabase();
 
 export const fuenteEquipo: FuenteDatosEquipo = configSupabase
-  ? crearFuenteEquipoSupabase(crearClienteSupabase(configSupabase))
+  ? crearFuenteEquipoSupabase(crearClienteSupabase(configSupabase), leerCampaniaElegida)
   : fuenteEquipoSimulada;

@@ -1,53 +1,30 @@
-import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import { fuenteStock } from "@/datos/stock";
-import { ChipHu } from "@/dev/ChipHu";
+import { fuenteStockSimulada } from "@/datos/stock/simulado";
 import { SeccionHu } from "@/dev/SeccionHu";
-import { FlujoPedidos } from "@/features/stock/FlujoPedidos";
-import { KpisStock } from "@/features/stock/KpisStock";
-import { PedidosCasaEditora } from "@/features/stock/PedidosCasaEditora";
-import { StockPorColportor } from "@/features/stock/StockPorColportor";
-import { TransferenciasColportores } from "@/features/stock/TransferenciasColportores";
+import { SinCampaniaParaStock } from "@/features/stock/vista-34/SinCampaniaParaStock";
+import { StockVista } from "@/features/stock/vista-34/StockVista";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
-// Pestaña Stock (docs/PESTANAS.md). Sus HU están bloqueadas hasta V2 (después
-// del 27/11): la UI se hace igual, con datos simulados; el shell ya la oculta
-// fuera del modo dev (src/app/stock/layout.tsx).
+// La vista llena el área bajo el topbar: la lista de ciudades va de borde a borde, sin el padding de las demás pestañas.
+const SIN_PADDING = "gap-0 overflow-hidden p-0";
+const LLENA = "flex min-h-0 flex-1 flex-col";
+
+/**
+ * Vista 34 (HU-STK-010): el stock por ciudad, producto por producto, y quién lo tiene. Es V2: se conecta después del 20/11
+ * (backend-supabase#101) y hasta entonces lee la fuente simulada; el shell oculta la pestaña fuera del modo dev
+ * (`src/app/stock/layout.tsx`). Los pedidos y las transferencias son de la vista 35 (front-coordinadores-web#66).
+ */
 export default async function PestanaStock() {
-  const { kpis, pedidos, transferencias, stockPorColportor } = await fuenteStock.obtenerStock();
+  // Sitio de prueba (export estático): siempre la fuente simulada, por construcción; nunca el selector `fuenteStock`.
+  // La condición es literal para que el build exportado no arrastre la otra rama. Ver docs/PESTANAS.md §2.
+  const datos = process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1" ? await fuenteStockSimulada.obtenerStock() : await fuenteStock.obtenerStock();
 
   return (
-    <ContenidoPestana titulo="Stock">
-      <div className="flex items-center justify-between">
-        <h2 className="font-serif text-[21px] font-semibold text-tinta">Stock y pedidos</h2>
-        {/* El formulario de "Pedido a casa editora" no está diseñado (HU-STK-001): botón sin comportamiento. */}
-        <span className="relative inline-flex">
-          <AccionNoDisponible variant="default" size="default" className="rounded-control bg-marca text-superficie hover:bg-marca/90">
-            + Pedido a casa editora
-          </AccionNoDisponible>
-          <ChipHu hu="HU-STK-001" className="absolute -top-2.5 -right-2 z-20" />
-        </span>
-      </div>
-
-      <KpisStock kpis={kpis} />
-
-      <div className="grid grid-cols-[1fr_320px] items-start gap-4">
-        <div className="flex flex-col gap-4">
-          <SeccionHu hu="HU-STK-001">
-            <PedidosCasaEditora pedidos={pedidos} />
-          </SeccionHu>
-          <SeccionHu hu="HU-STK-005">
-            <TransferenciasColportores transferencias={transferencias} />
-          </SeccionHu>
-        </div>
-        <div className="flex flex-col gap-4">
-          <SeccionHu hu="HU-STK-004">
-            <StockPorColportor stock={stockPorColportor} />
-          </SeccionHu>
-          <SeccionHu hu="HU-STK-003">
-            <FlujoPedidos />
-          </SeccionHu>
-        </div>
-      </div>
+    <ContenidoPestana titulo="Stock" className={SIN_PADDING}>
+      <SeccionHu hu="HU-STK-010" className={LLENA}>
+        {/* `key`: al elegir otra campaña en el topbar la página se vuelve a pedir y el estado de la vista se reinicia. */}
+        {datos ? <StockVista key={datos.campaniaId} datos={datos} /> : <SinCampaniaParaStock />}
+      </SeccionHu>
     </ContenidoPestana>
   );
 }
