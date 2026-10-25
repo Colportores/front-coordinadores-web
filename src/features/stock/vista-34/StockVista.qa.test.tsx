@@ -54,13 +54,14 @@ describe("StockVista · QA · contraste de los textos de la vista (AA: 4,5:1)", 
     expect(razon(fg, bg)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it.skip("QA #65: las cifras en cero y «nadie» usan tinta-tenue sobre blanco (2,66:1), por debajo de AA", () => {
+  it("QA #65: las cifras en cero y «nadie» usan tinta-suave (5,43:1 sobre blanco), no tinta-tenue", () => {
     render(<StockVista datos={chico({ colportores: [col("ana", "riv", ex("l1", 0, 0))] })} />);
     // Precondición: hay celdas en cero con esa clase (así las pinta `Cifra` y la celda «EN MANOS DE»).
     const ceros = Array.from(tabla().querySelectorAll("span.font-mono")).filter((el) => el.textContent === "0");
     expect(ceros.length).toBeGreaterThan(0);
-    expect(ceros.every((el) => el.className.includes("text-tinta-tenue"))).toBe(true);
-    expect(razon("tinta-tenue", "superficie")).toBeGreaterThanOrEqual(4.5);
+    expect(ceros.every((el) => el.className.includes("text-tinta-suave") && !el.className.includes("text-tinta-tenue"))).toBe(true);
+    expect(tabla().querySelector("td.text-tinta-suave")).not.toBeNull();
+    expect(razon("tinta-suave", "superficie")).toBeGreaterThanOrEqual(4.5);
   });
 });
 

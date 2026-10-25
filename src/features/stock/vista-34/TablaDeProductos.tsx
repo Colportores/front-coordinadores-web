@@ -15,7 +15,7 @@ const CLASES_ESTADO: Record<EstadoDeUnidad["tipo"], string> = {
 };
 
 function Cifra({ valor, negrita = false }: { valor: number; negrita?: boolean }) {
-  return <span className={cn("font-mono", valor === 0 ? "text-tinta-tenue" : "text-tinta", negrita && "font-semibold")}>{formatearCantidad(valor)}</span>;
+  return <span className={cn("font-mono", valor === 0 ? "text-tinta-suave" : "text-tinta", negrita && "font-semibold")}>{formatearCantidad(valor)}</span>;
 }
 
 function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string; nombreDelLugar: string }) {
@@ -173,7 +173,7 @@ export function TablaDeProductos({
                     <td className="px-2 py-1.5 text-right align-middle">
                       <Cifra valor={fila.tiene} negrita />
                     </td>
-                    <td className={cn("px-2 py-1.5 text-right align-middle", fila.poseedores === 0 ? "text-tinta-tenue" : "text-tinta")}>
+                    <td className={cn("px-2 py-1.5 text-right align-middle", fila.poseedores === 0 ? "text-tinta-suave" : "text-tinta")}>
                       {fila.poseedores > 0 ? `${fila.poseedores} de ${fila.totalPersonas}` : "nadie"}
                     </td>
                     <td className="px-2 py-1.5 text-right align-middle">
