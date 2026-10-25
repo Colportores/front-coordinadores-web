@@ -97,16 +97,20 @@ describe("PedidosVista · QA · contraste de los textos de la vista (AA: 4,5:1)"
 // --- tamaños -----------------------------------------------------------------------------------------------------------
 
 describe("PedidosVista · QA · tamaños", () => {
-  it.skip("QA #66: a 1280 px con la lista de ciudades abierta la bandeja deja ancho para el nombre y lo que pide cada fila", () => {
+  it("QA #66: a 1280 px con la lista de ciudades abierta la bandeja deja ancho para el nombre y lo que pide cada fila", () => {
     // El panel es solo escritorio (shell con `min-w-[1280px]`). jsdom no hace layout: se calcula con las clases reales.
     // Medido en un navegador: el nombre del colportor y «3 productos · 48 unidades» necesitan ~140 px, además de los 64 px del
     // número, el monto, la etiqueta («△ Supera el límite», ~118 px), los huecos y el relleno: la bandeja necesita ≥ 460 px.
     const { container } = montar();
-    const rejilla = Array.from(container.querySelectorAll<HTMLElement>("div")).find((el) => /grid-cols-\[minmax\(0,1fr\)_(\d+)px\]/.test(el.className));
+    // Las columnas son `minmax(<mínimo de la bandeja>px,1fr)` y `minmax(<mínimo del detalle>px,<máximo>px)`: la bandeja nunca baja de
+    // su mínimo y el detalle se achica antes de quitarle ancho. Alcanza si los dos mínimos entran en lo que queda a 1280 px.
+    const patron = /grid-cols-\[minmax\((\d+)px,1fr\)_minmax\((\d+)px,(\d+)px\)\]/;
+    const rejilla = Array.from(container.querySelectorAll<HTMLElement>("div")).find((el) => patron.test(el.className));
     expect(rejilla, "no se encontró la rejilla bandeja + detalle").toBeDefined();
-    const fijo = Number(/grid-cols-\[minmax\(0,1fr\)_(\d+)px\]/.exec(rejilla!.className)![1]);
-    const ancho = 1280 - 320 - 44 - fijo - 16;
-    expect(ancho).toBeGreaterThanOrEqual(460);
+    const [, minimoBandeja, minimoDetalle] = patron.exec(rejilla!.className)!.map(Number);
+    expect(minimoBandeja).toBeGreaterThanOrEqual(460);
+    const disponible = 1280 - 320 - 44 - 16;
+    expect(minimoBandeja + minimoDetalle).toBeLessThanOrEqual(disponible);
   });
 });
 
@@ -130,11 +134,11 @@ describe("PedidosVista · QA · motivo del rechazo", () => {
     await userEvent.click(campo);
     await userEvent.paste("😀".repeat(1000));
 
-    expect((campo as HTMLTextAreaElement).value.length).toBeLessThanOrEqual(300);
+    expect((campo as HTMLTextAreaElement).value.length).toBeLessThanOrEqual(500);
     await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
     await waitFor(() => expect(a.decidir).toHaveBeenCalledTimes(1));
     const decision = a.decidir.mock.calls[0][0];
-    expect(decision.accion === "rechazar" && decision.motivo.length).toBeLessThanOrEqual(300);
+    expect(decision.accion === "rechazar" && decision.motivo.length).toBeLessThanOrEqual(500);
   });
 
   it("caracteres especiales y HTML se mandan tal cual (no se interpretan)", async () => {
@@ -218,7 +222,7 @@ describe("PedidosVista · QA · avisos de error", () => {
 // --- acciones superpuestas ---------------------------------------------------------------------------------------------
 
 describe("PedidosVista · QA · acciones superpuestas", () => {
-  it.skip("QA #66: con el rechazo en camino, «Esc» en el campo no lo cancela ni descarta el motivo (si falla, se conserva)", async () => {
+  it("QA #66: con el rechazo en camino, «Esc» en el campo no lo cancela ni descarta el motivo (si falla, se conserva)", async () => {
     const espera = diferida();
     const a = acciones(() => espera.promesa);
     montar(simulados(), a);

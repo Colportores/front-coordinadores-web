@@ -96,6 +96,13 @@ describe("artboard 35A·01 · por autorizar, pedido que supera el límite", () =
     expect(within(detalle("Pedido #231")).queryByRole("note")).not.toBeInTheDocument();
   });
 
+  it("un límite en cero se muestra como cero y avisa (no es «sin límite»)", () => {
+    montar({ ...simulados(), limiteDeDeuda: 0 });
+    expect(screen.queryByText("Sin límite de deuda fijado")).not.toBeInTheDocument();
+    expect(screen.getByText(/Límite de deuda por colportor:/)).toHaveTextContent("$U 0");
+    expect(within(detalle("Pedido #231")).getByRole("note")).toHaveTextContent("supera el límite de $U 0");
+  });
+
   it("elegir otro pedido de la lista abre su detalle", async () => {
     montar();
     await userEvent.click(fila("#229"));
@@ -299,6 +306,17 @@ describe("autorizar", () => {
     expect(within(d).getByRole("heading", { level: 3 })).toHaveFocus();
   });
 
+  it("al autorizar, la deuda actual del detalle ya lleva el pedido (22.100 + 36.040)", async () => {
+    montar();
+    await userEvent.click(pestana(/^Todos/));
+    await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
+
+    await screen.findByText(/autorizado: se sumaron/);
+    const fila = within(detalle("Pedido #231")).getByText("Deuda actual").closest("div")!;
+    expect(fila).toHaveTextContent("$U 58.140");
+    expect(fila).toHaveTextContent("incluye este pedido");
+  });
+
   it("autoriza una transferencia", async () => {
     const { acciones: a } = montar();
     await userEvent.click(pestana(/^Transferencias/));
@@ -317,6 +335,38 @@ describe("autorizar", () => {
     await screen.findByText(/autorizado: se sumaron/);
     expect(screen.getByText("No hay pedidos por autorizar en la campaña.")).toBeInTheDocument();
     expect(pestana(/^Por autorizar/)).toHaveFocus();
+  });
+});
+
+describe("«Por autorizar» vacía con transferencias por autorizar (decisión de la revisión, P1 §2)", () => {
+  it("dice cuántas transferencias hay y el botón abre la pestaña Transferencias con el foco", async () => {
+    const base = simulados();
+    montar({ ...base, pedidos: base.pedidos.filter((p) => p.estado !== "POR_AUTORIZAR") });
+
+    expect(screen.getByText("No hay pedidos por autorizar en la campaña. Tenés 1 transferencia por autorizar.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Ver transferencias" }));
+
+    expect(pestana(/^Transferencias/)).toHaveAttribute("aria-selected", "true");
+    expect(pestana(/^Transferencias/)).toHaveFocus();
+    expect(screen.getByRole("heading", { level: 3, name: "Transferencia T-18" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ver transferencias" })).not.toBeInTheDocument();
+  });
+
+  it("sin transferencias por autorizar el vacío es el de siempre y no ofrece nada", () => {
+    const base = simulados();
+    montar({ ...base, pedidos: base.pedidos.filter((p) => p.estado !== "POR_AUTORIZAR"), transferencias: [] });
+
+    expect(screen.getByText("No hay pedidos por autorizar en la campaña.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ver transferencias" })).not.toBeInTheDocument();
+  });
+
+  it("al autorizar el último pedido queda el aviso de la transferencia que sigue", async () => {
+    const base = simulados();
+    montar({ ...base, pedidos: base.pedidos.filter((p) => p.numero === "#231") });
+    await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
+
+    await screen.findByText(/autorizado: se sumaron/);
+    expect(screen.getByText(/Tenés 1 transferencia por autorizar/)).toBeInTheDocument();
   });
 });
 
@@ -502,7 +552,7 @@ describe("rechazar", () => {
   it("el motivo no pasa del tope", async () => {
     montar();
     const campo = await abrir();
-    expect(campo).toHaveAttribute("maxlength", "300");
+    expect(campo).toHaveAttribute("maxlength", "500");
   });
 
   it("«Cancelar» cierra el motivo, vuelve a «Rechazar» con el foco y descarta lo escrito", async () => {

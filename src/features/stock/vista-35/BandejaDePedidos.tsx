@@ -25,6 +25,7 @@ export function BandejaDePedidos({
   claveAbierta,
   alElegirFila,
   textoVacio,
+  accionVacio,
   nombreDeLaLista,
 }: {
   pestanas: PestanaConConteo[];
@@ -34,6 +35,8 @@ export function BandejaDePedidos({
   claveAbierta: string | null;
   alElegirFila: (clave: string) => void;
   textoVacio: string;
+  /** Qué se puede hacer desde el vacío (por ejemplo ir a las transferencias que sí hay por autorizar). */
+  accionVacio?: { texto: string; alActivar: () => void };
   nombreDeLaLista: string;
 }) {
   const moverPestana = (evento: KeyboardEvent, indice: number) => {
@@ -80,9 +83,20 @@ export function BandejaDePedidos({
         className="min-h-0 flex-1 overflow-auto rounded-tarjeta border border-borde bg-superficie"
       >
         {filas.length === 0 ? (
-          <p role="status" className="px-[18px] py-6 text-center text-chico text-tinta-suave">
-            {textoVacio}
-          </p>
+          <div className="flex flex-col items-center gap-2 px-[18px] py-6 text-center">
+            <p role="status" className="text-chico text-tinta-suave">
+              {textoVacio}
+            </p>
+            {accionVacio && (
+              <button
+                type="button"
+                onClick={accionVacio.alActivar}
+                className="inline-flex min-h-8 cursor-pointer items-center rounded-control border border-borde bg-superficie px-3.5 text-chico font-semibold text-marca-media focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none"
+              >
+                {accionVacio.texto}
+              </button>
+            )}
+          </div>
         ) : (
           <ul aria-label={nombreDeLaLista} className="m-0 list-none p-0">
             {filas.map((fila) => {

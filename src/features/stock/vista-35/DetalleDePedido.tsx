@@ -84,6 +84,8 @@ export function DetalleDePedido({
 
   const teclasDelMotivo = (evento: KeyboardEvent) => {
     if (evento.key === "Escape") {
+      // Con el rechazo en camino no se cierra el motivo (como «Cancelar», que está apagado): si falla, el borrador sigue ahí.
+      if (ocupado) return;
       evento.preventDefault();
       evento.stopPropagation();
       setError(null);

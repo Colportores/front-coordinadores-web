@@ -142,6 +142,9 @@ describe("pestañas", () => {
 
   it("cada pestaña vacía dice qué pasa y en qué lugar", () => {
     expect(textoDePestanaVacia("PEND", "Rivera")).toBe("No hay pedidos por autorizar en Rivera.");
+    expect(textoDePestanaVacia("PEND", "Rivera", 1)).toBe("No hay pedidos por autorizar en Rivera. Tenés 1 transferencia por autorizar.");
+    expect(textoDePestanaVacia("PEND", "Rivera", 3)).toBe("No hay pedidos por autorizar en Rivera. Tenés 3 transferencias por autorizar.");
+    expect(textoDePestanaVacia("AUT", "Rivera", 3)).toBe("No hay pedidos autorizados en Rivera.");
     expect(textoDePestanaVacia("TRF", "el departamento Artigas")).toBe("No hay transferencias en el departamento Artigas.");
     expect(textoDePestanaVacia("ALL", "la campaña")).toMatch(/Todavía no hay pedidos en la campaña/);
   });
@@ -181,13 +184,20 @@ describe("el límite avisa y no bloquea", () => {
     expect(en(10_001)).toBe(true);
   });
 
-  it("sin límite fijado (o en cero) no hay aviso ni etiqueta", () => {
-    for (const limiteDeDeuda of [null, 0]) {
+  it("sin límite fijado (o con un valor que no es un monto) no hay aviso ni etiqueta", () => {
+    for (const limiteDeDeuda of [null, -5, Number.NaN]) {
       const m = mundo(vacios({ limiteDeDeuda, pedidos: [pedido({ cuenta: { ...cuenta, deuda: 9_000_000 } })] }));
       expect(m.limite).toBeNull();
       expect(construirDetalle(m, m.todas[0]).aviso).toBeNull();
       expect(etiquetaDe(m.todas[0], m.limite).texto).toBe("Por autorizar");
     }
+  });
+
+  it("un límite en cero es un límite (decisión P9): todo pedido con deuda lo supera", () => {
+    const m = mundo(vacios({ limiteDeDeuda: 0, pedidos: [pedido({ cuenta: { ...cuenta, deuda: 1_000 } })] }));
+    expect(m.limite).toBe(0);
+    expect(construirDetalle(m, m.todas[0]).aviso).toContain("supera el límite de $U 0");
+    expect(etiquetaDe(m.todas[0], m.limite).texto).toBe("△ Supera el límite");
   });
 
   it("el aviso dice cuánto se pasa y que se puede autorizar igual; el detalle sigue permitiendo decidir", () => {
@@ -297,6 +307,52 @@ describe("decidir", () => {
     expect(despues.pedidos.find((p) => p.id === antes.id)).toMatchObject({ estado: "AUTORIZADO", resueltoEn: "2026-10-22T21:00:00.000Z" });
     expect(despues.pedidos.filter((p) => p.id !== antes.id)).toEqual(d.pedidos.filter((p) => p.id !== antes.id));
     expect(despues.transferencias).toEqual(d.transferencias);
+  });
+
+  it("al autorizar un pedido la deuda de quien lo pidió sube en todas sus cuentas, y la de los demás no se mueve", () => {
+    const d = datos();
+    const antes = d.pedidos.find((p) => p.numero === "#231")!;
+    const otro = { ...antes, id: "pedido-232", numero: "#232", lineas: [{ nombre: "Pamplona", cantidad: 10, costoUnitario: 120 }] };
+    const conOtro = { ...d, pedidos: [...d.pedidos, otro] };
+
+    const despues = aplicarResolucion(conOtro, { tipo: "pedido", id: antes.id, estado: "AUTORIZADO", resueltoEn: "2026-10-22T21:00:00.000Z", motivoDeRechazo: null });
+
+    expect(despues.pedidos.find((p) => p.id === antes.id)!.cuenta.deuda).toBe(22_100 + 36_040);
+    expect(despues.pedidos.find((p) => p.id === "pedido-232")!.cuenta.deuda).toBe(22_100 + 36_040);
+    expect(despues.pedidos.filter((p) => p.colportorId !== antes.colportorId)).toEqual(conOtro.pedidos.filter((p) => p.colportorId !== antes.colportorId));
+    // El aviso del límite del otro pedido ya cuenta la deuda nueva.
+    const m = mundo(despues);
+    expect(construirDetalle(m, m.todas.find((s) => s.numero === "#232")!).aviso).toContain("$U 59.340");
+    expect(construirDetalle(m, m.todas.find((s) => s.numero === "#231")!).contexto.find((f) => f.rotulo === "Deuda actual")).toMatchObject({ valor: "$U 58.140", nota: "incluye este pedido" });
+  });
+
+  it("rechazar un pedido no mueve ninguna deuda", () => {
+    const d = datos();
+    const antes = d.pedidos.find((p) => p.numero === "#231")!;
+    const despues = aplicarResolucion(d, { tipo: "pedido", id: antes.id, estado: "RECHAZADO", resueltoEn: "2026-10-22T21:00:00.000Z", motivoDeRechazo: "No" });
+    expect(despues.pedidos.map((p) => p.cuenta)).toEqual(d.pedidos.map((p) => p.cuenta));
+  });
+
+  it("autorizar una transferencia pasa la deuda de quien da a quien recibe; rechazarla no mueve nada", () => {
+    const d = datos();
+    const t = d.transferencias.find((x) => x.numero === "T-18")!;
+    const deuda = (xs: DatosDePedidos, numero: string) => xs.pedidos.find((p) => p.numero === numero)!.cuenta.deuda;
+
+    const autorizada = aplicarResolucion(d, { tipo: "transferencia", id: t.id, estado: "AUTORIZADA", resueltoEn: "2026-10-22T21:00:00.000Z", motivoDeRechazo: null });
+    expect(deuda(autorizada, "#224")).toBe(31_000 - 2_900); // Valentina, quien da
+    expect(deuda(autorizada, "#230")).toBe(14_300 + 2_900); // Lucía, quien recibe
+    expect(deuda(autorizada, "#231")).toBe(22_100);
+
+    const rechazada = aplicarResolucion(d, { tipo: "transferencia", id: t.id, estado: "RECHAZADA", resueltoEn: "2026-10-22T21:00:00.000Z", motivoDeRechazo: "Sin stock" });
+    expect(rechazada.pedidos).toEqual(d.pedidos);
+  });
+
+  it("la deuda de quien da nunca queda por debajo de cero", () => {
+    const d = datos();
+    const t = d.transferencias.find((x) => x.numero === "T-18")!;
+    const chica = { ...d, pedidos: d.pedidos.map((p) => (p.numero === "#224" ? { ...p, cuenta: { ...p.cuenta, deuda: 1_000 } } : p)) };
+    const r = aplicarResolucion(chica, { tipo: "transferencia", id: t.id, estado: "AUTORIZADA", resueltoEn: "2026-10-22T21:00:00.000Z", motivoDeRechazo: null });
+    expect(r.pedidos.find((p) => p.numero === "#224")!.cuenta.deuda).toBe(0);
   });
 
   it("lo que ya no está por autorizar no se vuelve a tocar (otro coordinador llegó antes)", () => {

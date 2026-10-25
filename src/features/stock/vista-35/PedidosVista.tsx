@@ -85,6 +85,8 @@ export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedid
   const pestanas = useMemo(() => contarPestanas(resuelto), [resuelto]);
   const solicitudes = useMemo(() => solicitudesDe(resuelto, pestana), [resuelto, pestana]);
   const filas = useMemo(() => construirFilas(mundo, solicitudes), [mundo, solicitudes]);
+  // Lo que la pestaña «Por autorizar» no muestra porque es de otra pestaña: las transferencias por autorizar de lo que se mira.
+  const transferenciasPorAutorizar = useMemo(() => solicitudesDe(resuelto, "TRF").filter((s) => s.estado === "PEND").length, [resuelto]);
   const clave = claveVigente(filas, elegida);
   const abierta = clave === null ? undefined : solicitudes.find((s) => s.clave === clave);
   const detalle = useMemo(() => (abierta ? construirDetalle(mundo, abierta) : null), [mundo, abierta]);
@@ -271,7 +273,7 @@ export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedid
             Todavía no hay pedidos ni transferencias en esta campaña. Cuando un colportor arme uno desde su teléfono, aparece acá para autorizarlo.
           </p>
         ) : (
-          <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_560px] gap-4">
+          <div className="grid min-h-0 flex-1 grid-cols-[minmax(460px,1fr)_minmax(420px,560px)] gap-4">
             <BandejaDePedidos
               pestanas={pestanas}
               pestanaActiva={pestana}
@@ -279,7 +281,8 @@ export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedid
               filas={filas}
               claveAbierta={clave}
               alElegirFila={setElegida}
-              textoVacio={textoDePestanaVacia(pestana, resuelto.lugar)}
+              textoVacio={textoDePestanaVacia(pestana, resuelto.lugar, pestana === "PEND" ? transferenciasPorAutorizar : 0)}
+              accionVacio={pestana === "PEND" && transferenciasPorAutorizar > 0 ? { texto: "Ver transferencias", alActivar: () => elegirPestana("TRF", true) } : undefined}
               nombreDeLaLista={`Pedidos de ${resuelto.titulo}`}
             />
             <div className="min-h-0 overflow-x-hidden overflow-y-auto rounded-tarjeta border border-borde bg-superficie px-[18px] py-4">

@@ -27,7 +27,9 @@ import {
  *
  * Las cuentas y los textos son los del canvas (`35 Pedidos y Transferencias.dc.html`, opción A):
  * - El límite es de deuda total con el pedido incluido, vale para toda la campaña y solo avisa («△ Supera el límite»).
- * - «Por autorizar» cuenta pedidos y transferencias; las pestañas de estado, solo pedidos; «Transferencias», solo ellas.
+ * - El «N por autorizar» de la lista de ciudades y del subtítulo cuenta pedidos y transferencias; la pestaña «Por autorizar» y las
+ *   demás de estado muestran solo pedidos; «Transferencias», solo ellas. Cuando «Por autorizar» queda vacía y hay transferencias
+ *   por autorizar, el vacío lo dice y lleva a «Transferencias» (decisión de la revisión, P1 §2).
  * - El costo unitario es el de la casa editora; la deuda de un pedido es lo que cuesta, y en una transferencia pasa del
  *   que da al que recibe.
  */
@@ -37,7 +39,7 @@ export { AMBITO_TODAS, mismoAmbito, type Ambito };
 const ORDEN = new Intl.Collator("es", { sensitivity: "base" });
 
 /** Cuántos caracteres admite el motivo de un rechazo: lo que llega al colportor tiene que ser corto de leer. */
-export const MAXIMO_DEL_MOTIVO = 300;
+export const MAXIMO_DEL_MOTIVO = 500;
 
 export const money = (n: number): string => `$U ${formatearCantidad(n)}`;
 
@@ -233,12 +235,12 @@ export function construirMundo(datos: DatosDePedidos): Mundo {
     if (ciudad) ciudad.solicitudes.push(s);
     else sinCiudad.push(s);
   }
-  const limite = datos.limiteDeDeuda === null ? null : monto(datos.limiteDeDeuda);
+  // Solo `null` (o un valor que no es un monto) es «sin límite»: un límite en cero es un límite, y todo pedido con deuda lo supera.
+  const limite = datos.limiteDeDeuda === null || !Number.isFinite(datos.limiteDeDeuda) || datos.limiteDeDeuda < 0 ? null : Math.round(datos.limiteDeDeuda);
   const ahora = new Date(datos.ahora);
   return {
     campaniaId: datos.campaniaId,
-    // Un límite en cero o inválido es «sin límite»: ningún pedido lo supera por tener deuda.
-    limite: limite === null || limite === 0 ? null : limite,
+    limite,
     ahora: Number.isNaN(ahora.getTime()) ? new Date(0) : ahora,
     ciudades,
     sinCiudad,
@@ -370,12 +372,14 @@ export function contarPestanas(resuelto: AmbitoResuelto): Array<{ id: Pestana; r
 }
 
 /** Lo que dice la lista cuando una pestaña está vacía: dice qué pasa, no solo que no hay nada. */
-export function textoDePestanaVacia(pestana: Pestana, lugar: string): string {
+export function textoDePestanaVacia(pestana: Pestana, lugar: string, transferenciasPorAutorizar = 0): string {
   switch (pestana) {
     case "ALL":
       return `Todavía no hay pedidos en ${lugar}. Cuando un colportor arme uno desde su teléfono, aparece acá.`;
     case "PEND":
-      return `No hay pedidos por autorizar en ${lugar}.`;
+      return transferenciasPorAutorizar > 0
+        ? `No hay pedidos por autorizar en ${lugar}. Tenés ${transferenciasPorAutorizar} ${transferenciasPorAutorizar === 1 ? "transferencia" : "transferencias"} por autorizar.`
+        : `No hay pedidos por autorizar en ${lugar}.`;
     case "AUT":
       return `No hay pedidos autorizados en ${lugar}.`;
     case "DES":
@@ -665,26 +669,37 @@ export function decisionDe(s: Solicitud, accion: "autorizar" | "rechazar", motiv
   return accion === "autorizar" ? { tipo: s.tipo, id: s.id, accion } : { tipo: s.tipo, id: s.id, accion, motivo };
 }
 
-/** Los datos después de una decisión que el servidor aceptó. Lo que ya no está por autorizar no se vuelve a tocar. */
+/** Mueve la deuda de un colportor en todas las cuentas que lo muestran (cada pedido trae la suya). Nunca baja de cero. */
+function conDeudaDe(pedidos: PedidoDeColportor[], colportorId: string, delta: number): PedidoDeColportor[] {
+  if (delta === 0) return pedidos;
+  return pedidos.map((p) => (p.colportorId === colportorId ? { ...p, cuenta: { ...p.cuenta, deuda: monto(monto(p.cuenta.deuda) + delta) } } : p));
+}
+
+/**
+ * Los datos después de una decisión que el servidor aceptó. Lo que ya no está por autorizar no se vuelve a tocar.
+ * Al autorizar, la deuda se mueve en todas las cuentas que la muestran: la de quien pidió el pedido sube lo que cuesta, y en
+ * una transferencia baja la de quien da y sube la de quien recibe. Así el «Deuda actual» del detalle y el aviso del límite de
+ * los otros pedidos por autorizar de esos colportores no quedan con la deuda de antes.
+ */
 export function aplicarResolucion(datos: DatosDePedidos, r: SolicitudResuelta): DatosDePedidos {
   if (r.tipo === "pedido") {
     const estado = r.estado === "AUTORIZADO" ? "AUTORIZADO" : r.estado === "RECHAZADO" ? "RECHAZADO" : null;
     if (estado === null) return datos;
-    return {
-      ...datos,
-      pedidos: datos.pedidos.map((p) =>
-        p.id === r.id && p.estado === "POR_AUTORIZAR" ? { ...p, estado, resueltoEn: r.resueltoEn, motivoDeRechazo: r.motivoDeRechazo } : p,
-      ),
-    };
+    const pedido = datos.pedidos.find((p) => p.id === r.id && p.estado === "POR_AUTORIZAR");
+    if (!pedido) return datos;
+    const resueltos: PedidoDeColportor[] = datos.pedidos.map((p) => (p === pedido ? { ...p, estado, resueltoEn: r.resueltoEn, motivoDeRechazo: r.motivoDeRechazo } : p));
+    const costo = estado === "AUTORIZADO" ? totalDe(lineasDe(pedido.lineas)) : 0;
+    return { ...datos, pedidos: conDeudaDe(resueltos, pedido.colportorId, costo) };
   }
   const estado = r.estado === "AUTORIZADA" ? "AUTORIZADA" : r.estado === "RECHAZADA" ? "RECHAZADA" : null;
   if (estado === null) return datos;
-  return {
-    ...datos,
-    transferencias: datos.transferencias.map((t) =>
-      t.id === r.id && t.estado === "POR_AUTORIZAR" ? { ...t, estado, resueltaEn: r.resueltoEn, motivoDeRechazo: r.motivoDeRechazo } : t,
-    ),
-  };
+  const transferencia = datos.transferencias.find((t) => t.id === r.id && t.estado === "POR_AUTORIZAR");
+  if (!transferencia) return datos;
+  const transferencias: TransferenciaDeStock[] = datos.transferencias.map((t) => (t === transferencia ? { ...t, estado, resueltaEn: r.resueltoEn, motivoDeRechazo: r.motivoDeRechazo } : t));
+  if (estado === "RECHAZADA") return { ...datos, transferencias };
+  const deuda = totalDe(lineasDe(transferencia.lineas));
+  const pedidos = conDeudaDe(conDeudaDe(datos.pedidos, transferencia.deId, -deuda), transferencia.aId, deuda);
+  return { ...datos, pedidos, transferencias };
 }
 
 /** El estado en que queda lo que se decidió, en los términos de la bandeja. */
