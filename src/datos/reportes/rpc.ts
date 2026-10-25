@@ -32,9 +32,12 @@ import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
  *   · `departamento` sale de `ciudades_de_campania()` por `ciudad_id`; una ciudad que ya no figura ahí (o una campaña
  *     terminada, que no deja leerlas: `CZ011`) queda con `departamento: null` y va sin título.
  *
+ *   · La RPC solo devuelve a quienes tienen horas, así que la lista se completa con `zonas_por_colportor()` (0047/0062, la
+ *     que usa Equipo): quien está inscripto y todavía no cerró ninguna jornada figura igual, con guion, en su ciudad o en
+ *     «Sin zona asignada» (decisión del 25/10, P2 de los pendientes de #60). Quien ya figura por sus horas no se toca.
+ *
  * Lo que queda sin conectar (ver los pendientes del PR): `sinDatosDesde` es siempre `null` (cuándo corresponde avisar «sin
- * datos desde» no está definido) y un colportor inscripto que todavía no tiene ninguna jornada cerrada no aparece, porque
- * la RPC solo devuelve a quienes tienen horas.
+ * datos desde» está a la espera de Cristian).
  *
  * Una falla de conexión, de servicio o de sesión, y un rechazo de la base (`42501`, `22023`), salen como excepción: la
  * página la atrapa `error.tsx` y ofrece reintentar. **Ninguna falla se toma por «sin horas».** Solo una campaña que ya no
@@ -43,6 +46,7 @@ import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
 
 const RPC = "horas_por_ciudad_y_colportor";
 const RPC_CIUDADES = "ciudades_de_campania";
+const RPC_INSCRIPTOS = "zonas_por_colportor";
 
 export const ID_SIN_ZONA = "sin-zona";
 export const NOMBRE_SIN_ZONA = "Sin zona asignada";
@@ -106,9 +110,10 @@ export function crearFuenteReportesRpc(
     const hasta = campania.fechaFin !== null && campania.fechaFin < hoy ? campania.fechaFin : hoy;
 
     let respuesta: unknown;
+    let inscriptos: unknown;
     let departamentoDe: Map<string, string | null>;
     try {
-      [respuesta, departamentoDe] = await Promise.all([
+      [respuesta, inscriptos, departamentoDe] = await Promise.all([
         cliente.llamarRpc(RPC, {
           p_campania_id: campania.id,
           p_desde: campania.fechaInicio,
@@ -117,6 +122,7 @@ export function crearFuenteReportesRpc(
           p_ciudad_id: null,
           p_colportor_ids: null,
         }),
+        cliente.llamarRpc(RPC_INSCRIPTOS, { p_campania_id: campania.id }),
         departamentos(cliente, campania.id),
       ]);
     } catch (error) {
@@ -125,28 +131,25 @@ export function crearFuenteReportesRpc(
     }
 
     const ciudades = new Map<string, CiudadAcumulada>();
-    let sinZona: CiudadAcumulada | null = null;
+    const sinZona: CiudadAcumulada = { id: ID_SIN_ZONA, nombre: NOMBRE_SIN_ZONA, colportores: new Map() };
 
-    for (const fila of filas(RPC, respuesta)) {
-      const ciudadId = cadenaONula(RPC, fila, "ciudad_id");
-      let ciudad: CiudadAcumulada;
-      if (ciudadId === null) {
-        sinZona ??= { id: ID_SIN_ZONA, nombre: NOMBRE_SIN_ZONA, colportores: new Map() };
-        ciudad = sinZona;
-      } else {
-        let existente = ciudades.get(ciudadId);
-        if (!existente) {
-          existente = { id: ciudadId, nombre: cadenaONula(RPC, fila, "ciudad_nombre") ?? "Ciudad sin nombre", colportores: new Map() };
-          ciudades.set(ciudadId, existente);
-        }
-        ciudad = existente;
+    const grupoDe = (rpc: string, fila: Objeto): CiudadAcumulada => {
+      const ciudadId = cadenaONula(rpc, fila, "ciudad_id");
+      if (ciudadId === null) return sinZona;
+      let existente = ciudades.get(ciudadId);
+      if (!existente) {
+        existente = { id: ciudadId, nombre: cadenaONula(rpc, fila, "ciudad_nombre") ?? "Ciudad sin nombre", colportores: new Map() };
+        ciudades.set(ciudadId, existente);
       }
+      return existente;
+    };
 
-      const colportorId = cadena(RPC, fila, "colportor_id");
-      const nombre = cadenaONula(RPC, fila, "nombre") ?? "";
-      const apellido = cadenaONula(RPC, fila, "apellido") ?? "";
+    const colportorDe = (rpc: string, ciudad: CiudadAcumulada, fila: Objeto): ColportorAcumulado => {
+      const colportorId = cadena(rpc, fila, "colportor_id");
       let acumulado = ciudad.colportores.get(colportorId);
       if (!acumulado) {
+        const nombre = cadenaONula(rpc, fila, "nombre") ?? "";
+        const apellido = cadenaONula(rpc, fila, "apellido") ?? "";
         acumulado = {
           id: colportorId,
           nombre: nombreVisible(nombre, apellido, "Colportor sin nombre"),
@@ -156,6 +159,13 @@ export function crearFuenteReportesRpc(
         };
         ciudad.colportores.set(colportorId, acumulado);
       }
+      return acumulado;
+    };
+
+    const conHoras = new Set<string>();
+    for (const fila of filas(RPC, respuesta)) {
+      const acumulado = colportorDe(RPC, grupoDe(RPC, fila), fila);
+      conHoras.add(acumulado.id);
 
       // El colportor figura aunque este día no tenga jornadas; el día solo entra si tuvo alguna cerrada.
       const horas = numero(RPC, fila, "horas");
@@ -163,6 +173,12 @@ export function crearFuenteReportesRpc(
         const fecha = dia(RPC, fila, "periodo_inicio");
         acumulado.horasPorDia[fecha] = Math.round(((acumulado.horasPorDia[fecha] ?? 0) + horas) * 100) / 100;
       }
+    }
+
+    // Los inscriptos que todavía no tienen ninguna jornada cerrada figuran sin horas (guion), en su ciudad o sin zona.
+    for (const fila of filas(RPC_INSCRIPTOS, inscriptos)) {
+      if (conHoras.has(cadena(RPC_INSCRIPTOS, fila, "colportor_id"))) continue;
+      colportorDe(RPC_INSCRIPTOS, grupoDe(RPC_INSCRIPTOS, fila), fila);
     }
 
     const aCiudad = (c: CiudadAcumulada, departamento: string | null): CiudadHoras => ({
@@ -175,7 +191,7 @@ export function crearFuenteReportesRpc(
     const lista = [...ciudades.values()]
       .sort((a, b) => COLLATOR.compare(a.nombre, b.nombre))
       .map((c) => aCiudad(c, departamentoDe.get(c.id) ?? null));
-    if (sinZona) lista.push(aCiudad(sinZona, null));
+    if (sinZona.colportores.size > 0) lista.push(aCiudad(sinZona, null));
 
     return { inicioCampania: campania.fechaInicio, finCampania: campania.fechaFin, hoy, ciudades: lista };
   }

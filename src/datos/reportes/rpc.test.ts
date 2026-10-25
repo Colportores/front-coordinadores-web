@@ -53,9 +53,22 @@ function lecturas(cambios: Record<string, Respuesta> = {}) {
     campanias_del_coordinador: [{ id: CAMPANIA, nombre: "Primavera", fecha_inicio: "2026-09-01", fecha_fin: null }],
     ciudades_de_campania: ciudadesDeCampania,
     horas_por_ciudad_y_colportor: [fila({})],
+    zonas_por_colportor: [],
     ...cambios,
   });
 }
+
+/** Una fila de `zonas_por_colportor()` (0047/0062): todos los inscriptos de la campaña, con o sin zona. */
+const inscripto = (extra: Record<string, unknown>) => ({
+  colportor_id: "u-1",
+  nombre: "Lucía",
+  apellido: "Fernández",
+  ciudad_id: RIVERA,
+  ciudad_nombre: "Rivera",
+  zona_id: "z-1",
+  zona_nombre: "Centro",
+  ...extra,
+});
 
 const sinElegir = async () => null;
 // 21/10/2026 a las 10:00 en Montevideo.
@@ -167,6 +180,80 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
     ]);
   });
 
+  it("pide también los inscriptos de la campaña para completar la lista", async () => {
+    const { cliente, llamarRpc } = lecturas();
+
+    await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(llamarRpc).toHaveBeenCalledWith("zonas_por_colportor", { p_campania_id: CAMPANIA });
+  });
+
+  it("un inscripto que todavía no cerró ninguna jornada figura en su ciudad, sin horas (guion)", async () => {
+    const { cliente } = lecturas({
+      zonas_por_colportor: [
+        inscripto({}),
+        inscripto({ colportor_id: "u-5", nombre: "Rocío", apellido: "Benítez" }),
+      ],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades).toHaveLength(1);
+    expect(datos?.ciudades[0].colportores).toEqual([
+      { id: "u-5", nombre: "Rocío Benítez", horasPorDia: {}, sinDatosDesde: null },
+      { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-20": 4.5 }, sinDatosDesde: null },
+    ]);
+  });
+
+  it("un inscripto sin horas y sin zona va al grupo «Sin zona asignada»; con el mismo grupo que quien sí tiene horas", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [fila({ ciudad_id: null, ciudad_nombre: null, colportor_id: "u-9", nombre: "Diego", apellido: "Machado" })],
+      zonas_por_colportor: [
+        inscripto({ colportor_id: "u-9", nombre: "Diego", apellido: "Machado", ciudad_id: null, ciudad_nombre: null, zona_id: null, zona_nombre: null }),
+        inscripto({ colportor_id: "u-8", nombre: "Ana", apellido: "Zapata", ciudad_id: null, ciudad_nombre: null, zona_id: null, zona_nombre: null }),
+      ],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades.map((c) => c.id)).toEqual([ID_SIN_ZONA]);
+    expect(datos?.ciudades[0].colportores).toEqual([
+      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 4.5 }, sinDatosDesde: null },
+      { id: "u-8", nombre: "Ana Zapata", horasPorDia: {}, sinDatosDesde: null },
+    ]);
+  });
+
+  it("una ciudad cuyos colportores no tienen horas todavía figura igual, con su departamento", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [],
+      zonas_por_colportor: [
+        inscripto({ colportor_id: "u-7", nombre: "Gonzalo", apellido: "Méndez", ciudad_id: BELLA_UNION, ciudad_nombre: "Bella Unión" }),
+      ],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades).toEqual([
+      {
+        id: BELLA_UNION,
+        nombre: "Bella Unión",
+        departamento: "Artigas",
+        colportores: [{ id: "u-7", nombre: "Gonzalo Méndez", horasPorDia: {}, sinDatosDesde: null }],
+      },
+    ]);
+  });
+
+  it("quien ya figura por sus horas no se duplica ni se mueve de ciudad aunque la lista de inscriptos diga otra", async () => {
+    const { cliente } = lecturas({
+      zonas_por_colportor: [inscripto({ ciudad_id: ARTIGAS, ciudad_nombre: "Artigas" })],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades.map((c) => c.nombre)).toEqual(["Rivera"]);
+    expect(datos?.ciudades[0].colportores).toHaveLength(1);
+  });
+
   it("sin ninguna fila, devuelve la campaña con la lista de ciudades vacía (no es «sin campaña»)", async () => {
     const { cliente } = lecturas({ horas_por_ciudad_y_colportor: [] });
 
@@ -240,6 +327,9 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
 
     const servicio = lecturas({ horas_por_ciudad_y_colportor: new ErrorSupabase("Bad gateway", 502) });
     await expect(crearFuenteReportesRpc(servicio.cliente, sinElegir, hoy).obtenerHoras()).rejects.toBeInstanceOf(ErrorSupabase);
+
+    const inscriptosCaidos = lecturas({ zonas_por_colportor: new TypeError("fetch failed") });
+    await expect(crearFuenteReportesRpc(inscriptosCaidos.cliente, sinElegir, hoy).obtenerHoras()).rejects.toThrow("fetch failed");
 
     const departamentosCaidos = lecturas({ ciudades_de_campania: new TypeError("fetch failed") });
     await expect(crearFuenteReportesRpc(departamentosCaidos.cliente, sinElegir, hoy).obtenerHoras()).rejects.toThrow("fetch failed");
