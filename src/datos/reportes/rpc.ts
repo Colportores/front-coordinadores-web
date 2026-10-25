@@ -10,7 +10,7 @@ import {
   type Objeto,
   RespuestaInesperada,
 } from "@/datos/supabase/respuesta";
-import { diasEntre, esDiaIso, hoyEnMontevideo, sumarDias } from "@/lib/dias";
+import { diasEntre, esDiaIso, hoyEnMontevideo, lunesDe, sumarDias } from "@/lib/dias";
 
 /**
  * Fuente de la vista 32 (Reportes, HU-REP-001) contra las RPC de Supabase (ADR-013): `horas_por_ciudad_y_colportor()`
@@ -36,8 +36,9 @@ import { diasEntre, esDiaIso, hoyEnMontevideo, sumarDias } from "@/lib/dias";
  *     que usa Equipo): quien está inscripto y todavía no cerró ninguna jornada figura igual, con guion, en su ciudad o en
  *     «Sin zona asignada» (decisión del 25/10, P2 de los pendientes de #60). Quien ya figura por sus horas no se toca.
  *
- * Lo que queda sin conectar (ver los pendientes del PR): `sinDatosDesde` es siempre `null` (cuándo corresponde avisar «sin
- * datos desde» está a la espera de Cristian).
+ * `sinDatosDesde` (decisión de Cristian del 25/10, «Sin datos»): el último día con horas, cuando pasaron `DIAS_SIN_DATOS`
+ * o más días de trabajo seguidos (lunes a sábado) sin horas desde ese día, sin contar hoy; si no, `null`. Quien nunca
+ * tuvo horas queda en `null`.
  *
  * **El pedido se parte para que ninguna respuesta llegue al tope de filas.** PostgREST corta en silencio las respuestas de
  * una función que devuelve `table` en `max_rows` (1000 por defecto y en `config.toml`): un 200 con las primeras 1000
@@ -65,6 +66,9 @@ export const NOMBRE_SIN_ZONA = "Sin zona asignada";
 export const TOPE_FILAS = 1000;
 /** Lo más largo que acepta la RPC por pedido (`22023` si se pasa). */
 export const TOPE_DIAS = 366;
+
+/** Días de trabajo (lunes a sábado) seguidos sin horas a partir de los cuales se avisa «sin datos desde». */
+export const DIAS_SIN_DATOS = 2;
 
 const COLLATOR = new Intl.Collator("es", { sensitivity: "base" });
 
@@ -138,10 +142,27 @@ interface CiudadAcumulada {
   colportores: Map<string, ColportorAcumulado>;
 }
 
-function ordenarColportores(colportores: Map<string, ColportorAcumulado>): ColportorHoras[] {
+/**
+ * El último día con horas, si desde entonces pasaron `DIAS_SIN_DATOS` o más días de trabajo (lunes a sábado) sin horas,
+ * sin contar `hoy` ni lo que quede después de `ultimoDia` (el último día de una campaña terminada); si no, `null`.
+ */
+export function sinDatosDesde(horasPorDia: Record<Fecha, number>, hoy: Fecha, ultimoDia: Fecha): Fecha | null {
+  const conHoras = Object.keys(horasPorDia).sort();
+  const ultimoConHoras = conHoras[conHoras.length - 1];
+  if (ultimoConHoras === undefined) return null;
+  const hasta = sumarDias(hoy, -1) < ultimoDia ? sumarDias(hoy, -1) : ultimoDia;
+  let sinHoras = 0;
+  for (let dia = sumarDias(ultimoConHoras, 1); dia <= hasta; dia = sumarDias(dia, 1)) {
+    const esDomingo = diasEntre(lunesDe(dia), dia) === 6;
+    if (!esDomingo && !(dia in horasPorDia)) sinHoras++;
+  }
+  return sinHoras >= DIAS_SIN_DATOS ? ultimoConHoras : null;
+}
+
+function ordenarColportores(colportores: Map<string, ColportorAcumulado>, hoy: Fecha, ultimoDia: Fecha): ColportorHoras[] {
   return [...colportores.values()]
     .sort((a, b) => COLLATOR.compare(a.apellido, b.apellido) || COLLATOR.compare(a.nombreSolo, b.nombreSolo))
-    .map((a): ColportorHoras => ({ id: a.id, nombre: a.nombre, horasPorDia: a.horasPorDia, sinDatosDesde: null }));
+    .map((a): ColportorHoras => ({ id: a.id, nombre: a.nombre, horasPorDia: a.horasPorDia, sinDatosDesde: sinDatosDesde(a.horasPorDia, hoy, ultimoDia) }));
 }
 
 export function crearFuenteReportesRpc(
@@ -227,7 +248,7 @@ export function crearFuenteReportesRpc(
       id: c.id,
       nombre: c.nombre,
       departamento,
-      colportores: ordenarColportores(c.colportores),
+      colportores: ordenarColportores(c.colportores, hoy, hasta),
     });
 
     const lista = [...ciudades.values()]

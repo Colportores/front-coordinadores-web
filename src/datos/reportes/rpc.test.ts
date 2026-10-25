@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { crearFuenteReportesRpc, ID_SIN_ZONA, NOMBRE_SIN_ZONA, TOPE_DIAS, TOPE_FILAS } from "@/datos/reportes/rpc";
+import { crearFuenteReportesRpc, ID_SIN_ZONA, NOMBRE_SIN_ZONA, sinDatosDesde, TOPE_DIAS, TOPE_FILAS } from "@/datos/reportes/rpc";
 import { ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
 import { RespuestaInesperada } from "@/datos/supabase/respuesta";
 import { diasEntre, sumarDias } from "@/lib/dias";
@@ -461,5 +461,64 @@ describe("fuente de Reportes (horas): el tope de filas de PostgREST", () => {
     });
 
     await expect(crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras()).rejects.toThrow("fetch failed");
+  });
+});
+
+describe("«sin datos desde» (decisión de Cristian del 25/10: 2 días de trabajo, lunes a sábado, sin contar hoy)", () => {
+  // 2026-10-17 es sábado; 21/10 (hoy en estos tests) es miércoles.
+  const horas = (...dias: string[]) => Object.fromEntries(dias.map((d) => [d, 4]));
+  const HOY = "2026-10-21";
+
+  it("Bruno: horas el sábado 17, sin horas lunes 19 y martes 20: el miércoles 21 avisa desde el 17", () => {
+    expect(sinDatosDesde(horas("2026-10-16", "2026-10-17"), HOY, HOY)).toBe("2026-10-17");
+  });
+
+  it("el domingo no cuenta: sábado con horas y domingo + lunes sin horas son un solo día de trabajo", () => {
+    expect(sinDatosDesde(horas("2026-10-17"), "2026-10-20", "2026-10-20")).toBeNull();
+    expect(sinDatosDesde(horas("2026-10-17"), "2026-10-21", "2026-10-21")).toBe("2026-10-17");
+  });
+
+  it("quien descansó un solo día no avisa", () => {
+    expect(sinDatosDesde(horas("2026-10-19"), HOY, HOY)).toBeNull();
+    expect(sinDatosDesde(horas("2026-10-17"), "2026-10-20", "2026-10-20")).toBeNull();
+  });
+
+  it("hoy no cuenta aunque todavía no tenga horas", () => {
+    expect(sinDatosDesde(horas("2026-10-19"), HOY, HOY)).toBeNull();
+    expect(sinDatosDesde(horas("2026-10-18"), "2026-10-20", "2026-10-20")).toBeNull();
+  });
+
+  it("con horas ayer o hoy, nunca avisa", () => {
+    expect(sinDatosDesde(horas("2026-10-20"), HOY, HOY)).toBeNull();
+    expect(sinDatosDesde(horas("2026-10-21"), HOY, HOY)).toBeNull();
+  });
+
+  it("cuenta desde el último día con horas, no desde el primero", () => {
+    expect(sinDatosDesde(horas("2026-10-01", "2026-10-20"), HOY, HOY)).toBeNull();
+  });
+
+  it("quien nunca tuvo horas queda en null", () => {
+    expect(sinDatosDesde({}, HOY, HOY)).toBeNull();
+  });
+
+  it("en una campaña terminada no cuenta los días posteriores a su último día", () => {
+    expect(sinDatosDesde(horas("2026-03-10"), HOY, "2026-03-12")).toBe("2026-03-10");
+    expect(sinDatosDesde(horas("2026-03-10"), HOY, "2026-03-11")).toBeNull();
+  });
+
+  it("la fuente lo pone en cada colportor según sus horas", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [
+        fila({ periodo_inicio: "2026-10-16", colportor_id: "u-2", nombre: "Bruno", apellido: "Techera" }),
+        fila({ periodo_inicio: "2026-10-17", colportor_id: "u-2", nombre: "Bruno", apellido: "Techera" }),
+        fila({ periodo_inicio: "2026-10-17" }),
+        fila({ periodo_inicio: "2026-10-20" }),
+      ],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    const porId = Object.fromEntries((datos?.ciudades[0].colportores ?? []).map((c) => [c.id, c.sinDatosDesde]));
+    expect(porId).toEqual({ "u-1": null, "u-2": "2026-10-17" });
   });
 });
