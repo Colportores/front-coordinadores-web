@@ -1,4 +1,12 @@
-import type { DatosReportes, FuenteDatosReportes } from "@/datos/reportes/contrato";
+import type {
+  CiudadHoras,
+  ColportorHoras,
+  DatosHoras,
+  DatosReportes,
+  Fecha,
+  FuenteDatosReportes,
+} from "@/datos/reportes/contrato";
+import { diaDeSemana, diasEntre, sumarDias } from "@/datos/reportes/fechas";
 
 /** Datos de ejemplo del diseño ("Panel Coordinador", pestaña Reportes). */
 export const DATOS_REPORTES_SIMULADOS: DatosReportes = {
@@ -12,13 +20,6 @@ export const DATOS_REPORTES_SIMULADOS: DatosReportes = {
     { semana: "S6", montoMiles: 615 },
     { semana: "S7", montoMiles: 700 },
     { semana: "S8", montoMiles: 505, semanaActual: true },
-  ],
-  horasPorColportor: [
-    { id: "col-1", nombre: "Melina Vázquez", horas: 31.0 },
-    { id: "col-2", nombre: "Diego Rocha", horas: 28.4 },
-    { id: "col-3", nombre: "Laura Suárez", horas: 26.2 },
-    { id: "col-4", nombre: "Noelia Acosta", horas: 24.6 },
-    { id: "col-5", nombre: "Pablo Ferreira", horas: 11.5, horasBajas: true },
   ],
   resumenCampania: {
     horasTotalesRegion: 2214,
@@ -35,8 +36,141 @@ export const DATOS_REPORTES_SIMULADOS: DatosReportes = {
   ],
 };
 
+/** Día de hoy de los datos de ejemplo: la vista 32 del diseño se dibujó el martes 21/10/2026 (un día después del 20). */
+export const HOY_SIMULADO: Fecha = "2026-10-21";
+export const INICIO_CAMPANIA_SIMULADO: Fecha = "2026-09-01";
+
+/**
+ * Generador de ejemplo de la vista 32: las mismas cifras del diseño (misma semilla y mismo orden de números al
+ * azar), así que lo que se ve coincide con el canvas. Determinista: no usa el reloj ni `Math.random`.
+ */
+function hashDeTexto(texto: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < texto.length; i++) {
+    h ^= texto.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function azar(semilla: number): () => number {
+  let s = semilla | 0;
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Tendencia semanal de los colportores con una historia (baja, sube, se estanca). */
+const TENDENCIA: Record<string, number[]> = {
+  "Emiliano Sosa": [1.05, 1, 0.95, 0.85, 0.78, 0.7, 0.6, 0.55],
+  "Natalia Vidal": [0.8, 0.85, 0.9, 0.95, 1, 1.05, 1.12, 1.1],
+  "Bruno Techera": [1, 1, 1, 0.95, 0.95, 0.9, 0.8, 0.8],
+};
+const SIN_TENDENCIA = [1, 1, 1, 1, 1, 1, 1, 1];
+
+/** Último día con datos de quien dejó de sincronizar (sin conexión): el diseño lo muestra con guion y sin tendencia. */
+const SIN_DATOS: Record<string, Fecha> = { "Bruno Techera": "2026-10-17" };
+
+function diasHabiles(inicio: Fecha, hoy: Fecha): Fecha[] {
+  const dias: Fecha[] = [];
+  for (let d = inicio; d <= hoy; d = sumarDias(d, 1)) {
+    if (diaDeSemana(d) !== 0) dias.push(d); // los domingos no se trabaja
+  }
+  return dias;
+}
+
+function colportorSimulado(nombre: string, dias: Fecha[]): ColportorHoras {
+  const r = azar(hashDeTexto(nombre));
+  const base = (23 + r() * 8) / 6;
+  const tendencia = TENDENCIA[nombre] ?? SIN_TENDENCIA;
+  const sinDatosDesde = SIN_DATOS[nombre] ?? null;
+  const horasPorDia: Record<Fecha, number> = {};
+  const lunesBase = "2026-08-31";
+  dias.forEach((fecha, i) => {
+    const semana = Math.floor(diasEntre(lunesBase, fecha) / 7);
+    const sinDatos = sinDatosDesde !== null && fecha > sinDatosDesde;
+    const horas = sinDatos
+      ? 0
+      : Math.round(base * tendencia[semana] * (0.75 + r() * 0.5) * (i === dias.length - 1 ? 0.5 : 1) * 10) / 10;
+    // El diseño sortea además presentaciones, ventas, monto y cobranza de cada día: se gastan para que las horas
+    // de los días siguientes coincidan con el canvas.
+    r();
+    r();
+    r();
+    r();
+    if (!sinDatos) horasPorDia[fecha] = horas;
+  });
+  return { id: `col-${hashDeTexto(nombre).toString(36)}`, nombre, horasPorDia, sinDatosDesde };
+}
+
+const CIUDADES_SIMULADAS: { id: string; nombre: string; departamento: string; colportores: string[] }[] = [
+  {
+    id: "ciu-rivera",
+    nombre: "Rivera",
+    departamento: "Rivera",
+    colportores: [
+      "Lucía Fernández",
+      "Bruno Techera",
+      "Valentina Silva",
+      "Joaquín Duarte",
+      "Martín Olivera",
+      "Florencia Pintos",
+      "Camila Núñez",
+      "Santiago Pereira",
+      "Micaela Rodríguez",
+      "Emiliano Sosa",
+    ],
+  },
+  {
+    id: "ciu-artigas",
+    nombre: "Artigas",
+    departamento: "Artigas",
+    colportores: [
+      "Sofía Cabral",
+      "Agustina Rey",
+      "Julieta Moreira",
+      "Carolina Píriz",
+      "Martina Correa",
+      "Paula Ferreira",
+      "Natalia Vidal",
+      "Lorena Acuña",
+    ],
+  },
+  {
+    id: "ciu-bella-union",
+    nombre: "Bella Unión",
+    departamento: "Artigas",
+    colportores: [
+      "Gonzalo Méndez",
+      "Federico Da Rosa",
+      "Ignacio Bentancor",
+      "Rodrigo Cardozo",
+      "Matías Rivero",
+      "Diego Machado",
+      "Nicolás Viera",
+    ],
+  },
+];
+
+export function crearHorasSimuladas(inicio: Fecha = INICIO_CAMPANIA_SIMULADO, hoy: Fecha = HOY_SIMULADO): DatosHoras {
+  const dias = diasHabiles(inicio, hoy);
+  const ciudades: CiudadHoras[] = CIUDADES_SIMULADAS.map((c) => ({
+    id: c.id,
+    nombre: c.nombre,
+    departamento: c.departamento,
+    colportores: c.colportores.map((nombre) => colportorSimulado(nombre, dias)),
+  }));
+  return { inicioCampania: inicio, finCampania: null, hoy, ciudades };
+}
+
 export const fuenteReportesSimulada: FuenteDatosReportes = {
   async obtenerReportes() {
     return DATOS_REPORTES_SIMULADOS;
+  },
+  async obtenerHoras() {
+    return crearHorasSimuladas();
   },
 };
