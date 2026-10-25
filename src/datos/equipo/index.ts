@@ -15,22 +15,22 @@ import { crearClienteSupabase } from "@/datos/supabase/cliente";
 import { leerConfigSupabase } from "@/datos/supabase/config";
 
 export type {
+  AcompanamientoDeColportor,
   CandidatoColportor,
-  ColportorSinZona,
-  DatosAcompanamiento,
+  CiudadDeEquipo,
+  ColportorDeEquipo,
   DatosAnadirColportor,
-  DatosEquipo,
-  EstadoCobro,
+  DatosEquipoPorCiudad,
   EstadoCuenta,
-  FilaColportor,
   FuenteDatosEquipo,
-  JornadaReciente,
+  JornadaParaAcompanar,
   MiembroEquipo,
-  PrecioProductoCiudad,
-  PreciosDeCiudad,
+  ResultadoAcompanamiento,
   ResultadoBusqueda,
   ResultadoInscripcion,
-  UltimoAcompanamiento,
+  ResultadoJornadas,
+  ZonaActualDeColportor,
+  ZonaAnterior,
 } from "@/datos/equipo/contrato";
 
 const configSupabase = leerConfigSupabase();

@@ -1,5 +1,6 @@
 import type { ClienteRpc } from "@/datos/supabase/cliente";
-import { cadena, filas } from "@/datos/supabase/respuesta";
+import { cadena, cadenaONula, filas, RespuestaInesperada } from "@/datos/supabase/respuesta";
+import { esDiaIso } from "@/lib/dias";
 
 /**
  * La campaña con la que trabaja el panel cuando se conecta a las RPC: la que eligió la coordinadora en el selector del
@@ -25,4 +26,23 @@ export async function campaniaProvisoria(
     nombre: cadena(rpc, fila, "nombre"),
   }));
   return todas.find((c) => c.id === elegidaId) ?? todas[0] ?? null;
+}
+
+/**
+ * La campaña provisoria (la elegida en el topbar si figura en la lista, si no la primera) con sus fechas (`AAAA-MM-DD`),
+ * para las vistas que cuentan semanas o días desde su inicio.
+ */
+export async function campaniaProvisoriaConFechas(
+  cliente: ClienteRpc,
+  elegidaId?: string | null,
+): Promise<{ id: string; nombre: string; fechaInicio: string; fechaFin: string | null } | null> {
+  const rpc = "campanias_del_coordinador";
+  const todas = filas(rpc, await cliente.llamarRpc(rpc, {}));
+  const primera = todas.find((fila) => fila.id === elegidaId) ?? todas[0];
+  if (!primera) return null;
+  const fechaInicio = cadena(rpc, primera, "fecha_inicio");
+  const fechaFin = cadenaONula(rpc, primera, "fecha_fin");
+  if (!esDiaIso(fechaInicio)) throw new RespuestaInesperada(rpc, `\`fecha_inicio\` no es un día (${fechaInicio})`);
+  if (fechaFin !== null && !esDiaIso(fechaFin)) throw new RespuestaInesperada(rpc, `\`fecha_fin\` no es un día (${fechaFin})`);
+  return { id: cadena(rpc, primera, "id"), nombre: cadena(rpc, primera, "nombre"), fechaInicio, fechaFin };
 }
