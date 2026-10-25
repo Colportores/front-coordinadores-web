@@ -171,12 +171,12 @@ describe("QA #60 · «Sin datos desde» (decisión de Cristian, 25/10: 2 o más 
 
   // Hallazgo: la decisión pide `sinDatosDesde` = el último día con horas cuando se cumple la regla; la fuente real lo deja
   // siempre en null (rpc.ts: `sinDatosDesde: null`), así que con datos reales la lista y la fila de Bruno no avisan.
-  it.skip("QA #60 · Bruno: horas hasta el sábado 17, sin horas el lunes 19 y el martes 20, hoy miércoles 21 → «sin datos desde» el 17/10", async () => {
+  it("QA #60 · Bruno: horas hasta el sábado 17, sin horas el lunes 19 y el martes 20, hoy miércoles 21 → «sin datos desde» el 17/10", async () => {
     const datos = await leer(base({ horas_por_ciudad_y_colportor: horasDe(["2026-10-15", "2026-10-16", "2026-10-17"]) }));
     expect(datos?.ciudades[0].colportores[0].sinDatosDesde).toBe("2026-10-17");
   });
 
-  it.skip("QA #60 · quien descansó un solo día (el martes 20, hoy miércoles) no recibe el aviso", async () => {
+  it("QA #60 · quien descansó un solo día (el martes 20, hoy miércoles) no recibe el aviso", async () => {
     const datos = await leer(base({ horas_por_ciudad_y_colportor: horasDe(["2026-10-17", "2026-10-19"]) }));
     expect(datos?.ciudades[0].colportores[0].sinDatosDesde).toBeNull();
   });
