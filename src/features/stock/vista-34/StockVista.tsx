@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import type { DatosDeStock } from "@/datos/stock/contrato";
 import { cn } from "@/lib/utils";
 
@@ -116,10 +116,12 @@ export function StockVista({ datos }: { datos: DatosDeStock }) {
             <h2 className="font-serif text-[22px] font-semibold wrap-anywhere text-tinta">{resuelto.titulo}</h2>
             <p className="text-chico text-tinta-suave">{resuelto.subtitulo}</p>
           </div>
-          {/* La vista 35 (pedidos y transferencias) todavía no existe: no hay a dónde ir. */}
-          <AccionNoDisponible className="inline-flex min-h-8 flex-none items-center text-chico font-semibold whitespace-nowrap text-marca-media">
+          <Link
+            href="/stock/pedidos"
+            className="inline-flex min-h-8 flex-none items-center text-chico font-semibold whitespace-nowrap text-marca-media hover:text-marca focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
+          >
             Pedidos y transferencias →
-          </AccionNoDisponible>
+          </Link>
         </div>
 
         {vacio ? (
