@@ -1,0 +1,272 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { crearFuenteReportesRpc, ID_SIN_ZONA, NOMBRE_SIN_ZONA } from "@/datos/reportes/rpc";
+import { ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
+import { RespuestaInesperada } from "@/datos/supabase/respuesta";
+
+const CAMPANIA = "11111111-1111-4111-8111-111111111111";
+const OTRA = "22222222-2222-4222-8222-222222222222";
+const RIVERA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const ARTIGAS = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const BELLA_UNION = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+
+/** Una fila de `horas_por_ciudad_y_colportor()` (migración 0060), agrupada por día. */
+const fila = (extra: Record<string, unknown>) => ({
+  periodo_inicio: "2026-10-20",
+  periodo_fin: "2026-10-20",
+  ciudad_id: RIVERA,
+  ciudad_nombre: "Rivera",
+  colportor_id: "u-1",
+  nombre: "Lucía",
+  apellido: "Fernández",
+  horas: 4.5,
+  jornadas: 1,
+  dias_trabajados: 1,
+  jornadas_acompaniadas: 0,
+  en_curso: false,
+  horas_anterior: 3,
+  jornadas_anterior: 1,
+  ...extra,
+});
+
+const ciudadesDeCampania = [
+  { campania_ciudad_id: "cc-1", ciudad_id: RIVERA, nombre: "Rivera", departamento: "Rivera" },
+  { campania_ciudad_id: "cc-2", ciudad_id: ARTIGAS, nombre: "Artigas", departamento: "Artigas" },
+  { campania_ciudad_id: "cc-3", ciudad_id: BELLA_UNION, nombre: "Bella Unión", departamento: "Artigas" },
+];
+
+type Respuesta = unknown | ((argumentos: Record<string, unknown>) => unknown);
+
+function clienteCon(respuestas: Record<string, Respuesta>) {
+  const llamarRpc = vi.fn<(nombre: string, argumentos: Record<string, unknown>) => Promise<unknown>>(async (nombre, argumentos) => {
+    if (!(nombre in respuestas)) throw new Error(`Sin respuesta preparada para ${nombre}`);
+    const respuesta = respuestas[nombre];
+    if (respuesta instanceof Error) throw respuesta;
+    if (typeof respuesta === "function") return (respuesta as (a: Record<string, unknown>) => unknown)(argumentos);
+    return respuesta;
+  });
+  return { cliente: { llamarRpc } as unknown as ClienteRpc, llamarRpc };
+}
+
+function lecturas(cambios: Record<string, Respuesta> = {}) {
+  return clienteCon({
+    campanias_del_coordinador: [{ id: CAMPANIA, nombre: "Primavera", fecha_inicio: "2026-09-01", fecha_fin: null }],
+    ciudades_de_campania: ciudadesDeCampania,
+    horas_por_ciudad_y_colportor: [fila({})],
+    ...cambios,
+  });
+}
+
+const sinElegir = async () => null;
+// 21/10/2026 a las 10:00 en Montevideo.
+const hoy = () => new Date("2026-10-21T13:00:00Z");
+
+describe("fuente de Reportes (horas) contra las RPC", () => {
+  it("pide las horas día por día desde el primer día de la campaña hasta hoy, sin filtros", async () => {
+    const { cliente, llamarRpc } = lecturas();
+
+    await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(llamarRpc).toHaveBeenCalledWith("horas_por_ciudad_y_colportor", {
+      p_campania_id: CAMPANIA,
+      p_desde: "2026-09-01",
+      p_hasta: "2026-10-21",
+      p_agrupar: "dia",
+      p_ciudad_id: null,
+      p_colportor_ids: null,
+    });
+    expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: CAMPANIA });
+  });
+
+  it("toma el día de hoy de Montevideo aunque en UTC ya sea el día siguiente", async () => {
+    const { cliente, llamarRpc } = lecturas();
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, () => new Date("2026-10-22T01:30:00Z")).obtenerHoras();
+
+    expect(datos?.hoy).toBe("2026-10-21");
+    expect(llamarRpc).toHaveBeenCalledWith("horas_por_ciudad_y_colportor", expect.objectContaining({ p_hasta: "2026-10-21" }));
+  });
+
+  it("arma ciudades y colportores con las horas de cada día y el departamento de cada ciudad", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [
+        fila({ periodo_inicio: "2026-10-19", horas: 3.25 }),
+        fila({ periodo_inicio: "2026-10-20", horas: 4.5 }),
+        fila({ periodo_inicio: "2026-10-20", colportor_id: "u-2", nombre: "Bruno", apellido: "Techera", horas: 2 }),
+        fila({ periodo_inicio: "2026-10-20", ciudad_id: ARTIGAS, ciudad_nombre: "Artigas", colportor_id: "u-3", nombre: "Sofía", apellido: "Cabral", horas: 6 }),
+      ],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos).toEqual({
+      inicioCampania: "2026-09-01",
+      finCampania: null,
+      hoy: "2026-10-21",
+      ciudades: [
+        {
+          id: ARTIGAS,
+          nombre: "Artigas",
+          departamento: "Artigas",
+          colportores: [{ id: "u-3", nombre: "Sofía Cabral", horasPorDia: { "2026-10-20": 6 }, sinDatosDesde: null }],
+        },
+        {
+          id: RIVERA,
+          nombre: "Rivera",
+          departamento: "Rivera",
+          colportores: [
+            { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-19": 3.25, "2026-10-20": 4.5 }, sinDatosDesde: null },
+            { id: "u-2", nombre: "Bruno Techera", horasPorDia: { "2026-10-20": 2 }, sinDatosDesde: null },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("un día sin jornadas cerradas no es un día de 0 horas: no figura (la fila de 0 es solo para la comparación)", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [
+        fila({ periodo_inicio: "2026-10-19", horas: 5 }),
+        fila({ periodo_inicio: "2026-10-20", horas: 0, jornadas: 0, horas_anterior: 5, jornadas_anterior: 1 }),
+      ],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades[0].colportores[0].horasPorDia).toEqual({ "2026-10-19": 5 });
+  });
+
+  it("un colportor que solo tiene filas de comparación sigue en la lista, sin días con datos", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [fila({ horas: 0, jornadas: 0 })],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades[0].colportores).toEqual([{ id: "u-1", nombre: "Lucía Fernández", horasPorDia: {}, sinDatosDesde: null }]);
+  });
+
+  it("los colportores sin zona (ciudad nula) van en un solo grupo «Sin zona asignada», al final", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [
+        fila({ ciudad_id: null, ciudad_nombre: null, colportor_id: "u-9", nombre: "Diego", apellido: "Machado", horas: 20 }),
+        fila({ periodo_inicio: "2026-10-19", ciudad_id: null, ciudad_nombre: null, colportor_id: "u-9", nombre: "Diego", apellido: "Machado", horas: 1.5 }),
+        fila({ ciudad_id: null, ciudad_nombre: null, colportor_id: "u-8", nombre: "Ana", apellido: "Zapata", horas: 3 }),
+        fila({}),
+      ],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades.map((c) => c.nombre)).toEqual(["Rivera", NOMBRE_SIN_ZONA]);
+    const sinZona = datos?.ciudades[1];
+    expect(sinZona).toMatchObject({ id: ID_SIN_ZONA, departamento: null });
+    expect(sinZona?.colportores).toEqual([
+      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 20, "2026-10-19": 1.5 }, sinDatosDesde: null },
+      { id: "u-8", nombre: "Ana Zapata", horasPorDia: { "2026-10-20": 3 }, sinDatosDesde: null },
+    ]);
+  });
+
+  it("sin ninguna fila, devuelve la campaña con la lista de ciudades vacía (no es «sin campaña»)", async () => {
+    const { cliente } = lecturas({ horas_por_ciudad_y_colportor: [] });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos).toEqual({ inicioCampania: "2026-09-01", finCampania: null, hoy: "2026-10-21", ciudades: [] });
+  });
+
+  it("una ciudad que no figura en la lista de la campaña queda sin departamento", async () => {
+    const { cliente } = lecturas({ ciudades_de_campania: [] });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades[0].departamento).toBeNull();
+  });
+
+  it("una campaña terminada se lee hasta su último día, y sus ciudades quedan sin departamento (CZ011)", async () => {
+    const { cliente, llamarRpc } = lecturas({
+      campanias_del_coordinador: [{ id: CAMPANIA, nombre: "Verano", fecha_inicio: "2026-01-05", fecha_fin: "2026-03-14" }],
+      ciudades_de_campania: new ErrorSupabase("La campaña terminó", 400, "CZ011"),
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(llamarRpc).toHaveBeenCalledWith(
+      "horas_por_ciudad_y_colportor",
+      expect.objectContaining({ p_desde: "2026-01-05", p_hasta: "2026-03-14" }),
+    );
+    expect(datos?.finCampania).toBe("2026-03-14");
+    expect(datos?.ciudades[0].departamento).toBeNull();
+  });
+
+  it("con la campaña elegida en el topbar, lee esa y no la primera", async () => {
+    const { cliente, llamarRpc } = lecturas({
+      campanias_del_coordinador: [
+        { id: CAMPANIA, nombre: "Primavera", fecha_inicio: "2026-09-01", fecha_fin: null },
+        { id: OTRA, nombre: "Invierno", fecha_inicio: "2026-06-01", fecha_fin: null },
+      ],
+    });
+
+    await crearFuenteReportesRpc(cliente, async () => OTRA, hoy).obtenerHoras();
+
+    expect(llamarRpc).toHaveBeenCalledWith("horas_por_ciudad_y_colportor", expect.objectContaining({ p_campania_id: OTRA, p_desde: "2026-06-01" }));
+  });
+
+  it("sin campañas que consultar devuelve null, sin pedir las horas", async () => {
+    const { cliente, llamarRpc } = lecturas({ campanias_del_coordinador: [] });
+
+    expect(await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras()).toBeNull();
+    expect(llamarRpc).not.toHaveBeenCalledWith("horas_por_ciudad_y_colportor", expect.anything());
+  });
+
+  it("una campaña que todavía no empezó es «sin campaña con horas»: no se pide un rango al revés", async () => {
+    const { cliente, llamarRpc } = lecturas({
+      campanias_del_coordinador: [{ id: CAMPANIA, nombre: "Verano", fecha_inicio: "2026-11-02", fecha_fin: null }],
+    });
+
+    expect(await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras()).toBeNull();
+    expect(llamarRpc).not.toHaveBeenCalledWith("horas_por_ciudad_y_colportor", expect.anything());
+  });
+
+  it("si la campaña desaparece entre una llamada y la otra (CZ001) devuelve null", async () => {
+    const { cliente } = lecturas({ horas_por_ciudad_y_colportor: new ErrorSupabase("La campaña no existe", 400, "CZ001") });
+
+    expect(await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras()).toBeNull();
+  });
+
+  it("una caída de red o de servicio sale como excepción: nunca se toma por «sin horas»", async () => {
+    const caida = lecturas({ horas_por_ciudad_y_colportor: new TypeError("fetch failed") });
+    await expect(crearFuenteReportesRpc(caida.cliente, sinElegir, hoy).obtenerHoras()).rejects.toThrow("fetch failed");
+
+    const servicio = lecturas({ horas_por_ciudad_y_colportor: new ErrorSupabase("Bad gateway", 502) });
+    await expect(crearFuenteReportesRpc(servicio.cliente, sinElegir, hoy).obtenerHoras()).rejects.toBeInstanceOf(ErrorSupabase);
+
+    const departamentosCaidos = lecturas({ ciudades_de_campania: new TypeError("fetch failed") });
+    await expect(crearFuenteReportesRpc(departamentosCaidos.cliente, sinElegir, hoy).obtenerHoras()).rejects.toThrow("fetch failed");
+  });
+
+  it("un rechazo de la base (sin permiso, rango inválido) sale como excepción para que lo atrape error.tsx", async () => {
+    const { cliente } = lecturas({ horas_por_ciudad_y_colportor: new ErrorSupabase("sin permiso", 403, "42501") });
+
+    await expect(crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras()).rejects.toMatchObject({ codigo: "42501" });
+  });
+
+  it("una respuesta con otra forma es un error, no datos a medias", async () => {
+    const noEsLista = lecturas({ horas_por_ciudad_y_colportor: { horas: 1 } });
+    await expect(crearFuenteReportesRpc(noEsLista.cliente, sinElegir, hoy).obtenerHoras()).rejects.toBeInstanceOf(RespuestaInesperada);
+
+    const horasEnTexto = lecturas({ horas_por_ciudad_y_colportor: [fila({ horas: "4.5" })] });
+    await expect(crearFuenteReportesRpc(horasEnTexto.cliente, sinElegir, hoy).obtenerHoras()).rejects.toBeInstanceOf(RespuestaInesperada);
+
+    const diaInvalido = lecturas({ horas_por_ciudad_y_colportor: [fila({ periodo_inicio: "20/10/2026" })] });
+    await expect(crearFuenteReportesRpc(diaInvalido.cliente, sinElegir, hoy).obtenerHoras()).rejects.toBeInstanceOf(RespuestaInesperada);
+  });
+
+  it("un colportor sin nombre ni apellido figura igual", async () => {
+    const { cliente } = lecturas({ horas_por_ciudad_y_colportor: [fila({ nombre: "", apellido: "" })] });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades[0].colportores[0].nombre).toBe("Colportor sin nombre");
+  });
+});
