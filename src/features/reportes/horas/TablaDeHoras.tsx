@@ -39,7 +39,13 @@ export function TablaDeHoras({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-tarjeta border border-borde bg-superficie">
-      <div className="min-h-0 flex-1 overflow-auto">
+      {/* Con scroll y sin nada enfocable adentro: sin tabindex el teclado no llega a las filas de más abajo (axe: scrollable-region-focusable). */}
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label={`Desplazamiento de ${descripcion}`}
+        className="min-h-0 flex-1 overflow-auto focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-acento"
+      >
         <table aria-label={descripcion} className="w-full table-fixed border-collapse">
           <colgroup>
             <col />

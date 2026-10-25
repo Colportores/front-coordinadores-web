@@ -227,7 +227,7 @@ describe("QA #60 · accesibilidad", () => {
   // scroll de la tabla (div.overflow-auto) no tiene contenido enfocable (las filas son texto), así que sin un tabindex un
   // navegador que no vuelve enfocables los scrollers (Safari) deja el resto de la tabla fuera del alcance del teclado.
   // Se ve con 25 colportores a 1280x800 (captura QA «R01-todas»).
-  it.skip("QA #60 · la tabla con scroll se alcanza con el teclado (el contenedor con scroll es enfocable y tiene nombre)", () => {
+  it("QA #60 · la tabla con scroll se alcanza con el teclado (el contenedor con scroll es enfocable y tiene nombre)", () => {
     const datos = datosDePrueba();
     datos.ciudades[0].colportores = Array.from({ length: 60 }, (_, i) =>
       colportor(`c${i}`, `Colportor ${i}`, horasConstantes("2026-10-05", "2026-10-21", 4)),
