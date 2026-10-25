@@ -25,6 +25,8 @@ docker compose -f compose.dev.yml run --rm app npm install <paquete>
 
 La imagen (`dockerfile.dev`) parte de la de Playwright, que trae Node y Chromium para el QA de vistas.
 
+- **Tope de memoria.** El servicio del panel en `compose.dev.yml` lleva `mem_limit: 2500m` / `memswap_limit: 3g` y `NODE_OPTIONS=--max-old-space-size=1536` (heap de Node de 1,5 GB para la build y los checks). Sirve para que el pico de RAM de un check local (~1,3 GB, ~2 GB con la build de Next y Playwright) no deje sin memoria a la VM de Docker; vale solo para el desarrollo local: el CI, staging y producción no pasan por ese compose. Si un check se queda sin memoria (el contenedor sale con 137), cerrá lo que no uses antes de subir el tope.
+
 **Después de cambiar dependencias** (`package.json` / `package-lock.json`, incluido un `git pull` que las cambie) hay que recrear el volumen de `node_modules`: Docker copia las dependencias de la imagen solo cuando crea el volumen, y si no se recrea el dev server sigue con las viejas.
 
 ```sh

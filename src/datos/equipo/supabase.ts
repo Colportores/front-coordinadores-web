@@ -10,9 +10,12 @@ import type { ClienteSupabase } from "@/datos/supabase/cliente";
  * La vista 23 (añadir colportor: sugeridos, búsqueda e inscripción) va por las RPC de `rpc.ts` y la vista 33 (zonas y
  * acompañamientos por ciudad) por las de `pestana-rpc.ts`.
  */
-export function crearFuenteEquipoSupabase(cliente: ClienteSupabase): FuenteDatosEquipo {
+export function crearFuenteEquipoSupabase(
+  cliente: ClienteSupabase,
+  campaniaElegida?: () => Promise<string | null>,
+): FuenteDatosEquipo {
   return {
-    ...crearFuenteAnadirRpc(cliente),
-    ...crearFuentePestanaRpc(cliente),
+    ...crearFuenteAnadirRpc(cliente, campaniaElegida),
+    ...crearFuentePestanaRpc(cliente, undefined, campaniaElegida),
   };
 }

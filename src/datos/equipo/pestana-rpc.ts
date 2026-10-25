@@ -138,10 +138,14 @@ function textoDeRechazo(error: ErrorSupabase, sinPermiso: string, generico: stri
 
 type FuentePestana = Pick<FuenteDatosEquipo, "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento">;
 
-export function crearFuentePestanaRpc(cliente: ClienteRpc, ahora: () => Date = () => new Date()): FuentePestana {
+export function crearFuentePestanaRpc(
+  cliente: ClienteRpc,
+  ahora: () => Date = () => new Date(),
+  campaniaElegida: () => Promise<string | null> = async () => null,
+): FuentePestana {
   return {
     async obtenerEquipoPorCiudad(): Promise<DatosEquipoPorCiudad | null> {
-      const campania = await campaniaProvisoriaConFechas(cliente);
+      const campania = await campaniaProvisoriaConFechas(cliente, await campaniaElegida());
       if (!campania) return null;
       const argumentos = { p_campania_id: campania.id };
 

@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// La campaña que eligió la coordinadora (#70) sale de la cookie del pedido; acá no hay pedido.
+const cookies = vi.hoisted(() => ({ valores: new Map<string, string>() }));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (nombre: string) => (cookies.valores.has(nombre) ? { name: nombre, value: cookies.valores.get(nombre) } : undefined),
+  }),
+}));
+
 const VARIABLES = {
   SUPABASE_URL: "https://abc.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_x",
@@ -22,6 +30,7 @@ async function importarSelector() {
 
 describe("fuenteZonas (selector)", () => {
   afterEach(() => {
+    cookies.valores.clear();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });

@@ -58,6 +58,13 @@ describe("campaniaProvisoriaConFechas", () => {
     expect(await campaniaProvisoriaConFechas(cliente)).toEqual({ id: "c-1", nombre: "Verano 2026", fechaInicio: "2026-09-01", fechaFin: "2026-12-19" });
   });
 
+  it("toma la elegida en el topbar si figura en la lista, y si no, la primera", async () => {
+    const { cliente } = clienteQueContesta([fila, { ...fila, id: "c-2", nombre: "Otoño 2027", fecha_inicio: "2027-03-01" }]);
+
+    expect(await campaniaProvisoriaConFechas(cliente, "c-2")).toMatchObject({ id: "c-2", fechaInicio: "2027-03-01" });
+    expect(await campaniaProvisoriaConFechas(cliente, "c-9")).toMatchObject({ id: "c-1" });
+  });
+
   it("una campaña sin fecha de fin la deja en null", async () => {
     const { cliente } = clienteQueContesta([{ ...fila, fecha_fin: null }]);
 
@@ -78,5 +85,35 @@ describe("campaniaProvisoriaConFechas", () => {
     const caida = new TypeError("fetch failed");
 
     await expect(campaniaProvisoriaConFechas(clienteQueContesta(caida).cliente)).rejects.toBe(caida);
+  });
+});
+
+describe("campaniaProvisoria con una campaña elegida (#70)", () => {
+  const lista = [
+    { id: "c-1", nombre: "Verano 2026", tipo: "VERANO" },
+    { id: "c-2", nombre: "Permanente 2026", tipo: "PERMANENTE" },
+    { id: "c-3", nombre: "Verano 2027", tipo: "VERANO" },
+  ];
+
+  it("es la elegida si figura en la lista, aunque no sea la primera ni haya empezado", async () => {
+    const { cliente } = clienteQueContesta(lista);
+    expect(await campaniaProvisoria(cliente, "c-3")).toEqual({ id: "c-3", nombre: "Verano 2027" });
+  });
+
+  it("si la elegida ya no figura (terminó, se dio de baja o la cookie es ajena), vuelve a la primera", async () => {
+    const { cliente } = clienteQueContesta(lista);
+    expect(await campaniaProvisoria(cliente, "c-9")).toEqual({ id: "c-1", nombre: "Verano 2026" });
+    expect(await campaniaProvisoria(cliente, "")).toEqual({ id: "c-1", nombre: "Verano 2026" });
+  });
+
+  it("sin elegir ninguna (null o undefined), es la primera", async () => {
+    const { cliente } = clienteQueContesta(lista);
+    expect(await campaniaProvisoria(cliente, null)).toEqual({ id: "c-1", nombre: "Verano 2026" });
+    expect(await campaniaProvisoria(cliente, undefined)).toEqual({ id: "c-1", nombre: "Verano 2026" });
+  });
+
+  it("la elegida no inventa una campaña: sin lista sigue siendo null", async () => {
+    const { cliente } = clienteQueContesta([]);
+    expect(await campaniaProvisoria(cliente, "c-1")).toBeNull();
   });
 });

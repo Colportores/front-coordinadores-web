@@ -11,6 +11,11 @@ services:
       dockerfile: dockerfile.dev
     # Una imagen por repo, la misma con cualquier `-p`: no se reconstruye salvo que cambie dockerfile.dev.
     image: front-coordinadores-web-dev:latest
+    # Tope de RAM del contenedor (informe del 21/10: ~1,3 GB normal, ~2 GB con la build de Next
+    # y Playwright). Con memswap_limit = 3g, el swap permitido es de 0,5 GB: si se pasa, Docker
+    # mata este contenedor y no deja a la VM entera sin memoria.
+    mem_limit: 2500m
+    memswap_limit: 3g
     ports:
       - "3000:3000"
     environment:
@@ -18,6 +23,10 @@ services:
       # En staging y producción no se define (queda apagado).
       NEXT_PUBLIC_MODO_DEV: "1"
       NEXT_TELEMETRY_DISABLED: "1"
+      # Heap de Node acotado (1,5 GB) para la build y los checks dentro del contenedor: así el
+      # recolector de basura trabaja antes de llegar al tope de `mem_limit`. Solo vale acá: ni el
+      # CI ni staging ni producción usan este compose, y `package.json` no lo fija.
+      NODE_OPTIONS: "--max-old-space-size=1536"
       # El bind mount desde Windows/macOS no propaga eventos de archivos:
       # Turbopack sondea cada N ms (next.config.ts → watchOptions.pollIntervalMs).
       NEXT_WATCH_POLL_MS: "1000"
