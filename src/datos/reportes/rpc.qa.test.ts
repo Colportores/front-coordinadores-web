@@ -112,3 +112,78 @@ describe("QA #60 · fuente de Reportes, datos límite", () => {
     expect(Object.keys(datos!.ciudades[0].colportores[0]).sort()).toEqual(["horasPorDia", "id", "nombre", "sinDatosDesde"]);
   });
 });
+
+describe("QA #60 · lectura partida por el tope de filas de PostgREST", () => {
+  /** Un servidor que respeta el rango y corta en silencio a 1000 filas, como PostgREST con `max_rows`. */
+  function servidorConTope(colportores: number) {
+    const todas: Record<string, unknown>[] = [];
+    for (let d = new Date(Date.UTC(2026, 8, 1)); d <= new Date(Date.UTC(2026, 9, 21)); d.setUTCDate(d.getUTCDate() + 1)) {
+      if (d.getUTCDay() === 0) continue;
+      const dia = d.toISOString().slice(0, 10);
+      for (let i = 0; i < colportores; i++) {
+        todas.push(fila({ periodo_inicio: dia, periodo_fin: dia, colportor_id: `u-${i}`, nombre: `C${i}`, apellido: "Prueba", horas: 1 }));
+      }
+    }
+    const pedidos: [string, string][] = [];
+    const llamarRpc = vi.fn(async (nombre: string, args: Record<string, unknown>) => {
+      if (nombre === "campanias_del_coordinador") return [{ id: CAMPANIA, nombre: "P", fecha_inicio: "2026-09-01", fecha_fin: null }];
+      if (nombre === "ciudades_de_campania") return [];
+      if (nombre === "zonas_por_colportor") return [];
+      pedidos.push([args.p_desde as string, args.p_hasta as string]);
+      return todas
+        .filter((f) => (f.periodo_inicio as string) >= (args.p_desde as string) && (f.periodo_inicio as string) <= (args.p_hasta as string))
+        .slice(0, 1000);
+    });
+    return { cliente: { llamarRpc } as unknown as ClienteRpc, pedidos, esperadasPorColportor: todas.length / colportores };
+  }
+
+  it("con más de 1000 filas no se pierde ningún día ni se cuenta dos veces: cada colportor tiene todas sus horas", async () => {
+    const { cliente, pedidos, esperadasPorColportor } = servidorConTope(40);
+    const datos = await leer(cliente);
+
+    expect(pedidos.length).toBeGreaterThan(1);
+    const colportores = datos!.ciudades.flatMap((c) => c.colportores);
+    expect(colportores).toHaveLength(40);
+    for (const c of colportores) {
+      expect(Object.keys(c.horasPorDia)).toHaveLength(esperadasPorColportor);
+      expect(Object.values(c.horasPorDia).every((h) => h === 1)).toBe(true);
+    }
+  });
+
+  it("los tramos pedidos no se superponen y cubren la campaña entera", async () => {
+    const { cliente, pedidos } = servidorConTope(40);
+    await leer(cliente);
+
+    const hojas = pedidos.filter(([d, h]) => !pedidos.some(([d2, h2]) => (d2 !== d || h2 !== h) && d2 >= d && h2 <= h));
+    const ordenadas = [...hojas].sort((a, b) => a[0].localeCompare(b[0]));
+    expect(ordenadas[0][0]).toBe("2026-09-01");
+    expect(ordenadas[ordenadas.length - 1][1]).toBe("2026-10-21");
+    for (let i = 1; i < ordenadas.length; i++) {
+      const anterior = new Date(`${ordenadas[i - 1][1]}T00:00:00Z`);
+      anterior.setUTCDate(anterior.getUTCDate() + 1);
+      expect(ordenadas[i][0]).toBe(anterior.toISOString().slice(0, 10));
+    }
+  });
+});
+
+describe("QA #60 · «Sin datos desde» (decisión de Cristian, 25/10: 2 o más días de trabajo seguidos sin horas, sin contar hoy)", () => {
+  const horasDe = (dias: string[]) => dias.map((d) => fila({ periodo_inicio: d, periodo_fin: d, colportor_id: "u-1" }));
+
+  // Hallazgo: la decisión pide `sinDatosDesde` = el último día con horas cuando se cumple la regla; la fuente real lo deja
+  // siempre en null (rpc.ts: `sinDatosDesde: null`), así que con datos reales la lista y la fila de Bruno no avisan.
+  it.skip("QA #60 · Bruno: horas hasta el sábado 17, sin horas el lunes 19 y el martes 20, hoy miércoles 21 → «sin datos desde» el 17/10", async () => {
+    const datos = await leer(base({ horas_por_ciudad_y_colportor: horasDe(["2026-10-15", "2026-10-16", "2026-10-17"]) }));
+    expect(datos?.ciudades[0].colportores[0].sinDatosDesde).toBe("2026-10-17");
+  });
+
+  it.skip("QA #60 · quien descansó un solo día (el martes 20, hoy miércoles) no recibe el aviso", async () => {
+    const datos = await leer(base({ horas_por_ciudad_y_colportor: horasDe(["2026-10-17", "2026-10-19"]) }));
+    expect(datos?.ciudades[0].colportores[0].sinDatosDesde).toBeNull();
+  });
+
+  it("quien trabajó hoy y ayer no recibe el aviso (esto ya se cumple: hoy es null siempre)", async () => {
+    const datos = await leer(base({ horas_por_ciudad_y_colportor: horasDe(["2026-10-20", "2026-10-21"]) }));
+    expect(datos?.ciudades[0].colportores[0].sinDatosDesde).toBeNull();
+  });
+});
+
