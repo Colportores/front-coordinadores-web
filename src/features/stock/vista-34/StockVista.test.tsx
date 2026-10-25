@@ -2,7 +2,6 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
 import type { ColportorDeStock, DatosDeStock, ExistenciaDeStock } from "@/datos/stock/contrato";
 import { crearDatosDeStockSimulados } from "@/datos/stock/simulado";
 
@@ -164,7 +163,7 @@ describe("StockVista", () => {
 
       const aviso = within(screen.getByRole("list", { name: "Avisos de stock" })).getByRole("listitem");
       expect(aviso).toHaveTextContent("Misioneros · todos agotado · 4 por entregar");
-      expect(within(aviso).getByRole("button", { name: "Ver pedidos de Misioneros · todos" })).toHaveTextContent("Ver pedidos");
+      expect(within(aviso).getByRole("link", { name: "Ver pedidos de Misioneros · todos" })).toHaveTextContent("Ver pedidos");
       const tarjeta = screen.getByRole("list", { name: "Resumen por tipo" }).children[3];
       expect(tarjeta).toHaveTextContent("0");
       expect(tarjeta).toHaveTextContent("se cuentan juntos");
@@ -209,23 +208,17 @@ describe("StockVista", () => {
       expect(fila("La Gran Esperanza")).toHaveAttribute("aria-expanded", "true");
     });
 
-    it("«Ver pedidos» no tiene a dónde ir todavía: queda inerte y explica por qué", async () => {
+    it("«Ver pedidos» lleva a la vista 35, pedidos y transferencias", async () => {
       render(<StockVista datos={simulados()} />);
       await elegir(/^Artigas/);
-      const boton = screen.getByRole("button", { name: "Ver pedidos de Misioneros · todos" });
 
-      expect(boton).toHaveAttribute("aria-disabled", "true");
-      expect(boton).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
-      await userEvent.click(boton);
-      expect(screen.getByRole("heading", { level: 2, name: "Artigas" })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Ver pedidos de Misioneros · todos" })).toHaveAttribute("href", "/stock/pedidos");
     });
 
-    it("«Pedidos y transferencias →» tampoco tiene destino todavía", () => {
+    it("«Pedidos y transferencias →» lleva a la vista 35", () => {
       render(<StockVista datos={simulados()} />);
-      const boton = screen.getByRole("button", { name: "Pedidos y transferencias →" });
 
-      expect(boton).toHaveAttribute("aria-disabled", "true");
-      expect(boton).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
+      expect(screen.getByRole("link", { name: "Pedidos y transferencias →" })).toHaveAttribute("href", "/stock/pedidos");
     });
 
     it("sin avisos no hay franja", async () => {

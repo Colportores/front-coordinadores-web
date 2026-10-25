@@ -1,4 +1,4 @@
-import { AccionNoDisponible } from "@/components/AccionNoDisponible";
+import Link from "next/link";
 
 import type { AvisoDeStock } from "./modelo";
 
@@ -7,8 +7,7 @@ const CLASE_BOTON =
 
 /**
  * La franja de avisos: un producto que se agotó en la ciudad o que no alcanza para lo que hay por entregar. «Ver quién
- * tiene» abre esa fila en la tabla; «Ver pedidos» va a la vista 35, que todavía no existe (queda inerte con el tooltip
- * estándar, como las demás acciones sin destino).
+ * tiene» abre esa fila en la tabla; «Ver pedidos» va a la vista 35 (pedidos y transferencias), donde se pide lo que falta.
  */
 export function AvisosDeStock({ avisos, alVerQuienTiene }: { avisos: AvisoDeStock[]; alVerQuienTiene: (aviso: AvisoDeStock) => void }) {
   if (avisos.length === 0) return null;
@@ -32,9 +31,9 @@ export function AvisosDeStock({ avisos, alVerQuienTiene }: { avisos: AvisoDeStoc
                 {aviso.boton}
               </button>
             ) : (
-              <AccionNoDisponible aria-label={`Ver pedidos de ${contexto}`} className={CLASE_BOTON}>
+              <Link href="/stock/pedidos" aria-label={`Ver pedidos de ${contexto}`} className={CLASE_BOTON}>
                 {aviso.boton}
-              </AccionNoDisponible>
+              </Link>
             )}
           </li>
         );
