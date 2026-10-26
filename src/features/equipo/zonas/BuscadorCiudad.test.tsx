@@ -140,6 +140,29 @@ describe("BuscadorCiudad · estados y casos límite", () => {
     expect(await screen.findByRole("button", { name: "Agregar Salto, Salto" })).toBeEnabled();
   });
 
+  it("si no se pudo agregar, el foco vuelve al campo de búsqueda (no queda en el <body>)", async () => {
+    const { rerender, buscar, onElegir, onCerrar } = montar();
+    await screen.findByRole("list", { name: "Ciudades del catálogo" });
+    const props = { buscar, excluidas: new Set<string>(), onElegir, onCerrar };
+
+    rerender(<BuscadorCiudad {...props} ocupado error={null} />);
+    expect(screen.getByRole("searchbox")).toBeDisabled();
+    rerender(<BuscadorCiudad {...props} ocupado={false} error="No se pudo agregar." />);
+
+    expect(screen.getByRole("searchbox")).toHaveFocus();
+  });
+
+  it("un texto largo sin espacios se parte en vez de salirse de la tarjeta", async () => {
+    const { usuario } = montar({}, []);
+    await screen.findByText("Ya están todas las ciudades del catálogo en la campaña.");
+
+    await usuario.click(screen.getByRole("searchbox"));
+    await usuario.paste("x".repeat(300));
+
+    const aviso = await screen.findByText(/No hay ciudades que coincidan/);
+    expect(aviso.className).toContain("break-words");
+  });
+
   it("Esc cierra el buscador, salvo mientras agrega", async () => {
     const { usuario, onCerrar, rerender, buscar, onElegir } = montar();
     await screen.findByRole("list", { name: "Ciudades del catálogo" });

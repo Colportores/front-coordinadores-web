@@ -249,7 +249,7 @@ describe("«+ Agregar ciudad» · QA · acciones superpuestas, reentrada y falla
 });
 
 describe("«+ Agregar ciudad» · QA · hallazgos (skip hasta que se arreglen)", () => {
-  it.skip("QA #80: un texto pegado larguísimo sin espacios no se repite entero en el aviso de «sin coincidencias» (se sale de la tarjeta)", async () => {
+  it("QA #80: un texto pegado larguísimo sin espacios no se repite entero en el aviso de «sin coincidencias» (se sale de la tarjeta)", async () => {
     const buscar = vi.fn(async (t: string) => (t === "" ? [SALTO] : []));
     render(<BuscadorCiudad buscar={buscar} excluidas={new Set()} ocupado={false} error={null} onElegir={vi.fn()} onCerrar={vi.fn()} />);
     await screen.findByRole("button", { name: "Agregar Salto, Salto" });
@@ -265,7 +265,7 @@ describe("«+ Agregar ciudad» · QA · hallazgos (skip hasta que se arreglen)",
     expect(partePalabras || (aviso.textContent ?? "").length <= 120).toBe(true);
   });
 
-  it.skip("QA #80: tras «Reintentar» el foco no se pierde en el <body>", async () => {
+  it("QA #80: tras «Reintentar» el foco no se pierde en el <body>", async () => {
     const buscar = vi.fn<(t: string) => Promise<CiudadDelCatalogo[]>>().mockRejectedValueOnce(new TypeError("fetch failed")).mockResolvedValue([SALTO]);
     const { container } = montarSuelto({ buscar });
     await screen.findByText(MENSAJE_BUSQUEDA_SIN_CONEXION);
@@ -277,7 +277,7 @@ describe("«+ Agregar ciudad» · QA · hallazgos (skip hasta que se arreglen)",
     expect(container.contains(document.activeElement)).toBe(true);
   });
 
-  it.skip("QA #80: tras agregar la ciudad el foco pasa a algo de la pantalla (la pestaña nueva), no al <body>", async () => {
+  it("QA #80: tras agregar la ciudad el foco pasa a algo de la pantalla (la pestaña nueva), no al <body>", async () => {
     const { buscador } = await abrirBuscador();
 
     await userEvent.click(within(buscador).getByRole("button", { name: "Agregar Salto, Salto" }));
