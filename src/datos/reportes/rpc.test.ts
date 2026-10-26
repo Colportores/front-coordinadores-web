@@ -122,15 +122,15 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
           id: ARTIGAS,
           nombre: "Artigas",
           departamento: "Artigas",
-          colportores: [{ id: "u-3", nombre: "Sofía Cabral", horasPorDia: { "2026-10-20": 6 }, sinDatosDesde: null }],
+          colportores: [{ id: "u-3", nombre: "Sofía Cabral", horasPorDia: { "2026-10-20": 6 }, ventasPorDia: {}, sinDatosDesde: null }],
         },
         {
           id: RIVERA,
           nombre: "Rivera",
           departamento: "Rivera",
           colportores: [
-            { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-19": 3.25, "2026-10-20": 4.5 }, sinDatosDesde: null },
-            { id: "u-2", nombre: "Bruno Techera", horasPorDia: { "2026-10-20": 2 }, sinDatosDesde: null },
+            { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-19": 3.25, "2026-10-20": 4.5 }, ventasPorDia: {}, sinDatosDesde: null },
+            { id: "u-2", nombre: "Bruno Techera", horasPorDia: { "2026-10-20": 2 }, ventasPorDia: {}, sinDatosDesde: null },
           ],
         },
       ],
@@ -157,7 +157,7 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
 
     const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
 
-    expect(datos?.ciudades[0].colportores).toEqual([{ id: "u-1", nombre: "Lucía Fernández", horasPorDia: {}, sinDatosDesde: null }]);
+    expect(datos?.ciudades[0].colportores).toEqual([{ id: "u-1", nombre: "Lucía Fernández", horasPorDia: {}, ventasPorDia: {}, sinDatosDesde: null }]);
   });
 
   it("los colportores sin zona (ciudad nula) van en un solo grupo «Sin zona asignada», al final", async () => {
@@ -176,8 +176,8 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
     const sinZona = datos?.ciudades[1];
     expect(sinZona).toMatchObject({ id: ID_SIN_ZONA, departamento: null });
     expect(sinZona?.colportores).toEqual([
-      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 20, "2026-10-19": 1.5 }, sinDatosDesde: null },
-      { id: "u-8", nombre: "Ana Zapata", horasPorDia: { "2026-10-20": 3 }, sinDatosDesde: null },
+      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 20, "2026-10-19": 1.5 }, ventasPorDia: {}, sinDatosDesde: null },
+      { id: "u-8", nombre: "Ana Zapata", horasPorDia: { "2026-10-20": 3 }, ventasPorDia: {}, sinDatosDesde: null },
     ]);
   });
 
@@ -201,8 +201,8 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
 
     expect(datos?.ciudades).toHaveLength(1);
     expect(datos?.ciudades[0].colportores).toEqual([
-      { id: "u-5", nombre: "Rocío Benítez", horasPorDia: {}, sinDatosDesde: null },
-      { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-20": 4.5 }, sinDatosDesde: null },
+      { id: "u-5", nombre: "Rocío Benítez", horasPorDia: {}, ventasPorDia: {}, sinDatosDesde: null },
+      { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-20": 4.5 }, ventasPorDia: {}, sinDatosDesde: null },
     ]);
   });
 
@@ -219,8 +219,8 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
 
     expect(datos?.ciudades.map((c) => c.id)).toEqual([ID_SIN_ZONA]);
     expect(datos?.ciudades[0].colportores).toEqual([
-      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 4.5 }, sinDatosDesde: null },
-      { id: "u-8", nombre: "Ana Zapata", horasPorDia: {}, sinDatosDesde: null },
+      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 4.5 }, ventasPorDia: {}, sinDatosDesde: null },
+      { id: "u-8", nombre: "Ana Zapata", horasPorDia: {}, ventasPorDia: {}, sinDatosDesde: null },
     ]);
   });
 
@@ -239,7 +239,7 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
         id: BELLA_UNION,
         nombre: "Bella Unión",
         departamento: "Artigas",
-        colportores: [{ id: "u-7", nombre: "Gonzalo Méndez", horasPorDia: {}, sinDatosDesde: null }],
+        colportores: [{ id: "u-7", nombre: "Gonzalo Méndez", horasPorDia: {}, ventasPorDia: {}, sinDatosDesde: null }],
       },
     ]);
   });

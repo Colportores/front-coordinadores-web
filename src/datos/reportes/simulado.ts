@@ -5,6 +5,7 @@ import type {
   DatosReportes,
   Fecha,
   FuenteDatosReportes,
+  VentasDelDia,
 } from "@/datos/reportes/contrato";
 import { diaDeSemana, diasEntre, sumarDias } from "@/datos/reportes/fechas";
 
@@ -88,6 +89,7 @@ function colportorSimulado(nombre: string, dias: Fecha[]): ColportorHoras {
   const tendencia = TENDENCIA[nombre] ?? SIN_TENDENCIA;
   const sinDatosDesde = SIN_DATOS[nombre] ?? null;
   const horasPorDia: Record<Fecha, number> = {};
+  const ventasPorDia: Record<Fecha, VentasDelDia> = {};
   const lunesBase = "2026-08-31";
   dias.forEach((fecha, i) => {
     const semana = Math.floor(diasEntre(lunesBase, fecha) / 7);
@@ -95,15 +97,19 @@ function colportorSimulado(nombre: string, dias: Fecha[]): ColportorHoras {
     const horas = sinDatos
       ? 0
       : Math.round(base * tendencia[semana] * (0.75 + r() * 0.5) * (i === dias.length - 1 ? 0.5 : 1) * 10) / 10;
-    // El diseño sortea además presentaciones, ventas, monto y cobranza de cada día: se gastan para que las horas
-    // de los días siguientes coincidan con el canvas.
-    r();
-    r();
-    r();
-    r();
-    if (!sinDatos) horasPorDia[fecha] = horas;
+    // Después de las horas, el diseño sortea las presentaciones, las ventas, el monto y la cobranza de cada día, en
+    // este orden: así lo que se ve coincide con el canvas. La cobranza (V2) baja con la antigüedad de la semana.
+    const presentaciones = Math.round(horas * (0.8 + r() * 0.35));
+    const ventas = Math.round(presentaciones * (0.24 + r() * 0.16));
+    const monto = ventas * (1900 + Math.round(r() * 24) * 50);
+    const tasaCobrada =
+      semana < 4 ? 0.9 + r() * 0.08 : semana < 6 ? 0.74 + r() * 0.12 : semana === 6 ? 0.55 + r() * 0.15 : 0.35 + r() * 0.15;
+    if (!sinDatos) {
+      horasPorDia[fecha] = horas;
+      ventasPorDia[fecha] = { presentaciones, ventas, monto, cobrado: Math.round(monto * tasaCobrada) };
+    }
   });
-  return { id: `col-${hashDeTexto(nombre).toString(36)}`, nombre, horasPorDia, sinDatosDesde };
+  return { id: `col-${hashDeTexto(nombre).toString(36)}`, nombre, horasPorDia, ventasPorDia, sinDatosDesde };
 }
 
 const CIUDADES_SIMULADAS: { id: string; nombre: string; departamento: string; colportores: string[] }[] = [

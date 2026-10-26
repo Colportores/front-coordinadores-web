@@ -25,6 +25,7 @@ export type {
   MarcadorMapaRegion,
   ResumenCampania,
   VentaSemanal,
+  VentasDelDia,
 } from "@/datos/reportes/contrato";
 
 const configSupabase = leerConfigSupabase();

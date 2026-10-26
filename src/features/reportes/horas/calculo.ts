@@ -14,19 +14,22 @@ import {
 } from "@/datos/reportes/fechas";
 
 /**
- * Cuentas de la vista 32 (HU-REP-001): de las horas de cada día salen los períodos (días, semanas, meses) y la
- * tendencia contra el período anterior. Funciones puras, sin reloj: el «hoy» viene en los datos.
+ * Cuentas de la vista 32 (HU-REP-001 y HU-REP-002): de las horas y las ventas de cada día salen los períodos (días,
+ * semanas, meses) y la tendencia contra el período anterior. Funciones puras, sin reloj: el «hoy» viene en los datos.
  */
 
 export type Granularidad = "dia" | "semana" | "mes";
 
-/** Horas de un período. Sin datos no es lo mismo que 0 horas: se muestra con guion y no lleva tendencia. */
+/** Lo que se mide día por día. `monto` y `cobrado` son los dos números de los que sale el % por cobrar. */
+export type Medida = "horas" | "presentaciones" | "ventas" | "monto" | "cobrado";
+
+/** Una cifra de un período (horas, presentaciones, $U…). Sin datos no es lo mismo que 0: se muestra con guion y no lleva tendencia. */
 export interface Cifra {
-  horas: number;
+  valor: number;
   hayDatos: boolean;
 }
 
-export const CIFRA_SIN_DATOS: Cifra = { horas: 0, hayDatos: false };
+export const CIFRA_SIN_DATOS: Cifra = { valor: 0, hayDatos: false };
 
 /** Cuántos días se dibujan en la vista «Días». */
 export const DIAS_EN_VISTA_DIAS = 14;
@@ -47,25 +50,41 @@ export function crearCalendario(inicio: Fecha, hoy: Fecha, fin: Fecha | null = n
   return { inicio, hoy, diasHabiles };
 }
 
-/** Las horas de un día: de un colportor, o la suma de varios. */
+/** La cifra de un día: de un colportor, o la suma de varios. */
 export type Serie = (fecha: Fecha) => Cifra;
 
-export function serieDeColportor(colportor: Pick<ColportorHoras, "horasPorDia">): Serie {
+/** Cómo se junta la cifra de varios días en la de un período (una suma, o el % por cobrar de sus sumas). */
+export type Agregar = (dias: Fecha[]) => Cifra;
+
+/** Lo que hace falta de un colportor para armar sus series. `ventasPorDia` puede faltar (solo horas). */
+export type DiasDeColportor = Pick<ColportorHoras, "horasPorDia"> & Partial<Pick<ColportorHoras, "ventasPorDia">>;
+
+export function serieDeColportor(colportor: DiasDeColportor, medida: Medida = "horas"): Serie {
+  if (medida === "horas") {
+    return (fecha) => {
+      const valor = colportor.horasPorDia[fecha];
+      return valor === undefined ? CIFRA_SIN_DATOS : { valor, hayDatos: true };
+    };
+  }
   return (fecha) => {
-    const horas = colportor.horasPorDia[fecha];
-    return horas === undefined ? CIFRA_SIN_DATOS : { horas, hayDatos: true };
+    const dia = colportor.ventasPorDia?.[fecha];
+    if (dia === undefined) return CIFRA_SIN_DATOS;
+    const valor =
+      medida === "presentaciones" ? dia.presentaciones : medida === "ventas" ? dia.ventas : medida === "monto" ? dia.monto : dia.cobrado;
+    // `cobrado: null` es V2 sin conectar: no hay dato, no es un día de 0 $U cobrados.
+    return valor === null ? CIFRA_SIN_DATOS : { valor, hayDatos: true };
   };
 }
 
 export function sumarCifras(cifras: Cifra[]): Cifra {
-  let horas = 0;
+  let valor = 0;
   let hayDatos = false;
   for (const c of cifras) {
     if (!c.hayDatos) continue;
-    horas += c.horas;
+    valor += c.valor;
     hayDatos = true;
   }
-  return hayDatos ? { horas, hayDatos } : CIFRA_SIN_DATOS;
+  return hayDatos ? { valor, hayDatos } : CIFRA_SIN_DATOS;
 }
 
 export function serieSuma(series: Serie[]): Serie {
@@ -153,6 +172,11 @@ function esAyer(fecha: Fecha, hoy: Fecha): boolean {
  * en baja). Lo que está en curso no se compara. `null` si todavía no hay un período completo.
  */
 export function compararPeriodos(granularidad: Granularidad, serie: Serie, calendario: Calendario): Comparacion | null {
+  return compararCon(granularidad, (dias) => cifraDeDias(serie, dias), calendario);
+}
+
+/** Lo mismo que `compararPeriodos`, para una cifra que no es una suma de días (el % por cobrar). */
+export function compararCon(granularidad: Granularidad, agregar: Agregar, calendario: Calendario): Comparacion | null {
   const { diasHabiles, hoy } = calendario;
 
   if (granularidad === "dia") {
@@ -163,8 +187,8 @@ export function compararPeriodos(granularidad: Granularidad, serie: Serie, calen
     return {
       rotulo: esAyer(actual, hoy) ? "ayer" : `${nombreDelDia(actual)} ${diaYMes(actual)}`,
       contra: anterior === undefined ? "" : "contra el día anterior",
-      actual: serie(actual),
-      base: anterior === undefined ? null : serie(anterior),
+      actual: agregar([actual]),
+      base: anterior === undefined ? null : agregar([anterior]),
     };
   }
 
@@ -176,8 +200,8 @@ export function compararPeriodos(granularidad: Granularidad, serie: Serie, calen
     return {
       rotulo: actual.rotulo,
       contra: anterior === undefined ? "" : `contra ${anterior.rotulo}`,
-      actual: cifraDeDias(serie, actual.dias),
-      base: anterior === undefined ? null : cifraDeDias(serie, anterior.dias),
+      actual: agregar(actual.dias),
+      base: anterior === undefined ? null : agregar(anterior.dias),
     };
   }
 
@@ -194,8 +218,8 @@ export function compararPeriodos(granularidad: Granularidad, serie: Serie, calen
   return {
     rotulo: enCurso ? `${mesAbreviado(ultimo)} a la fecha` : mesAbreviado(ultimo),
     contra: tieneAnterior ? `contra ${mesAbreviado(ultimo - 1)}${enCurso ? " a la misma fecha" : ""}` : "",
-    actual: cifraDeDias(serie, diasActual),
-    base: tieneAnterior ? cifraDeDias(serie, diasBase) : null,
+    actual: agregar(diasActual),
+    base: tieneAnterior ? agregar(diasBase) : null,
   };
 }
 
@@ -212,11 +236,34 @@ export interface Tendencia {
  * datos o la anterior es 0 (no hay contra qué calcular el porcentaje).
  */
 export function tendenciaDe(actual: Cifra, base: Cifra | null): Tendencia | null {
-  if (!base || !actual.hayDatos || !base.hayDatos || base.horas === 0) return null;
-  const porcentaje = Math.round((actual.horas / base.horas - 1) * 100);
+  if (!base || !actual.hayDatos || !base.hayDatos || base.valor === 0) return null;
+  const porcentaje = Math.round((actual.valor / base.valor - 1) * 100);
   if (porcentaje > 0) return { sentido: "sube", texto: `▲ ${porcentaje}%`, textoAccesible: `subió ${porcentaje} %` };
   if (porcentaje < 0) return { sentido: "baja", texto: `▼ ${-porcentaje}%`, textoAccesible: `bajó ${-porcentaje} %` };
   return { sentido: "igual", texto: "= 0%", textoAccesible: "sin cambios" };
+}
+
+/**
+ * % por cobrar de un período: la porción de lo vendido que todavía no se cobró (V2, HU-REP-002). Sin datos si falta el
+ * monto o lo cobrado. Si no se vendió nada no hay nada por cobrar: 0 %. Lo cobrado de más no da un porcentaje negativo.
+ */
+export function porCobrarDe(monto: Cifra, cobrado: Cifra): Cifra {
+  if (!monto.hayDatos || !cobrado.hayDatos) return CIFRA_SIN_DATOS;
+  if (monto.valor <= 0) return { valor: 0, hayDatos: true };
+  return { valor: Math.max(0, Math.round((1 - cobrado.valor / monto.valor) * 100)), hayDatos: true };
+}
+
+/**
+ * Tendencia del % por cobrar: se dice en puntos, no en porcentaje de porcentaje. «▲ 6 pts» significa que hay más por
+ * cobrar. Sin tendencia si a alguna de las dos le faltan datos.
+ */
+export function tendenciaEnPuntos(actual: Cifra, base: Cifra | null): Tendencia | null {
+  if (!base || !actual.hayDatos || !base.hayDatos) return null;
+  const puntos = actual.valor - base.valor;
+  const unidad = (n: number) => (n === 1 ? "punto" : "puntos");
+  if (puntos > 0) return { sentido: "sube", texto: `▲ ${puntos} pts`, textoAccesible: `hay ${puntos} ${unidad(puntos)} más por cobrar` };
+  if (puntos < 0) return { sentido: "baja", texto: `▼ ${-puntos} pts`, textoAccesible: `hay ${-puntos} ${unidad(-puntos)} menos por cobrar` };
+  return { sentido: "igual", texto: "= 0 pts", textoAccesible: "sin cambios" };
 }
 
 /** Miles con punto: 1450 → «1.450». */
@@ -229,10 +276,25 @@ export function formatearDecimal(valor: number): string {
   return valor.toFixed(1).replace(".", ",");
 }
 
-/** Cifra para mostrar: «—» sin datos; entera si es un total de varios colportores, con un decimal si es de uno. */
-export function formatearCifra(cifra: Cifra, total: boolean): string {
+/** Lo que se muestra: las medidas del día y el % por cobrar, que sale de dos de ellas. */
+export type MedidaMostrada = "horas" | "presentaciones" | "ventas" | "monto" | "porCobrar";
+
+/**
+ * Cifra para mostrar: «—» sin datos. Las horas van enteras si son el total de varios colportores y con un decimal si
+ * son de uno; los $U con «$U » y miles con punto; el % por cobrar con «%».
+ */
+export function formatearCifra(cifra: Cifra, total: boolean, medida: MedidaMostrada = "horas"): string {
   if (!cifra.hayDatos) return "—";
-  return total ? formatearEntero(cifra.horas) : formatearDecimal(cifra.horas);
+  switch (medida) {
+    case "horas":
+      return total ? formatearEntero(cifra.valor) : formatearDecimal(cifra.valor);
+    case "monto":
+      return `$U ${formatearEntero(cifra.valor)}`;
+    case "porCobrar":
+      return `${cifra.valor}%`;
+    default:
+      return formatearEntero(cifra.valor);
+  }
 }
 
 /** Último día con datos anterior a `antesDe`, o `null`. */

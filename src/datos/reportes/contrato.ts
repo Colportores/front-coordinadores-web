@@ -50,7 +50,25 @@ export interface DatosReportes {
 export type Fecha = string;
 
 /**
- * Un colportor de la campaña con sus horas por día (vista 32, HU-REP-001).
+ * Lo que un colportor hizo en un día (vista 32, HU-REP-002): cifras agregadas, nunca quién compró ni cuánto compró
+ * cada persona (el coordinador ve montos, no clientes).
+ */
+export interface VentasDelDia {
+  /** Visitas con la entrevista hecha: resultado `VENTA` o `ENTREVISTA` (HU-VIS-005). `NO_CONTESTO` y `COBRANZA` no cuentan. */
+  presentaciones: number;
+  /** Ventas hechas en el día. */
+  ventas: number;
+  /** Monto vendido en el día, en $U. */
+  monto: number;
+  /**
+   * Lo cobrado de lo vendido en el día, en $U: de ahí sale el % por cobrar. Es V2 (depende de los cobros y de Cuentas,
+   * HU-COB-005 y HU-CTA-005): hasta entonces la fuente lo deja en `null` y el panel no muestra esa cifra.
+   */
+  cobrado: number | null;
+}
+
+/**
+ * Un colportor de la campaña con sus horas y sus ventas por día (vista 32, HU-REP-001 y HU-REP-002).
  * Solo el nombre: ni correo, ni clientes, ni ubicaciones, ni la hora de inicio y fin de cada jornada.
  */
 export interface ColportorHoras {
@@ -63,6 +81,11 @@ export interface ColportorHoras {
    * lleva tendencia. Una jornada sin `fin` no suma horas hasta que se cierre (HU-JOR-002).
    */
   horasPorDia: Readonly<Record<Fecha, number>>;
+  /**
+   * Presentaciones, ventas y monto de cada día con datos. Igual que las horas, un día que no figura es un día sin
+   * datos (no se pudo sincronizar), no un día de 0 ventas: se muestra con guion y no lleva tendencia.
+   */
+  ventasPorDia: Readonly<Record<Fecha, VentasDelDia>>;
   /**
    * Su último día con datos, solo si dejó de llegar información y hace falta avisarlo: el panel escribe «sin datos
    * desde el 17/10». Cuándo corresponde avisar lo decide la fuente; el panel solo lo muestra.
@@ -79,7 +102,7 @@ export interface CiudadHoras {
   colportores: ColportorHoras[];
 }
 
-/** Lo que necesita el reporte de horas de la vista 32: las ciudades de la campaña y sus colportores, día por día. */
+/** Lo que necesita la vista 32: las ciudades de la campaña y sus colportores, con las horas y las ventas de cada día. */
 export interface DatosHoras {
   /** Primer día de la campaña: de ahí se cuentan las semanas (S1, S2…). */
   inicioCampania: Fecha;
@@ -92,6 +115,6 @@ export interface DatosHoras {
 
 export interface FuenteDatosReportes {
   obtenerReportes(): Promise<DatosReportes>;
-  /** Las horas de la campaña por ciudad y colportor, o `null` si el coordinador no tiene una campaña que consultar. */
+  /** Las horas y las ventas de la campaña por ciudad y colportor, o `null` si el coordinador no tiene una campaña que consultar. */
   obtenerHoras(): Promise<DatosHoras | null>;
 }
