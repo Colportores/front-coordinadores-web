@@ -252,12 +252,12 @@ describe("fuenteZonasSimulada", () => {
       expect(nombres).not.toContain("Canelones");
     });
 
-    it("busca por nombre o por provincia, sin importar mayúsculas ni tildes", async () => {
+    it("busca por nombre o por departamento, sin importar mayúsculas ni tildes", async () => {
       const porNombre = await fuenteZonasSimulada.buscarCiudades("campania-verano-2026", "  PAYSANDU ");
-      const porProvincia = await fuenteZonasSimulada.buscarCiudades("campania-verano-2026", "soriano");
+      const porDepartamento = await fuenteZonasSimulada.buscarCiudades("campania-verano-2026", "soriano");
 
-      expect(porNombre).toEqual([{ id: "cat-paysandu", nombre: "Paysandú", provincia: "Paysandú" }]);
-      expect(porProvincia.map((c) => c.nombre)).toEqual(["Mercedes"]);
+      expect(porNombre).toEqual([{ id: "cat-paysandu", nombre: "Paysandú", departamento: "Paysandú" }]);
+      expect(porDepartamento.map((c) => c.nombre)).toEqual(["Mercedes"]);
       expect(await fuenteZonasSimulada.buscarCiudades("campania-verano-2026", "zzz")).toEqual([]);
     });
 

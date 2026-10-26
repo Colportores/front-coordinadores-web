@@ -4,8 +4,9 @@
  */
 
 /**
- * Una ciudad de la campaña. `departamento` es `null` mientras la base no lo entregue (`ciudad.departamento`,
- * backend-supabase#92): la lista de ciudades pone esas ciudades al final, sin título de departamento.
+ * Una ciudad de la campaña. `departamento` viene de `ciudades_de_campania()` (0066, backend-supabase#92) y es `null`
+ * en una ciudad vieja que todavía no lo tiene cargado: la lista de ciudades pone esas ciudades al final, sin título de
+ * departamento.
  */
 export interface CiudadDeEquipo {
   id: string;
