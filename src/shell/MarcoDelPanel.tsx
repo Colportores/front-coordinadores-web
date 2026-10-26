@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { sitioDePruebaActivo } from "@/config/flags";
-import type { ResumenCoordinador } from "@/datos/shell/contrato";
+import type { ResultadoCampanias, ResumenCoordinador } from "@/datos/shell/contrato";
 import { cn } from "@/lib/utils";
 import { AvisoVersionDePrueba } from "@/shell/AvisoVersionDePrueba";
 import type { DefinicionPestana } from "@/shell/pestanas";
@@ -16,10 +16,13 @@ import { Topbar } from "@/shell/Topbar";
 export function MarcoDelPanel({
   resumen,
   pestanas,
+  pedirCampanias,
   children,
 }: {
   resumen: ResumenCoordinador;
   pestanas: DefinicionPestana[];
+  /** Ver `Topbar`. Sin ella, el selector de campaña usa las simuladas. */
+  pedirCampanias?: () => Promise<ResultadoCampanias>;
   children: ReactNode;
 }) {
   const avisoDePrueba = sitioDePruebaActivo();
@@ -34,7 +37,7 @@ export function MarcoDelPanel({
       )}
     >
       <AvisoVersionDePrueba />
-      <Topbar resumen={resumen} pestanas={pestanas} />
+      <Topbar resumen={resumen} pestanas={pestanas} pedirCampanias={pedirCampanias} />
       <main className="relative overflow-hidden">{children}</main>
     </div>
   );

@@ -1,64 +1,65 @@
 /**
- * Contrato de datos de la pestaña Stock: KPIs, pedidos a casa editora,
- * transferencias entre colportores y stock por colportor.
+ * Contrato de datos de la pestaña Stock (vista 34, HU-STK-010): el stock de la campaña por ciudad, producto por producto,
+ * y lo que tiene cada colportor. Es lo que después implementa la RPC de lectura (backend-supabase#101, V2: se conecta
+ * después del 20/11); hasta entonces lo cumple la fuente simulada.
  *
- * Stock es V2 (ver `src/dev/estado-hu.ts`: HU-STK-001, HU-STK-003, HU-STK-004,
- * HU-STK-005 quedan "bloqueada" hasta la migración "Stock y cuenta (V2)").
- * Este contrato es lo que después implementa el BFF (bff-coordinadores).
- *
- * El coordinador ve montos y agregados de sus colportores, nunca datos de
- * clientes.
+ * Qué trae y qué no:
+ * - Cantidades, nunca plata ni datos de clientes: la deuda, lo depositado y el dinero en mano son de Cuentas (HU-CTA-005).
+ * - El stock de una ciudad es la suma del de los colportores de esa ciudad, la de su zona asignada (S69). El colportor sin
+ *   zona no tiene ciudad (`ciudadId: null`): la vista lo agrupa aparte, como «Sin ciudad».
+ * - Las alertas («Agotado en la ciudad», «Faltan N para entregar») no viajan: salen de estas cantidades, que es lo que
+ *   dibuja el canvas. Sin umbral y sin stock mínimo sugerido (S47).
+ * - Pedidos a la casa editora y transferencias son de la vista 35 (HU-STK-001/003/005), no de esta.
  */
 
-export type EstadoPedidoCasaEditora = "por_autorizar" | "despachado" | "entregado";
+export type TipoDeProducto = "LIBRO" | "REVISTA" | "MATERIAL" | "MISIONERO";
 
-export interface PedidoCasaEditora {
+export interface CiudadDeStock {
   id: string;
-  /** Colportor que solicita el pedido. */
-  solicitante: string;
-  libros: number;
-  /** Monto en pesos uruguayos, sin formatear. */
-  monto: number;
-  estado: EstadoPedidoCasaEditora;
-}
-
-export type EstadoTransferencia = "por_autorizar" | "autorizada" | "rechazada";
-
-export interface TransferenciaStock {
-  id: string;
-  colportorOrigen: string;
-  colportorDestino: string;
-  producto: string;
-  cantidad: number;
-  estado: EstadoTransferencia;
-  /** Fecha de resolución ya formateada (p. ej. "08 jun"). Vacía si sigue por autorizar. */
-  fechaResolucion?: string;
-}
-
-export interface StockPorColportor {
-  colportorId: string;
   nombre: string;
-  libros: number;
-  /**
-   * Alerta de stock bajo. El umbral lo calcula el back al conectar la HU
-   * (HU-STK-004); acá viaja como dato ya resuelto, no se recalcula en la vista.
-   */
-  stockBajo: boolean;
+  /** `null` cuando la ciudad no tiene departamento cargado. */
+  departamento: string | null;
 }
 
-export interface KpisStock {
-  librosEnCampo: number;
-  pedidosEnCurso: number;
-  transferenciasPendientes: number;
+export interface ProductoDeStock {
+  id: string;
+  nombre: string;
+  /** Los jugos y los alimentos son «Material»; las revistas, «Revistas» (decisión C4 del 21/10). */
+  tipo: TipoDeProducto;
+  /** Aclaración de catálogo que se muestra debajo del nombre (p. ej. «tipo a confirmar»). */
+  nota: string | null;
 }
 
-export interface DatosStock {
-  kpis: KpisStock;
-  pedidos: PedidoCasaEditora[];
-  transferencias: TransferenciaStock[];
-  stockPorColportor: StockPorColportor[];
+/** Lo que tiene un colportor de un producto. Un producto que no figura vale cero en todo. */
+export interface ExistenciaDeStock {
+  productoId: string;
+  /** Unidades que tiene en mano. */
+  tiene: number;
+  /** Vendidas y todavía no entregadas. */
+  porEntregar: number;
+  /** Entregadas. */
+  entregados: number;
+  /** Entregadas y no pagadas, en unidades (no en plata). */
+  porCobrar: number;
+}
+
+export interface ColportorDeStock {
+  id: string;
+  nombre: string;
+  /** `null` si no tiene zona asignada. */
+  ciudadId: string | null;
+  existencias: ExistenciaDeStock[];
+}
+
+export interface DatosDeStock {
+  campaniaId: string;
+  ciudades: CiudadDeStock[];
+  /** El catálogo de la campaña, en el orden en que se muestra dentro de cada tipo. */
+  productos: ProductoDeStock[];
+  colportores: ColportorDeStock[];
 }
 
 export interface FuenteDatosStock {
-  obtenerStock(): Promise<DatosStock>;
+  /** `null` cuando el coordinador no tiene una campaña en curso ni por empezar. */
+  obtenerStock(): Promise<DatosDeStock | null>;
 }

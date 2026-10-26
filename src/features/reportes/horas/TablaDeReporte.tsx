@@ -51,7 +51,8 @@ export function TablaDeReporte({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-tarjeta border border-borde bg-superficie">
-      <div className="min-h-0 flex-1 overflow-auto">
+      {/* Con el desplazamiento horizontal el área tiene que poder alcanzarse con el teclado y decir qué es. */}
+      <div tabIndex={0} role="region" aria-label={descripcion} className="min-h-0 flex-1 overflow-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento">
         <table
           aria-label={descripcion}
           className="w-full table-fixed border-collapse"

@@ -1,7 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
 import { RESUMEN_COORDINADOR_SIMULADO } from "@/datos/shell/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 import { pestanasVisibles } from "@/shell/pestanas";
@@ -28,11 +27,36 @@ describe("Topbar", () => {
     expect(screen.getByRole("img", { name: "Cuenta: Coordinador de ejemplo" })).toHaveTextContent("MP");
   });
 
-  it("marca el selector de región/campaña como no disponible: no está diseñado todavía", () => {
+  it("el botón de región/campaña abre la lista de campañas (vista 37); sin fuente propia, con las simuladas", async () => {
     renderTopbar(false);
     const selector = screen.getByRole("button", { name: /Montevideo Oeste · Verano 2026/ });
-    expect(selector).toHaveAttribute("aria-disabled", "true");
-    expect(selector).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
+    expect(selector).not.toHaveAttribute("aria-disabled");
+    expect(selector).toHaveAttribute("aria-haspopup", "listbox");
+
+    await act(async () => {
+      fireEvent.click(selector);
+    });
+
+    const lista = screen.getByRole("listbox", { name: "Campañas" });
+    expect(within(lista).getAllByRole("option")).toHaveLength(3);
+    expect(within(lista).getByRole("option", { name: /Verano 2026/ })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("usa la lista que le pasa el layout (la server action) en vez de las simuladas", async () => {
+    fijarFlags({ modoDev: false });
+    const pedirCampanias = vi.fn(async () => ({ ok: true as const, campanias: [] }));
+    render(
+      <ProveedorModoDev activo={false}>
+        <Topbar resumen={RESUMEN_COORDINADOR_SIMULADO} pestanas={pestanasVisibles()} pedirCampanias={pedirCampanias} />
+      </ProveedorModoDev>,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Montevideo Oeste · Verano 2026/ }));
+    });
+
+    expect(pedirCampanias).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("No tenés campañas en curso ni por empezar")).toBeInTheDocument();
   });
 
   it("en /equipo/anadir (vista 23) «Equipo» sigue como pestaña actual", () => {
