@@ -6,12 +6,28 @@ import type { CarreraDelCatalogo, ColportorDeEquipo, DatosDeBecas, TipoDeBeca } 
 import { diaYMes } from "@/lib/dias";
 import { cn } from "@/lib/utils";
 
-import { avanceDeBeca, ETIQUETA_DE_TIPO, pluralColportores, type AmbitoResuelto, type UnidadDeAvance } from "./modelo";
+import {
+  armarTablaDeBecas,
+  BANDAS_DE_AVANCE,
+  ESTADOS,
+  etiquetaDeEstado,
+  hayFiltros,
+  OPCIONES_DE_FILTRO_DE_TIPO,
+  textoDeOrden,
+  type ColumnaDeBecas,
+  type EstadoDeBeca,
+  type FiltroDeAvance,
+  type FiltroDeTipo,
+  type FiltrosDeBecas,
+  type OrdenDeBecas,
+} from "./becas-tabla";
+import { avanceDeBeca, OPCIONES_DE_TIPO, pluralColportores, type AmbitoResuelto, type UnidadDeAvance } from "./modelo";
 import type { EstadoDeBecas } from "./useBecas";
+import type { VistaDeBecas } from "./useVistaDeBecas";
 import { CabeceraDeGrupo, CLASE_BOTON_PRIMARIO, CLASE_BOTON_SECUNDARIO } from "./TablaZonas";
 
-const COLUMNAS = 4;
-const TIPOS: TipoDeBeca[] = ["media", "completa"];
+const COLUMNAS = 5;
+const SIN_FIJAR: ReadonlySet<string> = new Set();
 
 function sinMetaCargada(carrera: CarreraDelCatalogo): boolean {
   return carrera.metaMedia === null && carrera.metaCompleta === null;
@@ -116,7 +132,7 @@ function Avance({ colportor, estado, unidad }: { colportor: ColportorDeEquipo; e
   if (avance.tipo === "sin-tipo") {
     return (
       <span className="text-tinta-suave">
-        Sin meta: falta elegir a qué apunta
+        Sin meta: no apunta a ninguna beca
         {guardando && <span className="ml-2 text-chico">Guardando…</span>}
       </span>
     );
@@ -134,27 +150,40 @@ function Avance({ colportor, estado, unidad }: { colportor: ColportorDeEquipo; e
   );
 }
 
-function ApuntaA({ colportor, estado }: { colportor: ColportorDeEquipo; estado: EstadoDeBecas }) {
+function ApuntaA({
+  colportor,
+  estado,
+  alTocar,
+}: {
+  colportor: ColportorDeEquipo;
+  estado: EstadoDeBecas;
+  alTocar: (tipo: TipoDeBeca | null) => void;
+}) {
   const beca = estado.porColportor[colportor.id];
-  const marcado = estado.pedido[colportor.id] ?? beca?.apuntaA ?? null;
+  // «Sin beca» es null: lo pedido puede ser null, así que se mira si hay un pedido y no si el valor es null.
+  const marcado = colportor.id in estado.pedido ? estado.pedido[colportor.id] : (beca?.apuntaA ?? null);
   return (
     <span role="group" aria-label={`A qué beca apunta ${colportor.nombre}`} className="inline-flex overflow-hidden rounded-control border border-borde bg-superficie">
-      {TIPOS.map((tipo) => {
+      {OPCIONES_DE_TIPO.map(({ tipo, etiqueta }) => {
         const activo = marcado === tipo;
+        const clave = tipo ?? "ninguna";
         return (
           <button
-            key={tipo}
+            key={clave}
             type="button"
-            data-foco-beca={`apunta:${colportor.id}:${tipo}`}
+            data-foco-beca={`apunta:${colportor.id}:${clave}`}
             aria-pressed={activo}
-            aria-label={`Apuntar a ${tipo === "media" ? "media beca" : "beca completa"}: ${colportor.nombre}`}
-            onClick={() => estado.asignarTipo({ id: colportor.id, nombre: colportor.nombre }, tipo)}
+            aria-label={`${tipo === null ? "Dejar sin beca" : `Apuntar a ${tipo === "media" ? "media beca" : "beca completa"}`}: ${colportor.nombre}`}
+            onClick={() => {
+              alTocar(tipo);
+              estado.asignarTipo({ id: colportor.id, nombre: colportor.nombre }, tipo);
+            }}
             className={cn(
-              "inline-flex min-h-8 items-center border-l border-borde px-3 text-chico font-semibold first:border-l-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-acento",
+              "inline-flex min-h-8 items-center border-l border-borde px-3 text-chico font-semibold whitespace-nowrap first:border-l-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-acento",
               activo ? "bg-marca text-superficie" : "bg-superficie text-tinta-2 hover:bg-marca-clara",
             )}
           >
-            {ETIQUETA_DE_TIPO[tipo]}
+            {etiqueta}
           </button>
         );
       })}
@@ -162,36 +191,186 @@ function ApuntaA({ colportor, estado }: { colportor: ColportorDeEquipo; estado: 
   );
 }
 
+function EstadoDeLaFila({ estado }: { estado: EstadoDeBeca }) {
+  return (
+    <span
+      className={cn(
+        "wrap-anywhere",
+        (estado === "media" || estado === "completa") && "font-semibold text-exito",
+        (estado === "sin-carrera" || estado === "sin-beca") && "text-tinta-suave",
+      )}
+    >
+      {etiquetaDeEstado(estado)}
+    </span>
+  );
+}
+
+const CLASE_SELECTOR =
+  "min-h-8 max-w-56 rounded-control border border-borde bg-superficie px-2 text-chico font-normal text-tinta focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento";
+
+function Selector({
+  etiqueta,
+  valor,
+  opciones,
+  alElegir,
+}: {
+  etiqueta: string;
+  valor: string;
+  opciones: { valor: string; etiqueta: string }[];
+  alElegir: (valor: string) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-chico font-semibold text-tinta-2">
+      {etiqueta}
+      <select value={valor} onChange={(evento) => alElegir(evento.target.value)} className={CLASE_SELECTOR}>
+        {opciones.map((o) => (
+          <option key={o.valor} value={o.valor}>
+            {o.etiqueta}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/** Estado, carrera, tipo y avance; la ciudad y el departamento se eligen en la lista de la izquierda. */
+function BarraDeFiltros({
+  vista,
+  carreras,
+  unidad,
+  total,
+  coinciden,
+}: {
+  vista: VistaDeBecas;
+  carreras: CarreraDelCatalogo[];
+  unidad: UnidadDeAvance;
+  total: number;
+  coinciden: number;
+}) {
+  const { filtros, filtrar, limpiarFiltros } = vista;
+  const filtrando = hayFiltros(filtros);
+  return (
+    <div role="group" aria-label="Filtrar las becas" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde px-[18px] py-2.5">
+      <Selector
+        etiqueta="Estado"
+        valor={filtros.estado}
+        opciones={[{ valor: "todos", etiqueta: "Todos" }, ...ESTADOS.map((e) => ({ valor: e.valor, etiqueta: e.etiqueta }))]}
+        alElegir={(valor) => filtrar({ estado: valor as FiltrosDeBecas["estado"] })}
+      />
+      <Selector
+        etiqueta="Carrera"
+        valor={filtros.carrera}
+        opciones={[
+          { valor: "todas", etiqueta: "Todas" },
+          ...carreras.map((c) => ({ valor: c.id, etiqueta: c.nombre })),
+          { valor: "sin-carrera", etiqueta: "Sin carrera elegida" },
+        ]}
+        alElegir={(valor) => filtrar({ carrera: valor })}
+      />
+      <Selector
+        etiqueta="Apunta a"
+        valor={filtros.tipo}
+        opciones={[{ valor: "todos", etiqueta: "Todos" }, ...OPCIONES_DE_FILTRO_DE_TIPO]}
+        alElegir={(valor) => filtrar({ tipo: valor as FiltroDeTipo })}
+      />
+      <Selector
+        etiqueta={unidad === "libros" ? "Avance en libros" : "Avance en compra a la CES"}
+        valor={filtros.avance}
+        opciones={[{ valor: "todos", etiqueta: "Todos" }, ...BANDAS_DE_AVANCE]}
+        alElegir={(valor) => filtrar({ avance: valor as FiltroDeAvance })}
+      />
+      {filtrando && (
+        <>
+          <button type="button" onClick={limpiarFiltros} className={CLASE_BOTON_SECUNDARIO}>
+            Limpiar filtros
+          </button>
+          <p role="status" className="text-chico text-tinta-suave">
+            {coinciden} de {pluralColportores(total)}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Encabezado({
+  columna,
+  etiqueta,
+  orden,
+  alOrdenar,
+  clase,
+}: {
+  columna: ColumnaDeBecas;
+  etiqueta: string;
+  orden: OrdenDeBecas;
+  alOrdenar: (columna: ColumnaDeBecas) => void;
+  clase: string;
+}) {
+  const sentido = orden !== null && orden.columna === columna ? orden.sentido : null;
+  return (
+    <th scope="col" aria-sort={sentido === null ? undefined : sentido === "asc" ? "ascending" : "descending"} className={clase}>
+      <button
+        type="button"
+        onClick={() => alOrdenar(columna)}
+        className="inline-flex min-h-6 items-center gap-1 text-left font-semibold tracking-[0.06em] hover:text-tinta focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
+      >
+        {etiqueta}
+        <span aria-hidden="true">{sentido === null ? "↕" : sentido === "asc" ? "▲" : "▼"}</span>
+      </button>
+    </th>
+  );
+}
+
 /**
  * Pestaña «Becas» de la vista 33 (HU-BEC-004, HU-BEC-006): por colportor, su carrera (elegida una sola vez), a qué beca
- * apunta (media o completa, que sí se puede cambiar en la misma fila) y cuánto lleva de su meta, en libros bonificables o
- * en compra a la CES según «Ver avance en». Todo se guarda desde la fila, sin abrir una ficha.
+ * apunta (media, completa o sin beca, que sí se puede cambiar en la misma fila), su estado y cuánto lleva de su meta, en
+ * libros bonificables o en compra a la CES según «Ver avance en». Se filtra por estado, carrera, tipo y avance, y se
+ * ordena por cualquier columna. Todo se guarda desde la fila, sin abrir una ficha.
  */
 export function TablaBecas({
   resuelto,
   becas,
   estado,
   unidad,
+  vista,
 }: {
   resuelto: AmbitoResuelto;
   becas: DatosDeBecas | null;
   estado: EstadoDeBecas;
   unidad: UnidadDeAvance;
+  vista: VistaDeBecas;
 }) {
   const [eligiendoId, setEligiendoId] = useState<string | null>(null);
   const raiz = useRef<HTMLDivElement>(null);
   // Tras guardar la carrera se enfoca el primer botón de «Apunta a» de esa fila; al cancelar, el botón que la abrió.
   const focoPendiente = useRef<string | null>(null);
+  // El botón de «Apunta a» que se tocó, hasta que termine de guardar: si la fila cambia de lugar al ordenar y el navegador
+  // le saca el foco, se le devuelve.
+  const focoTocado = useRef<{ id: string; clave: string } | null>(null);
+
+  // Los que se tocaron siguen a la vista aunque dejen de cumplir el filtro, hasta que se cambia el filtro o el orden.
+  // `vista.version` sube con cada cambio de filtro u orden, así que un fijado de antes no revive si se vuelve al mismo filtro.
+  const [fijadosPor, setFijadosPor] = useState<{ version: number; ids: ReadonlySet<string> }>({ version: -1, ids: SIN_FIJAR });
+  const fijados = fijadosPor.version === vista.version ? fijadosPor.ids : SIN_FIJAR;
+  const fijar = (id: string) =>
+    setFijadosPor((actual) => ({ version: vista.version, ids: new Set([...(actual.version === vista.version ? actual.ids : []), id]) }));
 
   useEffect(() => {
+    const buscar = (clave: string) =>
+      Array.from(raiz.current?.querySelectorAll<HTMLElement>("[data-foco-beca]") ?? []).find((el) => el.dataset.focoBeca === clave);
     const clave = focoPendiente.current;
-    if (!clave) return;
-    const destino = Array.from(raiz.current?.querySelectorAll<HTMLElement>("[data-foco-beca]") ?? []).find(
-      (el) => el.dataset.focoBeca === clave,
-    );
-    if (destino) {
-      focoPendiente.current = null;
-      destino.focus();
+    if (clave) {
+      const destino = buscar(clave);
+      if (destino) {
+        focoPendiente.current = null;
+        destino.focus();
+      }
+    }
+    const tocado = focoTocado.current;
+    if (tocado) {
+      if (!estado.guardando.has(tocado.id)) focoTocado.current = null;
+      const ocioso = document.activeElement === null || document.activeElement === document.body;
+      if (ocioso) buscar(tocado.clave)?.focus();
     }
   });
 
@@ -203,41 +382,66 @@ export function TablaBecas({
     );
   }
 
+  const tabla = armarTablaDeBecas({
+    resuelto,
+    porColportor: estado.porColportor,
+    carreras: becas.carreras,
+    unidad,
+    filtros: vista.filtros,
+    orden: vista.orden,
+    fijados,
+  });
+  const claseEncabezado = "px-2 py-[9px] text-left font-semibold";
+
   return (
     <div ref={raiz}>
       <p role="status" className="sr-only">
         {estado.aviso}
       </p>
+      <p aria-live="polite" className="sr-only">
+        {vista.orden === null ? "" : textoDeOrden(vista.orden)}
+      </p>
+      <BarraDeFiltros vista={vista} carreras={becas.carreras} unidad={unidad} total={tabla.total} coinciden={tabla.coinciden} />
       <table aria-label="Becas de cada colportor" className="w-full table-fixed border-collapse">
         <colgroup>
-          <col className="w-[22%]" />
-          <col className="w-[24%]" />
-          <col className="w-[172px]" />
+          <col className="w-[20%]" />
+          <col className="w-[20%]" />
+          <col className="w-[232px]" />
+          <col className="w-[136px]" />
           <col />
         </colgroup>
         <thead className="sticky top-0 z-10 bg-superficie">
-          <tr className="border-b border-borde text-etiqueta font-semibold tracking-[0.06em] text-tinta-suave">
-            <th scope="col" className="px-[18px] py-[9px] text-left font-semibold">
-              COLPORTOR
-            </th>
-            <th scope="col" className="px-2 py-[9px] text-left font-semibold">
-              CARRERA
-            </th>
-            <th scope="col" className="px-2 py-[9px] text-left font-semibold">
-              APUNTA A
-            </th>
-            <th scope="col" className="py-[9px] pr-[18px] pl-2 text-left font-semibold">
-              {unidad === "libros" ? "AVANCE · LIBROS BONIFICABLES" : "AVANCE · COMPRA A LA CES"}
-            </th>
+          <tr className="border-b border-borde text-etiqueta text-tinta-suave">
+            <Encabezado columna="colportor" etiqueta="COLPORTOR" orden={vista.orden} alOrdenar={vista.ordenarPor} clase="px-[18px] py-[9px] text-left font-semibold" />
+            <Encabezado columna="carrera" etiqueta="CARRERA" orden={vista.orden} alOrdenar={vista.ordenarPor} clase={claseEncabezado} />
+            <Encabezado columna="apunta" etiqueta="APUNTA A" orden={vista.orden} alOrdenar={vista.ordenarPor} clase={claseEncabezado} />
+            <Encabezado columna="estado" etiqueta="ESTADO" orden={vista.orden} alOrdenar={vista.ordenarPor} clase={claseEncabezado} />
+            <Encabezado
+              columna="avance"
+              etiqueta={unidad === "libros" ? "AVANCE · LIBROS BONIFICABLES" : "AVANCE · COMPRA A LA CES"}
+              orden={vista.orden}
+              alOrdenar={vista.ordenarPor}
+              clase="py-[9px] pr-[18px] pl-2 text-left font-semibold"
+            />
           </tr>
         </thead>
         <tbody>
-          {resuelto.grupos.map((grupo) => (
+          {tabla.coinciden === 0 && (
+            <tr>
+              <td colSpan={COLUMNAS} className="px-[18px] py-6 text-center">
+                <p role="status" className="text-chico text-tinta-suave">
+                  Ningún colportor coincide con estos filtros. Probá con otros o tocá «Limpiar filtros» para ver a todos.
+                </p>
+              </td>
+            </tr>
+          )}
+          {tabla.grupos.map((grupo) => (
             <Fragment key={grupo.clave}>
-              {resuelto.conCabeceras && (
-                <CabeceraDeGrupo nombre={grupo.nombre} cantidad={pluralColportores(grupo.colportores.length)} columnas={COLUMNAS} />
+              {resuelto.conCabeceras && !tabla.plana && (
+                <CabeceraDeGrupo nombre={grupo.nombre} cantidad={pluralColportores(grupo.filas.length)} columnas={COLUMNAS} />
               )}
-              {grupo.colportores.map((c) => {
+              {grupo.filas.map((fila) => {
+                const c = fila.colportor;
                 const carrera = estado.porColportor[c.id]?.carrera ?? null;
                 const abierto = eligiendoId === c.id && carrera === null;
                 const guardando = estado.guardando.has(c.id);
@@ -247,6 +451,9 @@ export function TablaBecas({
                     <tr className="min-h-12 border-b border-borde-suave text-cuerpo">
                       <th scope="row" className="px-[18px] py-2.5 text-left align-middle font-semibold text-tinta">
                         <span className="block wrap-anywhere">{c.nombre}</span>
+                        {tabla.plana && resuelto.conCabeceras && (
+                          <span className="block text-[10.5px] font-normal wrap-anywhere text-tinta-suave">{fila.ciudad}</span>
+                        )}
                       </th>
                       <td className="px-2 py-2.5 align-middle">
                         {carrera ? (
@@ -268,7 +475,21 @@ export function TablaBecas({
                         )}
                       </td>
                       <td className="px-2 py-2.5 align-middle">
-                        {carrera ? <ApuntaA colportor={c} estado={estado} /> : <span className="text-tinta-tenue">—</span>}
+                        {carrera ? (
+                          <ApuntaA
+                            colportor={c}
+                            estado={estado}
+                            alTocar={(tipo) => {
+                              fijar(c.id);
+                              focoTocado.current = { id: c.id, clave: `apunta:${c.id}:${tipo ?? "ninguna"}` };
+                            }}
+                          />
+                        ) : (
+                          <span className="text-tinta-tenue">—</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2.5 align-middle">
+                        <EstadoDeLaFila estado={fila.estado} />
                       </td>
                       <td className="py-2.5 pr-[18px] pl-2 align-middle">
                         <Avance colportor={c} estado={estado} unidad={unidad} />
@@ -283,6 +504,7 @@ export function TablaBecas({
                             guardando={guardando}
                             error={error}
                             alGuardar={(carreraId) => {
+                              fijar(c.id);
                               focoPendiente.current = `apunta:${c.id}:media`;
                               estado.elegirCarrera({ id: c.id, nombre: c.nombre }, carreraId);
                             }}

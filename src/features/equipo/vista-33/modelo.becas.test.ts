@@ -38,7 +38,7 @@ describe("avanceDeBeca", () => {
     expect(avanceDeBeca(undefined, "ces")).toEqual({ tipo: "sin-carrera" });
   });
 
-  it("con carrera pero sin tipo, o con la meta en 0, no se puede medir: «falta elegir a qué apunta»", () => {
+  it("con carrera pero sin tipo, o con la meta en 0, no se puede medir: «no apunta a ninguna beca»", () => {
     expect(avanceDeBeca(beca({ apuntaA: null, meta: null }), "libros")).toEqual({ tipo: "sin-tipo" });
     expect(avanceDeBeca(beca({ meta: { libros: 0, monto: 0 } }), "libros")).toEqual({ tipo: "sin-tipo" });
     // Una medida en 0 no frena a la otra.
@@ -97,7 +97,7 @@ async function filasDeLaTabla(unidad: UnidadDeAvance) {
       carrera: b?.carrera?.nombre ?? null,
       carreraSub: b?.carrera ? `elegida el ${diaYMes(b.carrera.elegidaEl)}` : undefined,
       apuntaA: b?.apuntaA ? ETIQUETA_DE_TIPO[b.apuntaA] : null,
-      avance: avance.tipo === "con-meta" ? avance.texto : avance.tipo === "sin-carrera" ? "Sin meta: falta la carrera" : "Sin meta: falta elegir a qué apunta",
+      avance: avance.tipo === "con-meta" ? avance.texto : avance.tipo === "sin-carrera" ? "Sin meta: falta la carrera" : "Sin meta: no apunta a ninguna beca",
       ancho: avance.tipo === "con-meta" ? `${avance.porcentaje}%` : undefined,
     } as FilaCanvas);
   }

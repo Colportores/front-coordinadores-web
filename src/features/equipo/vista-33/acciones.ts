@@ -9,5 +9,5 @@ export interface AccionesEquipo {
   jornadasParaAcompanar(colportorId: string): Promise<ResultadoJornadas>;
   registrarAcompanamiento(jornadaId: string): Promise<ResultadoAcompanamiento>;
   elegirCarrera(colportorId: string, carreraId: string): Promise<ResultadoBeca>;
-  asignarTipoDeBeca(colportorId: string, tipo: TipoDeBeca): Promise<ResultadoBeca>;
+  asignarTipoDeBeca(colportorId: string, tipo: TipoDeBeca | null): Promise<ResultadoBeca>;
 }

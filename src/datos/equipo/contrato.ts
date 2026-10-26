@@ -239,10 +239,11 @@ export interface FuenteDatosEquipo {
    */
   elegirCarrera(campaniaId: string, colportorId: string, carreraId: string): Promise<ResultadoBeca>;
   /**
-   * Asigna a qué beca apunta el colportor (HU-BEC-006): fija su meta en libros y en monto con la de su carrera. Cambiarlo
-   * no borra lo que ya alcanzó. Mismos rechazos y fallas que `elegirCarrera`.
+   * Asigna a qué beca apunta el colportor (HU-BEC-006): fija su meta en libros y en monto con la de su carrera. `null` es
+   * «sin beca» (`tipo_beca` null en el esquema): lo deja sin meta. Cambiarlo no borra lo que ya alcanzó. Mismos rechazos y
+   * fallas que `elegirCarrera`.
    */
-  asignarTipoDeBeca(campaniaId: string, colportorId: string, tipo: TipoDeBeca): Promise<ResultadoBeca>;
+  asignarTipoDeBeca(campaniaId: string, colportorId: string, tipo: TipoDeBeca | null): Promise<ResultadoBeca>;
   /** `null`: el coordinador no tiene una campaña en curso a la que añadir colportores. */
   obtenerAnadirColportor(): Promise<DatosAnadirColportor | null>;
   /**

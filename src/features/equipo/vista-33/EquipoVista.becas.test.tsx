@@ -22,6 +22,8 @@ const COMPLETA_DE_SISTEMAS: BecaDeColportor = {
 };
 const MEDIA_DE_SISTEMAS: BecaDeColportor = { ...COMPLETA_DE_SISTEMAS, apuntaA: "media", meta: { libros: 120, monto: 180000 } };
 
+const SIN_BECA_DE_SISTEMAS: BecaDeColportor = { ...COMPLETA_DE_SISTEMAS, apuntaA: null, meta: null };
+
 function conDiferido<T>() {
   let resolver!: (valor: T) => void;
   let rechazar!: (error: unknown) => void;
@@ -34,9 +36,9 @@ function conDiferido<T>() {
 
 /** Acciones de becas que contestan como la base: el tipo elegido fija la meta de Sistemas. */
 function crearAcciones() {
-  const asignarTipoDeBeca = vi.fn<AccionesEquipo["asignarTipoDeBeca"]>(async (_id, tipo: TipoDeBeca): Promise<ResultadoBeca> => ({
+  const asignarTipoDeBeca = vi.fn<AccionesEquipo["asignarTipoDeBeca"]>(async (_id, tipo: TipoDeBeca | null): Promise<ResultadoBeca> => ({
     ok: true,
-    beca: tipo === "completa" ? COMPLETA_DE_SISTEMAS : MEDIA_DE_SISTEMAS,
+    beca: tipo === null ? SIN_BECA_DE_SISTEMAS : tipo === "completa" ? COMPLETA_DE_SISTEMAS : MEDIA_DE_SISTEMAS,
   }));
   const elegirCarrera = vi.fn<AccionesEquipo["elegirCarrera"]>(async (_id, carreraId): Promise<ResultadoBeca> => ({
     ok: true,
@@ -79,14 +81,14 @@ afterEach(() => {
 });
 
 describe("Becas · artboard 33C-01, la tabla de cada colportor", () => {
-  it("la pestaña «Becas» va entre «Zonas» y «Acompañamientos» y muestra las cuatro columnas del diseño", async () => {
+  it("la pestaña «Becas» va entre «Zonas» y «Acompañamientos» y muestra las columnas del diseño y el estado", async () => {
     const { usuario } = mostrar();
     expect(screen.getAllByRole("button", { name: /^(Zonas|Becas|Acompañamientos)$/ }).map((b) => b.textContent)).toEqual(["Zonas", "Becas", "Acompañamientos"]);
 
     await irABecas(usuario);
 
     expect(screen.getByRole("button", { name: "Becas" })).toHaveAttribute("aria-pressed", "true");
-    expect(within(tabla().querySelector("thead") as HTMLElement).getAllByRole("columnheader").map((c) => c.textContent)).toEqual(["COLPORTOR", "CARRERA", "APUNTA A", "AVANCE · LIBROS BONIFICABLES"]);
+    expect(within(tabla().querySelector("thead") as HTMLElement).getAllByRole("columnheader").map((c) => c.textContent?.replace(/[▲▼↕]/g, ""))).toEqual(["COLPORTOR", "CARRERA", "APUNTA A", "ESTADO", "AVANCE · LIBROS BONIFICABLES"]);
   });
 
   it("cada fila trae la carrera con «elegida el 01/09», a qué apunta y el avance en libros", async () => {
@@ -145,14 +147,15 @@ describe("Becas · artboard 33C-01, la tabla de cada colportor", () => {
     expect(federico.queryByRole("group")).not.toBeInTheDocument();
   });
 
-  it("con carrera pero sin tipo: nada marcado y «Sin meta: falta elegir a qué apunta»", async () => {
+  it("con carrera pero sin tipo: queda marcado «Sin beca» y dice «Sin meta: no apunta a ninguna beca»", async () => {
     const { usuario } = mostrar();
     await irABecas(usuario);
 
     const sofia = within(fila(/^Sofía Cabral/));
-    expect(sofia.getByText("Sin meta: falta elegir a qué apunta")).toBeInTheDocument();
+    expect(sofia.getByText("Sin meta: no apunta a ninguna beca")).toBeInTheDocument();
     expect(apuntarA("Sofía Cabral", "media")).toHaveAttribute("aria-pressed", "false");
     expect(apuntarA("Sofía Cabral", "completa")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Dejar sin beca: Sofía Cabral" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("la colportora sin zona figura al final, bajo «Sin zona asignada», con «Elegir carrera»", async () => {
@@ -403,7 +406,7 @@ describe("Becas · «Elegir carrera»", () => {
     const federico = within(fila(/^Federico Da Rosa/));
     expect(await federico.findByText("Teología")).toBeInTheDocument();
     expect(federico.getByText("elegida el 21/10")).toBeInTheDocument();
-    expect(federico.getByText("Sin meta: falta elegir a qué apunta")).toBeInTheDocument();
+    expect(federico.getByText("Sin meta: no apunta a ninguna beca")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /Elegir la carrera/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Elegir carrera de Federico Da Rosa" })).not.toBeInTheDocument();
     await waitFor(() => expect(apuntarA("Federico Da Rosa", "media")).toHaveFocus());

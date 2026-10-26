@@ -27,6 +27,7 @@ import { TablaBecas } from "./TablaBecas";
 import { TablaZonas } from "./TablaZonas";
 import { useUnidadDeAvance } from "./unidad-de-avance";
 import { useBecas } from "./useBecas";
+import { useVistaDeBecas } from "./useVistaDeBecas";
 
 const VISTAS: { valor: VistaEquipo; etiqueta: string }[] = [
   { valor: "zonas", etiqueta: "Zonas" },
@@ -90,6 +91,7 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
   const [registrados, setRegistrados] = useState<Record<string, AcompanamientoDeColportor[]>>({});
   const [unidad, elegirUnidad] = useUnidadDeAvance();
   const becas = useBecas(datos.becas, acciones);
+  const vistaDeBecas = useVistaDeBecas();
   const raiz = useRef<HTMLDivElement>(null);
   // Al apagar el botón que tenía el foco (contraer la lista, cerrar el registro) el foco se devuelve a su par.
   const focoPendiente = useRef<string | null>(null);
@@ -248,7 +250,7 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
           ) : vista === "zonas" ? (
             <TablaZonas resuelto={resuelto} />
           ) : vista === "becas" ? (
-            <TablaBecas resuelto={resuelto} becas={datos.becas} estado={becas} unidad={unidad} />
+            <TablaBecas resuelto={resuelto} becas={datos.becas} estado={becas} unidad={unidad} vista={vistaDeBecas} />
           ) : (
             <TablaAcompanamientos
               resuelto={resuelto}
