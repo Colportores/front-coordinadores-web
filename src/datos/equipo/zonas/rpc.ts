@@ -401,8 +401,12 @@ export function crearFuenteZonasRpc(
       const rpc = "ciudades_del_catalogo";
       const buscado = texto.trim().slice(0, MAX_TEXTO_BUSQUEDA).trim();
       const respuesta = await cliente.llamarRpc(rpc, { p_campania_id: campaniaId, p_texto: buscado === "" ? null : buscado });
-      // La base ya deja afuera las que están en la campaña. No trae la provincia: ver `CiudadDelCatalogo`.
-      return filas(rpc, respuesta).map((fila) => ({ id: cadena(rpc, fila, "ciudad_id"), nombre: cadena(rpc, fila, "nombre") }));
+      // La base ya deja afuera las que están en la campaña y busca también por el departamento (0066).
+      return filas(rpc, respuesta).map((fila) => ({
+        id: cadena(rpc, fila, "ciudad_id"),
+        nombre: cadena(rpc, fila, "nombre"),
+        departamento: cadenaONula(rpc, fila, "departamento"),
+      }));
     },
 
     async agregarCiudad(campaniaId, catalogoId): Promise<ResultadoAgregarCiudad> {

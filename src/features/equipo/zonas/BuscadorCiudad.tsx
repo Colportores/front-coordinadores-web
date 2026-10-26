@@ -22,7 +22,7 @@ interface Props {
   onCerrar: () => void;
 }
 
-/** «+ Agregar ciudad»: buscador del catálogo por nombre o provincia, sin las ciudades que ya están en la campaña. */
+/** «+ Agregar ciudad»: buscador del catálogo por nombre o departamento, sin las ciudades que ya están en la campaña. */
 export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, onCerrar }: Props) {
   const [texto, setTexto] = useState("");
   const [resultados, setResultados] = useState<CiudadDelCatalogo[] | null>(null);
@@ -74,7 +74,7 @@ export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, on
         </button>
       </div>
       <label className="flex flex-col gap-1.5">
-        <span className="text-etiqueta font-semibold tracking-etiqueta text-tinta-suave">BUSCAR POR NOMBRE O PROVINCIA</span>
+        <span className="text-etiqueta font-semibold tracking-etiqueta text-tinta-suave">BUSCAR POR NOMBRE O DEPARTAMENTO</span>
         <input
           type="search"
           value={texto}
@@ -110,11 +110,11 @@ export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, on
                 type="button"
                 disabled={ocupado}
                 onClick={() => onElegir(c)}
-                aria-label={c.provincia ? `Agregar ${c.nombre}, ${c.provincia}` : `Agregar ${c.nombre}`}
+                aria-label={c.departamento ? `Agregar ${c.nombre}, ${c.departamento}` : `Agregar ${c.nombre}`}
                 className="flex w-full cursor-pointer items-baseline justify-between gap-3 px-3 py-2 text-left hover:bg-fondo focus-visible:bg-fondo focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <span className="min-w-0 text-nav font-semibold break-words text-tinta">{c.nombre}</span>
-                {c.provincia ? <span className="flex-none text-chico text-tinta-suave">{c.provincia}</span> : null}
+                {c.departamento ? <span className="flex-none text-chico text-tinta-suave">{c.departamento}</span> : null}
               </button>
             </li>
           ))}

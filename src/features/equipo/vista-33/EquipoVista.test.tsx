@@ -131,6 +131,28 @@ describe("EquipoVista · la lista de ciudades", () => {
     expect(screen.getByRole("link", { name: "+ Añadir colportor" })).toHaveAttribute("href", "/equipo/anadir");
   });
 
+  it("dos ciudades con el mismo nombre quedan cada una bajo su departamento y se eligen por separado", async () => {
+    const datos = datosDePrueba({
+      ciudades: [
+        { id: "sj1", nombre: "San José", departamento: "San José" },
+        { id: "sj2", nombre: "San José", departamento: "Flores" },
+      ],
+      colportores: [colportor({ id: "a", nombre: "Ana", ciudadId: "sj1" }), colportor({ id: "b", nombre: "Beto", ciudadId: "sj2" })],
+    });
+    const { usuario } = mostrar(datos);
+    const nav = screen.getByRole("navigation", { name: "Ciudades" });
+
+    expect(within(nav).getByRole("heading", { name: "DEPTO. FLORES" })).toBeInTheDocument();
+    expect(within(nav).getByRole("heading", { name: "DEPTO. SAN JOSÉ" })).toBeInTheDocument();
+    const botones = within(nav).getAllByRole("button", { name: /^San José/ });
+    expect(botones).toHaveLength(2);
+
+    await usuario.click(botones[0]);
+    expect(screen.getByText("1 colportor · Departamento Flores")).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /Beto/ })).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /Ana/ })).not.toBeInTheDocument();
+  });
+
   it("si la lista no trae departamentos, las ciudades van sin título", () => {
     const datos = datosDePrueba({
       ciudades: [
