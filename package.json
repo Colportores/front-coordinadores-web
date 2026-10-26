@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verificar:pestanas-ocultas": "node scripts/verificar-pestanas-ocultas.mjs",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verificar:pestanas-ocultas"
+    "qa:staging": "node scripts/qa-staging.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verificar:pestanas-ocultas && npm run qa:staging"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",

@@ -20,6 +20,8 @@ sh scripts/check.sh                           # lint + typecheck + tests + build
 docker compose -f compose.dev.yml run --rm app npm install <paquete>
 ```
 
+`npm run check` termina con `verificar:pestanas-ocultas` y `qa:staging` (recorrido en Chromium del build de staging, con axe y los flujos por el servidor). Qué prueba, cómo es el build de staging y qué falta para mostrarlo a un coordinador real: [docs/STAGING.md](docs/STAGING.md).
+
 - **Imagen y cachés compartidas.** `-p <nombre>` propio está bien para aislar contenedores, `node_modules` y `.next`; la imagen (`front-coordinadores-web-dev:latest`) es compartida por todos los proyectos.
   `docker compose build` solo cuando cambia `dockerfile.dev`.
 
