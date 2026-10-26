@@ -1,0 +1,5459 @@
+[
+ {
+  "k": "01",
+  "sel": "riv",
+  "open": null,
+  "label": "A · 01 · RIVERA · POR PRODUCTO",
+  "title": "Rivera",
+  "sub": "10 colportores · 11 productos · Departamento Rivera",
+  "lista": [
+   {
+    "nombre": "Todas las ciudades",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. RIVERA"
+   },
+   {
+    "nombre": "Rivera",
+    "sub": "1 aviso",
+    "elegida": true
+   },
+   {
+    "grupo": "DEPTO. ARTIGAS"
+   },
+   {
+    "nombre": "Todo el departamento",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "sub": "sin avisos",
+    "elegida": false
+   }
+  ],
+  "riel": [
+   {
+    "nombre": "Todas las ciudades",
+    "abr": "Todas",
+    "elegida": false
+   },
+   {
+    "nombre": "Rivera",
+    "abr": "Riv.",
+    "elegida": true
+   },
+   {
+    "nombre": "Departamento Artigas",
+    "abr": "Dpto.",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "abr": "Art.",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "abr": "B. Un.",
+    "elegida": false
+   }
+  ],
+  "resumen": [
+   {
+    "label": "LIBROS",
+    "valor": "86",
+    "extra": "5 productos",
+    "sub": "1 con aviso"
+   },
+   {
+    "label": "REVISTAS",
+    "valor": "65",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   },
+   {
+    "label": "MATERIAL",
+    "valor": "29",
+    "extra": "2 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "MISIONEROS",
+    "valor": "184",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   }
+  ],
+  "avisos": [
+   {
+    "negrita": "La Gran Esperanza",
+    "texto": "hay 4, faltan 2",
+    "boton": "Ver quién tiene"
+   }
+  ],
+  "cabeceras": [
+   "PRODUCTO",
+   "EN LA CIUDAD",
+   "EN MANOS DE",
+   "POR ENTREGAR",
+   "ENTREGADOS",
+   "POR COBRAR",
+   "ESTADO"
+  ],
+  "filas": [
+   {
+    "cabecera": "Libros",
+    "sub": "5 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ El Deseado de Todas las Gentes",
+      "sub": ""
+     },
+     {
+      "t": "24",
+      "sub": ""
+     },
+     {
+      "t": "7 de 10",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "68",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ La Gran Esperanza",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "2 de 10",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "40",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "△ Faltan 2 para entregar"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Vida Sana · 3 tomos",
+      "sub": ""
+     },
+     {
+      "t": "17",
+      "sub": ""
+     },
+     {
+      "t": "5 de 10",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "37",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Historias para Niños",
+      "sub": ""
+     },
+     {
+      "t": "21",
+      "sub": ""
+     },
+     {
+      "t": "7 de 10",
+      "sub": ""
+     },
+     {
+      "t": "3",
+      "sub": ""
+     },
+     {
+      "t": "38",
+      "sub": ""
+     },
+     {
+      "t": "8",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revolución a tu salud",
+      "sub": "tipo a confirmar"
+     },
+     {
+      "t": "20",
+      "sub": ""
+     },
+     {
+      "t": "8 de 10",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "31",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Revistas",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revistas · todas",
+      "sub": "Revista Vida Feliz, Revista Salud y Hogar"
+     },
+     {
+      "t": "65",
+      "sub": ""
+     },
+     {
+      "t": "7 de 10",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "151",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Material",
+    "sub": "2 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Jugos que curan",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "3 de 10",
+      "sub": ""
+     },
+     {
+      "t": "0",
+      "sub": ""
+     },
+     {
+      "t": "42",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Alimentos saludables",
+      "sub": ""
+     },
+     {
+      "t": "24",
+      "sub": ""
+     },
+     {
+      "t": "9 de 10",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "29",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Misioneros",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Misioneros · todos",
+      "sub": "Pamplona, Misionero de bolsillo"
+     },
+     {
+      "t": "184",
+      "sub": ""
+     },
+     {
+      "t": "10 de 10",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "266",
+      "sub": ""
+     },
+     {
+      "t": "12",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   }
+  ]
+ },
+ {
+  "k": "02",
+  "sel": "riv",
+  "open": "lge",
+  "label": "A · 02 · RIVERA · LA GRAN ESPERANZA ABIERTA",
+  "title": "Rivera",
+  "sub": "10 colportores · 11 productos · Departamento Rivera",
+  "lista": [
+   {
+    "nombre": "Todas las ciudades",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. RIVERA"
+   },
+   {
+    "nombre": "Rivera",
+    "sub": "1 aviso",
+    "elegida": true
+   },
+   {
+    "grupo": "DEPTO. ARTIGAS"
+   },
+   {
+    "nombre": "Todo el departamento",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "sub": "sin avisos",
+    "elegida": false
+   }
+  ],
+  "riel": [
+   {
+    "nombre": "Todas las ciudades",
+    "abr": "Todas",
+    "elegida": false
+   },
+   {
+    "nombre": "Rivera",
+    "abr": "Riv.",
+    "elegida": true
+   },
+   {
+    "nombre": "Departamento Artigas",
+    "abr": "Dpto.",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "abr": "Art.",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "abr": "B. Un.",
+    "elegida": false
+   }
+  ],
+  "resumen": [
+   {
+    "label": "LIBROS",
+    "valor": "86",
+    "extra": "5 productos",
+    "sub": "1 con aviso"
+   },
+   {
+    "label": "REVISTAS",
+    "valor": "65",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   },
+   {
+    "label": "MATERIAL",
+    "valor": "29",
+    "extra": "2 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "MISIONEROS",
+    "valor": "184",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   }
+  ],
+  "avisos": [
+   {
+    "negrita": "La Gran Esperanza",
+    "texto": "hay 4, faltan 2",
+    "boton": "Ver quién tiene"
+   }
+  ],
+  "cabeceras": [
+   "PRODUCTO",
+   "EN LA CIUDAD",
+   "EN MANOS DE",
+   "POR ENTREGAR",
+   "ENTREGADOS",
+   "POR COBRAR",
+   "ESTADO"
+  ],
+  "filas": [
+   {
+    "cabecera": "Libros",
+    "sub": "5 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ El Deseado de Todas las Gentes",
+      "sub": ""
+     },
+     {
+      "t": "24",
+      "sub": ""
+     },
+     {
+      "t": "7 de 10",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "68",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▾ La Gran Esperanza",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "2 de 10",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "40",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "△ Faltan 2 para entregar"
+     }
+    ],
+    "abierta": true,
+    "subCabeceras": [
+     "QUIÉN LO TIENE O DEBE ENTREGARLO",
+     "TIENE",
+     "POR ENTREGAR",
+     "ENTREGADOS",
+     "POR COBRAR"
+    ],
+    "subFilas": [
+     [
+      "Lucía Fernández",
+      "0",
+      "2",
+      "0",
+      "0"
+     ],
+     [
+      "Valentina Silva",
+      "3",
+      "0",
+      "1",
+      "0"
+     ],
+     [
+      "Camila Núñez",
+      "0",
+      "1",
+      "2",
+      "2"
+     ],
+     [
+      "Santiago Pereira",
+      "1",
+      "0",
+      "7",
+      "0"
+     ],
+     [
+      "Emiliano Sosa",
+      "0",
+      "3",
+      "5",
+      "0"
+     ]
+    ],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Vida Sana · 3 tomos",
+      "sub": ""
+     },
+     {
+      "t": "17",
+      "sub": ""
+     },
+     {
+      "t": "5 de 10",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "37",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Historias para Niños",
+      "sub": ""
+     },
+     {
+      "t": "21",
+      "sub": ""
+     },
+     {
+      "t": "7 de 10",
+      "sub": ""
+     },
+     {
+      "t": "3",
+      "sub": ""
+     },
+     {
+      "t": "38",
+      "sub": ""
+     },
+     {
+      "t": "8",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revolución a tu salud",
+      "sub": "tipo a confirmar"
+     },
+     {
+      "t": "20",
+      "sub": ""
+     },
+     {
+      "t": "8 de 10",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "31",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Revistas",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revistas · todas",
+      "sub": "Revista Vida Feliz, Revista Salud y Hogar"
+     },
+     {
+      "t": "65",
+      "sub": ""
+     },
+     {
+      "t": "7 de 10",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "151",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Material",
+    "sub": "2 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Jugos que curan",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "3 de 10",
+      "sub": ""
+     },
+     {
+      "t": "0",
+      "sub": ""
+     },
+     {
+      "t": "42",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Alimentos saludables",
+      "sub": ""
+     },
+     {
+      "t": "24",
+      "sub": ""
+     },
+     {
+      "t": "9 de 10",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "29",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Misioneros",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Misioneros · todos",
+      "sub": "Pamplona, Misionero de bolsillo"
+     },
+     {
+      "t": "184",
+      "sub": ""
+     },
+     {
+      "t": "10 de 10",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "266",
+      "sub": ""
+     },
+     {
+      "t": "12",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   }
+  ]
+ },
+ {
+  "k": "03",
+  "sel": "art",
+  "open": "MISIONERO",
+  "label": "A · 03 · ARTIGAS · MISIONEROS AGOTADOS",
+  "title": "Artigas",
+  "sub": "8 colportores · 11 productos · Departamento Artigas",
+  "lista": [
+   {
+    "nombre": "Todas las ciudades",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. RIVERA"
+   },
+   {
+    "nombre": "Rivera",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. ARTIGAS"
+   },
+   {
+    "nombre": "Todo el departamento",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "sub": "1 aviso",
+    "elegida": true
+   },
+   {
+    "nombre": "Bella Unión",
+    "sub": "sin avisos",
+    "elegida": false
+   }
+  ],
+  "riel": [
+   {
+    "nombre": "Todas las ciudades",
+    "abr": "Todas",
+    "elegida": false
+   },
+   {
+    "nombre": "Rivera",
+    "abr": "Riv.",
+    "elegida": false
+   },
+   {
+    "nombre": "Departamento Artigas",
+    "abr": "Dpto.",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "abr": "Art.",
+    "elegida": true
+   },
+   {
+    "nombre": "Bella Unión",
+    "abr": "B. Un.",
+    "elegida": false
+   }
+  ],
+  "resumen": [
+   {
+    "label": "LIBROS",
+    "valor": "91",
+    "extra": "5 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "REVISTAS",
+    "valor": "131",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   },
+   {
+    "label": "MATERIAL",
+    "valor": "52",
+    "extra": "2 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "MISIONEROS",
+    "valor": "0",
+    "extra": "se cuentan juntos",
+    "sub": "Agotado en la ciudad"
+   }
+  ],
+  "avisos": [
+   {
+    "negrita": "Misioneros · todos",
+    "texto": "agotado · 4 por entregar",
+    "boton": "Ver pedidos"
+   }
+  ],
+  "cabeceras": [
+   "PRODUCTO",
+   "EN LA CIUDAD",
+   "EN MANOS DE",
+   "POR ENTREGAR",
+   "ENTREGADOS",
+   "POR COBRAR",
+   "ESTADO"
+  ],
+  "filas": [
+   {
+    "cabecera": "Libros",
+    "sub": "5 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ El Deseado de Todas las Gentes",
+      "sub": ""
+     },
+     {
+      "t": "20",
+      "sub": ""
+     },
+     {
+      "t": "4 de 8",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "41",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ La Gran Esperanza",
+      "sub": ""
+     },
+     {
+      "t": "29",
+      "sub": ""
+     },
+     {
+      "t": "6 de 8",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "37",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Vida Sana · 3 tomos",
+      "sub": ""
+     },
+     {
+      "t": "14",
+      "sub": ""
+     },
+     {
+      "t": "6 de 8",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Historias para Niños",
+      "sub": ""
+     },
+     {
+      "t": "17",
+      "sub": ""
+     },
+     {
+      "t": "5 de 8",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "23",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revolución a tu salud",
+      "sub": "tipo a confirmar"
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "6 de 8",
+      "sub": ""
+     },
+     {
+      "t": "0",
+      "sub": ""
+     },
+     {
+      "t": "33",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Revistas",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revistas · todas",
+      "sub": "Revista Vida Feliz, Revista Salud y Hogar"
+     },
+     {
+      "t": "131",
+      "sub": ""
+     },
+     {
+      "t": "8 de 8",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "145",
+      "sub": ""
+     },
+     {
+      "t": "12",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Material",
+    "sub": "2 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Jugos que curan",
+      "sub": ""
+     },
+     {
+      "t": "33",
+      "sub": ""
+     },
+     {
+      "t": "8 de 8",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "30",
+      "sub": ""
+     },
+     {
+      "t": "9",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Alimentos saludables",
+      "sub": ""
+     },
+     {
+      "t": "19",
+      "sub": ""
+     },
+     {
+      "t": "7 de 8",
+      "sub": ""
+     },
+     {
+      "t": "1",
+      "sub": ""
+     },
+     {
+      "t": "32",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Misioneros",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▾ Misioneros · todos",
+      "sub": "Pamplona, Misionero de bolsillo"
+     },
+     {
+      "t": "0",
+      "sub": ""
+     },
+     {
+      "t": "nadie",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "211",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "⊘ Agotado en la ciudad"
+     }
+    ],
+    "abierta": true,
+    "subCabeceras": [
+     "QUIÉN LO TIENE O DEBE ENTREGARLO",
+     "TIENE",
+     "POR ENTREGAR",
+     "ENTREGADOS",
+     "POR COBRAR"
+    ],
+    "subFilas": [
+     [
+      "Sofía Cabral",
+      "0",
+      "2",
+      "26",
+      "2"
+     ],
+     [
+      "Natalia Vidal",
+      "0",
+      "2",
+      "30",
+      "1"
+     ]
+    ],
+    "vacio": ""
+   }
+  ]
+ },
+ {
+  "k": "04",
+  "sel": "all",
+  "open": null,
+  "label": "A · 04 · TODAS",
+  "title": "Todas las ciudades",
+  "sub": "25 colportores · 11 productos",
+  "lista": [
+   {
+    "nombre": "Todas las ciudades",
+    "sub": "",
+    "elegida": true
+   },
+   {
+    "grupo": "DEPTO. RIVERA"
+   },
+   {
+    "nombre": "Rivera",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. ARTIGAS"
+   },
+   {
+    "nombre": "Todo el departamento",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "sub": "sin avisos",
+    "elegida": false
+   }
+  ],
+  "riel": [
+   {
+    "nombre": "Todas las ciudades",
+    "abr": "Todas",
+    "elegida": true
+   },
+   {
+    "nombre": "Rivera",
+    "abr": "Riv.",
+    "elegida": false
+   },
+   {
+    "nombre": "Departamento Artigas",
+    "abr": "Dpto.",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "abr": "Art.",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "abr": "B. Un.",
+    "elegida": false
+   }
+  ],
+  "resumen": [
+   {
+    "label": "LIBROS",
+    "valor": "260",
+    "extra": "5 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "REVISTAS",
+    "valor": "270",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   },
+   {
+    "label": "MATERIAL",
+    "valor": "132",
+    "extra": "2 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "MISIONEROS",
+    "valor": "302",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   }
+  ],
+  "avisos": [
+   {
+    "negrita": "La Gran Esperanza",
+    "texto": "Rivera: hay 4, faltan 2",
+    "boton": "Ver quién tiene"
+   },
+   {
+    "negrita": "Misioneros · todos",
+    "texto": "agotado en Artigas · 4 por entregar",
+    "boton": "Ver pedidos"
+   }
+  ],
+  "cabeceras": [
+   "PRODUCTO",
+   "EN LA CIUDAD",
+   "EN MANOS DE",
+   "POR ENTREGAR",
+   "ENTREGADOS",
+   "POR COBRAR",
+   "ESTADO"
+  ],
+  "filas": [
+   {
+    "cabecera": "Libros",
+    "sub": "5 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ El Deseado de Todas las Gentes",
+      "sub": ""
+     },
+     {
+      "t": "65",
+      "sub": ""
+     },
+     {
+      "t": "15 de 25",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "155",
+      "sub": ""
+     },
+     {
+      "t": "26",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ La Gran Esperanza",
+      "sub": ""
+     },
+     {
+      "t": "52",
+      "sub": ""
+     },
+     {
+      "t": "13 de 25",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "109",
+      "sub": ""
+     },
+     {
+      "t": "27",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Vida Sana · 3 tomos",
+      "sub": ""
+     },
+     {
+      "t": "44",
+      "sub": ""
+     },
+     {
+      "t": "16 de 25",
+      "sub": ""
+     },
+     {
+      "t": "8",
+      "sub": ""
+     },
+     {
+      "t": "81",
+      "sub": ""
+     },
+     {
+      "t": "20",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Historias para Niños",
+      "sub": ""
+     },
+     {
+      "t": "54",
+      "sub": ""
+     },
+     {
+      "t": "17 de 25",
+      "sub": ""
+     },
+     {
+      "t": "13",
+      "sub": ""
+     },
+     {
+      "t": "83",
+      "sub": ""
+     },
+     {
+      "t": "22",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revolución a tu salud",
+      "sub": "tipo a confirmar"
+     },
+     {
+      "t": "45",
+      "sub": ""
+     },
+     {
+      "t": "20 de 25",
+      "sub": ""
+     },
+     {
+      "t": "8",
+      "sub": ""
+     },
+     {
+      "t": "80",
+      "sub": ""
+     },
+     {
+      "t": "17",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Revistas",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revistas · todas",
+      "sub": "Revista Vida Feliz, Revista Salud y Hogar"
+     },
+     {
+      "t": "270",
+      "sub": ""
+     },
+     {
+      "t": "22 de 25",
+      "sub": ""
+     },
+     {
+      "t": "20",
+      "sub": ""
+     },
+     {
+      "t": "419",
+      "sub": ""
+     },
+     {
+      "t": "37",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Material",
+    "sub": "2 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Jugos que curan",
+      "sub": ""
+     },
+     {
+      "t": "68",
+      "sub": ""
+     },
+     {
+      "t": "18 de 25",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "95",
+      "sub": ""
+     },
+     {
+      "t": "27",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Alimentos saludables",
+      "sub": ""
+     },
+     {
+      "t": "64",
+      "sub": ""
+     },
+     {
+      "t": "22 de 25",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "87",
+      "sub": ""
+     },
+     {
+      "t": "21",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Misioneros",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Misioneros · todos",
+      "sub": "Pamplona, Misionero de bolsillo"
+     },
+     {
+      "t": "302",
+      "sub": ""
+     },
+     {
+      "t": "17 de 25",
+      "sub": ""
+     },
+     {
+      "t": "18",
+      "sub": ""
+     },
+     {
+      "t": "648",
+      "sub": ""
+     },
+     {
+      "t": "50",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   }
+  ]
+ },
+ {
+  "k": "05",
+  "sel": "all",
+  "open": "ddg",
+  "label": "A · 05 · TODAS · LIBROS ABIERTO",
+  "title": "Todas las ciudades",
+  "sub": "25 colportores · 11 productos",
+  "lista": [
+   {
+    "nombre": "Todas las ciudades",
+    "sub": "",
+    "elegida": true
+   },
+   {
+    "grupo": "DEPTO. RIVERA"
+   },
+   {
+    "nombre": "Rivera",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. ARTIGAS"
+   },
+   {
+    "nombre": "Todo el departamento",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "sub": "sin avisos",
+    "elegida": false
+   }
+  ],
+  "riel": [
+   {
+    "nombre": "Todas las ciudades",
+    "abr": "Todas",
+    "elegida": true
+   },
+   {
+    "nombre": "Rivera",
+    "abr": "Riv.",
+    "elegida": false
+   },
+   {
+    "nombre": "Departamento Artigas",
+    "abr": "Dpto.",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "abr": "Art.",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "abr": "B. Un.",
+    "elegida": false
+   }
+  ],
+  "resumen": [
+   {
+    "label": "LIBROS",
+    "valor": "260",
+    "extra": "5 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "REVISTAS",
+    "valor": "270",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   },
+   {
+    "label": "MATERIAL",
+    "valor": "132",
+    "extra": "2 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "MISIONEROS",
+    "valor": "302",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   }
+  ],
+  "avisos": [
+   {
+    "negrita": "La Gran Esperanza",
+    "texto": "Rivera: hay 4, faltan 2",
+    "boton": "Ver quién tiene"
+   },
+   {
+    "negrita": "Misioneros · todos",
+    "texto": "agotado en Artigas · 4 por entregar",
+    "boton": "Ver pedidos"
+   }
+  ],
+  "cabeceras": [
+   "PRODUCTO",
+   "EN LA CIUDAD",
+   "EN MANOS DE",
+   "POR ENTREGAR",
+   "ENTREGADOS",
+   "POR COBRAR",
+   "ESTADO"
+  ],
+  "filas": [
+   {
+    "cabecera": "Libros",
+    "sub": "5 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▾ El Deseado de Todas las Gentes",
+      "sub": ""
+     },
+     {
+      "t": "65",
+      "sub": ""
+     },
+     {
+      "t": "15 de 25",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "155",
+      "sub": ""
+     },
+     {
+      "t": "26",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": true,
+    "subCabeceras": [
+     "QUIÉN LO TIENE O DEBE ENTREGARLO",
+     "TIENE",
+     "POR ENTREGAR",
+     "ENTREGADOS",
+     "POR COBRAR"
+    ],
+    "subFilas": [
+     [
+      "Lucía Fernández · Rivera",
+      "4",
+      "1",
+      "10",
+      "0"
+     ],
+     [
+      "Bruno Techera · Rivera",
+      "1",
+      "1",
+      "5",
+      "2"
+     ],
+     [
+      "Valentina Silva · Rivera",
+      "2",
+      "0",
+      "8",
+      "2"
+     ],
+     [
+      "Joaquín Duarte · Rivera",
+      "1",
+      "0",
+      "6",
+      "2"
+     ],
+     [
+      "Florencia Pintos · Rivera",
+      "6",
+      "0",
+      "10",
+      "0"
+     ],
+     [
+      "Santiago Pereira · Rivera",
+      "5",
+      "0",
+      "1",
+      "0"
+     ],
+     [
+      "Micaela Rodríguez · Rivera",
+      "5",
+      "0",
+      "5",
+      "1"
+     ],
+     [
+      "Sofía Cabral · Artigas",
+      "5",
+      "0",
+      "7",
+      "1"
+     ],
+     [
+      "Julieta Moreira · Artigas",
+      "2",
+      "0",
+      "10",
+      "1"
+     ],
+     [
+      "Natalia Vidal · Artigas",
+      "6",
+      "0",
+      "1",
+      "1"
+     ],
+     [
+      "Lorena Acuña · Artigas",
+      "7",
+      "2",
+      "2",
+      "0"
+     ],
+     [
+      "Gonzalo Méndez · Bella Unión",
+      "4",
+      "2",
+      "10",
+      "1"
+     ],
+     [
+      "Ignacio Bentancor · Bella Unión",
+      "3",
+      "2",
+      "4",
+      "1"
+     ],
+     [
+      "Matías Rivero · Bella Unión",
+      "7",
+      "0",
+      "4",
+      "2"
+     ],
+     [
+      "Nicolás Viera · Bella Unión",
+      "7",
+      "2",
+      "10",
+      "0"
+     ]
+    ],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ La Gran Esperanza",
+      "sub": ""
+     },
+     {
+      "t": "52",
+      "sub": ""
+     },
+     {
+      "t": "13 de 25",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "109",
+      "sub": ""
+     },
+     {
+      "t": "27",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Vida Sana · 3 tomos",
+      "sub": ""
+     },
+     {
+      "t": "44",
+      "sub": ""
+     },
+     {
+      "t": "16 de 25",
+      "sub": ""
+     },
+     {
+      "t": "8",
+      "sub": ""
+     },
+     {
+      "t": "81",
+      "sub": ""
+     },
+     {
+      "t": "20",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Historias para Niños",
+      "sub": ""
+     },
+     {
+      "t": "54",
+      "sub": ""
+     },
+     {
+      "t": "17 de 25",
+      "sub": ""
+     },
+     {
+      "t": "13",
+      "sub": ""
+     },
+     {
+      "t": "83",
+      "sub": ""
+     },
+     {
+      "t": "22",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revolución a tu salud",
+      "sub": "tipo a confirmar"
+     },
+     {
+      "t": "45",
+      "sub": ""
+     },
+     {
+      "t": "20 de 25",
+      "sub": ""
+     },
+     {
+      "t": "8",
+      "sub": ""
+     },
+     {
+      "t": "80",
+      "sub": ""
+     },
+     {
+      "t": "17",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Revistas",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revistas · todas",
+      "sub": "Revista Vida Feliz, Revista Salud y Hogar"
+     },
+     {
+      "t": "270",
+      "sub": ""
+     },
+     {
+      "t": "22 de 25",
+      "sub": ""
+     },
+     {
+      "t": "20",
+      "sub": ""
+     },
+     {
+      "t": "419",
+      "sub": ""
+     },
+     {
+      "t": "37",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Material",
+    "sub": "2 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Jugos que curan",
+      "sub": ""
+     },
+     {
+      "t": "68",
+      "sub": ""
+     },
+     {
+      "t": "18 de 25",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "95",
+      "sub": ""
+     },
+     {
+      "t": "27",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Alimentos saludables",
+      "sub": ""
+     },
+     {
+      "t": "64",
+      "sub": ""
+     },
+     {
+      "t": "22 de 25",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "87",
+      "sub": ""
+     },
+     {
+      "t": "21",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Misioneros",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Misioneros · todos",
+      "sub": "Pamplona, Misionero de bolsillo"
+     },
+     {
+      "t": "302",
+      "sub": ""
+     },
+     {
+      "t": "17 de 25",
+      "sub": ""
+     },
+     {
+      "t": "18",
+      "sub": ""
+     },
+     {
+      "t": "648",
+      "sub": ""
+     },
+     {
+      "t": "50",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   }
+  ]
+ },
+ {
+  "k": "06",
+  "sel": "dept-art",
+  "open": "REVISTA",
+  "label": "A · 06 · DEPTO ARTIGAS",
+  "title": "Departamento Artigas",
+  "sub": "15 colportores · 11 productos",
+  "lista": [
+   {
+    "nombre": "Todas las ciudades",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. RIVERA"
+   },
+   {
+    "nombre": "Rivera",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. ARTIGAS"
+   },
+   {
+    "nombre": "Todo el departamento",
+    "sub": "",
+    "elegida": true
+   },
+   {
+    "nombre": "Artigas",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "sub": "sin avisos",
+    "elegida": false
+   }
+  ],
+  "riel": [
+   {
+    "nombre": "Todas las ciudades",
+    "abr": "Todas",
+    "elegida": false
+   },
+   {
+    "nombre": "Rivera",
+    "abr": "Riv.",
+    "elegida": false
+   },
+   {
+    "nombre": "Departamento Artigas",
+    "abr": "Dpto.",
+    "elegida": true
+   },
+   {
+    "nombre": "Artigas",
+    "abr": "Art.",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "abr": "B. Un.",
+    "elegida": false
+   }
+  ],
+  "resumen": [
+   {
+    "label": "LIBROS",
+    "valor": "174",
+    "extra": "5 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "REVISTAS",
+    "valor": "205",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   },
+   {
+    "label": "MATERIAL",
+    "valor": "103",
+    "extra": "2 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "MISIONEROS",
+    "valor": "118",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   }
+  ],
+  "avisos": [
+   {
+    "negrita": "Misioneros · todos",
+    "texto": "agotado en Artigas · 4 por entregar",
+    "boton": "Ver pedidos"
+   }
+  ],
+  "cabeceras": [
+   "PRODUCTO",
+   "EN LA CIUDAD",
+   "EN MANOS DE",
+   "POR ENTREGAR",
+   "ENTREGADOS",
+   "POR COBRAR",
+   "ESTADO"
+  ],
+  "filas": [
+   {
+    "cabecera": "Libros",
+    "sub": "5 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ El Deseado de Todas las Gentes",
+      "sub": ""
+     },
+     {
+      "t": "41",
+      "sub": ""
+     },
+     {
+      "t": "8 de 15",
+      "sub": ""
+     },
+     {
+      "t": "8",
+      "sub": ""
+     },
+     {
+      "t": "87",
+      "sub": ""
+     },
+     {
+      "t": "15",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ La Gran Esperanza",
+      "sub": ""
+     },
+     {
+      "t": "48",
+      "sub": ""
+     },
+     {
+      "t": "11 de 15",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "69",
+      "sub": ""
+     },
+     {
+      "t": "21",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Vida Sana · 3 tomos",
+      "sub": ""
+     },
+     {
+      "t": "27",
+      "sub": ""
+     },
+     {
+      "t": "11 de 15",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "44",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Historias para Niños",
+      "sub": ""
+     },
+     {
+      "t": "33",
+      "sub": ""
+     },
+     {
+      "t": "10 de 15",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "45",
+      "sub": ""
+     },
+     {
+      "t": "14",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revolución a tu salud",
+      "sub": "tipo a confirmar"
+     },
+     {
+      "t": "25",
+      "sub": ""
+     },
+     {
+      "t": "12 de 15",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "49",
+      "sub": ""
+     },
+     {
+      "t": "12",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Revistas",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▾ Revistas · todas",
+      "sub": "Revista Vida Feliz, Revista Salud y Hogar"
+     },
+     {
+      "t": "205",
+      "sub": ""
+     },
+     {
+      "t": "15 de 15",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "268",
+      "sub": ""
+     },
+     {
+      "t": "26",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": true,
+    "subCabeceras": [
+     "QUIÉN LO TIENE O DEBE ENTREGARLO",
+     "TIENE",
+     "POR ENTREGAR",
+     "ENTREGADOS",
+     "POR COBRAR"
+    ],
+    "subFilas": [
+     [
+      "Sofía Cabral · Artigas",
+      "4",
+      "1",
+      "32",
+      "2"
+     ],
+     [
+      "Agustina Rey · Artigas",
+      "12",
+      "1",
+      "14",
+      "0"
+     ],
+     [
+      "Julieta Moreira · Artigas",
+      "9",
+      "1",
+      "22",
+      "3"
+     ],
+     [
+      "Carolina Píriz · Artigas",
+      "33",
+      "0",
+      "5",
+      "0"
+     ],
+     [
+      "Martina Correa · Artigas",
+      "10",
+      "0",
+      "21",
+      "3"
+     ],
+     [
+      "Paula Ferreira · Artigas",
+      "10",
+      "2",
+      "12",
+      "3"
+     ],
+     [
+      "Natalia Vidal · Artigas",
+      "22",
+      "0",
+      "18",
+      "1"
+     ],
+     [
+      "Lorena Acuña · Artigas",
+      "31",
+      "2",
+      "21",
+      "0"
+     ],
+     [
+      "Gonzalo Méndez · Bella Unión",
+      "15",
+      "1",
+      "23",
+      "2"
+     ],
+     [
+      "Federico Da Rosa · Bella Unión",
+      "4",
+      "1",
+      "21",
+      "3"
+     ],
+     [
+      "Ignacio Bentancor · Bella Unión",
+      "2",
+      "2",
+      "18",
+      "2"
+     ],
+     [
+      "Rodrigo Cardozo · Bella Unión",
+      "25",
+      "1",
+      "12",
+      "0"
+     ],
+     [
+      "Matías Rivero · Bella Unión",
+      "10",
+      "2",
+      "18",
+      "2"
+     ],
+     [
+      "Diego Machado · Bella Unión",
+      "10",
+      "1",
+      "10",
+      "3"
+     ],
+     [
+      "Nicolás Viera · Bella Unión",
+      "8",
+      "1",
+      "21",
+      "2"
+     ]
+    ],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Material",
+    "sub": "2 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Jugos que curan",
+      "sub": ""
+     },
+     {
+      "t": "63",
+      "sub": ""
+     },
+     {
+      "t": "15 de 15",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "53",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Alimentos saludables",
+      "sub": ""
+     },
+     {
+      "t": "40",
+      "sub": ""
+     },
+     {
+      "t": "13 de 15",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "58",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Misioneros",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Misioneros · todos",
+      "sub": "Pamplona, Misionero de bolsillo"
+     },
+     {
+      "t": "118",
+      "sub": ""
+     },
+     {
+      "t": "7 de 15",
+      "sub": ""
+     },
+     {
+      "t": "14",
+      "sub": ""
+     },
+     {
+      "t": "382",
+      "sub": ""
+     },
+     {
+      "t": "38",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   }
+  ]
+ },
+ {
+  "k": "07",
+  "sel": "bu",
+  "open": null,
+  "label": "A · 07 · BELLA UNION",
+  "title": "Bella Unión",
+  "sub": "7 colportores · 11 productos · Departamento Artigas",
+  "lista": [
+   {
+    "nombre": "Todas las ciudades",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. RIVERA"
+   },
+   {
+    "nombre": "Rivera",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. ARTIGAS"
+   },
+   {
+    "nombre": "Todo el departamento",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "sub": "sin avisos",
+    "elegida": true
+   }
+  ],
+  "riel": [
+   {
+    "nombre": "Todas las ciudades",
+    "abr": "Todas",
+    "elegida": false
+   },
+   {
+    "nombre": "Rivera",
+    "abr": "Riv.",
+    "elegida": false
+   },
+   {
+    "nombre": "Departamento Artigas",
+    "abr": "Dpto.",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "abr": "Art.",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "abr": "B. Un.",
+    "elegida": true
+   }
+  ],
+  "resumen": [
+   {
+    "label": "LIBROS",
+    "valor": "83",
+    "extra": "5 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "REVISTAS",
+    "valor": "74",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   },
+   {
+    "label": "MATERIAL",
+    "valor": "51",
+    "extra": "2 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "MISIONEROS",
+    "valor": "118",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   }
+  ],
+  "avisos": [],
+  "cabeceras": [
+   "PRODUCTO",
+   "EN LA CIUDAD",
+   "EN MANOS DE",
+   "POR ENTREGAR",
+   "ENTREGADOS",
+   "POR COBRAR",
+   "ESTADO"
+  ],
+  "filas": [
+   {
+    "cabecera": "Libros",
+    "sub": "5 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ El Deseado de Todas las Gentes",
+      "sub": ""
+     },
+     {
+      "t": "21",
+      "sub": ""
+     },
+     {
+      "t": "4 de 7",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "46",
+      "sub": ""
+     },
+     {
+      "t": "8",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ La Gran Esperanza",
+      "sub": ""
+     },
+     {
+      "t": "19",
+      "sub": ""
+     },
+     {
+      "t": "5 de 7",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "32",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Vida Sana · 3 tomos",
+      "sub": ""
+     },
+     {
+      "t": "13",
+      "sub": ""
+     },
+     {
+      "t": "5 de 7",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "28",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Historias para Niños",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "5 de 7",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "22",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revolución a tu salud",
+      "sub": "tipo a confirmar"
+     },
+     {
+      "t": "14",
+      "sub": ""
+     },
+     {
+      "t": "6 de 7",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Revistas",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revistas · todas",
+      "sub": "Revista Vida Feliz, Revista Salud y Hogar"
+     },
+     {
+      "t": "74",
+      "sub": ""
+     },
+     {
+      "t": "7 de 7",
+      "sub": ""
+     },
+     {
+      "t": "9",
+      "sub": ""
+     },
+     {
+      "t": "123",
+      "sub": ""
+     },
+     {
+      "t": "14",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Material",
+    "sub": "2 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Jugos que curan",
+      "sub": ""
+     },
+     {
+      "t": "30",
+      "sub": ""
+     },
+     {
+      "t": "7 de 7",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "23",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Alimentos saludables",
+      "sub": ""
+     },
+     {
+      "t": "21",
+      "sub": ""
+     },
+     {
+      "t": "6 de 7",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "26",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Misioneros",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Misioneros · todos",
+      "sub": "Pamplona, Misionero de bolsillo"
+     },
+     {
+      "t": "118",
+      "sub": ""
+     },
+     {
+      "t": "7 de 7",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "171",
+      "sub": ""
+     },
+     {
+      "t": "22",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   }
+  ]
+ },
+ {
+  "k": "08",
+  "sel": "bu",
+  "open": "MISIONERO",
+  "label": "A · 08 · BELLA UNION · PAMPLONA",
+  "title": "Bella Unión",
+  "sub": "7 colportores · 11 productos · Departamento Artigas",
+  "lista": [
+   {
+    "nombre": "Todas las ciudades",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. RIVERA"
+   },
+   {
+    "nombre": "Rivera",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. ARTIGAS"
+   },
+   {
+    "nombre": "Todo el departamento",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "sub": "sin avisos",
+    "elegida": true
+   }
+  ],
+  "riel": [
+   {
+    "nombre": "Todas las ciudades",
+    "abr": "Todas",
+    "elegida": false
+   },
+   {
+    "nombre": "Rivera",
+    "abr": "Riv.",
+    "elegida": false
+   },
+   {
+    "nombre": "Departamento Artigas",
+    "abr": "Dpto.",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "abr": "Art.",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "abr": "B. Un.",
+    "elegida": true
+   }
+  ],
+  "resumen": [
+   {
+    "label": "LIBROS",
+    "valor": "83",
+    "extra": "5 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "REVISTAS",
+    "valor": "74",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   },
+   {
+    "label": "MATERIAL",
+    "valor": "51",
+    "extra": "2 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "MISIONEROS",
+    "valor": "118",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   }
+  ],
+  "avisos": [],
+  "cabeceras": [
+   "PRODUCTO",
+   "EN LA CIUDAD",
+   "EN MANOS DE",
+   "POR ENTREGAR",
+   "ENTREGADOS",
+   "POR COBRAR",
+   "ESTADO"
+  ],
+  "filas": [
+   {
+    "cabecera": "Libros",
+    "sub": "5 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ El Deseado de Todas las Gentes",
+      "sub": ""
+     },
+     {
+      "t": "21",
+      "sub": ""
+     },
+     {
+      "t": "4 de 7",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "46",
+      "sub": ""
+     },
+     {
+      "t": "8",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ La Gran Esperanza",
+      "sub": ""
+     },
+     {
+      "t": "19",
+      "sub": ""
+     },
+     {
+      "t": "5 de 7",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "32",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Vida Sana · 3 tomos",
+      "sub": ""
+     },
+     {
+      "t": "13",
+      "sub": ""
+     },
+     {
+      "t": "5 de 7",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "28",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Historias para Niños",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "5 de 7",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "22",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revolución a tu salud",
+      "sub": "tipo a confirmar"
+     },
+     {
+      "t": "14",
+      "sub": ""
+     },
+     {
+      "t": "6 de 7",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Revistas",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revistas · todas",
+      "sub": "Revista Vida Feliz, Revista Salud y Hogar"
+     },
+     {
+      "t": "74",
+      "sub": ""
+     },
+     {
+      "t": "7 de 7",
+      "sub": ""
+     },
+     {
+      "t": "9",
+      "sub": ""
+     },
+     {
+      "t": "123",
+      "sub": ""
+     },
+     {
+      "t": "14",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Material",
+    "sub": "2 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Jugos que curan",
+      "sub": ""
+     },
+     {
+      "t": "30",
+      "sub": ""
+     },
+     {
+      "t": "7 de 7",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "23",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Alimentos saludables",
+      "sub": ""
+     },
+     {
+      "t": "21",
+      "sub": ""
+     },
+     {
+      "t": "6 de 7",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "26",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Misioneros",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▾ Misioneros · todos",
+      "sub": "Pamplona, Misionero de bolsillo"
+     },
+     {
+      "t": "118",
+      "sub": ""
+     },
+     {
+      "t": "7 de 7",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "171",
+      "sub": ""
+     },
+     {
+      "t": "22",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": true,
+    "subCabeceras": [
+     "QUIÉN LO TIENE O DEBE ENTREGARLO",
+     "TIENE",
+     "POR ENTREGAR",
+     "ENTREGADOS",
+     "POR COBRAR"
+    ],
+    "subFilas": [
+     [
+      "Gonzalo Méndez",
+      "31",
+      "2",
+      "31",
+      "2"
+     ],
+     [
+      "Federico Da Rosa",
+      "10",
+      "1",
+      "35",
+      "2"
+     ],
+     [
+      "Ignacio Bentancor",
+      "14",
+      "2",
+      "10",
+      "3"
+     ],
+     [
+      "Rodrigo Cardozo",
+      "23",
+      "1",
+      "34",
+      "4"
+     ],
+     [
+      "Matías Rivero",
+      "4",
+      "0",
+      "23",
+      "3"
+     ],
+     [
+      "Diego Machado",
+      "17",
+      "2",
+      "18",
+      "4"
+     ],
+     [
+      "Nicolás Viera",
+      "19",
+      "2",
+      "20",
+      "4"
+     ]
+    ],
+    "vacio": ""
+   }
+  ]
+ },
+ {
+  "k": "09",
+  "sel": "art",
+  "open": "jug",
+  "label": "A · 09 · ARTIGAS · SALUD Y HOGAR",
+  "title": "Artigas",
+  "sub": "8 colportores · 11 productos · Departamento Artigas",
+  "lista": [
+   {
+    "nombre": "Todas las ciudades",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. RIVERA"
+   },
+   {
+    "nombre": "Rivera",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. ARTIGAS"
+   },
+   {
+    "nombre": "Todo el departamento",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "sub": "1 aviso",
+    "elegida": true
+   },
+   {
+    "nombre": "Bella Unión",
+    "sub": "sin avisos",
+    "elegida": false
+   }
+  ],
+  "riel": [
+   {
+    "nombre": "Todas las ciudades",
+    "abr": "Todas",
+    "elegida": false
+   },
+   {
+    "nombre": "Rivera",
+    "abr": "Riv.",
+    "elegida": false
+   },
+   {
+    "nombre": "Departamento Artigas",
+    "abr": "Dpto.",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "abr": "Art.",
+    "elegida": true
+   },
+   {
+    "nombre": "Bella Unión",
+    "abr": "B. Un.",
+    "elegida": false
+   }
+  ],
+  "resumen": [
+   {
+    "label": "LIBROS",
+    "valor": "91",
+    "extra": "5 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "REVISTAS",
+    "valor": "131",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   },
+   {
+    "label": "MATERIAL",
+    "valor": "52",
+    "extra": "2 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "MISIONEROS",
+    "valor": "0",
+    "extra": "se cuentan juntos",
+    "sub": "Agotado en la ciudad"
+   }
+  ],
+  "avisos": [
+   {
+    "negrita": "Misioneros · todos",
+    "texto": "agotado · 4 por entregar",
+    "boton": "Ver pedidos"
+   }
+  ],
+  "cabeceras": [
+   "PRODUCTO",
+   "EN LA CIUDAD",
+   "EN MANOS DE",
+   "POR ENTREGAR",
+   "ENTREGADOS",
+   "POR COBRAR",
+   "ESTADO"
+  ],
+  "filas": [
+   {
+    "cabecera": "Libros",
+    "sub": "5 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ El Deseado de Todas las Gentes",
+      "sub": ""
+     },
+     {
+      "t": "20",
+      "sub": ""
+     },
+     {
+      "t": "4 de 8",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "41",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ La Gran Esperanza",
+      "sub": ""
+     },
+     {
+      "t": "29",
+      "sub": ""
+     },
+     {
+      "t": "6 de 8",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "37",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Vida Sana · 3 tomos",
+      "sub": ""
+     },
+     {
+      "t": "14",
+      "sub": ""
+     },
+     {
+      "t": "6 de 8",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Historias para Niños",
+      "sub": ""
+     },
+     {
+      "t": "17",
+      "sub": ""
+     },
+     {
+      "t": "5 de 8",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "23",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revolución a tu salud",
+      "sub": "tipo a confirmar"
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "6 de 8",
+      "sub": ""
+     },
+     {
+      "t": "0",
+      "sub": ""
+     },
+     {
+      "t": "33",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Revistas",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revistas · todas",
+      "sub": "Revista Vida Feliz, Revista Salud y Hogar"
+     },
+     {
+      "t": "131",
+      "sub": ""
+     },
+     {
+      "t": "8 de 8",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "145",
+      "sub": ""
+     },
+     {
+      "t": "12",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Material",
+    "sub": "2 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▾ Jugos que curan",
+      "sub": ""
+     },
+     {
+      "t": "33",
+      "sub": ""
+     },
+     {
+      "t": "8 de 8",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "30",
+      "sub": ""
+     },
+     {
+      "t": "9",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": true,
+    "subCabeceras": [
+     "QUIÉN LO TIENE O DEBE ENTREGARLO",
+     "TIENE",
+     "POR ENTREGAR",
+     "ENTREGADOS",
+     "POR COBRAR"
+    ],
+    "subFilas": [
+     [
+      "Sofía Cabral",
+      "5",
+      "2",
+      "9",
+      "0"
+     ],
+     [
+      "Agustina Rey",
+      "4",
+      "0",
+      "0",
+      "0"
+     ],
+     [
+      "Julieta Moreira",
+      "1",
+      "1",
+      "2",
+      "1"
+     ],
+     [
+      "Carolina Píriz",
+      "5",
+      "0",
+      "1",
+      "1"
+     ],
+     [
+      "Martina Correa",
+      "3",
+      "0",
+      "6",
+      "2"
+     ],
+     [
+      "Paula Ferreira",
+      "3",
+      "0",
+      "3",
+      "2"
+     ],
+     [
+      "Natalia Vidal",
+      "6",
+      "2",
+      "6",
+      "1"
+     ],
+     [
+      "Lorena Acuña",
+      "6",
+      "0",
+      "3",
+      "2"
+     ]
+    ],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Alimentos saludables",
+      "sub": ""
+     },
+     {
+      "t": "19",
+      "sub": ""
+     },
+     {
+      "t": "7 de 8",
+      "sub": ""
+     },
+     {
+      "t": "1",
+      "sub": ""
+     },
+     {
+      "t": "32",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Misioneros",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Misioneros · todos",
+      "sub": "Pamplona, Misionero de bolsillo"
+     },
+     {
+      "t": "0",
+      "sub": ""
+     },
+     {
+      "t": "nadie",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "211",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "⊘ Agotado en la ciudad"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   }
+  ]
+ },
+ {
+  "k": "10",
+  "sel": "riv",
+  "open": "REVISTA",
+  "label": "A · 10 · RIVERA · REVISTAS",
+  "title": "Rivera",
+  "sub": "10 colportores · 11 productos · Departamento Rivera",
+  "lista": [
+   {
+    "nombre": "Todas las ciudades",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. RIVERA"
+   },
+   {
+    "nombre": "Rivera",
+    "sub": "1 aviso",
+    "elegida": true
+   },
+   {
+    "grupo": "DEPTO. ARTIGAS"
+   },
+   {
+    "nombre": "Todo el departamento",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "sub": "sin avisos",
+    "elegida": false
+   }
+  ],
+  "riel": [
+   {
+    "nombre": "Todas las ciudades",
+    "abr": "Todas",
+    "elegida": false
+   },
+   {
+    "nombre": "Rivera",
+    "abr": "Riv.",
+    "elegida": true
+   },
+   {
+    "nombre": "Departamento Artigas",
+    "abr": "Dpto.",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "abr": "Art.",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "abr": "B. Un.",
+    "elegida": false
+   }
+  ],
+  "resumen": [
+   {
+    "label": "LIBROS",
+    "valor": "86",
+    "extra": "5 productos",
+    "sub": "1 con aviso"
+   },
+   {
+    "label": "REVISTAS",
+    "valor": "65",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   },
+   {
+    "label": "MATERIAL",
+    "valor": "29",
+    "extra": "2 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "MISIONEROS",
+    "valor": "184",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   }
+  ],
+  "avisos": [
+   {
+    "negrita": "La Gran Esperanza",
+    "texto": "hay 4, faltan 2",
+    "boton": "Ver quién tiene"
+   }
+  ],
+  "cabeceras": [
+   "PRODUCTO",
+   "EN LA CIUDAD",
+   "EN MANOS DE",
+   "POR ENTREGAR",
+   "ENTREGADOS",
+   "POR COBRAR",
+   "ESTADO"
+  ],
+  "filas": [
+   {
+    "cabecera": "Libros",
+    "sub": "5 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ El Deseado de Todas las Gentes",
+      "sub": ""
+     },
+     {
+      "t": "24",
+      "sub": ""
+     },
+     {
+      "t": "7 de 10",
+      "sub": ""
+     },
+     {
+      "t": "2",
+      "sub": ""
+     },
+     {
+      "t": "68",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ La Gran Esperanza",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "2 de 10",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "40",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "△ Faltan 2 para entregar"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Vida Sana · 3 tomos",
+      "sub": ""
+     },
+     {
+      "t": "17",
+      "sub": ""
+     },
+     {
+      "t": "5 de 10",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "37",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Historias para Niños",
+      "sub": ""
+     },
+     {
+      "t": "21",
+      "sub": ""
+     },
+     {
+      "t": "7 de 10",
+      "sub": ""
+     },
+     {
+      "t": "3",
+      "sub": ""
+     },
+     {
+      "t": "38",
+      "sub": ""
+     },
+     {
+      "t": "8",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revolución a tu salud",
+      "sub": "tipo a confirmar"
+     },
+     {
+      "t": "20",
+      "sub": ""
+     },
+     {
+      "t": "8 de 10",
+      "sub": ""
+     },
+     {
+      "t": "6",
+      "sub": ""
+     },
+     {
+      "t": "31",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Revistas",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▾ Revistas · todas",
+      "sub": "Revista Vida Feliz, Revista Salud y Hogar"
+     },
+     {
+      "t": "65",
+      "sub": ""
+     },
+     {
+      "t": "7 de 10",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "151",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": true,
+    "subCabeceras": [
+     "QUIÉN LO TIENE O DEBE ENTREGARLO",
+     "TIENE",
+     "POR ENTREGAR",
+     "ENTREGADOS",
+     "POR COBRAR"
+    ],
+    "subFilas": [
+     [
+      "Bruno Techera",
+      "17",
+      "0",
+      "19",
+      "2"
+     ],
+     [
+      "Joaquín Duarte",
+      "2",
+      "1",
+      "10",
+      "0"
+     ],
+     [
+      "Martín Olivera",
+      "3",
+      "0",
+      "16",
+      "1"
+     ],
+     [
+      "Florencia Pintos",
+      "12",
+      "1",
+      "10",
+      "1"
+     ],
+     [
+      "Santiago Pereira",
+      "13",
+      "0",
+      "30",
+      "1"
+     ],
+     [
+      "Micaela Rodríguez",
+      "1",
+      "2",
+      "25",
+      "1"
+     ],
+     [
+      "Emiliano Sosa",
+      "17",
+      "0",
+      "19",
+      "2"
+     ]
+    ],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Material",
+    "sub": "2 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Jugos que curan",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "3 de 10",
+      "sub": ""
+     },
+     {
+      "t": "0",
+      "sub": ""
+     },
+     {
+      "t": "42",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Alimentos saludables",
+      "sub": ""
+     },
+     {
+      "t": "24",
+      "sub": ""
+     },
+     {
+      "t": "9 de 10",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "29",
+      "sub": ""
+     },
+     {
+      "t": "5",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Misioneros",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Misioneros · todos",
+      "sub": "Pamplona, Misionero de bolsillo"
+     },
+     {
+      "t": "184",
+      "sub": ""
+     },
+     {
+      "t": "10 de 10",
+      "sub": ""
+     },
+     {
+      "t": "4",
+      "sub": ""
+     },
+     {
+      "t": "266",
+      "sub": ""
+     },
+     {
+      "t": "12",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   }
+  ]
+ },
+ {
+  "k": "11",
+  "sel": "all",
+  "open": "lge",
+  "label": "A · 11 · TODAS · LGE",
+  "title": "Todas las ciudades",
+  "sub": "25 colportores · 11 productos",
+  "lista": [
+   {
+    "nombre": "Todas las ciudades",
+    "sub": "",
+    "elegida": true
+   },
+   {
+    "grupo": "DEPTO. RIVERA"
+   },
+   {
+    "nombre": "Rivera",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "grupo": "DEPTO. ARTIGAS"
+   },
+   {
+    "nombre": "Todo el departamento",
+    "sub": "",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "sub": "1 aviso",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "sub": "sin avisos",
+    "elegida": false
+   }
+  ],
+  "riel": [
+   {
+    "nombre": "Todas las ciudades",
+    "abr": "Todas",
+    "elegida": true
+   },
+   {
+    "nombre": "Rivera",
+    "abr": "Riv.",
+    "elegida": false
+   },
+   {
+    "nombre": "Departamento Artigas",
+    "abr": "Dpto.",
+    "elegida": false
+   },
+   {
+    "nombre": "Artigas",
+    "abr": "Art.",
+    "elegida": false
+   },
+   {
+    "nombre": "Bella Unión",
+    "abr": "B. Un.",
+    "elegida": false
+   }
+  ],
+  "resumen": [
+   {
+    "label": "LIBROS",
+    "valor": "260",
+    "extra": "5 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "REVISTAS",
+    "valor": "270",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   },
+   {
+    "label": "MATERIAL",
+    "valor": "132",
+    "extra": "2 productos",
+    "sub": "todos alcanzan"
+   },
+   {
+    "label": "MISIONEROS",
+    "valor": "302",
+    "extra": "se cuentan juntos",
+    "sub": "hay en la ciudad"
+   }
+  ],
+  "avisos": [
+   {
+    "negrita": "La Gran Esperanza",
+    "texto": "Rivera: hay 4, faltan 2",
+    "boton": "Ver quién tiene"
+   },
+   {
+    "negrita": "Misioneros · todos",
+    "texto": "agotado en Artigas · 4 por entregar",
+    "boton": "Ver pedidos"
+   }
+  ],
+  "cabeceras": [
+   "PRODUCTO",
+   "EN LA CIUDAD",
+   "EN MANOS DE",
+   "POR ENTREGAR",
+   "ENTREGADOS",
+   "POR COBRAR",
+   "ESTADO"
+  ],
+  "filas": [
+   {
+    "cabecera": "Libros",
+    "sub": "5 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ El Deseado de Todas las Gentes",
+      "sub": ""
+     },
+     {
+      "t": "65",
+      "sub": ""
+     },
+     {
+      "t": "15 de 25",
+      "sub": ""
+     },
+     {
+      "t": "10",
+      "sub": ""
+     },
+     {
+      "t": "155",
+      "sub": ""
+     },
+     {
+      "t": "26",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▾ La Gran Esperanza",
+      "sub": ""
+     },
+     {
+      "t": "52",
+      "sub": ""
+     },
+     {
+      "t": "13 de 25",
+      "sub": ""
+     },
+     {
+      "t": "16",
+      "sub": ""
+     },
+     {
+      "t": "109",
+      "sub": ""
+     },
+     {
+      "t": "27",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": true,
+    "subCabeceras": [
+     "QUIÉN LO TIENE O DEBE ENTREGARLO",
+     "TIENE",
+     "POR ENTREGAR",
+     "ENTREGADOS",
+     "POR COBRAR"
+    ],
+    "subFilas": [
+     [
+      "Lucía Fernández · Rivera",
+      "0",
+      "2",
+      "0",
+      "0"
+     ],
+     [
+      "Valentina Silva · Rivera",
+      "3",
+      "0",
+      "1",
+      "0"
+     ],
+     [
+      "Camila Núñez · Rivera",
+      "0",
+      "1",
+      "2",
+      "2"
+     ],
+     [
+      "Santiago Pereira · Rivera",
+      "1",
+      "0",
+      "7",
+      "0"
+     ],
+     [
+      "Emiliano Sosa · Rivera",
+      "0",
+      "3",
+      "5",
+      "0"
+     ],
+     [
+      "Agustina Rey · Artigas",
+      "4",
+      "0",
+      "6",
+      "1"
+     ],
+     [
+      "Julieta Moreira · Artigas",
+      "6",
+      "0",
+      "4",
+      "1"
+     ],
+     [
+      "Carolina Píriz · Artigas",
+      "3",
+      "1",
+      "8",
+      "2"
+     ],
+     [
+      "Martina Correa · Artigas",
+      "6",
+      "2",
+      "6",
+      "2"
+     ],
+     [
+      "Paula Ferreira · Artigas",
+      "4",
+      "0",
+      "2",
+      "2"
+     ],
+     [
+      "Natalia Vidal · Artigas",
+      "6",
+      "2",
+      "4",
+      "1"
+     ],
+     [
+      "Gonzalo Méndez · Bella Unión",
+      "4",
+      "2",
+      "7",
+      "2"
+     ],
+     [
+      "Federico Da Rosa · Bella Unión",
+      "2",
+      "1",
+      "5",
+      "0"
+     ],
+     [
+      "Ignacio Bentancor · Bella Unión",
+      "4",
+      "0",
+      "4",
+      "2"
+     ],
+     [
+      "Rodrigo Cardozo · Bella Unión",
+      "4",
+      "2",
+      "6",
+      "2"
+     ],
+     [
+      "Nicolás Viera · Bella Unión",
+      "5",
+      "0",
+      "6",
+      "2"
+     ]
+    ],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Vida Sana · 3 tomos",
+      "sub": ""
+     },
+     {
+      "t": "44",
+      "sub": ""
+     },
+     {
+      "t": "16 de 25",
+      "sub": ""
+     },
+     {
+      "t": "8",
+      "sub": ""
+     },
+     {
+      "t": "81",
+      "sub": ""
+     },
+     {
+      "t": "20",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Historias para Niños",
+      "sub": ""
+     },
+     {
+      "t": "54",
+      "sub": ""
+     },
+     {
+      "t": "17 de 25",
+      "sub": ""
+     },
+     {
+      "t": "13",
+      "sub": ""
+     },
+     {
+      "t": "83",
+      "sub": ""
+     },
+     {
+      "t": "22",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revolución a tu salud",
+      "sub": "tipo a confirmar"
+     },
+     {
+      "t": "45",
+      "sub": ""
+     },
+     {
+      "t": "20 de 25",
+      "sub": ""
+     },
+     {
+      "t": "8",
+      "sub": ""
+     },
+     {
+      "t": "80",
+      "sub": ""
+     },
+     {
+      "t": "17",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Revistas",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Revistas · todas",
+      "sub": "Revista Vida Feliz, Revista Salud y Hogar"
+     },
+     {
+      "t": "270",
+      "sub": ""
+     },
+     {
+      "t": "22 de 25",
+      "sub": ""
+     },
+     {
+      "t": "20",
+      "sub": ""
+     },
+     {
+      "t": "419",
+      "sub": ""
+     },
+     {
+      "t": "37",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Material",
+    "sub": "2 productos"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Jugos que curan",
+      "sub": ""
+     },
+     {
+      "t": "68",
+      "sub": ""
+     },
+     {
+      "t": "18 de 25",
+      "sub": ""
+     },
+     {
+      "t": "7",
+      "sub": ""
+     },
+     {
+      "t": "95",
+      "sub": ""
+     },
+     {
+      "t": "27",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Alimentos saludables",
+      "sub": ""
+     },
+     {
+      "t": "64",
+      "sub": ""
+     },
+     {
+      "t": "22 de 25",
+      "sub": ""
+     },
+     {
+      "t": "11",
+      "sub": ""
+     },
+     {
+      "t": "87",
+      "sub": ""
+     },
+     {
+      "t": "21",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   },
+   {
+    "cabecera": "Misioneros",
+    "sub": "por categoría"
+   },
+   {
+    "celdas": [
+     {
+      "t": "▸ Misioneros · todos",
+      "sub": "Pamplona, Misionero de bolsillo"
+     },
+     {
+      "t": "302",
+      "sub": ""
+     },
+     {
+      "t": "17 de 25",
+      "sub": ""
+     },
+     {
+      "t": "18",
+      "sub": ""
+     },
+     {
+      "t": "648",
+      "sub": ""
+     },
+     {
+      "t": "50",
+      "sub": ""
+     },
+     {
+      "t": "✓ Alcanza"
+     }
+    ],
+    "abierta": false,
+    "subCabeceras": [],
+    "subFilas": [],
+    "vacio": ""
+   }
+  ]
+ }
+]

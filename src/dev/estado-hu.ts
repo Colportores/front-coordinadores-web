@@ -201,6 +201,15 @@ export const HISTORIAS: readonly RegistroHu[] = [
     sprintConexion: SPRINT_V2,
     tablas: ["transferencia_stock", "stock", "movimiento_stock"],
   }),
+  hu({
+    id: "HU-STK-010",
+    titulo: "Coordinador: ver el stock por ciudad",
+    pestana: "stock",
+    estado: "bloqueada",
+    motivo: MOTIVO_V2,
+    sprintConexion: SPRINT_V2,
+    tablas: ["stock", "producto", "movimiento_stock"],
+  }),
   // Cuentas (V2)
   hu({
     id: "HU-CTA-005",

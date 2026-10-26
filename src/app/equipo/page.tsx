@@ -1,48 +1,58 @@
-import Link from "next/link";
-
-import { Button } from "@/components/ui/button";
 import { fuenteEquipo } from "@/datos/equipo";
+import { fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { SeccionHu } from "@/dev/SeccionHu";
-import { Acompanamientos } from "@/features/equipo/Acompanamientos";
-import { PreciosPorCiudad } from "@/features/equipo/PreciosPorCiudad";
-import { SinZonaAsignada } from "@/features/equipo/SinZonaAsignada";
-import { TablaColportores } from "@/features/equipo/TablaColportores";
+import { EquipoVista } from "@/features/equipo/vista-33/EquipoVista";
+import { EquipoVistaLocal } from "@/features/equipo/vista-33/EquipoVistaLocal";
+import { SinCampaniaParaEquipo } from "@/features/equipo/vista-33/SinCampaniaParaEquipo";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
+/**
+ * Vista 33 (HU-JOR-004, HU-CAM-006): el equipo de la campaña por ciudad, con las zonas de cada colportor (la de hoy y las
+ * anteriores) y sus acompañamientos (historial, días sin acompañar y registro sobre una jornada terminada). Las becas y
+ * el límite de pedido son V2 (front-coordinadores-web#68).
+ */
 export default async function PestanaEquipo() {
-  const equipo = await fuenteEquipo.obtenerEquipo();
+  // Sitio de prueba (export estático, sin servidor): no hay server actions, así que la vista le habla a la fuente
+  // simulada desde el navegador. La condición es literal y el `import()` está en el `else` para que el módulo con
+  // las server actions no entre al build exportado. Ver README, «Sitio de prueba».
+  if (process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1") {
+    // Siempre la simulada, por construcción: el sitio de prueba nunca lee `fuenteEquipo` (el selector).
+    const datos = await fuenteEquipoSimulada.obtenerEquipoPorCiudad();
 
-  return (
-    <ContenidoPestana titulo="Equipo">
-      <div className="flex items-center justify-between">
-        <h2 className="font-serif text-[21px] font-semibold text-tinta">Mi equipo · {equipo.region}</h2>
-        <div className="flex items-center gap-2.5">
-          <Button asChild variant="outline" className="text-chico font-semibold text-tinta-2">
-            <Link href="/equipo/anadir">+ Añadir colportor</Link>
-          </Button>
-          <Button asChild className="text-chico font-semibold">
-            <Link href="/ciudades">+ Asignar colportor a zona</Link>
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-[1fr_320px] items-start gap-4">
-        <SeccionHu hu="HU-CAM-004">
-          <TablaColportores colportores={equipo.colportores} />
-        </SeccionHu>
-
-        <div className="flex flex-col gap-4">
-          <SeccionHu hu="HU-CAM-006">
-            <SinZonaAsignada colportores={equipo.sinZonaAsignada} />
+    return (
+      <ContenidoPestana titulo="Equipo" className="gap-0 overflow-hidden p-0">
+        {datos ? (
+          <SeccionHu hu="HU-JOR-004" className="flex min-h-0 flex-1 flex-col">
+            <EquipoVistaLocal datos={datos} />
           </SeccionHu>
-          <SeccionHu hu="HU-CAT-005">
-            <PreciosPorCiudad ciudades={equipo.preciosPorCiudad} />
-          </SeccionHu>
+        ) : (
           <SeccionHu hu="HU-JOR-004">
-            <Acompanamientos datos={equipo.acompanamiento} />
+            <SinCampaniaParaEquipo />
           </SeccionHu>
-        </div>
-      </div>
-    </ContenidoPestana>
-  );
+        )}
+      </ContenidoPestana>
+    );
+  } else {
+    const datos = await fuenteEquipo.obtenerEquipoPorCiudad();
+    if (!datos) {
+      return (
+        <ContenidoPestana titulo="Equipo" className="gap-0 overflow-hidden p-0">
+          <SeccionHu hu="HU-JOR-004">
+            <SinCampaniaParaEquipo />
+          </SeccionHu>
+        </ContenidoPestana>
+      );
+    }
+    // Server actions: el navegador pide y el servidor le habla a la fuente (las RPC de Supabase bajo el puente de
+    // desarrollo, la simulada en cualquier build de producción).
+    const { crearAccionesEquipo } = await import("./acciones-servidor");
+
+    return (
+      <ContenidoPestana titulo="Equipo" className="gap-0 overflow-hidden p-0">
+        <SeccionHu hu="HU-JOR-004" className="flex min-h-0 flex-1 flex-col">
+          <EquipoVista datos={datos} acciones={crearAccionesEquipo(datos.campaniaId)} />
+        </SeccionHu>
+      </ContenidoPestana>
+    );
+  }
 }

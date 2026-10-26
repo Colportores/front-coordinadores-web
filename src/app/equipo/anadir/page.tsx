@@ -37,7 +37,10 @@ export default async function AnadirColportorPagina() {
     return (
       <ContenidoPestana titulo="Añadir colportor">
         <SeccionHu hu="HU-CAM-004">
+          {/* `key`: al elegir otra campaña en el topbar la página se vuelve a pedir (`router.refresh()`), que conserva el estado de
+              cliente; sin `key` lo añadido y la búsqueda de la campaña anterior pasarían a la nueva (#70). */}
           <AnadirColportor
+            key={datos.campaniaId}
             datos={datos}
             inscribir={crearInscribirServidor(datos.campaniaId)}
             buscar={crearBuscarServidor(datos.campaniaId)}

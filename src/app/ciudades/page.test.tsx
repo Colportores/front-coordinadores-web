@@ -35,6 +35,23 @@ describe("ZonasPagina", () => {
     expect(screen.getByTestId("mapa")).toBeInTheDocument();
   });
 
+  it("al elegir otra campaña (la página se vuelve a pedir) la vista arranca de cero con las ciudades de la nueva (#70)", async () => {
+    const ciudad = DATOS_ZONAS_SIMULADO.ciudades[0];
+    vi.spyOn(fuenteZonas, "obtenerZonas")
+      .mockResolvedValueOnce({ ...DATOS_ZONAS_SIMULADO, campaniaId: "campania-a", campania: "Campaña A", ciudades: [{ ...ciudad, nombre: "Ciudad de A" }] })
+      .mockResolvedValueOnce({ ...DATOS_ZONAS_SIMULADO, campaniaId: "campania-b", campania: "Campaña B", ciudades: [{ ...ciudad, nombre: "Ciudad de B" }] });
+
+    const { rerender } = render(<ProveedorModoDev activo={false}>{await ZonasPagina()}</ProveedorModoDev>);
+    expect(screen.getByRole("button", { name: /Ciudad de A/ })).toBeInTheDocument();
+
+    rerender(<ProveedorModoDev activo={false}>{await ZonasPagina()}</ProveedorModoDev>);
+
+    expect(screen.getByRole("heading", { name: "Zonas · Campaña B" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Ciudad de B/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ciudad de A/ })).not.toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
   it("sin una campaña con la que armar zonas (la fuente devuelve null) lo dice, sin mapa ni «+ Nueva zona»", async () => {
     vi.spyOn(fuenteZonas, "obtenerZonas").mockResolvedValueOnce(null);
 

@@ -259,10 +259,17 @@ function nombreDeVistaPrevia(): string {
   return crypto.randomUUID();
 }
 
-export function crearFuenteZonasRpc(cliente: ClienteRpc): FuenteDatosZonas {
+/**
+ * @param campaniaElegida la campaña que eligió la coordinadora en el topbar (#70), si hay; sin ella o si ya no figura en
+ *   su lista, la primera (`campaniaProvisoria`).
+ */
+export function crearFuenteZonasRpc(
+  cliente: ClienteRpc,
+  campaniaElegida: () => Promise<string | null> = async () => null,
+): FuenteDatosZonas {
   return {
     async obtenerZonas(): Promise<DatosZonas | null> {
-      const campania = await campaniaProvisoria(cliente);
+      const campania = await campaniaProvisoria(cliente, await campaniaElegida());
       if (!campania) return null;
       try {
         return { campaniaId: campania.id, campania: campania.nombre, ciudades: await leerCiudades(cliente, campania.id) };
