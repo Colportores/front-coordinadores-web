@@ -89,7 +89,7 @@ describe("QA #60 · colportor inscripto sin ninguna jornada cerrada", () => {
     expect(filas.length).toBeGreaterThan(0);
     for (const f of filas.slice(0, 2)) expect(f).toContain("sin datos");
     expect(filas.some((f) => /[▲▼]/.test(f))).toBe(false);
-    expect(screen.getByRole("img", { name: /S1: sin datos; S2: sin datos/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /^Horas por semana: S1: sin datos; S2: sin datos/ })).toBeInTheDocument();
   });
 
   it("sin violaciones de axe A/AA en la ficha de quien no tiene datos", async () => {
@@ -167,7 +167,8 @@ describe("QA #60 · 0 horas no es «sin datos»", () => {
     const s2 = textoDeFilas().find((t) => t.startsWith("S2"));
     expect(s2).toContain("0,0");
     expect(s2).toContain("▼ 100%");
-    expect(s2).not.toContain("sin datos");
+    // la cifra de horas no es «sin datos» (las columnas de ventas, que este colportor no tiene, sí lo dicen)
+    expect(s2).toMatch(/^S2 · [^—]*0,0▼ 100%/);
   });
 });
 
@@ -184,7 +185,7 @@ describe("QA #60 · datos límite en la lista y la tabla", () => {
     await user.click(within(lista()).getByTitle(largo));
 
     expect(screen.getByRole("heading", { level: 2, name: largo })).toBeInTheDocument();
-    expect(screen.getByRole("table", { name: `Horas de ${largo} por semana` })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: `Horas, presentaciones, ventas y monto de ${largo} por semana` })).toBeInTheDocument();
   });
 
   it("un solo colportor en todo el reporte: la ciudad no repite su encabezado y el total es el suyo", () => {
@@ -217,10 +218,10 @@ describe("QA #60 · accesibilidad", () => {
   it("el título de la tabla de colportores y de la ficha son distintos (el lector de pantalla sabe en cuál está)", async () => {
     const user = userEvent.setup();
     render(<ReporteHoras datos={datosDePrueba()} />);
-    expect(screen.getByRole("table", { name: "Horas por colportor, semana" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Horas, presentaciones, ventas y monto por colportor, semana" })).toBeInTheDocument();
     await user.click(within(lista()).getByRole("button", { name: /^Rivera/ }));
     await user.click(within(lista()).getByRole("button", { name: /Ana Silva/ }));
-    expect(screen.getByRole("table", { name: "Horas de Ana Silva por semana" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Horas, presentaciones, ventas y monto de Ana Silva por semana" })).toBeInTheDocument();
   });
 
   // Hallazgo: axe en el navegador marca `scrollable-region-focusable` (serious, WCAG 2.1.1, A): el contenedor que hace

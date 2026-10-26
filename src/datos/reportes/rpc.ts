@@ -159,10 +159,11 @@ export function sinDatosDesde(horasPorDia: Record<Fecha, number>, hoy: Fecha, ul
   return sinHoras >= DIAS_SIN_DATOS ? ultimoConHoras : null;
 }
 
+// Las ventas por día todavía no tienen RPC: sin datos (vacío) hasta que se conecten, como mostraba la vista antes de #61.
 function ordenarColportores(colportores: Map<string, ColportorAcumulado>, hoy: Fecha, ultimoDia: Fecha): ColportorHoras[] {
   return [...colportores.values()]
     .sort((a, b) => COLLATOR.compare(a.apellido, b.apellido) || COLLATOR.compare(a.nombreSolo, b.nombreSolo))
-    .map((a): ColportorHoras => ({ id: a.id, nombre: a.nombre, horasPorDia: a.horasPorDia, sinDatosDesde: sinDatosDesde(a.horasPorDia, hoy, ultimoDia) }));
+    .map((a): ColportorHoras => ({ id: a.id, nombre: a.nombre, horasPorDia: a.horasPorDia, ventasPorDia: {}, sinDatosDesde: sinDatosDesde(a.horasPorDia, hoy, ultimoDia) }));
 }
 
 export function crearFuenteReportesRpc(
