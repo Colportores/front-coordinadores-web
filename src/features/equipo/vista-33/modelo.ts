@@ -314,7 +314,7 @@ export type AvanceDeBeca =
   | { tipo: "sin-tipo" }
   | {
       tipo: "con-meta";
-      /** «64 de 120 libros · le faltan 56»; con la meta cumplida, «130 de 120 libros · meta alcanzada». */
+      /** «64 de 120 libros · le faltan 56 · 53 %»; con la meta cumplida, «130 de 120 libros · meta alcanzada · 108 %». */
       texto: string;
       /** De 0 a 100, para el ancho de la barra. */
       porcentaje: number;
@@ -343,11 +343,13 @@ export function avanceDeBeca(beca: BecaDeColportor | undefined, unidad: UnidadDe
   const falta = Math.max(0, objetivo - logrado);
   const alcanzada = falta === 0;
   const cola = alcanzada ? "meta alcanzada" : `${falta === 1 ? "le falta" : "le faltan"} ${unidad === "libros" ? falta : formatMonto(falta)}`;
+  // El mismo redondeo y sin tope que el filtro y el orden por avance (`porcentajeDeAvance`): lo que se lee es lo que se filtra.
+  const porcentajeReal = Math.round((logrado / objetivo) * 100);
   const texto =
     unidad === "libros"
-      ? `${logrado} de ${libros(objetivo)} · ${cola}`
-      : `${formatMonto(logrado)} de ${formatMonto(objetivo)} · ${cola}`;
-  return { tipo: "con-meta", texto, porcentaje: Math.max(0, Math.min(100, Math.round((logrado / objetivo) * 100))), alcanzada };
+      ? `${logrado} de ${libros(objetivo)} · ${cola} · ${porcentajeReal} %`
+      : `${formatMonto(logrado)} de ${formatMonto(objetivo)} · ${cola} · ${porcentajeReal} %`;
+  return { tipo: "con-meta", texto, porcentaje: Math.max(0, Math.min(100, porcentajeReal)), alcanzada };
 }
 
 /** «Rocío Benítez quedó sin beca: ya no tiene meta.» */

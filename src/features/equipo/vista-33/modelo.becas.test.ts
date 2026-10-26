@@ -20,14 +20,14 @@ function beca(cambios: Partial<BecaDeColportor> = {}): BecaDeColportor {
 }
 
 describe("avanceDeBeca", () => {
-  it("en libros: «64 de 120 libros · le faltan 56» y la barra al 53 %", () => {
-    expect(avanceDeBeca(beca(), "libros")).toEqual({ tipo: "con-meta", texto: "64 de 120 libros · le faltan 56", porcentaje: 53, alcanzada: false });
+  it("en libros: «64 de 120 libros · le faltan 56 · 53 %» y la barra al 53 %", () => {
+    expect(avanceDeBeca(beca(), "libros")).toEqual({ tipo: "con-meta", texto: "64 de 120 libros · le faltan 56 · 53 %", porcentaje: 53, alcanzada: false });
   });
 
   it("en compra a la CES: la misma meta en $U", () => {
     expect(avanceDeBeca(beca(), "ces")).toEqual({
       tipo: "con-meta",
-      texto: "$U 90.000 de $U 180.000 · le faltan $U 90.000",
+      texto: "$U 90.000 de $U 180.000 · le faltan $U 90.000 · 50 %",
       porcentaje: 50,
       alcanzada: false,
     });
@@ -48,7 +48,7 @@ describe("avanceDeBeca", () => {
   it("con la meta cumplida o superada dice «meta alcanzada» y la barra no pasa de 100 %", () => {
     expect(avanceDeBeca(beca({ avance: { libros: 120, monto: 0 } }), "libros")).toEqual({
       tipo: "con-meta",
-      texto: "120 de 120 libros · meta alcanzada",
+      texto: "120 de 120 libros · meta alcanzada · 100 %",
       porcentaje: 100,
       alcanzada: true,
     });
@@ -56,14 +56,18 @@ describe("avanceDeBeca", () => {
   });
 
   it("singular: «le falta 1» y «1 libro»", () => {
-    expect(avanceDeBeca(beca({ avance: { libros: 119, monto: 0 } }), "libros")).toMatchObject({ texto: "119 de 120 libros · le falta 1" });
+    expect(avanceDeBeca(beca({ avance: { libros: 119, monto: 0 } }), "libros")).toMatchObject({ texto: "119 de 120 libros · le falta 1 · 99 %" });
     expect(avanceDeBeca(beca({ meta: { libros: 1, monto: 1000 }, avance: { libros: 0, monto: 0 } }), "libros")).toMatchObject({
-      texto: "0 de 1 libro · le falta 1",
+      texto: "0 de 1 libro · le falta 1 · 0 %",
     });
   });
 
+  it("el % del texto es el real, sin tope, y el de la barra no pasa de 100", () => {
+    expect(avanceDeBeca(beca({ avance: { libros: 180, monto: 0 } }), "libros")).toMatchObject({ texto: "180 de 120 libros · meta alcanzada · 150 %", porcentaje: 100 });
+  });
+
   it("un avance sin vender nada es 0 %", () => {
-    expect(avanceDeBeca(beca({ avance: { libros: 0, monto: 0 } }), "libros")).toMatchObject({ texto: "0 de 120 libros · le faltan 120", porcentaje: 0 });
+    expect(avanceDeBeca(beca({ avance: { libros: 0, monto: 0 } }), "libros")).toMatchObject({ texto: "0 de 120 libros · le faltan 120 · 0 %", porcentaje: 0 });
   });
 });
 
@@ -97,7 +101,8 @@ async function filasDeLaTabla(unidad: UnidadDeAvance) {
       carrera: b?.carrera?.nombre ?? null,
       carreraSub: b?.carrera ? `elegida el ${diaYMes(b.carrera.elegidaEl)}` : undefined,
       apuntaA: b?.apuntaA ? ETIQUETA_DE_TIPO[b.apuntaA] : null,
-      avance: avance.tipo === "con-meta" ? avance.texto : avance.tipo === "sin-carrera" ? "Sin meta: falta la carrera" : "Sin meta: no apunta a ninguna beca",
+      // El canvas no trae el « · N %» del final: se compara el resto.
+      avance: avance.tipo === "con-meta" ? avance.texto.replace(/ · \d+ %$/, "") : avance.tipo === "sin-carrera" ? "Sin meta: falta la carrera" : "Sin meta: no apunta a ninguna beca",
       ancho: avance.tipo === "con-meta" ? `${avance.porcentaje}%` : undefined,
     } as FilaCanvas);
   }

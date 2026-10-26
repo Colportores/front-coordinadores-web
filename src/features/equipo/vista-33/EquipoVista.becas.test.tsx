@@ -98,10 +98,10 @@ describe("Becas · artboard 33C-01, la tabla de cada colportor", () => {
     const emiliano = within(fila(/^Emiliano Sosa/));
     expect(emiliano.getByText("Ingeniería en Sistemas")).toBeInTheDocument();
     expect(emiliano.getByText("elegida el 01/09")).toBeInTheDocument();
-    expect(emiliano.getByText("64 de 120 libros · le faltan 56")).toBeInTheDocument();
+    expect(emiliano.getByText("64 de 120 libros · le faltan 56 · 53 %")).toBeInTheDocument();
     expect(apuntarA("Emiliano Sosa", "media")).toHaveAttribute("aria-pressed", "true");
     expect(apuntarA("Emiliano Sosa", "completa")).toHaveAttribute("aria-pressed", "false");
-    expect(within(fila(/^Florencia Pintos/)).getByText("40 de 200 libros · le faltan 160")).toBeInTheDocument();
+    expect(within(fila(/^Florencia Pintos/)).getByText("40 de 200 libros · le faltan 160 · 20 %")).toBeInTheDocument();
     expect(apuntarA("Florencia Pintos", "completa")).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -114,7 +114,7 @@ describe("Becas · artboard 33C-01, la tabla de cada colportor", () => {
     await usuario.click(within(grupo).getByRole("button", { name: "Compra a la CES" }));
 
     expect(within(tabla()).getByRole("columnheader", { name: "AVANCE · COMPRA A LA CES" })).toBeInTheDocument();
-    expect(within(fila(/^Emiliano Sosa/)).getByText("$U 90.000 de $U 180.000 · le faltan $U 90.000")).toBeInTheDocument();
+    expect(within(fila(/^Emiliano Sosa/)).getByText("$U 90.000 de $U 180.000 · le faltan $U 90.000 · 50 %")).toBeInTheDocument();
     // Cambiar la medida no cambia la meta ni lo que está marcado.
     expect(apuntarA("Emiliano Sosa", "media")).toHaveAttribute("aria-pressed", "true");
 
@@ -189,7 +189,7 @@ describe("Becas · «Apunta a»: guardar desde la fila", () => {
 
     expect(acciones.asignarTipoDeBeca).toHaveBeenCalledTimes(1);
     expect(acciones.asignarTipoDeBeca).toHaveBeenCalledWith("emiliano", "completa");
-    expect(await within(fila(/^Emiliano Sosa/)).findByText("64 de 240 libros · le faltan 176")).toBeInTheDocument();
+    expect(await within(fila(/^Emiliano Sosa/)).findByText("64 de 240 libros · le faltan 176 · 27 %")).toBeInTheDocument();
     expect(apuntarA("Emiliano Sosa", "completa")).toHaveAttribute("aria-pressed", "true");
     expect(apuntarA("Emiliano Sosa", "media")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("status")).toHaveTextContent("Emiliano Sosa ahora apunta a beca completa: meta de 240 libros y $U 360.000 a la CES.");
@@ -204,7 +204,7 @@ describe("Becas · «Apunta a»: guardar desde la fila", () => {
 
     await usuario.click(apuntarA("Sofía Cabral", "media"));
 
-    expect(await within(fila(/^Sofía Cabral/)).findByText("12 de 120 libros · le faltan 108")).toBeInTheDocument();
+    expect(await within(fila(/^Sofía Cabral/)).findByText("12 de 120 libros · le faltan 108 · 10 %")).toBeInTheDocument();
   });
 
   it("mientras guarda marca lo pedido y dice «Guardando…»; el avance viejo se queda hasta que contesta", async () => {
@@ -257,10 +257,10 @@ describe("Becas · «Apunta a»: guardar desde la fila", () => {
     expect(apuntarA("Emiliano Sosa", "media")).toHaveAttribute("aria-pressed", "true");
     expect(apuntarA("Emiliano Sosa", "completa")).toHaveAttribute("aria-pressed", "false");
     expect(within(fila(/^Emiliano Sosa/)).queryByText("Guardando…")).not.toBeInTheDocument();
-    expect(within(fila(/^Emiliano Sosa/)).getByText("64 de 120 libros · le faltan 56")).toBeInTheDocument();
+    expect(within(fila(/^Emiliano Sosa/)).getByText("64 de 120 libros · le faltan 56 · 53 %")).toBeInTheDocument();
 
     await usuario.click(apuntarA("Emiliano Sosa", "completa"));
-    expect(await within(fila(/^Emiliano Sosa/)).findByText("64 de 240 libros · le faltan 176")).toBeInTheDocument();
+    expect(await within(fila(/^Emiliano Sosa/)).findByText("64 de 240 libros · le faltan 176 · 27 %")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(acciones.asignarTipoDeBeca).toHaveBeenCalledTimes(2);
   });
@@ -300,7 +300,7 @@ describe("Becas · «Apunta a»: guardar desde la fila", () => {
     expect(acciones.asignarTipoDeBeca.mock.calls.map(([, tipo]) => tipo)).toEqual(["completa", "media"]);
     await waitFor(() => expect(within(fila(/^Emiliano Sosa/)).queryByText("Guardando…")).not.toBeInTheDocument());
     expect(apuntarA("Emiliano Sosa", "media")).toHaveAttribute("aria-pressed", "true");
-    expect(within(fila(/^Emiliano Sosa/)).getByText("64 de 120 libros · le faltan 56")).toBeInTheDocument();
+    expect(within(fila(/^Emiliano Sosa/)).getByText("64 de 120 libros · le faltan 56 · 53 %")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -424,7 +424,7 @@ describe("Becas · «Elegir carrera»", () => {
     await usuario.click(apuntarA("Federico Da Rosa", "completa"));
 
     expect(acciones.asignarTipoDeBeca).toHaveBeenCalledWith("federico", "completa");
-    expect(await within(fila(/^Federico Da Rosa/)).findByText("64 de 240 libros · le faltan 176")).toBeInTheDocument();
+    expect(await within(fila(/^Federico Da Rosa/)).findByText("64 de 240 libros · le faltan 176 · 27 %")).toBeInTheDocument();
   });
 
   it("«Cancelar» cierra el panel sin guardar y devuelve el foco al botón", async () => {
@@ -579,7 +579,7 @@ describe("Becas · estados y datos límite", () => {
     const { usuario } = mostrar(datos);
     await irABecas(usuario);
 
-    expect(within(fila(/^Emiliano Sosa/)).getByText("150 de 120 libros · meta alcanzada")).toBeInTheDocument();
+    expect(within(fila(/^Emiliano Sosa/)).getByText("150 de 120 libros · meta alcanzada · 125 %")).toBeInTheDocument();
   });
 
   it("listas largas: 150 colportores en una ciudad", async () => {
@@ -591,7 +591,7 @@ describe("Becas · estados y datos límite", () => {
     await irABecas(usuario);
 
     expect(within(tabla()).getAllByRole("row")).toHaveLength(1 + 4 + 155);
-    expect(within(fila(/^Colportor Número 149/)).getByText("64 de 120 libros · le faltan 56")).toBeInTheDocument();
+    expect(within(fila(/^Colportor Número 149/)).getByText("64 de 120 libros · le faltan 56 · 53 %")).toBeInTheDocument();
   });
 
   it("nombres y carreras largos, sin espacios, parten en vez de salirse de la fila", async () => {
