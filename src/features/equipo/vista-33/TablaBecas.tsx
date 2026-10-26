@@ -249,8 +249,9 @@ function BarraDeFiltros({
 }) {
   const { filtros, filtrar, limpiarFiltros } = vista;
   const filtrando = hayFiltros(filtros);
+  const barra = useRef<HTMLDivElement>(null);
   return (
-    <div role="group" aria-label="Filtrar las becas" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde px-[18px] py-2.5">
+    <div ref={barra} role="group" aria-label="Filtrar las becas" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde px-[18px] py-2.5">
       <Selector
         etiqueta="Estado"
         valor={filtros.estado}
@@ -281,7 +282,15 @@ function BarraDeFiltros({
       />
       {filtrando && (
         <>
-          <button type="button" onClick={limpiarFiltros} className={CLASE_BOTON_SECUNDARIO}>
+          <button
+            type="button"
+            onClick={() => {
+              limpiarFiltros();
+              // El botón se va al limpiar: el foco pasa al primer filtro, que no se desmonta, y no cae al <body>.
+              barra.current?.querySelector("select")?.focus();
+            }}
+            className={CLASE_BOTON_SECUNDARIO}
+          >
             Limpiar filtros
           </button>
           <p role="status" className="text-chico text-tinta-suave">

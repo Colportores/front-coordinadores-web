@@ -65,7 +65,7 @@ afterEach(() => {
 });
 
 describe("QA #95 · foco y avisos", () => {
-  it.skip("«Limpiar filtros» no deja el foco en el <body>: el botón se va y el foco tiene que quedar en la barra de filtros", async () => {  // QA #95: «Limpiar filtros» desaparece al tocarlo y el foco cae al <body> (TablaBecas.tsx:282)
+  it("«Limpiar filtros» no deja el foco en el <body>: el botón se va y el foco queda en el primer filtro", async () => {
     const { usuario } = mostrar();
     await irABecas(usuario);
     await usuario.selectOptions(filtro("Estado"), "sin-beca");
@@ -74,6 +74,7 @@ describe("QA #95 · foco y avisos", () => {
 
     expect(screen.queryByRole("button", { name: "Limpiar filtros" })).not.toBeInTheDocument();
     expect(document.activeElement).not.toBe(document.body);
+    expect(filtro("Estado")).toHaveFocus();
   });
 
   it.skip("volver al orden de siempre se anuncia al lector de pantalla (hoy el aviso queda vacío)", async () => {  // QA #95: volver al orden de siempre no se anuncia, el aviso queda vacío (TablaBecas.tsx:402)
