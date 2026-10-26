@@ -1,4 +1,9 @@
-import type { ColportorDeEquipo, DatosEquipoPorCiudad } from "@/datos/equipo/contrato";
+import {
+  DIAS_DE_GRACIA_ACOMPANAMIENTO,
+  type ColportorDeEquipo,
+  type DatosEquipoPorCiudad,
+  type OrigenDeAcompanamiento,
+} from "@/datos/equipo/contrato";
 import { diasEntre, lunesDe, sumarDias } from "@/lib/dias";
 
 /**
@@ -232,17 +237,28 @@ export function ultimoAcompanamiento(colportor: ColportorDeEquipo): string | nul
 }
 
 /**
- * Días corridos desde el último acompañamiento o, si nunca lo acompañaron, desde el inicio de la campaña. Es informativo:
- * sin umbral ni alerta. Una campaña que todavía no empezó da 0.
+ * Días corridos desde el último acompañamiento o, si nunca lo acompañaron, desde `contadoDesde`: el inicio de la campaña o
+ * el día en que el colportor se sumó (o volvió), el que sea más tarde. Es informativo: sin umbral ni alerta. Una campaña
+ * que todavía no empezó da 0.
  */
-export function diasSinAcompanar(colportor: ColportorDeEquipo, campaniaInicio: string, hoy: string): number {
-  return Math.max(0, diasEntre(ultimoAcompanamiento(colportor) ?? campaniaInicio, hoy));
+export function diasSinAcompanar(colportor: ColportorDeEquipo, hoy: string): number {
+  return Math.max(0, diasEntre(ultimoAcompanamiento(colportor) ?? colportor.contadoDesde, hoy));
+}
+
+/**
+ * El renglón de abajo de «Nunca»: «50 días desde el inicio» si se cuenta desde el inicio de la campaña, «20 días desde que
+ * se sumó» si el colportor llegó después (decisión «Días acomp.»; si volvió, es desde la vuelta).
+ */
+export function textoDesdeCuandoSeCuenta(colportor: ColportorDeEquipo, campaniaInicio: string, hoy: string): string {
+  const dias = diasSinAcompanar(colportor, hoy);
+  const desde = colportor.contadoDesde > campaniaInicio ? "desde que se sumó" : "desde el inicio";
+  return `${dias} ${dias === 1 ? "día" : "días"} ${desde}`;
 }
 
 /** Los que hace más días no acompaña nadie, primero; a igualdad, por nombre. */
-export function ordenarPorDiasSinAcompanar(colportores: ColportorDeEquipo[], campaniaInicio: string, hoy: string): ColportorDeEquipo[] {
+export function ordenarPorDiasSinAcompanar(colportores: ColportorDeEquipo[], hoy: string): ColportorDeEquipo[] {
   return colportores
-    .map((c) => ({ c, dias: diasSinAcompanar(c, campaniaInicio, hoy) }))
+    .map((c) => ({ c, dias: diasSinAcompanar(c, hoy) }))
     .sort((a, b) => b.dias - a.dias || porNombre(a.c.nombre, b.c.nombre))
     .map(({ c }) => c);
 }
@@ -287,4 +303,33 @@ export function textoHoras(horas: number | null): string {
 /** «Mariana Pérez (vos)» cuando quien acompañó es quien tiene la sesión, como en el canvas. */
 export function nombreDeAcompanante(nombre: string, esVos: boolean): string {
   return esVos ? `${nombre} (vos)` : nombre;
+}
+
+/**
+ * De dónde salió un acompañamiento, como en el diseño: «lo marcó en el celular» o «cargado desde el panel». Sin dato
+ * (jornadas anteriores a que se guardara) no se inventa: `null`.
+ */
+export function textoDeOrigen(origen: OrigenDeAcompanamiento | null): string | null {
+  if (origen === "COLPORTOR") return "lo marcó en el celular";
+  if (origen === "COORDINADOR") return "cargado desde el panel";
+  return null;
+}
+
+/**
+ * Pasaron más de 15 días del fin de la campaña (CZ011): ya no se registran acompañamientos y los que hay quedan como
+ * están. El día 15 todavía se acepta y el 16 no.
+ */
+export function plazoVencido(campaniaFin: string | null, hoy: string): boolean {
+  return campaniaFin !== null && diasEntre(campaniaFin, hoy) > DIAS_DE_GRACIA_ACOMPANAMIENTO;
+}
+
+/** Cuántos caracteres tiene un texto contados como los cuenta el servidor (letras, no unidades de UTF-16). */
+export function largoDeTexto(texto: string): number {
+  return Array.from(texto).length;
+}
+
+/** Corta un texto en `maximo` caracteres sin partir ninguno por la mitad. */
+export function cortarTexto(texto: string, maximo: number): string {
+  const letras = Array.from(texto);
+  return letras.length <= maximo ? texto : letras.slice(0, maximo).join("");
 }

@@ -6,12 +6,17 @@ import {
   AMBITO_TODAS,
   construirLista,
   construirRiel,
+  cortarTexto,
   diasSinAcompanar,
+  largoDeTexto,
   mismoAmbito,
   ordenarPorDiasSinAcompanar,
+  plazoVencido,
   resolverAmbito,
   semanasAcompanadas,
   semanasDeLaCampania,
+  textoDeOrigen,
+  textoDesdeCuandoSeCuenta,
   textoHoras,
 } from "./modelo";
 
@@ -143,11 +148,11 @@ describe("días sin acompañar", () => {
   const [emiliano, florencia] = datosDePrueba().colportores;
 
   it("cuenta desde el último acompañamiento", () => {
-    expect(diasSinAcompanar(emiliano, INICIO, HOY)).toBe(19);
+    expect(diasSinAcompanar(emiliano, HOY)).toBe(19);
   });
 
   it("si nunca lo acompañaron, desde el inicio de la campaña", () => {
-    expect(diasSinAcompanar(florencia, INICIO, HOY)).toBe(50);
+    expect(diasSinAcompanar(florencia, HOY)).toBe(50);
   });
 
   it("el último es el más nuevo aunque la lista no venga ordenada", () => {
@@ -155,25 +160,25 @@ describe("días sin acompañar", () => {
       id: "d",
       nombre: "D",
       acompanamientos: [
-        { jornadaId: "1", dia: "2026-09-08", horas: 1, acompanante: "X", acompananteEsVos: false },
-        { jornadaId: "2", dia: "2026-10-18", horas: 1, acompanante: "X", acompananteEsVos: false },
-        { jornadaId: "3", dia: "2026-10-01", horas: 1, acompanante: "X", acompananteEsVos: false },
+        { jornadaId: "1", dia: "2026-09-08", horas: 1, acompanante: "X", acompananteEsVos: false, origen: null, nota: null },
+        { jornadaId: "2", dia: "2026-10-18", horas: 1, acompanante: "X", acompananteEsVos: false, origen: null, nota: null },
+        { jornadaId: "3", dia: "2026-10-01", horas: 1, acompanante: "X", acompananteEsVos: false, origen: null, nota: null },
       ],
     });
 
-    expect(diasSinAcompanar(desordenado, INICIO, HOY)).toBe(3);
+    expect(diasSinAcompanar(desordenado, HOY)).toBe(3);
   });
 
   it("acompañado hoy son 0 días y una campaña que todavía no empezó no da negativos", () => {
-    const hoy = colportor({ id: "h", nombre: "H", acompanamientos: [{ jornadaId: "1", dia: HOY, horas: 1, acompanante: "X", acompananteEsVos: false }] });
+    const hoy = colportor({ id: "h", nombre: "H", acompanamientos: [{ jornadaId: "1", dia: HOY, horas: 1, acompanante: "X", acompananteEsVos: false, origen: null, nota: null }] });
 
-    expect(diasSinAcompanar(hoy, INICIO, HOY)).toBe(0);
-    expect(diasSinAcompanar(florencia, "2026-11-01", HOY)).toBe(0);
+    expect(diasSinAcompanar(hoy, HOY)).toBe(0);
+    expect(diasSinAcompanar({ ...florencia, contadoDesde: "2026-11-01" }, HOY)).toBe(0);
   });
 
   it("ordena a los que hace más días no acompaña nadie primero y desempata por nombre", () => {
     const [, , sofia, federico] = datosDePrueba().colportores;
-    const orden = ordenarPorDiasSinAcompanar([sofia, emiliano, federico, florencia], INICIO, HOY);
+    const orden = ordenarPorDiasSinAcompanar([sofia, emiliano, federico, florencia], HOY);
 
     expect(orden.map((c) => c.nombre)).toEqual(["Federico Da Rosa", "Florencia Pintos", "Emiliano Sosa", "Sofía Cabral"]);
   });
@@ -228,5 +233,61 @@ describe("textoHoras", () => {
     expect(textoHoras(4.5)).toBe("4,5 h");
     expect(textoHoras(6)).toBe("6,0 h");
     expect(textoHoras(null)).toBe("en curso");
+  });
+});
+
+describe("desde cuándo se cuentan los días de quien nunca fue acompañado", () => {
+  it("el rótulo dice «desde el inicio» si se cuenta desde el inicio de la campaña y «desde que se sumó» si no", () => {
+    expect(textoDesdeCuandoSeCuenta(colportor({ id: "a", nombre: "A" }), INICIO, HOY)).toBe("50 días desde el inicio");
+    expect(textoDesdeCuandoSeCuenta(colportor({ id: "a", nombre: "A", contadoDesde: "2026-10-01" }), INICIO, HOY)).toBe("20 días desde que se sumó");
+    expect(textoDesdeCuandoSeCuenta(colportor({ id: "a", nombre: "A", contadoDesde: "2026-10-20" }), INICIO, HOY)).toBe("1 día desde que se sumó");
+    expect(textoDesdeCuandoSeCuenta(colportor({ id: "a", nombre: "A", contadoDesde: HOY }), INICIO, HOY)).toBe("0 días desde que se sumó");
+  });
+
+  it("los días se cuentan desde `contadoDesde` y, con acompañamientos, desde el último (que manda aunque sea anterior)", () => {
+    expect(diasSinAcompanar(colportor({ id: "a", nombre: "A", contadoDesde: "2026-10-01" }), HOY)).toBe(20);
+    const acompanado = colportor({
+      id: "b",
+      nombre: "B",
+      contadoDesde: "2026-10-01",
+      acompanamientos: [{ jornadaId: "1", dia: "2026-09-10", horas: 1, acompanante: "X", acompananteEsVos: false, origen: null, nota: null }],
+    });
+    expect(diasSinAcompanar(acompanado, HOY)).toBe(41);
+  });
+
+  it("ordena por lo que de verdad pasó: el que se sumó hace poco queda después del que está desde el inicio", () => {
+    const nuevo = colportor({ id: "n", nombre: "Aaa", contadoDesde: "2026-10-15" });
+    const viejo = colportor({ id: "v", nombre: "Zzz" });
+
+    expect(ordenarPorDiasSinAcompanar([nuevo, viejo], HOY).map((c) => c.nombre)).toEqual(["Zzz", "Aaa"]);
+  });
+});
+
+describe("textoDeOrigen", () => {
+  it("dice de dónde salió el dato y no inventa el que no se sabe", () => {
+    expect(textoDeOrigen("COLPORTOR")).toBe("lo marcó en el celular");
+    expect(textoDeOrigen("COORDINADOR")).toBe("cargado desde el panel");
+    expect(textoDeOrigen(null)).toBeNull();
+  });
+});
+
+describe("plazoVencido (CZ011)", () => {
+  it("hasta 15 días después del fin todavía se registra; al día 16 no", () => {
+    expect(plazoVencido("2026-10-06", "2026-10-21")).toBe(false);
+    expect(plazoVencido("2026-10-05", "2026-10-21")).toBe(true);
+    expect(plazoVencido("2026-10-21", "2026-10-21")).toBe(false);
+  });
+
+  it("sin fecha de fin, o con la campaña en curso, nunca vence", () => {
+    expect(plazoVencido(null, "2026-10-21")).toBe(false);
+    expect(plazoVencido("2026-12-19", "2026-10-21")).toBe(false);
+  });
+});
+
+describe("la nota se cuenta en letras", () => {
+  it("cuenta cada carácter una vez aunque ocupe dos unidades de UTF-16, y corta sin partir ninguno", () => {
+    expect(largoDeTexto("a🙂b")).toBe(3);
+    expect(cortarTexto("🙂".repeat(5), 3)).toBe("🙂🙂🙂");
+    expect(cortarTexto("corto", 10)).toBe("corto");
   });
 });

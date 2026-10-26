@@ -14,6 +14,8 @@ import {
   pluralColportores,
   semanasAcompanadas,
   semanasDeLaCampania,
+  textoDeOrigen,
+  textoDesdeCuandoSeCuenta,
   textoHoras,
   ultimoAcompanamiento,
   type AmbitoResuelto,
@@ -55,14 +57,24 @@ function Semanas({ colportor, semanas }: { colportor: ColportorDeEquipo; semanas
 
 function SinAcompanar({ colportor, datos }: { colportor: ColportorDeEquipo; datos: DatosEquipoPorCiudad }) {
   const ultimo = ultimoAcompanamiento(colportor);
-  const dias = diasSinAcompanar(colportor, datos.campaniaInicio, datos.hoy);
+  const dias = diasSinAcompanar(colportor, datos.hoy);
   return (
     <span className="flex min-w-0 flex-col">
       <span className="font-mono">{ultimo ? hace(dias) : "Nunca"}</span>
       <span className="text-[10.5px] text-tinta-suave">
-        {ultimo ? `último: ${diaConSemana(ultimo)}` : `${dias} ${dias === 1 ? "día" : "días"} desde el inicio`}
+        {ultimo ? `último: ${diaConSemana(ultimo)}` : textoDesdeCuandoSeCuenta(colportor, datos.campaniaInicio, datos.hoy)}
       </span>
     </span>
+  );
+}
+
+/** El guion del diseño donde no hay dato; el lector de pantalla dice qué falta. */
+function Vacio({ lectura }: { lectura: string }) {
+  return (
+    <>
+      <span aria-hidden="true">—</span>
+      <span className="sr-only">{lectura}</span>
+    </>
   );
 }
 
@@ -84,13 +96,21 @@ function Historial({ colportor }: { colportor: ColportorDeEquipo }) {
           {lista.map((a) => (
             <li
               key={a.jornadaId}
-              className="grid min-h-[30px] grid-cols-[96px_70px_minmax(0,1fr)] items-center gap-3.5 border-b border-borde text-chico last:border-b-0"
+              className="grid min-h-[30px] grid-cols-[96px_70px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)] items-center gap-3.5 border-b border-borde py-1 text-chico last:border-b-0"
             >
               <span className="font-mono">{diaConSemana(a.dia)}</span>
               <span className="font-mono text-tinta-2">{textoHoras(a.horas)}</span>
               <span className="wrap-anywhere">
                 <span className="sr-only">Acompañó: </span>
                 {nombreDeAcompanante(a.acompanante, a.acompananteEsVos)}
+              </span>
+              <span className="wrap-anywhere text-tinta-suave">
+                <span className="sr-only">Origen: </span>
+                {textoDeOrigen(a.origen) ?? <Vacio lectura="sin dato" />}
+              </span>
+              <span className="wrap-anywhere text-tinta-2">
+                <span className="sr-only">Nota: </span>
+                {a.nota ?? <Vacio lectura="sin nota" />}
               </span>
             </li>
           ))}
@@ -172,7 +192,7 @@ export function TablaAcompanamientos({
             {resuelto.conCabeceras && (
               <CabeceraDeGrupo nombre={grupo.nombre} cantidad={pluralColportores(grupo.colportores.length)} columnas={COLUMNAS} />
             )}
-            {ordenarPorDiasSinAcompanar(grupo.colportores, datos.campaniaInicio, datos.hoy).map((c) => {
+            {ordenarPorDiasSinAcompanar(grupo.colportores, datos.hoy).map((c) => {
               const historialAbierto = historialesAbiertos.has(c.id);
               const registrando = registrandoId === c.id;
               return (
@@ -228,6 +248,7 @@ export function TablaAcompanamientos({
                       <td colSpan={COLUMNAS} className="p-0">
                         <RegistrarAcompanamiento
                           colportor={c}
+                          datos={datos}
                           acciones={acciones}
                           alRegistrar={(registrado) => alRegistrar(c.id, registrado)}
                           alCerrar={alCerrarRegistro}

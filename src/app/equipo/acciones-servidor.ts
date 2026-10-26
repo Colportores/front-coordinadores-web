@@ -15,9 +15,9 @@ export function crearAccionesEquipo(campaniaId: string): AccionesEquipo {
       "use server";
       return fuenteEquipo.jornadasParaAcompanar(campaniaId, colportorId);
     },
-    async registrarAcompanamiento(jornadaId) {
+    async registrarAcompanamiento(jornadaId, datos) {
       "use server";
-      return fuenteEquipo.registrarAcompanamiento(campaniaId, jornadaId);
+      return fuenteEquipo.registrarAcompanamiento(campaniaId, jornadaId, datos);
     },
   };
 }
