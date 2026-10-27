@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { verificarAcceso, type ResultadoAcceso } from "@/auth/acceso";
 import { CABECERA_SIN_MARCO, decidirGuarda, destinoSeguro, RUTA_ACCESO, rutaDeAcceso, type MotivoDeAcceso } from "@/auth/guarda";
 import { modoDeAcceso } from "@/auth/modo";
-import { MARCA_SESION_VENCIDA } from "@/auth/sesion-vencida";
+import { marcaDeRechazo, type MotivoDeRechazo } from "@/auth/sesion-vencida";
 import { crearSupabaseDeProxy } from "@/auth/supabase-proxy";
 import { pestanaVisible, type Pestana } from "@/config/flags";
 import { configPublicaSupabase } from "@/datos/supabase/config-publica";
@@ -55,13 +55,10 @@ function aLaPantallaDeAcceso(request: NextRequest, motivo: MotivoDeAcceso | null
 function rechazar(resultado: ResultadoAcceso["tipo"] | "mal-configurado"): NextResponse {
   const noDisponible = resultado === "no-disponible" || resultado === "mal-configurado";
   if (noDisponible) return new NextResponse(null, { status: 503, headers: { "Cache-Control": "no-store" } });
-  // Sin sesión o vencida: Next solo deja pasar el texto de un rechazo si la respuesta es exactamente `text/plain`; la marca le dice a la
-  // pantalla que fue la sesión (issue #41, P3) y no una caída. «Sin acceso» y «suspendida» siguen con 401 pelado: ahí no hay
-  // sesión que vencer, y el texto de esas dos lo da la pantalla de acceso.
-  if (resultado === "sin-sesion" || resultado === "sesion-vencida") {
-    return new NextResponse(MARCA_SESION_VENCIDA, { status: 401, headers: { "Cache-Control": "no-store", "Content-Type": "text/plain" } });
-  }
-  return new NextResponse(null, { status: 401, headers: { "Cache-Control": "no-store" } });
+  // Next solo deja pasar el texto de un rechazo si la respuesta es exactamente `text/plain`: la marca le dice a la pantalla *por qué*
+  // (issue #41, P3) y no una caída; con el motivo, la pantalla de acceso explica el resto con su texto.
+  const motivo: MotivoDeRechazo = resultado === "sin-acceso" ? "sin-acceso" : resultado === "suspendida" ? "suspendida" : "vencida";
+  return new NextResponse(marcaDeRechazo(motivo), { status: 401, headers: { "Cache-Control": "no-store", "Content-Type": "text/plain" } });
 }
 
 /**

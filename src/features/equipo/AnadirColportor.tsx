@@ -19,6 +19,7 @@ import {
   motivoBloqueo,
   recortarConPuntos,
 } from "@/features/equipo/candidatos";
+import { mensajeDeRechazo, type MotivoDeRechazo } from "@/auth/sesion-vencida";
 import { EnlaceEntrarDeNuevo } from "@/features/equipo/EnlaceEntrarDeNuevo";
 import { tieneFocoVisible } from "@/features/equipo/foco-visible";
 import { useBusquedaCandidatos } from "@/features/equipo/useBusquedaCandidatos";
@@ -29,7 +30,6 @@ import {
   type Anadido,
   type CausaFallo,
 } from "@/features/equipo/useInscripcionesDiferidas";
-import { MENSAJE_SESION_VENCIDA } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
 import { esperarYSalir, estaEsperando } from "@/shell/trabajo-pendiente";
 
@@ -302,7 +302,7 @@ export function AnadirColportor({
   const [elegidoId, setElegidoId] = useState<string | null>(null);
   const [indiceActivo, setIndiceActivo] = useState(-1);
   /** Inscripciones que no prosperaron, una por cuenta: no se pisan entre sí ni se borran al escribir. */
-  const [fallos, setFallos] = useState<{ id: string; mensaje: string; sesionVencida?: true }[]>([]);
+  const [fallos, setFallos] = useState<{ id: string; mensaje: string; acceso?: MotivoDeRechazo }[]>([]);
 
   /**
    * Cuentas que la base rechazó por estar en otra campaña (`CI007`) y la campaña que dijo: la fila pasa a mostrarse
@@ -329,7 +329,7 @@ export function AnadirColportor({
     cargandoMas,
     falla,
     fallaMas,
-    sesionVencida,
+    acceso,
     cargarMas,
     reintentar,
     reintentarMas,
@@ -358,10 +358,10 @@ export function AnadirColportor({
 
   // Una cuenta tiene a lo sumo un envío, y volver a añadirla borra su aviso: no hay dos avisos de la misma.
   const registrarFallo = useCallback((cuenta: Anadido, causa: CausaFallo) => {
-    if (causa.tipo === "sesion-vencida") {
+    if (causa.tipo === "acceso") {
       // Siempre nombra a la cuenta: puede haber varias en la misma situación y ninguna se pierde sin que se sepa.
-      const mensaje = mensajeAnadirRechazado(cuenta.nombre, MENSAJE_SESION_VENCIDA);
-      setFallos((previos) => [...previos, { id: cuenta.id, mensaje, sesionVencida: true }]);
+      const mensaje = mensajeAnadirRechazado(cuenta.nombre, mensajeDeRechazo(causa.motivo));
+      setFallos((previos) => [...previos, { id: cuenta.id, mensaje, acceso: causa.motivo }]);
       return;
     }
     const mensaje =
@@ -615,8 +615,8 @@ export function AnadirColportor({
             ) : falla !== null ? (
               <div role="alert" className="flex flex-col items-start gap-2 px-3.5 py-4 text-cuerpo font-medium text-peligro">
                 <p>{falla}</p>
-                {sesionVencida ? (
-                  <EnlaceEntrarDeNuevo />
+                {acceso ? (
+                  <EnlaceEntrarDeNuevo motivo={acceso} />
                 ) : (
                   <Button type="button" variant="outline" onClick={reintentar} className="text-nav font-semibold">
                     Reintentar
@@ -656,8 +656,8 @@ export function AnadirColportor({
                 {fallaMas !== null ? (
                   <div role="alert" className="flex flex-col items-start gap-2 px-3.5 py-3 text-cuerpo font-medium text-peligro">
                     <p>{fallaMas}</p>
-                    {sesionVencida ? (
-                      <EnlaceEntrarDeNuevo />
+                    {acceso ? (
+                      <EnlaceEntrarDeNuevo motivo={acceso} />
                     ) : (
                       <Button type="button" variant="outline" onClick={reintentarMas} className="text-nav font-semibold">
                         Reintentar
@@ -678,7 +678,7 @@ export function AnadirColportor({
               className="flex flex-col items-start gap-2 rounded-tarjeta bg-peligro-fondo px-4 py-3 text-nav font-medium text-peligro"
             >
               <p>{f.mensaje}</p>
-              {f.sesionVencida ? <EnlaceEntrarDeNuevo /> : null}
+              {f.acceso ? <EnlaceEntrarDeNuevo motivo={f.acceso} /> : null}
             </div>
           ))}
           {elegido ? (
