@@ -15,6 +15,8 @@ const ENTORNO_PERMITIDO = ["PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR",
 /** Lo que fija el build de Pages: datos simulados, todas las pestañas visibles, export estático. */
 export const VARIABLES_DEL_BUILD = Object.freeze({
   DEPLOY_PAGES: "1",
+  // El modo simulado explícito que el build de producción exige cuando falta Supabase (#101).
+  PANEL_DATOS_SIMULADOS: "1",
   NEXT_PUBLIC_MODO_DEV: "1",
   NEXT_TELEMETRY_DISABLED: "1",
 });
