@@ -115,8 +115,13 @@ export interface CandidatoColportor {
   nombre: string;
   email: string;
   estadoCuenta: EstadoCuenta;
-  /** Nombre de la campaña en la que ya está, o `null` si no está en ninguna. */
+  /** Nombre de la campaña en curso en la que ya está, o `null` si no está en ninguna. */
   campaniaActual: string | null;
+  /**
+   * La base no la deja añadir a esta campaña porque ya está en otra del mismo momento (`EN_OTRA_CAMPANIA`: las dos en curso
+   * o las dos por empezar, 0058). Estar en una campaña en curso no alcanza: se puede sumar a una que empieza después.
+   */
+  enOtraCampania: boolean;
   /** Fecha de creación de la cuenta, ISO `AAAA-MM-DD`. */
   cuentaCreada: string;
 }
@@ -172,7 +177,7 @@ export interface FuenteDatosEquipo {
   jornadasParaAcompanar(campaniaId: string, colportorId: string): Promise<ResultadoJornadas>;
   /** El coordinador de la sesión se anota como acompañante de esa jornada. */
   registrarAcompanamiento(campaniaId: string, jornadaId: string): Promise<ResultadoAcompanamiento>;
-  /** `null`: el coordinador no tiene una campaña en curso a la que añadir colportores. */
+  /** `null`: el coordinador no tiene una campaña en curso ni por empezar a la que añadir colportores. */
   obtenerAnadirColportor(): Promise<DatosAnadirColportor | null>;
   /**
    * Una página de cuentas que coinciden con `texto` (no vacío), primero las que empiezan con él y después por orden

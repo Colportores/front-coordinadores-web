@@ -19,6 +19,7 @@ import {
   motivoBloqueo,
   recortarConPuntos,
 } from "@/features/equipo/candidatos";
+import { tieneFocoVisible } from "@/features/equipo/foco-visible";
 import { useBusquedaCandidatos } from "@/features/equipo/useBusquedaCandidatos";
 import {
   mensajeAnadirRechazado,
@@ -88,17 +89,24 @@ function AvisoBloqueo({ texto }: { texto: string }) {
 
 const idTextoAviso = (id: string) => `aviso-anadido-${id}`;
 
-/** Aviso con «Deshacer»: cada añadido tiene el suyo y su propio plazo de 8 s (lo cuenta `useInscripcionesDiferidas`). */
+/**
+ * Aviso con «Deshacer»: cada añadido tiene el suyo y su propio plazo de 8 s (lo cuenta `useInscripcionesDiferidas`).
+ * Mientras el foco de teclado o de lector está en su «Deshacer», el plazo no corre (decisión de Cristian, 21/10).
+ */
 function AvisoAnadido({
   id,
   nombre,
   campania,
   onDeshacer,
+  onPausa,
+  onReanudar,
 }: {
   id: string;
   nombre: string;
   campania: string;
   onDeshacer: (id: string) => void;
+  onPausa: (id: string) => void;
+  onReanudar: (id: string) => void;
 }) {
   return (
     <div
@@ -112,6 +120,10 @@ function AvisoAnadido({
       <button
         type="button"
         onClick={() => onDeshacer(id)}
+        onFocus={(e) => {
+          if (tieneFocoVisible(e.currentTarget)) onPausa(id);
+        }}
+        onBlur={() => onReanudar(id)}
         // El foco llega acá solo al aparecer el aviso (decisión del 16/10): el lector lee el texto del aviso y después «Deshacer».
         aria-describedby={idTextoAviso(id)}
         // Con Enter sostenido en «Añadir», el foco ya pasó a este botón: las repeticiones de la tecla no lo aprietan.
@@ -367,7 +379,7 @@ export function AnadirColportor({
     [enfocarFila],
   );
 
-  const { anadidos, avisos, enviando, programar, deshacer, confirmarTodas } = useInscripcionesDiferidas({
+  const { anadidos, avisos, enviando, programar, deshacer, pausar, reanudar, confirmarTodas } = useInscripcionesDiferidas({
     inscribir,
     alFallar: registrarFallo,
     alVencerPlazo,
@@ -380,7 +392,7 @@ export function AnadirColportor({
         : encontrados.map((c) => {
             const marca = enOtraCampania.get(c.id);
             const vigente = marca !== undefined && (!hayConsulta || marca.recibidas === recibidas);
-            return vigente ? { ...c, campaniaActual: marca.campania } : c;
+            return vigente ? { ...c, campaniaActual: marca.campania, enOtraCampania: true } : c;
           }),
     [encontrados, enOtraCampania, recibidas, hayConsulta],
   );
@@ -690,7 +702,7 @@ export function AnadirColportor({
       {avisos.length > 0 ? (
         <div className="fixed bottom-6 left-1/2 z-20 flex -translate-x-1/2 flex-col items-stretch gap-2">
           {avisos.map((a) => (
-            <AvisoAnadido key={a.id} id={a.id} nombre={a.nombre} campania={datos.campania} onDeshacer={alDeshacer} />
+            <AvisoAnadido key={a.id} id={a.id} nombre={a.nombre} campania={datos.campania} onDeshacer={alDeshacer} onPausa={pausar} onReanudar={reanudar} />
           ))}
         </div>
       ) : null}
