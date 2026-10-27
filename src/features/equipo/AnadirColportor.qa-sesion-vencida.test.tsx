@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MARCA_SESION_VENCIDA } from "@/auth/sesion-vencida";
+import { marcaDeRechazo } from "@/auth/sesion-vencida";
 import type { ResultadoBusqueda, ResultadoInscripcion } from "@/datos/equipo/contrato";
 import { DATOS_ANADIR_COLPORTOR_SIMULADO, fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { AnadirColportor, MS_DESHACER } from "@/features/equipo/AnadirColportor";
@@ -21,7 +21,7 @@ type Inscribir = (id: string) => Promise<ResultadoInscripcion>;
 type Buscar = (texto: string, despuesDe: string | null) => Promise<ResultadoBusqueda>;
 
 const buscarEnLaSimulada: Buscar = (texto, despuesDe) => fuenteEquipoSimulada.buscarCandidatos("c", texto, despuesDe);
-const sesionVencida = () => new Error(MARCA_SESION_VENCIDA);
+const sesionVencida = () => new Error(marcaDeRechazo("vencida"));
 
 function montar(opciones: { inscribir?: Inscribir; buscar?: Buscar } = {}) {
   const inscribir = vi.fn(opciones.inscribir ?? (async () => ({ ok: true as const })));
