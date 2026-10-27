@@ -48,6 +48,12 @@ export interface ColportorDeStock {
   nombre: string;
   /** `null` si no tiene zona asignada. */
   ciudadId: string | null;
+  /**
+   * Cuándo el servidor recibió el último dato de su teléfono (marca de tiempo ISO; `ultimo_dato_at` de la RPC): la vista
+   * la muestra como «Sincronizó el 22/10 a las 18:30» para que nadie tome por de hoy una cifra vieja (decisión de Cristian
+   * del 25/10, «Fecha stock»). `null` = todavía no llegó ninguno.
+   */
+  ultimoDatoAt: string | null;
   existencias: ExistenciaDeStock[];
 }
 

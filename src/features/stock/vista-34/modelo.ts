@@ -1,3 +1,4 @@
+import { fechaYHoraEnMontevideo } from "@/lib/momento";
 import type { ColportorDeStock, DatosDeStock, ProductoDeStock, TipoDeProducto } from "@/datos/stock/contrato";
 
 /**
@@ -73,7 +74,15 @@ export interface PersonaDeStock {
   nombre: string;
   ciudadId: string | null;
   ciudadNombre: string | null;
+  /** «Sincronizó el 22/10 a las 18:30», o «Todavía no sincronizó» si no llegó ningún dato de su teléfono. */
+  sincronizo: string;
   porProducto: ReadonlyMap<string, Cantidades>;
+}
+
+/** Lo que dice la fila del colportor de cuándo llegó su último dato (hora de Montevideo). */
+export function textoDeSincronizacion(ultimoDatoAt: string | null): string {
+  const cuando = fechaYHoraEnMontevideo(ultimoDatoAt);
+  return cuando === null ? "Todavía no sincronizó" : `Sincronizó el ${cuando}`;
 }
 
 export interface CiudadConGente {
@@ -151,7 +160,7 @@ function personaDe(c: ColportorDeStock, ciudadNombre: string | null, ciudadId: s
       porCobrar: antes.porCobrar + cantidad(e.porCobrar),
     });
   }
-  return { id: c.id, nombre: c.nombre, ciudadId, ciudadNombre, porProducto };
+  return { id: c.id, nombre: c.nombre, ciudadId, ciudadNombre, sincronizo: textoDeSincronizacion(c.ultimoDatoAt), porProducto };
 }
 
 const porNombre = (a: { nombre: string }, b: { nombre: string }) => ORDEN.compare(a.nombre, b.nombre);
@@ -487,6 +496,8 @@ export interface QuienTiene {
   id: string;
   /** «Sofía Cabral» o, si el ámbito junta varias ciudades, «Sofía Cabral · Artigas». */
   nombre: string;
+  /** «Sincronizó el 22/10 a las 18:30» (ver `PersonaDeStock`). */
+  sincronizo: string;
   tiene: number;
   porEntregar: number;
   entregados: number;
@@ -532,6 +543,7 @@ export function construirTabla(mundo: Mundo, resuelto: AmbitoResuelto): GrupoDeF
           .map(({ p, c }) => ({
             id: p.id,
             nombre: resuelto.variosLugares ? `${p.nombre} · ${p.ciudadNombre ?? "Sin ciudad"}` : p.nombre,
+            sincronizo: p.sincronizo,
             ...c,
           }));
         return {
