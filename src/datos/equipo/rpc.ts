@@ -20,6 +20,7 @@ import {
   RespuestaInesperada,
   UUID,
 } from "@/datos/supabase/respuesta";
+import { MENSAJE_SESION_VENCIDA } from "@/lib/mensajes";
 
 /**
  * Fuente de la vista 23 (HU-CAM-004) contra las RPC de Supabase (ADR-013): `campanias_del_coordinador()`,
@@ -147,6 +148,14 @@ function esRechazo(error: unknown): error is ErrorSupabase {
   return error instanceof ErrorSupabase && causaDe(error) === "rechazo";
 }
 
+/**
+ * El JWT venció entre que el proxy lo comprobó y la RPC (o la base lo rechazó): vuelve como resultado y no como excepción, porque el
+ * texto de una excepción no sale del servidor en producción y la pantalla no podría llevar a la persona a entrar de nuevo (#41, P3).
+ */
+function esSesionVencidaDeLaBase(error: unknown): boolean {
+  return error instanceof ErrorSupabase && causaDe(error) === "sesion-vencida";
+}
+
 type FuenteAnadir = Pick<FuenteDatosEquipo, "obtenerAnadirColportor" | "buscarCandidatos" | "inscribirColportor">;
 
 /**
@@ -202,6 +211,7 @@ export function crearFuenteAnadirRpc(
         return { ok: true, candidatos: pagina, hayMas: pagina.length >= CUENTAS_POR_PAGINA };
       } catch (error) {
         if (esRechazo(error)) return rechazoDeBusqueda(error);
+        if (esSesionVencidaDeLaBase(error)) return { ok: false, mensaje: MENSAJE_SESION_VENCIDA, sesionVencida: true };
         throw error;
       }
     },
@@ -214,6 +224,7 @@ export function crearFuenteAnadirRpc(
         return { ok: true };
       } catch (error) {
         if (esRechazo(error)) return rechazoDeInscripcion(error);
+        if (esSesionVencidaDeLaBase(error)) return { ok: false, mensaje: MENSAJE_SESION_VENCIDA, sesionVencida: true };
         throw error;
       }
     },
