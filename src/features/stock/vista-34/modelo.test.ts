@@ -315,8 +315,15 @@ describe("construirTabla", () => {
 });
 
 describe("textoDeSincronizacion y la fila del colportor", () => {
+  const AHORA = new Date("2026-10-27T15:00:00Z");
+
   it("«Sincronizó el 22/10 a las 18:30» con la hora de Montevideo", () => {
-    expect(textoDeSincronizacion("2026-10-22T21:30:00Z")).toBe("Sincronizó el 22/10 a las 18:30");
+    expect(textoDeSincronizacion("2026-10-22T21:30:00Z", AHORA)).toBe("Sincronizó el 22/10 a las 18:30");
+  });
+
+  it("un dato de otro año lleva el año en la fecha", () => {
+    expect(textoDeSincronizacion("2025-12-31T21:30:00Z", AHORA)).toBe("Sincronizó el 31/12/2025 a las 18:30");
+    expect(textoDeSincronizacion("2026-01-01T03:00:00Z", AHORA)).toBe("Sincronizó el 01/01 a las 00:00");
   });
 
   it("sin ningún dato dice que todavía no sincronizó, y una fecha que no es fecha también", () => {
@@ -332,7 +339,8 @@ describe("textoDeSincronizacion y la fila del colportor", () => {
         { ...col("dora", null, ex("l1", 4)), ultimoDatoAt: "2026-10-19T12:00:00Z" },
       ],
     });
-    const { mundo, resuelto } = resolver(d);
+    const mundo = construirMundo(d, AHORA);
+    const resuelto = resolverAmbito(mundo, AMBITO_TODAS);
 
     expect(construirTabla(mundo, resuelto)[0].filas[0].quien.map((q) => [q.nombre, q.sincronizo])).toEqual([
       ["cata · Artigas", "Todavía no sincronizó"],
