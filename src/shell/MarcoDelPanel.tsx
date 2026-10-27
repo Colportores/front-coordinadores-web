@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import type { ResultadoCierre } from "@/auth/acceso";
 import { sitioDePruebaActivo } from "@/config/flags";
 import type { ResultadoCampanias, ResumenCoordinador } from "@/datos/shell/contrato";
 import { cn } from "@/lib/utils";
@@ -17,12 +18,15 @@ export function MarcoDelPanel({
   resumen,
   pestanas,
   pedirCampanias,
+  cerrarSesion,
   children,
 }: {
   resumen: ResumenCoordinador;
   pestanas: DefinicionPestana[];
   /** Ver `Topbar`. Sin ella, el selector de campaña usa las simuladas. */
   pedirCampanias?: () => Promise<ResultadoCampanias>;
+  /** Ver `Topbar`. Sin ella (sitio de prueba, panel sin login) el avatar no abre ningún menú. */
+  cerrarSesion?: () => Promise<ResultadoCierre>;
   children: ReactNode;
 }) {
   const avisoDePrueba = sitioDePruebaActivo();
@@ -37,7 +41,7 @@ export function MarcoDelPanel({
       )}
     >
       <AvisoVersionDePrueba />
-      <Topbar resumen={resumen} pestanas={pestanas} pedirCampanias={pedirCampanias} />
+      <Topbar resumen={resumen} pestanas={pestanas} pedirCampanias={pedirCampanias} cerrarSesion={cerrarSesion} />
       <main className="relative overflow-hidden">{children}</main>
     </div>
   );

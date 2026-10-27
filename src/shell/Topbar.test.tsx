@@ -27,6 +27,27 @@ describe("Topbar", () => {
     expect(screen.getByRole("img", { name: "Cuenta: Coordinador de ejemplo" })).toHaveTextContent("MP");
   });
 
+  it("sin login la cuenta es solo una insignia; con login es un botón que abre el menú con «Cerrar sesión» (issue #18)", async () => {
+    fijarFlags({ modoDev: false });
+    const { unmount } = render(
+      <ProveedorModoDev activo={false}>
+        <Topbar resumen={RESUMEN_COORDINADOR_SIMULADO} pestanas={pestanasVisibles()} />
+      </ProveedorModoDev>,
+    );
+    expect(screen.queryByRole("button", { name: /^Cuenta:/ })).toBeNull();
+    unmount();
+
+    render(
+      <ProveedorModoDev activo={false}>
+        <Topbar resumen={RESUMEN_COORDINADOR_SIMULADO} pestanas={pestanasVisibles()} cerrarSesion={vi.fn(async () => ({ tipo: "cerrada" as const }))} />
+      </ProveedorModoDev>,
+    );
+    expect(screen.queryByRole("img", { name: /^Cuenta:/ })).toBeNull();
+    const cuenta = screen.getByRole("button", { name: "Cuenta: Coordinador de ejemplo" });
+    expect(cuenta).toHaveTextContent("MP");
+    expect(cuenta).toHaveAttribute("aria-haspopup", "menu");
+  });
+
   it("el botón de región/campaña abre la lista de campañas (vista 37); sin fuente propia, con las simuladas", async () => {
     renderTopbar(false);
     const selector = screen.getByRole("button", { name: /Montevideo Oeste · Verano 2026/ });
