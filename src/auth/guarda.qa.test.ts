@@ -9,7 +9,7 @@ import { RUTA_INICIAL } from "@/shell/pestanas";
  * `//` sale del panel.
  */
 describe("QA #18 · destinoSeguro", () => {
-  it.skip("QA #18: un destino con segmentos de punto que se colapsan a `//sitio.malo` no sale del panel", () => {
+  it("un destino con segmentos de punto que se colapsan a `//sitio.malo` no sale del panel", () => {
     // Comprobado con Chromium real contra `next dev`: con una sesión abierta, `/acceso?siguiente=/.//sitio.malo` redirige a
     // http://sitio.malo/ (el proxy hace `new URL("//sitio.malo", origen)`).
     for (const malo of ["/.//sitio.malo", "/x/..//sitio.malo", "/%2e//sitio.malo", "/a/%2e%2e//sitio.malo", "/.///sitio.malo"]) {
@@ -19,7 +19,7 @@ describe("QA #18 · destinoSeguro", () => {
     }
   });
 
-  it.skip("QA #18: rutaDeAcceso tampoco arrastra ese destino a la URL de la pantalla de acceso", () => {
+  it("rutaDeAcceso tampoco arrastra ese destino a la URL de la pantalla de acceso", () => {
     expect(decodeURIComponent(rutaDeAcceso("vencida", "/.//sitio.malo"))).not.toContain("sitio.malo");
   });
 
