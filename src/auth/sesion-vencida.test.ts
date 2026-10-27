@@ -20,8 +20,11 @@ describe("el panel le cierra la puerta con la pantalla abierta (#41, P3)", () =>
 
   it("«Tu sesión venció.» solo si venció; con «sin acceso» o «suspendida» no se dice lo que no pasó", () => {
     expect(mensajeDeRechazo("vencida")).toBe("Tu sesión venció. Volvé a entrar para seguir.");
+    expect(mensajeDeRechazo("vencida", "buscar cuentas")).toBe("Tu sesión venció. Volvé a entrar para seguir.");
     expect(mensajeDeRechazo("sin-acceso")).toBe("Volvé a entrar para seguir.");
     expect(mensajeDeRechazo("suspendida")).toBe("Volvé a entrar para seguir.");
+    expect(mensajeDeRechazo("sin-acceso", "buscar cuentas")).toBe("No se pudo buscar cuentas. Volvé a entrar para seguir.");
+    expect(mensajeDeRechazo("suspendida", "cargar más cuentas")).toBe("No se pudo cargar más cuentas. Volvé a entrar para seguir.");
   });
 
   describe("a dónde lleva «Entrar de nuevo»", () => {

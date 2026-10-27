@@ -79,7 +79,7 @@ export function useBusquedaCandidatos(buscar: BuscarCandidatos, sugeridos: Candi
       } catch (error) {
         const motivo = motivoDelRechazo(error);
         nueva = motivo
-          ? { ...base, falla: mensajeDeRechazo(motivo), acceso: motivo }
+          ? { ...base, falla: mensajeDeRechazo(motivo, "buscar cuentas"), acceso: motivo }
           : { ...base, falla: mensajeSinConexion("buscar cuentas") };
       }
       if (vigente) {
@@ -117,7 +117,7 @@ export function useBusquedaCandidatos(buscar: BuscarCandidatos, sugeridos: Candi
     } catch (error) {
       const motivo = motivoDelRechazo(error);
       cambio = motivo
-        ? (p) => ({ ...p, cargandoMas: false, fallaMas: mensajeDeRechazo(motivo), reiniciarMas: false, acceso: motivo })
+        ? (p) => ({ ...p, cargandoMas: false, fallaMas: mensajeDeRechazo(motivo, "cargar más cuentas"), reiniciarMas: false, acceso: motivo })
         : (p) => ({ ...p, cargandoMas: false, fallaMas: mensajeSinConexion("cargar más cuentas"), reiniciarMas: false, acceso: null });
     }
     if (masEn.current === delTexto) masEn.current = null;

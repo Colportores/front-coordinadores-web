@@ -199,7 +199,7 @@ describe("AnadirColportor: la sesión vence con la pantalla abierta (#41, P3)", 
       await esperarResultados();
 
       const alerta = screen.getByRole("alert");
-      expect(alerta).toHaveTextContent("Volvé a entrar para seguir.");
+      expect(alerta).toHaveTextContent("No se pudo buscar cuentas. Volvé a entrar para seguir.");
       expect(alerta).not.toHaveTextContent("venció");
       expect(enlace(alerta)).toHaveAttribute("href", href);
       expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
@@ -215,6 +215,7 @@ describe("AnadirColportor: la sesión vence con la pantalla abierta (#41, P3)", 
       await ObservadorFalso.llegarAlFinal();
 
       const alerta = await screen.findByRole("alert");
+      expect(alerta).toHaveTextContent("No se pudo cargar más cuentas. Volvé a entrar para seguir.");
       expect(enlace(alerta)).toHaveAttribute("href", href);
       expect(within(screen.getByRole("list", { name: "Cuentas" })).getAllByRole("listitem")).toHaveLength(10);
     });

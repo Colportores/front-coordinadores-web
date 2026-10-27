@@ -24,11 +24,13 @@ export function motivoDelRechazo(error: unknown): MotivoDeRechazo | null {
 }
 
 /**
- * Lo que sigue al nombre de la cuenta (o a solas, en la búsqueda): «Tu sesión venció.» solo si venció; con «sin acceso» o
- * «suspendida» no se dice una sesión que no venció (la pantalla de acceso explica el motivo con su texto).
+ * El aviso: «Tu sesión venció.» solo si venció; con «sin acceso» o «suspendida» no se dice una sesión que no venció (la pantalla
+ * de acceso explica el motivo con su texto) y se dice qué no se pudo hacer. `accion` es lo que se intentaba («buscar cuentas»);
+ * sin ella, el aviso va detrás del nombre de la cuenta («No se pudo añadir a X. …»).
  */
-export function mensajeDeRechazo(motivo: MotivoDeRechazo): string {
-  return motivo === "vencida" ? MENSAJE_SESION_VENCIDA : "Volvé a entrar para seguir.";
+export function mensajeDeRechazo(motivo: MotivoDeRechazo, accion?: string): string {
+  if (motivo === "vencida") return MENSAJE_SESION_VENCIDA;
+  return accion ? `No se pudo ${accion}. Volvé a entrar para seguir.` : "Volvé a entrar para seguir.";
 }
 
 /**
