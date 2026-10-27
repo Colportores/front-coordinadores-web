@@ -89,6 +89,7 @@ describe("fuente de la vista 23 contra las RPC", () => {
             email: "ana.martinez@example.com",
             estadoCuenta: "pendiente_asignacion",
             campaniaActual: null,
+            enOtraCampania: false,
             cuentaCreada: "2026-09-22",
           },
         ],
@@ -203,11 +204,21 @@ describe("fuente de la vista 23 contra las RPC", () => {
 
       expect(llamarRpc).toHaveBeenCalledExactlyOnceWith("buscar_candidatos", { p_campania_id: CAMPANIA, p_texto: "ana", p_despues_de: ANA });
       expect(resultado).toMatchObject({ ok: true, hayMas: false });
-      expect(resultado.ok && resultado.candidatos.map((c) => [c.nombre, c.estadoCuenta, c.campaniaActual])).toEqual([
-        ["Ana Martínez", "pendiente_asignacion", null],
-        ["Rodrigo Silva", "activa", "Otoño Norte"],
-        ["Mariana Olivera", "suspendida", null],
+      expect(resultado.ok && resultado.candidatos.map((c) => [c.nombre, c.estadoCuenta, c.campaniaActual, c.enOtraCampania])).toEqual([
+        ["Ana Martínez", "pendiente_asignacion", null, false],
+        ["Rodrigo Silva", "activa", "Otoño Norte", true],
+        ["Mariana Olivera", "suspendida", null, false],
       ]);
+    });
+
+    it("en una campaña en curso pero sin `motivo_bloqueo` (destino por empezar, 0058) no queda bloqueada", async () => {
+      const { cliente } = clienteCon({
+        buscar_candidatos: [fila({ usuario_id: OTRA, nombre: "Agustín", apellido: "Pérez", estado: "ACTIVA", campania_actual: "Otoño 2026", motivo_bloqueo: null })],
+      });
+
+      const resultado = await crearFuenteAnadirRpc(cliente).buscarCandidatos(CAMPANIA, "agu", null);
+
+      expect(resultado.ok && resultado.candidatos).toMatchObject([{ nombre: "Agustín Pérez", campaniaActual: "Otoño 2026", enOtraCampania: false }]);
     });
 
     it("una página llena (10) avisa que puede haber más; una de 9, no", async () => {

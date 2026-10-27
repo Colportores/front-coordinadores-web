@@ -392,7 +392,7 @@ export function AnadirColportor({
         : encontrados.map((c) => {
             const marca = enOtraCampania.get(c.id);
             const vigente = marca !== undefined && (!hayConsulta || marca.recibidas === recibidas);
-            return vigente ? { ...c, campaniaActual: marca.campania } : c;
+            return vigente ? { ...c, campaniaActual: marca.campania, enOtraCampania: true } : c;
           }),
     [encontrados, enOtraCampania, recibidas, hayConsulta],
   );

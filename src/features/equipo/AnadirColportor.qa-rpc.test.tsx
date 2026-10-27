@@ -33,6 +33,7 @@ function cuenta(i: number, parcial: Partial<CandidatoColportor> = {}): Candidato
     email: `persona${i}@example.com`,
     estadoCuenta: "pendiente_asignacion",
     campaniaActual: null,
+    enOtraCampania: false,
     cuentaCreada: "2026-09-01",
     ...parcial,
   };

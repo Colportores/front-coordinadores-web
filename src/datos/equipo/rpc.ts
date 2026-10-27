@@ -55,11 +55,11 @@ function diaEnMontevideo(rpc: string, instante: string): string {
 }
 
 /**
- * Una fila de `buscar_candidatos()`. El `motivo_bloqueo` de la fila no se lee: la vista lo deduce del estado de la
- * cuenta y de su campaña vigente, que son las dos reglas con las que la base lo calcula (`motivo_rechazo_inscripcion()`):
- * suspendida (`USUARIO_SUSPENDIDO`), o en otra campaña (`EN_OTRA_CAMPANIA`). Las demás (email sin verificar, ya inscripta)
- * la base ya las deja fuera de la lista, y desde la migración 0028 la baja de esta campaña ya no bloquea (se reactiva).
- * Leerlo solo serviría el día que el backend sume un motivo nuevo, y ese motivo vendría sin texto para mostrar.
+ * Una fila de `buscar_candidatos()`. De `motivo_bloqueo` solo se lee `EN_OTRA_CAMPANIA` (`enOtraCampania`): la base lo calcula
+ * contra la campaña de destino (0058: una en curso y otra por empezar sí se pueden; `campania_actual` es solo la que está en
+ * curso y no alcanza para decidirlo). La suspendida se deduce del estado de la cuenta. Las demás (email sin verificar, ya
+ * inscripta) la base ya las deja fuera de la lista, y desde la migración 0028 la baja de esta campaña ya no bloquea (se
+ * reactiva). Un motivo nuevo del backend vendría sin texto para mostrar: habría que sumarlo acá.
  */
 function aCandidato(fila: Objeto): CandidatoColportor {
   const rpc = "buscar_candidatos";
@@ -72,6 +72,7 @@ function aCandidato(fila: Objeto): CandidatoColportor {
     email,
     estadoCuenta: estado,
     campaniaActual: cadenaONula(rpc, fila, "campania_actual"),
+    enOtraCampania: cadenaONula(rpc, fila, "motivo_bloqueo") === "EN_OTRA_CAMPANIA",
     cuentaCreada: diaEnMontevideo(rpc, cadena(rpc, fila, "creada_en")),
   };
 }

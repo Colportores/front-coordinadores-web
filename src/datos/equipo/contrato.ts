@@ -115,8 +115,13 @@ export interface CandidatoColportor {
   nombre: string;
   email: string;
   estadoCuenta: EstadoCuenta;
-  /** Nombre de la campaña en la que ya está, o `null` si no está en ninguna. */
+  /** Nombre de la campaña en curso en la que ya está, o `null` si no está en ninguna. */
   campaniaActual: string | null;
+  /**
+   * La base no la deja añadir a esta campaña porque ya está en otra del mismo momento (`EN_OTRA_CAMPANIA`: las dos en curso
+   * o las dos por empezar, 0058). Estar en una campaña en curso no alcanza: se puede sumar a una que empieza después.
+   */
+  enOtraCampania: boolean;
   /** Fecha de creación de la cuenta, ISO `AAAA-MM-DD`. */
   cuentaCreada: string;
 }
