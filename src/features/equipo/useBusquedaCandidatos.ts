@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CandidatoColportor, ResultadoBusqueda } from "@/datos/equipo/contrato";
-import { esSesionVencida } from "@/auth/sesion-vencida";
-import { MENSAJE_SESION_VENCIDA, mensajeSinConexion } from "@/lib/mensajes";
+import { mensajeDeRechazo, motivoDelRechazo, type MotivoDeRechazo } from "@/auth/sesion-vencida";
+import { mensajeSinConexion } from "@/lib/mensajes";
 
 /** Cuánto se espera después de la última tecla antes de buscar en el servidor. */
 export const MS_ESPERA_BUSQUEDA = 250;
@@ -22,8 +22,8 @@ interface Respuesta {
   fallaMas: string | null;
   /** El cursor de esa página ya no sirve: reintentar es buscar de nuevo desde el principio. */
   reiniciarMas: boolean;
-  /** La falla (la de la primera página o la de una siguiente) es que la sesión venció: «Reintentar» no sirve, hay que entrar de nuevo. */
-  sesionVencida: boolean;
+  /** La falla (la de la primera página o la de una siguiente) es que el panel ya no la deja pasar: «Reintentar» no sirve, hay que entrar de nuevo. */
+  acceso: MotivoDeRechazo | null;
 }
 
 function sinRepetir(previos: CandidatoColportor[], nuevos: CandidatoColportor[]): CandidatoColportor[] {
@@ -68,17 +68,18 @@ export function useBusquedaCandidatos(buscar: BuscarCandidatos, sugeridos: Candi
         cargandoMas: false,
         fallaMas: null,
         reiniciarMas: false,
-        sesionVencida: false,
+        acceso: null,
       };
       let nueva: Respuesta;
       try {
         const pagina = await buscarRef.current(texto, null);
         nueva = pagina.ok
           ? { ...base, candidatos: pagina.candidatos, hayMas: pagina.hayMas }
-          : { ...base, falla: pagina.mensaje, sesionVencida: pagina.sesionVencida === true };
+          : { ...base, falla: pagina.mensaje, acceso: pagina.sesionVencida ? "vencida" : null };
       } catch (error) {
-        nueva = esSesionVencida(error)
-          ? { ...base, falla: MENSAJE_SESION_VENCIDA, sesionVencida: true }
+        const motivo = motivoDelRechazo(error);
+        nueva = motivo
+          ? { ...base, falla: mensajeDeRechazo(motivo), acceso: motivo }
           : { ...base, falla: mensajeSinConexion("buscar cuentas") };
       }
       if (vigente) {
@@ -111,12 +112,13 @@ export function useBusquedaCandidatos(buscar: BuscarCandidatos, sugeridos: Candi
             cargandoMas: false,
             fallaMas: pagina.mensaje,
             reiniciarMas: pagina.reiniciar === true,
-            sesionVencida: pagina.sesionVencida === true,
+            acceso: pagina.sesionVencida ? ("vencida" as const) : null,
           });
     } catch (error) {
-      cambio = esSesionVencida(error)
-        ? (p) => ({ ...p, cargandoMas: false, fallaMas: MENSAJE_SESION_VENCIDA, reiniciarMas: false, sesionVencida: true })
-        : (p) => ({ ...p, cargandoMas: false, fallaMas: mensajeSinConexion("cargar más cuentas"), reiniciarMas: false, sesionVencida: false });
+      const motivo = motivoDelRechazo(error);
+      cambio = motivo
+        ? (p) => ({ ...p, cargandoMas: false, fallaMas: mensajeDeRechazo(motivo), reiniciarMas: false, acceso: motivo })
+        : (p) => ({ ...p, cargandoMas: false, fallaMas: mensajeSinConexion("cargar más cuentas"), reiniciarMas: false, acceso: null });
     }
     if (masEn.current === delTexto) masEn.current = null;
     setRespuesta((p) => (p && p.texto === delTexto ? cambio(p) : p));
@@ -152,8 +154,8 @@ export function useBusquedaCandidatos(buscar: BuscarCandidatos, sugeridos: Candi
     cargandoMas: actual?.cargandoMas ?? false,
     falla: actual?.falla ?? null,
     fallaMas: actual?.fallaMas ?? null,
-    /** La falla que se ve es la sesión vencida: en vez de «Reintentar», hay que entrar de nuevo. */
-    sesionVencida: actual?.sesionVencida ?? false,
+    /** Por qué el panel ya no la deja pasar, si es eso lo que falló: en vez de «Reintentar», hay que entrar de nuevo. */
+    acceso: actual?.acceso ?? null,
     cargarMas,
     reintentar,
     reintentarMas,
