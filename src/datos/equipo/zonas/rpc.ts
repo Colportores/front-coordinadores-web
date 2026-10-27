@@ -259,10 +259,17 @@ function nombreDeVistaPrevia(): string {
   return crypto.randomUUID();
 }
 
-export function crearFuenteZonasRpc(cliente: ClienteRpc): FuenteDatosZonas {
+/**
+ * @param campaniaElegida la campaña que eligió la coordinadora en el topbar (#70), si hay; sin ella o si ya no figura en
+ *   su lista, la primera (`campaniaProvisoria`).
+ */
+export function crearFuenteZonasRpc(
+  cliente: ClienteRpc,
+  campaniaElegida: () => Promise<string | null> = async () => null,
+): FuenteDatosZonas {
   return {
     async obtenerZonas(): Promise<DatosZonas | null> {
-      const campania = await campaniaProvisoria(cliente);
+      const campania = await campaniaProvisoria(cliente, await campaniaElegida());
       if (!campania) return null;
       try {
         return { campaniaId: campania.id, campania: campania.nombre, ciudades: await leerCiudades(cliente, campania.id) };
@@ -394,8 +401,12 @@ export function crearFuenteZonasRpc(cliente: ClienteRpc): FuenteDatosZonas {
       const rpc = "ciudades_del_catalogo";
       const buscado = texto.trim().slice(0, MAX_TEXTO_BUSQUEDA).trim();
       const respuesta = await cliente.llamarRpc(rpc, { p_campania_id: campaniaId, p_texto: buscado === "" ? null : buscado });
-      // La base ya deja afuera las que están en la campaña. No trae la provincia: ver `CiudadDelCatalogo`.
-      return filas(rpc, respuesta).map((fila) => ({ id: cadena(rpc, fila, "ciudad_id"), nombre: cadena(rpc, fila, "nombre") }));
+      // La base ya deja afuera las que están en la campaña y busca también por el departamento (0066).
+      return filas(rpc, respuesta).map((fila) => ({
+        id: cadena(rpc, fila, "ciudad_id"),
+        nombre: cadena(rpc, fila, "nombre"),
+        departamento: cadenaONula(rpc, fila, "departamento"),
+      }));
     },
 
     async agregarCiudad(campaniaId, catalogoId): Promise<ResultadoAgregarCiudad> {

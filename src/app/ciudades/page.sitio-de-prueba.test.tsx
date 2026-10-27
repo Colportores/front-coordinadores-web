@@ -50,7 +50,7 @@ describe("ZonasPagina en el build del sitio de prueba (export estático, sin ser
     render(<ProveedorModoDev activo={false}>{await ZonasPagina()}</ProveedorModoDev>);
 
     await userEvent.click(screen.getByRole("button", { name: /\+ Agregar ciudad/ }));
-    await userEvent.type(screen.getByRole("searchbox", { name: /BUSCAR POR NOMBRE O PROVINCIA/ }), "salto");
+    await userEvent.type(screen.getByRole("searchbox", { name: /BUSCAR POR NOMBRE O DEPARTAMENTO/ }), "salto");
     await userEvent.click(await screen.findByRole("button", { name: /^Agregar Salto/ }));
 
     const ciudades = screen.getByRole("navigation", { name: "Ciudades de la campaña" });

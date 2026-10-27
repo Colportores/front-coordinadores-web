@@ -20,6 +20,7 @@ import {
   RespuestaInesperada,
   UUID,
 } from "@/datos/supabase/respuesta";
+import { MENSAJE_SESION_VENCIDA } from "@/lib/mensajes";
 
 /**
  * Fuente de la vista 23 (HU-CAM-004) contra las RPC de Supabase (ADR-013): `campanias_del_coordinador()`,
@@ -55,11 +56,11 @@ function diaEnMontevideo(rpc: string, instante: string): string {
 }
 
 /**
- * Una fila de `buscar_candidatos()`. El `motivo_bloqueo` de la fila no se lee: la vista lo deduce del estado de la
- * cuenta y de su campaña vigente, que son las dos reglas con las que la base lo calcula (`motivo_rechazo_inscripcion()`):
- * suspendida (`USUARIO_SUSPENDIDO`), o en otra campaña (`EN_OTRA_CAMPANIA`). Las demás (email sin verificar, ya inscripta)
- * la base ya las deja fuera de la lista, y desde la migración 0028 la baja de esta campaña ya no bloquea (se reactiva).
- * Leerlo solo serviría el día que el backend sume un motivo nuevo, y ese motivo vendría sin texto para mostrar.
+ * Una fila de `buscar_candidatos()`. De `motivo_bloqueo` solo se lee `EN_OTRA_CAMPANIA` (`enOtraCampania`): la base lo calcula
+ * contra la campaña de destino (0058: una en curso y otra por empezar sí se pueden; `campania_actual` es solo la que está en
+ * curso y no alcanza para decidirlo). La suspendida se deduce del estado de la cuenta. Las demás (email sin verificar, ya
+ * inscripta) la base ya las deja fuera de la lista, y desde la migración 0028 la baja de esta campaña ya no bloquea (se
+ * reactiva). Un motivo nuevo del backend vendría sin texto para mostrar: habría que sumarlo acá.
  */
 function aCandidato(fila: Objeto): CandidatoColportor {
   const rpc = "buscar_candidatos";
@@ -72,6 +73,7 @@ function aCandidato(fila: Objeto): CandidatoColportor {
     email,
     estadoCuenta: estado,
     campaniaActual: cadenaONula(rpc, fila, "campania_actual"),
+    enOtraCampania: cadenaONula(rpc, fila, "motivo_bloqueo") === "EN_OTRA_CAMPANIA",
     cuentaCreada: diaEnMontevideo(rpc, cadena(rpc, fila, "creada_en")),
   };
 }
@@ -92,7 +94,7 @@ function aMiembro(fila: Objeto): MiembroEquipo {
  */
 const TEXTO_INSCRIPCION: Record<string, string> = {
   CI001: "La campaña no existe.",
-  CI002: "La campaña no está activa: solo se inscribe en una campaña vigente.",
+  CI002: "La campaña ya terminó. Elegí una campaña en curso o por empezar.",
   CI003: "El usuario no existe o fue dado de baja.",
   CI004: "El usuario todavía no verificó su email.",
   CI005: "La cuenta está suspendida. Contactá al administrador.",
@@ -146,15 +148,30 @@ function esRechazo(error: unknown): error is ErrorSupabase {
   return error instanceof ErrorSupabase && causaDe(error) === "rechazo";
 }
 
+/**
+ * El JWT venció entre que el proxy lo comprobó y la RPC (o la base lo rechazó): vuelve como resultado y no como excepción, porque el
+ * texto de una excepción no sale del servidor en producción y la pantalla no podría llevar a la persona a entrar de nuevo (#41, P3).
+ */
+function esSesionVencidaDeLaBase(error: unknown): boolean {
+  return error instanceof ErrorSupabase && causaDe(error) === "sesion-vencida";
+}
+
 type FuenteAnadir = Pick<FuenteDatosEquipo, "obtenerAnadirColportor" | "buscarCandidatos" | "inscribirColportor">;
 
-export function crearFuenteAnadirRpc(cliente: ClienteRpc): FuenteAnadir {
+/**
+ * @param campaniaElegida la campaña que eligió la coordinadora en el topbar (#70), si hay; sin ella o si ya no figura en
+ *   su lista, la primera (`campaniaProvisoria`).
+ */
+export function crearFuenteAnadirRpc(
+  cliente: ClienteRpc,
+  campaniaElegida: () => Promise<string | null> = async () => null,
+): FuenteAnadir {
   return {
     async obtenerAnadirColportor(): Promise<DatosAnadirColportor | null> {
-      // La campaña del panel es la misma que usa la vista 24 (`campaniaProvisoria`: la primera de la lista, con las en curso
-      // antes). Acá una campaña que todavía no empezó equivale a «sin campaña en curso»: la base no deja inscribir (`CI002`,
-      // más abajo) y la pantalla es `SinCampaniaParaAnadir`. La vista 24, en cambio, sí trabaja con una por empezar.
-      const campania = await campaniaProvisoria(cliente);
+      // La campaña del panel es la misma que usa la vista 24 (`campaniaProvisoria`: la elegida en el topbar o, si no, la
+      // primera de la lista, con las en curso antes). Una campaña por empezar también acepta colportores (decisión de Cristian,
+      // 21/10, «Antes inicio»; migración 0058): se arma el equipo antes del primer día. Solo una terminada la rechaza (`CI002`).
+      const campania = await campaniaProvisoria(cliente, await campaniaElegida());
       if (!campania) return null;
       const { id: campaniaId, nombre } = campania;
 
@@ -170,7 +187,7 @@ export function crearFuenteAnadirRpc(cliente: ClienteRpc): FuenteAnadir {
           equipoActual: filas("colportores_de_campania", equipo).map(aMiembro),
         };
       } catch (error) {
-        // Todavía no empezó: la base solo deja inscribir en una campaña vigente (`CI002`), así que no hay a quién añadir.
+        // Terminó entre la lista de campañas y esta llamada (`CI002`): no hay campaña a la que añadir.
         if (error instanceof ErrorSupabase && error.codigo === "CI002") return null;
         throw error;
       }
@@ -194,6 +211,7 @@ export function crearFuenteAnadirRpc(cliente: ClienteRpc): FuenteAnadir {
         return { ok: true, candidatos: pagina, hayMas: pagina.length >= CUENTAS_POR_PAGINA };
       } catch (error) {
         if (esRechazo(error)) return rechazoDeBusqueda(error);
+        if (esSesionVencidaDeLaBase(error)) return { ok: false, mensaje: MENSAJE_SESION_VENCIDA, sesionVencida: true };
         throw error;
       }
     },
@@ -206,6 +224,7 @@ export function crearFuenteAnadirRpc(cliente: ClienteRpc): FuenteAnadir {
         return { ok: true };
       } catch (error) {
         if (esRechazo(error)) return rechazoDeInscripcion(error);
+        if (esSesionVencidaDeLaBase(error)) return { ok: false, mensaje: MENSAJE_SESION_VENCIDA, sesionVencida: true };
         throw error;
       }
     },

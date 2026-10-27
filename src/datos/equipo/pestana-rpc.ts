@@ -36,9 +36,9 @@ import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
  * Los «días sin acompañar» y el total de cada colportor no se piden a `acompaniamientos_por_colportor()`: salen del mismo
  * historial que se muestra en «Ver historial», así que la tabla y el historial no se pueden contradecir.
  *
- * Lo que la base todavía no tiene y por eso queda sin conectar: el departamento de cada ciudad (backend-supabase#92), la
- * nota y el origen del dato de un acompañamiento, elegir a otro colportor como acompañante y las solicitudes para entrar
- * a la campaña (`solicitudesPendientes` es siempre 0). Ver los pendientes del PR.
+ * El departamento de cada ciudad sale de `ciudades_de_campania()` (0066): una ciudad vieja sin cargar queda en `null`.
+ * Lo que la base todavía no tiene y por eso queda sin conectar: la nota y el origen del dato de un acompañamiento,
+ * elegir a otro colportor como acompañante y las solicitudes para entrar a la campaña (`solicitudesPendientes` es siempre 0). Ver los pendientes del PR.
  *
  * Los rechazos de la base (`JO001`…`JO004`, `CZ001`, `CZ011`, `42501`, `22023`) se traducen al texto para mostrar: las
  * pantallas no conocen códigos. Una falla de conexión, de servicio o de sesión no es un rechazo y sale como excepción
@@ -145,10 +145,14 @@ type FuentePestana = Pick<
 /** Las becas (V2) todavía no tienen RPC (se conectan después del 20/11): la vista no ofrece guardarlas con esta fuente. */
 const BECAS_SIN_CONECTAR = "Las becas todavía no están conectadas a la base de datos, así que no se puede guardar este cambio.";
 
-export function crearFuentePestanaRpc(cliente: ClienteRpc, ahora: () => Date = () => new Date()): FuentePestana {
+export function crearFuentePestanaRpc(
+  cliente: ClienteRpc,
+  ahora: () => Date = () => new Date(),
+  campaniaElegida: () => Promise<string | null> = async () => null,
+): FuentePestana {
   return {
     async obtenerEquipoPorCiudad(): Promise<DatosEquipoPorCiudad | null> {
-      const campania = await campaniaProvisoriaConFechas(cliente);
+      const campania = await campaniaProvisoriaConFechas(cliente, await campaniaElegida());
       if (!campania) return null;
       const argumentos = { p_campania_id: campania.id };
 
@@ -169,7 +173,7 @@ export function crearFuentePestanaRpc(cliente: ClienteRpc, ahora: () => Date = (
       const ciudades = new Map<string, CiudadDeEquipo>();
       for (const fila of filas("ciudades_de_campania", ciudadesCrudas)) {
         const id = cadena("ciudades_de_campania", fila, "ciudad_id");
-        ciudades.set(id, { id, nombre: cadena("ciudades_de_campania", fila, "nombre"), departamento: null });
+        ciudades.set(id, { id, nombre: cadena("ciudades_de_campania", fila, "nombre"), departamento: cadenaONula("ciudades_de_campania", fila, "departamento") });
       }
 
       const acompanamientos = acompanamientosPorColportor(filas("historial_de_acompaniamientos", historialCrudo), yo);

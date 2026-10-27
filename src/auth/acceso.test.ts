@@ -20,6 +20,7 @@ interface Servidor {
   renovar: Contestacion;
   revocar: Contestacion;
   tieneRol: Contestacion;
+  estadoCuenta: Contestacion;
 }
 
 function servidorFalso(cambios: Partial<Servidor> = {}) {
@@ -28,6 +29,7 @@ function servidorFalso(cambios: Partial<Servidor> = {}) {
     renovar: () => respuestaDeSesion({ token: "token-renovado" }),
     revocar: () => new Response(null, { status: 204 }),
     tieneRol: () => json(true),
+    estadoCuenta: () => json("ACTIVA"),
     ...cambios,
   };
   const prueba = crearSupabasePrueba((llamada: LlamadaFalsa) => {
@@ -40,6 +42,8 @@ function servidorFalso(cambios: Partial<Servidor> = {}) {
         return servidor.revocar(llamada);
       case "/rest/v1/rpc/tiene_rol":
         return servidor.tieneRol(llamada);
+      case "/rest/v1/rpc/estado_cuenta":
+        return servidor.estadoCuenta(llamada);
       default:
         throw new Error(`Ruta no prevista en el test: ${llamada.ruta}`);
     }
@@ -220,7 +224,8 @@ describe("verificarAcceso", () => {
     await supabase.auth.signInWithPassword({ email: CREDENCIALES.correo, password: CREDENCIALES.contrasena });
 
     expect(await verificarAcceso(supabase)).toEqual({ tipo: "ok", usuarioId: "usuario-1" });
-    expect(llamadas.at(-1)).toMatchObject({ ruta: "/rest/v1/rpc/tiene_rol", token: "token-1", cuerpo: { p_codigo: "COORDINADOR" } });
+    expect(llamadas.find((l) => l.ruta === "/rest/v1/rpc/tiene_rol")).toMatchObject({ token: "token-1", cuerpo: { p_codigo: "COORDINADOR" } });
+    expect(llamadas.at(-1)).toMatchObject({ ruta: "/rest/v1/rpc/estado_cuenta", token: "token-1" });
   });
 
   it("un rol revocado se cae en la siguiente comprobación, sin esperar a que el token venza", async () => {
@@ -280,7 +285,7 @@ describe("verificarAcceso", () => {
 
       expect(await verificarAcceso(supabase)).toMatchObject({ tipo: "ok" });
       expect(llamadas.find((l) => l.url.searchParams.get("grant_type") === "refresh_token")).toBeDefined();
-      expect(llamadas.at(-1)).toMatchObject({ ruta: "/rest/v1/rpc/tiene_rol", token: "token-renovado" });
+      expect(llamadas.find((l) => l.ruta === "/rest/v1/rpc/tiene_rol")).toMatchObject({ token: "token-renovado" });
     });
 
     it("si la renovación se rechaza pero el token todavía vale, la sesión sigue en pie", async () => {
@@ -370,6 +375,52 @@ describe("verificarAcceso", () => {
 
       expect(vi.getTimerCount()).toBe(0);
     });
+  });
+});
+
+describe("cuenta suspendida (estado_cuenta, R7 de HU-ADM-003)", () => {
+  it("al iniciar sesión, un coordinador suspendido no entra y no queda con sesión abierta", async () => {
+    const { supabase, almacen, llamadas } = servidorFalso({ estadoCuenta: () => json("SUSPENDIDA") });
+
+    expect(await iniciarSesion(supabase, CREDENCIALES)).toEqual({ tipo: "suspendida" });
+
+    expect(almacen.size).toBe(0);
+    expect(rutas(llamadas)).toContain("/auth/v1/logout");
+  });
+
+  it("al verificar, un coordinador suspendido recibe `suspendida` (la sesión sigue para poder cerrarla)", async () => {
+    const { supabase } = servidorFalso({ estadoCuenta: () => json("SUSPENDIDA") });
+    await supabase.auth.signInWithPassword({ email: CREDENCIALES.correo, password: CREDENCIALES.contrasena });
+    expect(await verificarAcceso(supabase)).toEqual({ tipo: "suspendida" });
+  });
+
+  it("una cuenta con rol pero sin campaña vigente (PENDIENTE_ASIGNACION) entra: no es una suspensión", async () => {
+    const { supabase } = servidorFalso({ estadoCuenta: () => json("PENDIENTE_ASIGNACION") });
+    expect(await iniciarSesion(supabase, CREDENCIALES)).toMatchObject({ tipo: "ok" });
+  });
+
+  it("sin el rol ni se pregunta por la suspensión", async () => {
+    const { supabase, llamadas } = servidorFalso({ tieneRol: () => json(false) });
+    expect(await iniciarSesion(supabase, CREDENCIALES)).toEqual({ tipo: "sin-acceso" });
+    expect(rutas(llamadas)).not.toContain("/rest/v1/rpc/estado_cuenta");
+  });
+
+  it.each([
+    ["se cae la red", sinRed],
+    ["el servidor falla (503)", () => errorDePostgrest(503, "PGRST000", "caído")],
+    ["contesta algo que no es un estado", () => json(null)],
+  ])("si la llamada falla (%s) no se entra: no disponible, nunca acceso", async (_caso, estadoCuenta) => {
+    const { supabase } = servidorFalso({ estadoCuenta });
+    expect(await iniciarSesion(supabase, CREDENCIALES)).toEqual({ tipo: "no-disponible" });
+
+    await supabase.auth.signInWithPassword({ email: CREDENCIALES.correo, password: CREDENCIALES.contrasena });
+    expect(await verificarAcceso(supabase)).toEqual({ tipo: "no-disponible" });
+  });
+
+  it("si la base rechaza el token al preguntar, es sesión vencida", async () => {
+    const { supabase } = servidorFalso({ estadoCuenta: () => errorDePostgrest(401, "PGRST301", "JWT expired") });
+    await supabase.auth.signInWithPassword({ email: CREDENCIALES.correo, password: CREDENCIALES.contrasena });
+    expect(await verificarAcceso(supabase)).toEqual({ tipo: "sesion-vencida" });
   });
 });
 

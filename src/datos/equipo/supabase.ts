@@ -1,7 +1,7 @@
 import type { FuenteDatosEquipo } from "@/datos/equipo/contrato";
 import { crearFuentePestanaRpc } from "@/datos/equipo/pestana-rpc";
 import { crearFuenteAnadirRpc } from "@/datos/equipo/rpc";
-import type { ClienteSupabase } from "@/datos/supabase/cliente";
+import type { ClienteRpc } from "@/datos/supabase/cliente";
 
 /**
  * Fuente de Equipo contra el proyecto de Supabase de la demo (issue #45). Solo para desarrollo: la enciende
@@ -10,9 +10,12 @@ import type { ClienteSupabase } from "@/datos/supabase/cliente";
  * La vista 23 (añadir colportor: sugeridos, búsqueda e inscripción) va por las RPC de `rpc.ts` y la vista 33 (zonas y
  * acompañamientos por ciudad) por las de `pestana-rpc.ts`.
  */
-export function crearFuenteEquipoSupabase(cliente: ClienteSupabase): FuenteDatosEquipo {
+export function crearFuenteEquipoSupabase(
+  cliente: ClienteRpc,
+  campaniaElegida?: () => Promise<string | null>,
+): FuenteDatosEquipo {
   return {
-    ...crearFuenteAnadirRpc(cliente),
-    ...crearFuentePestanaRpc(cliente),
+    ...crearFuenteAnadirRpc(cliente, campaniaElegida),
+    ...crearFuentePestanaRpc(cliente, undefined, campaniaElegida),
   };
 }

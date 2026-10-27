@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ResultadoInscripcion } from "@/datos/equipo/contrato";
+import { esSesionVencida } from "@/auth/sesion-vencida";
 import { mensajeSinConexion } from "@/lib/mensajes";
 import { fueAbandonado, registrarEnvio, registrarFuente, trabajoCambio } from "@/shell/trabajo-pendiente";
 
@@ -19,12 +20,26 @@ export const mensajeAnadirSinConexion = (nombre: string) => mensajeSinConexion(`
  */
 export const mensajeAnadirRechazado = (nombre: string, mensaje: string) => `No se pudo añadir a ${nombre}. ${mensaje}`;
 
+/** El plazo de una cuenta: su temporizador y cuánto falta (se congela mientras el foco está en su «Deshacer»). */
+interface Plazo {
+  cuenta: Anadido;
+  temporizador: ReturnType<typeof setTimeout> | null;
+  /** Instante (`Date.now()`) en que vence, mientras corre. */
+  vence: number;
+  /** Milisegundos que faltan, mientras está en pausa. */
+  restante: number;
+  enPausa: boolean;
+}
+
 export interface Anadido {
   id: string;
   nombre: string;
 }
 
-/** Por qué no prosperó el envío: la base lo rechazó (con su texto) o la llamada se cayó. */
+/**
+ * Por qué no prosperó el envío: la base lo rechazó (con su texto), la llamada se cayó o la sesión venció (#41, P3: no es una
+ * caída, la persona tiene que volver a entrar).
+ */
 export type CausaFallo =
   | {
       tipo: "rechazo";
@@ -32,7 +47,8 @@ export type CausaFallo =
       /** `CI007`: la campaña donde ya está la cuenta (la vista la marca como bloqueada). */
       campaniaEnConflicto?: { id: string; nombre: string };
     }
-  | { tipo: "sin-conexion" };
+  | { tipo: "sin-conexion" }
+  | { tipo: "sesion-vencida" };
 
 interface Opciones {
   inscribir: (usuarioId: string) => Promise<ResultadoInscripcion>;
@@ -55,6 +71,10 @@ interface Opciones {
  *   que está dentro del plazo o sin contestar se anota en `@/shell/trabajo-pendiente`, que también deja al menú de
  *   secciones esperar antes de cambiar de pestaña y sigue avisando si la vista ya se fue pero un envío no contestó.
  * - Si el envío falla (regla o conexión), la cuenta vuelve a figurar sin añadir, el botón se habilita y `alFallar` avisa.
+ *
+ * «Deshacer AA» (decisión de Cristian, 21/10, WCAG 2.2.1): mientras el «Deshacer» de una cuenta tiene el foco (teclado o
+ * lector), su plazo no corre (`pausar`); al soltarlo sigue con lo que faltaba (`reanudar`). Mientras tanto la inscripción
+ * se manda igual al cerrarse el aviso o al irse de la vista, como siempre.
  */
 export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }: Opciones) {
   /** Lo que se muestra como añadido: dentro del plazo, enviándose o ya enviado. */
@@ -63,7 +83,7 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
   const [avisos, setAvisos] = useState<Anadido[]>([]);
   const [enviando, setEnviando] = useState(0);
 
-  const plazos = useRef(new Map<string, { cuenta: Anadido; temporizador: ReturnType<typeof setTimeout> }>());
+  const plazos = useRef(new Map<string, Plazo>());
   const envios = useRef(new Map<string, Promise<boolean>>());
   // Quita el doble toque: el estado tarda un render en reflejar el primero.
   const conocidos = useRef(new Set<string>());
@@ -76,7 +96,7 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
   const enviar = useCallback((cuenta: Anadido): Promise<boolean> => {
     const plazo = plazos.current.get(cuenta.id);
     if (plazo) {
-      clearTimeout(plazo.temporizador);
+      if (plazo.temporizador !== null) clearTimeout(plazo.temporizador);
       plazos.current.delete(cuenta.id);
     }
     setAvisos((previos) => previos.filter((a) => a.id !== cuenta.id));
@@ -85,13 +105,16 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
       let causa: CausaFallo | null = null;
       try {
         const resultado = await ultimo.current.inscribir(cuenta.id);
-        if (!resultado.ok) {
+        if (!resultado.ok && resultado.sesionVencida) {
+          causa = { tipo: "sesion-vencida" };
+        } else if (!resultado.ok) {
           causa = { tipo: "rechazo", mensaje: resultado.mensaje };
           if (resultado.campaniaEnConflicto) causa.campaniaEnConflicto = resultado.campaniaEnConflicto;
         }
-      } catch {
-        // Si la llamada se cae, nada queda «enviándose»: se puede volver a intentar.
-        causa = { tipo: "sin-conexion" };
+      } catch (error) {
+        // Si la llamada se cae, nada queda «enviándose»: se puede volver a intentar. Si el proxy dijo que no hay sesión, no es
+        // una caída: «Reintentar» no sirve, hay que entrar de nuevo.
+        causa = esSesionVencida(error) ? { tipo: "sesion-vencida" } : { tipo: "sin-conexion" };
       }
       envios.current.delete(cuenta.id);
       setEnviando(envios.current.size);
@@ -109,6 +132,16 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
     return envio;
   }, []);
 
+  /** Agenda el vencimiento del plazo: pasados `ms`, su aviso se saca y la inscripción se manda. */
+  const correr = useCallback(
+    (cuenta: Anadido, ms: number) =>
+      setTimeout(() => {
+        ultimo.current.alVencerPlazo?.(cuenta.id);
+        void enviar(cuenta);
+      }, ms),
+    [enviar],
+  );
+
   /** Deja la cuenta como añadida con su plazo. Devuelve `false` si ya lo estaba (el doble toque no suma un segundo aviso). */
   const programar = useCallback(
     (cuenta: Anadido): boolean => {
@@ -116,22 +149,46 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
       conocidos.current.add(cuenta.id);
       setAnadidos((previos) => [...previos, cuenta]);
       setAvisos((previos) => [...previos, cuenta]);
-      const temporizador = setTimeout(() => {
-        ultimo.current.alVencerPlazo?.(cuenta.id);
-        void enviar(cuenta);
-      }, MS_DESHACER);
-      plazos.current.set(cuenta.id, { cuenta, temporizador });
+      plazos.current.set(cuenta.id, {
+        cuenta,
+        temporizador: correr(cuenta, MS_DESHACER),
+        vence: Date.now() + MS_DESHACER,
+        restante: MS_DESHACER,
+        enPausa: false,
+      });
       trabajoCambio();
       return true;
     },
-    [enviar],
+    [correr],
+  );
+
+  /** Congela el plazo de esa cuenta: el foco llegó a su «Deshacer». Si ya estaba en pausa o ya no hay plazo, no hace nada. */
+  const pausar = useCallback((id: string) => {
+    const plazo = plazos.current.get(id);
+    if (!plazo || plazo.enPausa) return;
+    if (plazo.temporizador !== null) clearTimeout(plazo.temporizador);
+    plazo.temporizador = null;
+    plazo.restante = Math.max(0, plazo.vence - Date.now());
+    plazo.enPausa = true;
+  }, []);
+
+  /** Vuelve a correr el plazo con lo que faltaba: el foco salió de su «Deshacer». */
+  const reanudar = useCallback(
+    (id: string) => {
+      const plazo = plazos.current.get(id);
+      if (!plazo || !plazo.enPausa) return;
+      plazo.enPausa = false;
+      plazo.vence = Date.now() + plazo.restante;
+      plazo.temporizador = correr(plazo.cuenta, plazo.restante);
+    },
+    [correr],
   );
 
   /** Cancela la inscripción de esa cuenta si todavía está dentro del plazo. Devuelve si lo estaba. */
   const deshacer = useCallback((id: string): boolean => {
     const plazo = plazos.current.get(id);
     if (!plazo) return false;
-    clearTimeout(plazo.temporizador);
+    if (plazo.temporizador !== null) clearTimeout(plazo.temporizador);
     plazos.current.delete(id);
     conocidos.current.delete(id);
     setAnadidos((previos) => previos.filter((a) => a.id !== id));
@@ -178,5 +235,5 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
     [confirmarTodas],
   );
 
-  return { anadidos, avisos, enviando: enviando > 0, programar, deshacer, confirmarTodas };
+  return { anadidos, avisos, enviando: enviando > 0, programar, deshacer, pausar, reanudar, confirmarTodas };
 }

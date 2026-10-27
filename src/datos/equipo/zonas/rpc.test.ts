@@ -180,6 +180,27 @@ describe("fuente de la vista 24 contra las RPC", () => {
       expect(llamarRpc).not.toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: otra });
     });
 
+    it("trabaja con la campaña que eligió la coordinadora en el topbar (#70), aunque no sea la primera ni haya empezado", async () => {
+      const otra = "99999999-9999-4999-8999-999999999999";
+      const { cliente, llamarRpc } = lecturas({
+        campanias_del_coordinador: [...campanias, { id: otra, nombre: "Otoño", tipo: "OTONO", fecha_inicio: "2027-03-01", fecha_fin: null }],
+      });
+
+      const datos = await crearFuenteZonasRpc(cliente, async () => otra).obtenerZonas();
+
+      expect(datos).toMatchObject({ campaniaId: otra, campania: "Otoño" });
+      expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: otra });
+      expect(llamarRpc).not.toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: CAMPANIA });
+    });
+
+    it("una elegida que ya no figura en su lista vuelve a la primera", async () => {
+      const { cliente, llamarRpc } = lecturas();
+
+      await crearFuenteZonasRpc(cliente, async () => "99999999-9999-4999-8999-999999999999").obtenerZonas();
+
+      expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: CAMPANIA });
+    });
+
     it("sin campaña (ninguna que no haya terminado) devuelve null y no pide nada más", async () => {
       const { cliente, llamarRpc } = lecturas({ campanias_del_coordinador: [] });
 
@@ -735,18 +756,18 @@ describe("fuente de la vista 24 contra las RPC", () => {
 
   describe("buscarCiudades", () => {
     const catalogo = [
-      { ciudad_id: LAS_PIEDRAS_CATALOGO, nombre: "Las Piedras" },
-      { ciudad_id: MVD_CATALOGO, nombre: "Montevideo" },
+      { ciudad_id: LAS_PIEDRAS_CATALOGO, nombre: "Las Piedras", departamento: "Canelones" },
+      { ciudad_id: MVD_CATALOGO, nombre: "Montevideo", departamento: null },
     ];
 
-    it("busca en el catálogo de la campaña por el texto (sin provincia: la base no la tiene)", async () => {
+    it("busca en el catálogo de la campaña por el texto y trae el departamento (null en una ciudad vieja sin cargar)", async () => {
       const { cliente, llamarRpc } = clienteCon({ ciudades_del_catalogo: catalogo });
 
       const encontradas = await crearFuenteZonasRpc(cliente).buscarCiudades(CAMPANIA, "  pie ");
 
       expect(encontradas).toEqual([
-        { id: LAS_PIEDRAS_CATALOGO, nombre: "Las Piedras" },
-        { id: MVD_CATALOGO, nombre: "Montevideo" },
+        { id: LAS_PIEDRAS_CATALOGO, nombre: "Las Piedras", departamento: "Canelones" },
+        { id: MVD_CATALOGO, nombre: "Montevideo", departamento: null },
       ]);
       expect(llamarRpc).toHaveBeenCalledWith("ciudades_del_catalogo", { p_campania_id: CAMPANIA, p_texto: "pie" });
     });
@@ -773,6 +794,28 @@ describe("fuente de la vista 24 contra las RPC", () => {
       const { cliente } = clienteCon({ ciudades_del_catalogo: [{ ciudad_id: MVD_CATALOGO }] });
 
       await expect(crearFuenteZonasRpc(cliente).buscarCiudades(CAMPANIA, "")).rejects.toBeInstanceOf(RespuestaInesperada);
+    });
+
+    it("un departamento que no es un texto es una respuesta inesperada", async () => {
+      const { cliente } = clienteCon({ ciudades_del_catalogo: [{ ciudad_id: MVD_CATALOGO, nombre: "Montevideo", departamento: 3 }] });
+
+      await expect(crearFuenteZonasRpc(cliente).buscarCiudades(CAMPANIA, "")).rejects.toBeInstanceOf(RespuestaInesperada);
+    });
+
+    it("dos ciudades con el mismo nombre se distinguen por el departamento", async () => {
+      const { cliente } = clienteCon({
+        ciudades_del_catalogo: [
+          { ciudad_id: LAS_PIEDRAS_CATALOGO, nombre: "San José", departamento: "San José" },
+          { ciudad_id: MVD_CATALOGO, nombre: "San José", departamento: "Flores" },
+        ],
+      });
+
+      const encontradas = await crearFuenteZonasRpc(cliente).buscarCiudades(CAMPANIA, "san jose");
+
+      expect(encontradas.map((c) => [c.id, c.nombre, c.departamento])).toEqual([
+        [LAS_PIEDRAS_CATALOGO, "San José", "San José"],
+        [MVD_CATALOGO, "San José", "Flores"],
+      ]);
     });
   });
 

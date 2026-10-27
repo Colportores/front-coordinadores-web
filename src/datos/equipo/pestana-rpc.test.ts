@@ -17,8 +17,8 @@ const AHORA = () => new Date("2026-10-22T01:30:00Z");
 const campania = { id: CAMPANIA, nombre: "Primavera 2026", tipo: "PRIMAVERA", fecha_inicio: "2026-09-01", fecha_fin: "2026-12-19" };
 
 const ciudades = [
-  { campania_ciudad_id: "x1", ciudad_id: RIVERA, nombre: "Rivera", lat_centro: 0, lon_centro: 0, zoom_inicial: 12, cantidad_zonas: 3 },
-  { campania_ciudad_id: "x2", ciudad_id: ARTIGAS, nombre: "Artigas", lat_centro: 0, lon_centro: 0, zoom_inicial: 12, cantidad_zonas: 1 },
+  { campania_ciudad_id: "x1", ciudad_id: RIVERA, nombre: "Rivera", departamento: "Rivera", lat_centro: 0, lon_centro: 0, zoom_inicial: 12, cantidad_zonas: 3 },
+  { campania_ciudad_id: "x2", ciudad_id: ARTIGAS, nombre: "Artigas", departamento: "Artigas", lat_centro: 0, lon_centro: 0, zoom_inicial: 12, cantidad_zonas: 1 },
 ];
 
 /** Una fila de `zonas_por_colportor()` (migración 0062). */
@@ -94,8 +94,8 @@ describe("obtenerEquipoPorCiudad", () => {
       campaniaFin: "2026-12-19",
       hoy: "2026-10-21",
       ciudades: [
-        { id: ARTIGAS, nombre: "Artigas", departamento: null },
-        { id: RIVERA, nombre: "Rivera", departamento: null },
+        { id: ARTIGAS, nombre: "Artigas", departamento: "Artigas" },
+        { id: RIVERA, nombre: "Rivera", departamento: "Rivera" },
       ],
       colportores: [
         {
@@ -173,6 +173,26 @@ describe("obtenerEquipoPorCiudad", () => {
     const sinPerfil = clienteCon(completas({ mi_perfil: [], historial_de_acompaniamientos: [historial()] }));
     const otroDatos = await crearFuentePestanaRpc(sinPerfil.cliente, AHORA).obtenerEquipoPorCiudad();
     expect(otroDatos?.colportores[0].acompanamientos[0].acompananteEsVos).toBe(false);
+  });
+
+  it("el departamento de cada ciudad es el de la base; una ciudad vieja sin cargar queda en null (sin inventarlo)", async () => {
+    const sinCargar = { ...ciudades[0], departamento: null };
+    const sinColumna = { ...ciudades[1] } as Record<string, unknown>;
+    delete sinColumna.departamento;
+    const { cliente } = clienteCon(completas({ ciudades_de_campania: [sinCargar, sinColumna] }));
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.ciudades.map((c) => [c.nombre, c.departamento])).toEqual([
+      ["Artigas", null],
+      ["Rivera", null],
+    ]);
+  });
+
+  it("un departamento que no es un texto es una respuesta inesperada", async () => {
+    const { cliente } = clienteCon(completas({ ciudades_de_campania: [{ ...ciudades[0], departamento: 7 }] }));
+
+    await expect(crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad()).rejects.toBeInstanceOf(RespuestaInesperada);
   });
 
   it("una zona de una ciudad que la lista de la campaña no trae suma esa ciudad", async () => {
