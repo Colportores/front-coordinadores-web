@@ -19,6 +19,7 @@ import {
   motivoBloqueo,
   recortarConPuntos,
 } from "@/features/equipo/candidatos";
+import { EnlaceEntrarDeNuevo } from "@/features/equipo/EnlaceEntrarDeNuevo";
 import { tieneFocoVisible } from "@/features/equipo/foco-visible";
 import { useBusquedaCandidatos } from "@/features/equipo/useBusquedaCandidatos";
 import {
@@ -28,6 +29,7 @@ import {
   type Anadido,
   type CausaFallo,
 } from "@/features/equipo/useInscripcionesDiferidas";
+import { MENSAJE_SESION_VENCIDA } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
 import { esperarYSalir, estaEsperando } from "@/shell/trabajo-pendiente";
 
@@ -300,7 +302,7 @@ export function AnadirColportor({
   const [elegidoId, setElegidoId] = useState<string | null>(null);
   const [indiceActivo, setIndiceActivo] = useState(-1);
   /** Inscripciones que no prosperaron, una por cuenta: no se pisan entre sí ni se borran al escribir. */
-  const [fallos, setFallos] = useState<{ id: string; mensaje: string }[]>([]);
+  const [fallos, setFallos] = useState<{ id: string; mensaje: string; sesionVencida?: true }[]>([]);
 
   /**
    * Cuentas que la base rechazó por estar en otra campaña (`CI007`) y la campaña que dijo: la fila pasa a mostrarse
@@ -327,6 +329,7 @@ export function AnadirColportor({
     cargandoMas,
     falla,
     fallaMas,
+    sesionVencida,
     cargarMas,
     reintentar,
     reintentarMas,
@@ -355,6 +358,12 @@ export function AnadirColportor({
 
   // Una cuenta tiene a lo sumo un envío, y volver a añadirla borra su aviso: no hay dos avisos de la misma.
   const registrarFallo = useCallback((cuenta: Anadido, causa: CausaFallo) => {
+    if (causa.tipo === "sesion-vencida") {
+      // Siempre nombra a la cuenta: puede haber varias en la misma situación y ninguna se pierde sin que se sepa.
+      const mensaje = mensajeAnadirRechazado(cuenta.nombre, MENSAJE_SESION_VENCIDA);
+      setFallos((previos) => [...previos, { id: cuenta.id, mensaje, sesionVencida: true }]);
+      return;
+    }
     const mensaje =
       causa.tipo === "sin-conexion"
         ? mensajeAnadirSinConexion(cuenta.nombre)
@@ -606,9 +615,13 @@ export function AnadirColportor({
             ) : falla !== null ? (
               <div role="alert" className="flex flex-col items-start gap-2 px-3.5 py-4 text-cuerpo font-medium text-peligro">
                 <p>{falla}</p>
-                <Button type="button" variant="outline" onClick={reintentar} className="text-nav font-semibold">
-                  Reintentar
-                </Button>
+                {sesionVencida ? (
+                  <EnlaceEntrarDeNuevo />
+                ) : (
+                  <Button type="button" variant="outline" onClick={reintentar} className="text-nav font-semibold">
+                    Reintentar
+                  </Button>
+                )}
               </div>
             ) : resultados.length === 0 ? (
               <p className="px-3.5 py-4 text-cuerpo text-tinta-suave">
@@ -643,9 +656,13 @@ export function AnadirColportor({
                 {fallaMas !== null ? (
                   <div role="alert" className="flex flex-col items-start gap-2 px-3.5 py-3 text-cuerpo font-medium text-peligro">
                     <p>{fallaMas}</p>
-                    <Button type="button" variant="outline" onClick={reintentarMas} className="text-nav font-semibold">
-                      Reintentar
-                    </Button>
+                    {sesionVencida ? (
+                      <EnlaceEntrarDeNuevo />
+                    ) : (
+                      <Button type="button" variant="outline" onClick={reintentarMas} className="text-nav font-semibold">
+                        Reintentar
+                      </Button>
+                    )}
                   </div>
                 ) : null}
               </>
@@ -655,13 +672,14 @@ export function AnadirColportor({
 
         <div className="flex flex-col gap-4">
           {fallos.map((f) => (
-            <p
+            <div
               key={f.id}
               role="alert"
-              className="rounded-tarjeta bg-peligro-fondo px-4 py-3 text-nav font-medium text-peligro"
+              className="flex flex-col items-start gap-2 rounded-tarjeta bg-peligro-fondo px-4 py-3 text-nav font-medium text-peligro"
             >
-              {f.mensaje}
-            </p>
+              <p>{f.mensaje}</p>
+              {f.sesionVencida ? <EnlaceEntrarDeNuevo /> : null}
+            </div>
           ))}
           {elegido ? (
             <DetalleCuenta

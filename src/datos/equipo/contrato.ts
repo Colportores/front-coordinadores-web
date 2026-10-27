@@ -157,7 +157,7 @@ export type ResultadoBusqueda =
    * `reiniciar`: el cursor de la página ya no sirve (la cuenta de la que seguía no existe más); hay que buscar
    * de nuevo desde el principio, reintentar la misma página no arregla nada.
    */
-  | { ok: false; mensaje: string; reiniciar?: boolean };
+  | { ok: false; mensaje: string; reiniciar?: boolean; sesionVencida?: true };
 
 /**
  * Respuesta a inscribir (`inscribir_colportor()`). `mensaje` es el texto para mostrar. Si la cuenta ya está en otra
@@ -165,7 +165,7 @@ export type ResultadoBusqueda =
  */
 export type ResultadoInscripcion =
   | { ok: true }
-  | { ok: false; mensaje: string; campaniaEnConflicto?: { id: string; nombre: string } };
+  | { ok: false; mensaje: string; campaniaEnConflicto?: { id: string; nombre: string }; sesionVencida?: true };
 
 export interface FuenteDatosEquipo {
   /** `null`: el coordinador no tiene una campaña que no haya terminado. */

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ResultadoInscripcion } from "@/datos/equipo/contrato";
+import { esSesionVencida } from "@/auth/sesion-vencida";
 import { mensajeSinConexion } from "@/lib/mensajes";
 import { fueAbandonado, registrarEnvio, registrarFuente, trabajoCambio } from "@/shell/trabajo-pendiente";
 
@@ -35,7 +36,10 @@ export interface Anadido {
   nombre: string;
 }
 
-/** Por qué no prosperó el envío: la base lo rechazó (con su texto) o la llamada se cayó. */
+/**
+ * Por qué no prosperó el envío: la base lo rechazó (con su texto), la llamada se cayó o la sesión venció (#41, P3: no es una
+ * caída, la persona tiene que volver a entrar).
+ */
 export type CausaFallo =
   | {
       tipo: "rechazo";
@@ -43,7 +47,8 @@ export type CausaFallo =
       /** `CI007`: la campaña donde ya está la cuenta (la vista la marca como bloqueada). */
       campaniaEnConflicto?: { id: string; nombre: string };
     }
-  | { tipo: "sin-conexion" };
+  | { tipo: "sin-conexion" }
+  | { tipo: "sesion-vencida" };
 
 interface Opciones {
   inscribir: (usuarioId: string) => Promise<ResultadoInscripcion>;
@@ -100,13 +105,16 @@ export function useInscripcionesDiferidas({ inscribir, alFallar, alVencerPlazo }
       let causa: CausaFallo | null = null;
       try {
         const resultado = await ultimo.current.inscribir(cuenta.id);
-        if (!resultado.ok) {
+        if (!resultado.ok && resultado.sesionVencida) {
+          causa = { tipo: "sesion-vencida" };
+        } else if (!resultado.ok) {
           causa = { tipo: "rechazo", mensaje: resultado.mensaje };
           if (resultado.campaniaEnConflicto) causa.campaniaEnConflicto = resultado.campaniaEnConflicto;
         }
-      } catch {
-        // Si la llamada se cae, nada queda «enviándose»: se puede volver a intentar.
-        causa = { tipo: "sin-conexion" };
+      } catch (error) {
+        // Si la llamada se cae, nada queda «enviándose»: se puede volver a intentar. Si el proxy dijo que no hay sesión, no es
+        // una caída: «Reintentar» no sirve, hay que entrar de nuevo.
+        causa = esSesionVencida(error) ? { tipo: "sesion-vencida" } : { tipo: "sin-conexion" };
       }
       envios.current.delete(cuenta.id);
       setEnviando(envios.current.size);

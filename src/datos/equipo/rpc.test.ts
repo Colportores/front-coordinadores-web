@@ -288,11 +288,25 @@ describe("fuente de la vista 23 contra las RPC", () => {
       ["red caída", new TypeError("fetch failed")],
       ["servicio caído (5xx)", new ErrorSupabase("Bad Gateway", 502)],
       ["límite de tráfico (429)", new ErrorSupabase("Too Many Requests", 429)],
-      ["sesión vencida", new ErrorSupabase("JWT expired", 401, "PGRST301")],
+      ["un 401 que no es del token (gateway)", new ErrorSupabase("Invalid API key", 401)],
     ])("%s no es un rechazo: sigue como excepción para que la vista diga «sin conexión»", async (_caso, error) => {
       const { cliente } = clienteCon({ buscar_candidatos: error });
 
       await expect(crearFuenteAnadirRpc(cliente).buscarCandidatos(CAMPANIA, "ana", null)).rejects.toBe(error);
+    });
+
+    it.each([
+      ["JWT vencido", new ErrorSupabase("JWT expired", 401, "PGRST301")],
+      ["sin credenciales", new ErrorSupabase("No credentials", 401, "PGRST302")],
+      ["sin permiso por estar sin sesión", new ErrorSupabase("permission denied", 401, "42501")],
+    ])("%s vuelve como resultado con la marca de sesión vencida, para que la vista lleve a entrar de nuevo (#41, P3)", async (_caso, error) => {
+      const { cliente } = clienteCon({ buscar_candidatos: error });
+
+      expect(await crearFuenteAnadirRpc(cliente).buscarCandidatos(CAMPANIA, "ana", null)).toEqual({
+        ok: false,
+        mensaje: "Tu sesión venció. Volvé a entrar para seguir.",
+        sesionVencida: true,
+      });
     });
 
     it("una fila con la fecha rota o sin el nombre es una respuesta inesperada, no una cuenta a medias", async () => {
@@ -415,11 +429,21 @@ describe("fuente de la vista 23 contra las RPC", () => {
       ["red caída", new TypeError("fetch failed")],
       ["servicio caído (5xx)", new ErrorSupabase("Bad Gateway", 503)],
       ["tiempo agotado (408)", new ErrorSupabase("Request Timeout", 408)],
-      ["sesión vencida", new ErrorSupabase("JWT expired", 401, "PGRST301")],
+      ["un 401 que no es del token (gateway)", new ErrorSupabase("Invalid API key", 401)],
     ])("%s no es un rechazo: sigue como excepción (la vista dice «sin conexión»)", async (_caso, error) => {
       const { cliente } = clienteCon({ inscribir_colportor: error });
 
       await expect(crearFuenteAnadirRpc(cliente).inscribirColportor(CAMPANIA, ANA)).rejects.toBe(error);
+    });
+
+    it("una sesión vencida vuelve como resultado con la marca, no como excepción (#41, P3)", async () => {
+      const { cliente } = clienteCon({ inscribir_colportor: new ErrorSupabase("JWT expired", 401, "PGRST301") });
+
+      expect(await crearFuenteAnadirRpc(cliente).inscribirColportor(CAMPANIA, ANA)).toEqual({
+        ok: false,
+        mensaje: "Tu sesión venció. Volvé a entrar para seguir.",
+        sesionVencida: true,
+      });
     });
   });
 
