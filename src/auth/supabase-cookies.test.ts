@@ -40,7 +40,7 @@ describe("la sesión en cookies (decisión «Sesión panel»)", () => {
     const resultado = await verificarAcceso(crearSupabaseConCookies(CONFIG_PRUEBA, navegador));
 
     expect(resultado).toEqual({ tipo: "ok", usuarioId: "u-1" });
-    expect(llamadas.map((l) => l.ruta)).toEqual(["/rest/v1/rpc/tiene_rol"]);
+    expect(llamadas.map((l) => l.ruta)).toEqual(["/rest/v1/rpc/tiene_rol", "/rest/v1/rpc/estado_cuenta"]);
     expect(llamadas[0].token).toBe("token-1");
   });
 

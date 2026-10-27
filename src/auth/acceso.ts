@@ -15,6 +15,8 @@ import { borrarSesionGuardada } from "@/datos/supabase/sdk";
  *   las bajas, así que un rol revocado se cae en la siguiente comprobación sin esperar a que el token venza.
  *   La autoridad de cada dato sigue siendo la RLS de cada RPC: esto solo decide si se muestra el panel.
  *   Un usuario con varios roles entra si uno es `COORDINADOR`. `ADMIN` solo no entra.
+ * - **La suspensión la mira `estado_cuenta()`**, no `tiene_rol` (que no la conoce): una cuenta `SUSPENDIDA` no entra aunque tenga el rol.
+ *   Que `tiene_rol` y la RLS también la descarten es una decisión de base de datos que espera a Cristian.
  * - **Una falla de conexión o de configuración no es una sesión vencida** (mismo criterio que tenía el BFF,
  *   `src/datos/supabase/errores.ts`): ante la duda el resultado es `no-disponible`, que no cierra la sesión
  *   ni manda a iniciar sesión de nuevo, y nunca deja entrar a nadie.
@@ -48,6 +50,8 @@ export type ResultadoInicioSesion =
   | { tipo: "demasiados-intentos" }
   /** Las credenciales sirven, pero la cuenta no tiene el rol `COORDINADOR` vigente (o está dada de baja). No queda sesión. */
   | { tipo: "sin-acceso" }
+  /** Es coordinador, pero la cuenta está suspendida (`estado_cuenta() = 'SUSPENDIDA'`, HU-ADM-003). No queda sesión. */
+  | { tipo: "suspendida" }
   /** No se pudo llegar a Supabase, o contestó con una falla. No dice nada de las credenciales. */
   | { tipo: "no-disponible" };
 
@@ -59,6 +63,8 @@ export type ResultadoAcceso =
   | { tipo: "sesion-vencida" }
   /** La sesión es válida, pero la cuenta no tiene el rol `COORDINADOR` vigente. La sesión sigue abierta. */
   | { tipo: "sin-acceso" }
+  /** Es coordinador, pero la cuenta está suspendida (`estado_cuenta()`). La sesión sigue abierta. */
+  | { tipo: "suspendida" }
   /** No se pudo comprobar (sin red, Supabase caído, configuración): no se entra, pero tampoco se cierra la sesión. */
   | { tipo: "no-disponible" };
 
@@ -93,6 +99,24 @@ async function comprobarRol(supabase: SupabaseClient): Promise<ComprobacionDeRol
     if (data === false) return "otro-rol";
     // Una respuesta que no es un booleano no dice nada del rol: no se entra, pero tampoco se acusa a la sesión.
     return "no-disponible";
+  } catch {
+    return "no-disponible";
+  }
+}
+
+type ComprobacionDeCuenta = "activa" | "suspendida" | "sesion-vencida" | "no-disponible";
+
+/**
+ * `tiene_rol` no mira la suspensión (`usuario.suspendido_en`), así que un coordinador suspendido pasa la comprobación del rol.
+ * `estado_cuenta()` sí la mira (decisión del agente de decisiones, 27/10, regla R7 de HU-ADM-003): `SUSPENDIDA` bloquea; cualquier
+ * otra cosa deja entrar, y si la llamada falla o contesta algo raro no se entra (`no-disponible`): ante la duda se bloquea.
+ */
+async function comprobarCuenta(supabase: SupabaseClient): Promise<ComprobacionDeCuenta> {
+  try {
+    const { data, error, status } = await supabase.rpc("estado_cuenta");
+    if (error) return causaDeFalla({ estado: status, codigo: error.code }) === "sesion-vencida" ? "sesion-vencida" : "no-disponible";
+    if (typeof data !== "string" || data === "") return "no-disponible";
+    return data === "SUSPENDIDA" ? "suspendida" : "activa";
   } catch {
     return "no-disponible";
   }
@@ -164,7 +188,17 @@ async function iniciarSinTope(
 
   switch (await comprobarRol(supabase)) {
     case "coordinador":
-      return { tipo: "ok", usuarioId };
+      switch (await comprobarCuenta(supabase)) {
+        case "activa":
+          return { tipo: "ok", usuarioId };
+        case "suspendida":
+          // Igual que sin rol: quien no puede usar el panel no se queda con una sesión abierta en él.
+          if (!esElIntentoVigente()) return { tipo: "no-disponible" };
+          await cerrarLocalmente(supabase);
+          return { tipo: "suspendida" };
+        default:
+          return { tipo: "no-disponible" };
+      }
     case "otro-rol":
       // Un intento viejo no cierra la sesión del nuevo: el nuevo comprueba su propio rol.
       if (!esElIntentoVigente()) return { tipo: "no-disponible" };
@@ -190,7 +224,16 @@ async function verificarSinTope(supabase: SupabaseClient): Promise<ResultadoAcce
 
   switch (await comprobarRol(supabase)) {
     case "coordinador":
-      return { tipo: "ok", usuarioId: sesion.user.id };
+      switch (await comprobarCuenta(supabase)) {
+        case "activa":
+          return { tipo: "ok", usuarioId: sesion.user.id };
+        case "suspendida":
+          return { tipo: "suspendida" };
+        case "sesion-vencida":
+          return { tipo: "sesion-vencida" };
+        default:
+          return { tipo: "no-disponible" };
+      }
     case "otro-rol":
       return { tipo: "sin-acceso" };
     case "sesion-vencida":

@@ -108,7 +108,7 @@ describe("proxy: la guarda de rutas (issue #18, vista 38)", () => {
       const respuesta = await proxy(pedido("/equipo", { cookies: navegador }));
 
       expect(respuesta.headers.get("x-middleware-next")).toBe("1");
-      expect(llamadas.map((l) => l.ruta)).toEqual(["/rest/v1/rpc/tiene_rol"]);
+      expect(llamadas.map((l) => l.ruta)).toEqual(["/rest/v1/rpc/tiene_rol", "/rest/v1/rpc/estado_cuenta"]);
       expect(llamadas[0].token).toBe("token-1");
     });
 
@@ -120,6 +120,26 @@ describe("proxy: la guarda de rutas (issue #18, vista 38)", () => {
       const respuesta = await proxy(pedido("/equipo", { cookies: navegador }));
 
       expect(destino(respuesta)).toBe("http://localhost:3000/acceso?motivo=sin-acceso");
+    });
+
+    it("un coordinador suspendido va a «Cuenta suspendida», sin destino, y a una server action se le responde 401", async () => {
+      prenderLogin();
+      const navegador = await conSesion();
+      prenderSupabaseFalso({ estadoCuenta: () => json("SUSPENDIDA") });
+
+      const respuesta = await proxy(pedido("/equipo", { cookies: navegador }));
+      expect(destino(respuesta)).toBe("http://localhost:3000/acceso?motivo=suspendida");
+
+      const accion = await proxy(pedido("/equipo", { cookies: navegador, metodo: "POST", cabeceras: { "next-action": "abc" } }));
+      expect(accion.status).toBe(401);
+    });
+
+    it("si no se puede saber si está suspendida, no se entra: va a «No disponible»", async () => {
+      prenderLogin();
+      const navegador = await conSesion();
+      prenderSupabaseFalso({ estadoCuenta: () => errorDePostgrest(500, "XX000", "caído") });
+
+      expect(destino(await proxy(pedido("/equipo", { cookies: navegador })))).toBe("http://localhost:3000/acceso?motivo=no-disponible&siguiente=%2Fequipo");
     });
 
     it("una sesión que la base rechaza va a «Sesión vencida», con el destino", async () => {
@@ -165,7 +185,7 @@ describe("proxy: la guarda de rutas (issue #18, vista 38)", () => {
       const respuesta = await proxy(pedido("/equipo", { cookies: navegador }));
 
       expect(respuesta.headers.get("x-middleware-next")).toBe("1");
-      expect(llamadas.map((l) => l.ruta)).toEqual(["/auth/v1/token", "/rest/v1/rpc/tiene_rol"]);
+      expect(llamadas.map((l) => l.ruta)).toEqual(["/auth/v1/token", "/rest/v1/rpc/tiene_rol", "/rest/v1/rpc/estado_cuenta"]);
       expect(llamadas[1].token).toBe("token-renovado");
       const cookies = respuesta.headers.getSetCookie();
       expect(cookies.length).toBeGreaterThan(0);
@@ -230,7 +250,7 @@ describe("proxy: la guarda de rutas (issue #18, vista 38)", () => {
       const navegador = await conSesion();
       const { llamadas } = prenderSupabaseFalso();
 
-      for (const motivo of ["cerrada", "sin-acceso", "no-disponible", "vencida"]) {
+      for (const motivo of ["cerrada", "sin-acceso", "suspendida", "no-disponible", "vencida"]) {
         const respuesta = await proxy(pedido(`/acceso?motivo=${motivo}`, { cookies: navegador }));
         expect(respuesta.headers.get("x-middleware-next"), motivo).toBe("1");
       }

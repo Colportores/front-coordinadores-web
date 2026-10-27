@@ -56,6 +56,12 @@ describe("/acceso (vista 38)", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(textoSinAcceso("otra@correo.com"));
   });
 
+  it("motivo=suspendida muestra «Cuenta suspendida» sin pedir la cuenta", async () => {
+    prenderLogin();
+    render(await AccesoPagina(consulta({ motivo: "suspendida" })));
+    expect(screen.getByRole("alert")).toHaveTextContent("Cuenta suspendida. Contactá al administrador.");
+  });
+
   it("un motivo inventado o repetido se ignora", async () => {
     prenderLogin();
     render(await AccesoPagina(consulta({ motivo: ["x", "cerrada"] })));

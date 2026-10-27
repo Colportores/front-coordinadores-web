@@ -43,6 +43,7 @@ export interface ServidorSupabase {
   renovar: Contestacion;
   revocar: Contestacion;
   tieneRol: Contestacion;
+  estadoCuenta: Contestacion;
   usuario: Contestacion;
 }
 
@@ -53,6 +54,7 @@ export function prenderSupabaseFalso(cambios: Partial<ServidorSupabase> = {}) {
     renovar: () => respuestaDeSesion({ token: "token-renovado" }),
     revocar: () => new Response(null, { status: 204 }),
     tieneRol: () => json(true),
+    estadoCuenta: () => json("ACTIVA"),
     usuario: () => json({ id: "u-1", email: "coordinador@example.com", aud: "authenticated", role: "authenticated" }),
     ...cambios,
   };
@@ -78,6 +80,8 @@ export function prenderSupabaseFalso(cambios: Partial<ServidorSupabase> = {}) {
         return servidor.usuario(llamada);
       case "/rest/v1/rpc/tiene_rol":
         return servidor.tieneRol(llamada);
+      case "/rest/v1/rpc/estado_cuenta":
+        return servidor.estadoCuenta(llamada);
       default:
         throw new Error(`Ruta no prevista en el test: ${url.pathname}`);
     }

@@ -12,9 +12,9 @@ export const RUTA_ACCESO = "/acceso";
  * Por qué se llegó a la pantalla de acceso. Cada uno es un artboard de la vista 38: `vencida` (05), `sin-acceso` (04),
  * `no-disponible` (06) y `cerrada` (07). Sin motivo: la pantalla de siempre (01).
  */
-export type MotivoDeAcceso = "vencida" | "sin-acceso" | "no-disponible" | "cerrada";
+export type MotivoDeAcceso = "vencida" | "sin-acceso" | "suspendida" | "no-disponible" | "cerrada";
 
-const MOTIVOS: readonly MotivoDeAcceso[] = ["vencida", "sin-acceso", "no-disponible", "cerrada"];
+const MOTIVOS: readonly MotivoDeAcceso[] = ["vencida", "sin-acceso", "suspendida", "no-disponible", "cerrada"];
 
 export function motivoDeAccesoValido(valor: unknown): MotivoDeAcceso | null {
   return MOTIVOS.find((m) => m === valor) ?? null;
@@ -72,6 +72,7 @@ export type DecisionDeGuarda =
  * - `sin-sesion`: a la pantalla de acceso (la 01).
  * - `sesion-vencida`: a la pantalla de acceso, con el aviso de sesión vencida (la 05).
  * - `sin-acceso`: a la pantalla «Sin acceso al panel» (la 04): entró alguien que no es coordinador vigente.
+ * - `suspendida`: la misma pantalla «Sin acceso al panel» (la 04) con el texto «Cuenta suspendida. Contactá al administrador.».
  * - `no-disponible`: a la pantalla «El panel no está disponible» (la 06), que no es una sesión vencida ni cierra nada.
  */
 export function decidirGuarda(resultado: ResultadoAcceso): DecisionDeGuarda {
@@ -84,6 +85,8 @@ export function decidirGuarda(resultado: ResultadoAcceso): DecisionDeGuarda {
       return { tipo: "a-acceso", motivo: "vencida" };
     case "sin-acceso":
       return { tipo: "a-acceso", motivo: "sin-acceso" };
+    case "suspendida":
+      return { tipo: "a-acceso", motivo: "suspendida" };
     case "no-disponible":
       return { tipo: "a-acceso", motivo: "no-disponible" };
   }

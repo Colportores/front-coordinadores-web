@@ -6,6 +6,7 @@ import type { ResultadoCierre } from "@/auth/acceso";
 import type { RespuestaDeInicio } from "@/auth/acciones";
 import { rutaDeAcceso, type MotivoDeAcceso } from "@/auth/guarda";
 import { TEXTOS_DE_ACCESO as T, textoSinAcceso } from "@/features/acceso/textos";
+import { guardarUltimoCorreo, leerUltimoCorreo, olvidarUltimoCorreo } from "@/features/acceso/ultimo-correo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -16,7 +17,7 @@ import { cn } from "@/lib/utils";
  * | 01 vacío | sin correo o sin contraseña: «Entrar» apagado |
  * | 02 entrando | enviado: campos y botón apagados hasta la respuesta |
  * | 03 credenciales | `credenciales-invalidas`: no dice cuál de los dos falló |
- * | 04 sin acceso | `sin-acceso` al entrar, o `motivo=sin-acceso` de la guarda de rutas |
+ * | 04 sin acceso | `sin-acceso` o `suspendida` al entrar, o `motivo=sin-acceso`/`suspendida` de la guarda de rutas |
  * | 05 sesión vencida | `motivo=vencida` |
  * | 06 no disponible | `no-disponible` al entrar, o `motivo=no-disponible` de la guarda |
  * | 07 sesión cerrada | `motivo=cerrada` |
@@ -27,8 +28,7 @@ import { cn } from "@/lib/utils";
  * de la pantalla y la sesión vive en el servidor); correos y contraseñas largos no rompen el diseño.
  *
  * Qué NO tiene, a propósito: «¿Olvidaste tu contraseña?» (el canvas lo dibuja sin destino y pregunta adónde lleva: hasta que se
- * decida no hay un enlace sin destino) y una pantalla propia de «Cuenta suspendida» (`tiene_rol` no mira `suspendido_en`; un
- * suspendido hoy ve lo mismo que cualquiera). Ver el archivo de pendientes del PR.
+ * decida no hay un enlace sin destino). Ver el archivo de pendientes del PR.
  */
 
 export interface PropiedadesDeAcceso {
@@ -133,20 +133,31 @@ function Cartel({ aviso }: { aviso: DatosDelAviso }) {
   );
 }
 
+/** El correo guardado en la pestaña no cambia mientras se ve la pantalla: no hay nada a qué suscribirse. */
+const sinSuscripcion = () => () => {};
+
 const CLASE_DE_ETIQUETA = "font-mono text-etiqueta tracking-[.14em] text-tinta-suave";
 
 export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, iniciar, cerrar, irA = (ruta) => window.location.assign(ruta) }: PropiedadesDeAcceso) {
-  const [correo, setCorreo] = useState("");
+  // 05 y 07 dejan el correo escrito (el canvas solo vacía la contraseña) si esta pestaña sabe con cuál se entró; nunca sale de la URL.
+  const precargaElCorreo = motivo === "vencida" || motivo === "cerrada";
+  const correoGuardado = useSyncExternalStore(sinSuscripcion, leerUltimoCorreo, () => "");
+  const [correoEscrito, setCorreo] = useState<string | null>(null);
+  const correo = correoEscrito ?? (precargaElCorreo ? correoGuardado : "");
   const [contrasena, setContrasena] = useState("");
   const [aviso, setAviso] = useState<Aviso | null>(avisoInicial(motivo));
   const [enviando, setEnviando] = useState(false);
   // El artboard 04: la cuenta entró (o ya tenía sesión) pero no es de coordinador.
-  const [sinAcceso, setSinAcceso] = useState<{ correo: string | null } | null>(motivo === "sin-acceso" ? { correo: correoSinAcceso } : null);
+  // `suspendida` es la misma pantalla con otro texto: «Cuenta suspendida. Contactá al administrador.».
+  const [sinAcceso, setSinAcceso] = useState<{ correo: string | null; suspendida: boolean } | null>(
+    motivo === "sin-acceso" ? { correo: correoSinAcceso, suspendida: false } : motivo === "suspendida" ? { correo: null, suspendida: true } : null,
+  );
   const enLinea = useEnLinea();
 
   // Un envío a la vez: el estado de React no alcanza (dos eventos en el mismo tick leen el mismo `enviando`).
   const enCurso = useRef(false);
   const campoCorreo = useRef<HTMLInputElement>(null);
+  const campoClave = useRef<HTMLInputElement>(null);
   const titulo = useRef<HTMLHeadingElement>(null);
   // Adónde va el foco después del próximo render: se pide junto con el cambio de estado y lo consume el efecto de abajo.
   const focoPendiente = useRef<"correo" | "titulo" | null>(null);
@@ -156,6 +167,12 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
     if (focoPendiente.current === "titulo") titulo.current?.focus();
     focoPendiente.current = null;
   });
+
+  // Con el correo ya escrito (05 y 07), lo que falta es la contraseña.
+  const conCorreoPrecargado = precargaElCorreo && correoGuardado !== "";
+  useEffect(() => {
+    if (conCorreoPrecargado) campoClave.current?.focus();
+  }, [conCorreoPrecargado]);
 
   const completo = correo.trim() !== "" && contrasena !== "";
   // «Reintentar» tras un servicio caído que vino de la guarda de rutas (sin nada escrito) vuelve a pedir la pantalla de antes.
@@ -178,6 +195,7 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
       switch (respuesta.tipo) {
         case "ok":
           entro = true;
+          guardarUltimoCorreo(correo.trim());
           // Carga completa: la página siguiente se pide con la cookie nueva y el marco del panel.
           irA(respuesta.destino);
           return;
@@ -194,17 +212,25 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
           focoPendiente.current = "correo";
           return;
         case "sin-acceso":
-          setSinAcceso({ correo: correo.trim() });
+          setSinAcceso({ correo: correo.trim(), suspendida: false });
+          setContrasena("");
+          focoPendiente.current = "titulo";
+          return;
+        case "suspendida":
+          setSinAcceso({ correo: null, suspendida: true });
           setContrasena("");
           focoPendiente.current = "titulo";
           return;
         case "no-disponible":
           setAviso("no-disponible");
+          // El botón se apaga mientras se envía y, con Enter desde la contraseña, el foco se pierde en el <body> (QA #18).
+          focoPendiente.current = "correo";
           return;
       }
     } catch {
       // La acción no llegó al servidor o se cortó a mitad de camino: no se sabe nada de las credenciales.
       setAviso(navigator.onLine ? "no-disponible" : "sin-conexion");
+      focoPendiente.current = "correo";
     } finally {
       // Entrar deja la pantalla apagada hasta que cambia la página; cualquier otra cosa la habilita de nuevo.
       if (!entro) {
@@ -228,6 +254,7 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
     }
     setSinAcceso(null);
     setAviso(null);
+    olvidarUltimoCorreo();
     setCorreo("");
     setContrasena("");
     focoPendiente.current = "correo";
@@ -280,7 +307,7 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
             {sinAcceso ? T.tituloSinAcceso : T.tituloFormulario}
           </h1>
 
-          {sinAcceso ? <Cartel aviso={{ texto: textoSinAcceso(sinAcceso.correo), rol: "alert", tono: "error" }} /> : cartel ? <Cartel aviso={cartel} /> : null}
+          {sinAcceso ? <Cartel aviso={{ texto: sinAcceso.suspendida ? T.suspendida : textoSinAcceso(sinAcceso.correo), rol: "alert", tono: "error" }} /> : cartel ? <Cartel aviso={cartel} /> : null}
 
           <form onSubmit={alEnviar} noValidate className="flex flex-col gap-[22px]">
             {sinAcceso ? null : (
@@ -309,6 +336,7 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
                 <label className="flex flex-col gap-[7px]">
                   <span className={CLASE_DE_ETIQUETA}>{T.contrasena}</span>
                   <input
+                    ref={campoClave}
                     type="password"
                     name="contrasena"
                     autoComplete="current-password"

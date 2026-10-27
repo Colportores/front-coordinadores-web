@@ -94,6 +94,13 @@ describe("iniciarSesionAccion", () => {
     expect(await iniciarSesionAccion("coordinador@example.com", "Clave-de-prueba1")).toEqual({ tipo: "no-disponible" });
   });
 
+  it("un coordinador suspendido no entra ni queda con sesión", async () => {
+    prenderLogin();
+    prenderSupabaseFalso({ estadoCuenta: () => json("SUSPENDIDA") });
+    expect(await iniciarSesionAccion("coordinador@example.com", "Clave-de-prueba1")).toEqual({ tipo: "suspendida" });
+    expect(almacen.datos.size).toBe(0);
+  });
+
   it("sin login configurado no intenta nada", async () => {
     const { llamadas } = prenderSupabaseFalso();
     expect(await iniciarSesionAccion("coordinador@example.com", "Clave-de-prueba1")).toEqual({ tipo: "no-disponible" });

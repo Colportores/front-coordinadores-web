@@ -64,8 +64,8 @@ describe("rutaDeAcceso", () => {
 });
 
 describe("motivoDeAccesoValido", () => {
-  it("solo conoce los cuatro motivos del canvas", () => {
-    for (const m of ["vencida", "sin-acceso", "no-disponible", "cerrada"]) expect(motivoDeAccesoValido(m)).toBe(m);
+  it("solo conoce los cinco motivos del canvas", () => {
+    for (const m of ["vencida", "sin-acceso", "suspendida", "no-disponible", "cerrada"]) expect(motivoDeAccesoValido(m)).toBe(m);
     for (const m of ["otro", "", undefined, null, 3, ["cerrada"]]) expect(motivoDeAccesoValido(m)).toBeNull();
   });
 });
@@ -76,6 +76,7 @@ describe("decidirGuarda", () => {
     expect(decidirGuarda({ tipo: "sin-sesion" })).toEqual({ tipo: "a-acceso", motivo: null });
     expect(decidirGuarda({ tipo: "sesion-vencida" })).toEqual({ tipo: "a-acceso", motivo: "vencida" });
     expect(decidirGuarda({ tipo: "sin-acceso" })).toEqual({ tipo: "a-acceso", motivo: "sin-acceso" });
+    expect(decidirGuarda({ tipo: "suspendida" })).toEqual({ tipo: "a-acceso", motivo: "suspendida" });
     expect(decidirGuarda({ tipo: "no-disponible" })).toEqual({ tipo: "a-acceso", motivo: "no-disponible" });
   });
 });

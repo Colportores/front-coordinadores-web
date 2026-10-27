@@ -29,6 +29,8 @@ export const TEXTOS_DE_ACCESO = {
   sesionCerrada: "Cerraste sesión.",
   /** 08 · sin conexión */
   sinConexion: "Sin conexión. Revisá tu internet para iniciar sesión.",
+  /** 04 · sin acceso, variante de la cuenta suspendida (texto literal decidido el 27/10, regla R7 de HU-ADM-003). */
+  suspendida: "Cuenta suspendida. Contactá al administrador.",
   /** Sin artboard (mapa §2). */
   correoSinVerificar: "Todavía no verificaste tu correo. Abrí el enlace que te mandamos y volvé a intentar.",
   demasiadosIntentos: "Hiciste demasiados intentos seguidos. Esperá unos minutos y volvé a intentar.",

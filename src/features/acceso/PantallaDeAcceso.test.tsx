@@ -58,6 +58,7 @@ function sinRed(valor: boolean) {
 
 beforeEach(() => {
   vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+  window.sessionStorage.clear();
 });
 
 afterEach(() => {
@@ -257,6 +258,101 @@ describe("vista 38 · los ocho artboards", () => {
       expect(boton()).not.toHaveAttribute("aria-disabled");
       unmount();
     }
+  });
+});
+
+describe("vista 38 · cuenta suspendida (R7 de HU-ADM-003, decisión del 27/10)", () => {
+  it("04 · al entrar con una cuenta suspendida: mismo layout que «Sin acceso», con el texto literal y sin formulario", async () => {
+    montar({ iniciar: vi.fn(async () => ({ tipo: "suspendida" as const })) });
+    const usuario = userEvent.setup();
+    await escribir(usuario);
+
+    await usuario.click(boton());
+
+    expect(await screen.findByRole("heading", { level: 1, name: T.tituloSinAcceso })).toHaveFocus();
+    expect(screen.getByRole("alert")).toHaveTextContent("Cuenta suspendida. Contactá al administrador.");
+    expect(screen.queryByLabelText(T.correo)).toBeNull();
+    expect(screen.queryByLabelText(T.contrasena)).toBeNull();
+    expect(boton()).toHaveTextContent(T.entrarConOtraCuenta);
+  });
+
+  it("04 · por la guarda de rutas (motivo=suspendida) muestra el mismo texto y permite entrar con otra cuenta", async () => {
+    const { cerrar } = montar({ motivo: "suspendida" });
+    expect(screen.getByRole("alert")).toHaveTextContent("Cuenta suspendida. Contactá al administrador.");
+
+    await userEvent.click(boton());
+
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1, name: T.tituloFormulario })).toBeVisible());
+    expect(cerrar).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/suspendida/i)).toBeNull();
+  });
+});
+
+describe("vista 38 · el correo en 05 y 07 (decisión del 27/10, regla R3: el canvas solo vacía la contraseña)", () => {
+  it("al entrar guarda el correo en la pestaña (no en la URL)", async () => {
+    montar();
+    const usuario = userEvent.setup();
+    await escribir(usuario, `  ${CORREO}  `);
+    await usuario.click(boton());
+    await waitFor(() => expect(window.sessionStorage.getItem("panel-ultimo-correo")).toBe(CORREO));
+  });
+
+  it.each([
+    ["05 · sesión vencida", "vencida" as const],
+    ["07 · sesión cerrada", "cerrada" as const],
+  ])("%s: deja el correo con el que se entró, vacía la contraseña y el foco va a la contraseña", (_nombre, motivo) => {
+    window.sessionStorage.setItem("panel-ultimo-correo", CORREO);
+    montar({ motivo });
+    expect(campoCorreo()).toHaveValue(CORREO);
+    expect(campoClave()).toHaveValue("");
+    expect(campoClave()).toHaveFocus();
+    // Con el correo escrito, el botón espera solo la contraseña.
+    expect(boton()).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("si la pestaña no sabe con qué cuenta se entró, el correo sale vacío (nunca viene de la URL)", () => {
+    montar({ motivo: "vencida", siguiente: "/equipo?correo=otra@correo.com" });
+    expect(campoCorreo()).toHaveValue("");
+  });
+
+  it("solo 05 y 07 lo precargan: la pantalla de siempre y los errores salen vacíos", () => {
+    window.sessionStorage.setItem("panel-ultimo-correo", CORREO);
+    montar({ motivo: "no-disponible" });
+    expect(campoCorreo()).toHaveValue("");
+  });
+
+  it("se puede cambiar el correo precargado y entrar con otro", async () => {
+    window.sessionStorage.setItem("panel-ultimo-correo", CORREO);
+    const { iniciar } = montar({ motivo: "cerrada" });
+    const usuario = userEvent.setup();
+    await usuario.clear(campoCorreo());
+    await usuario.type(campoCorreo(), "otra@correo.com");
+    await usuario.type(campoClave(), CLAVE);
+    await usuario.click(boton());
+    expect(iniciar).toHaveBeenCalledWith("otra@correo.com", CLAVE, "/inicio");
+  });
+
+  it("«Entrar con otra cuenta» olvida el correo guardado", async () => {
+    window.sessionStorage.setItem("panel-ultimo-correo", CORREO);
+    montar({ motivo: "sin-acceso", correoSinAcceso: "otra@correo.com" });
+    await userEvent.click(boton());
+    await waitFor(() => expect(campoCorreo()).toHaveValue(""));
+    expect(window.sessionStorage.getItem("panel-ultimo-correo")).toBeNull();
+  });
+
+  it("si el navegador no deja usar el almacenamiento, la pantalla funciona igual con el correo vacío", async () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("bloqueado");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("bloqueado");
+    });
+    const { iniciar } = montar({ motivo: "vencida" });
+    expect(campoCorreo()).toHaveValue("");
+    const usuario = userEvent.setup();
+    await escribir(usuario);
+    await usuario.click(boton());
+    expect(iniciar).toHaveBeenCalledTimes(1);
   });
 });
 

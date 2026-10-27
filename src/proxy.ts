@@ -100,8 +100,8 @@ export async function proxy(request: NextRequest) {
   const decision = decidirGuarda(resultado);
   if (decision.tipo === "a-acceso") {
     if (noEsNavegacion(request)) return aplicar(rechazar(resultado.tipo));
-    // «Sin acceso» no vuelve a la pantalla de antes: la cuenta no sirve para el panel.
-    return aplicar(aLaPantallaDeAcceso(request, decision.motivo, decision.motivo !== "sin-acceso"));
+    // «Sin acceso» y «Cuenta suspendida» no vuelven a la pantalla de antes: la cuenta no sirve para el panel.
+    return aplicar(aLaPantallaDeAcceso(request, decision.motivo, decision.motivo !== "sin-acceso" && decision.motivo !== "suspendida"));
   }
 
   // El pedido sigue con la sesión ya renovada (`request.cookies`), y sin una cabecera de «sin marco» que haya mandado el cliente.

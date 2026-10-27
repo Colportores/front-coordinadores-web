@@ -63,7 +63,7 @@ describe("QA #18 · el foco después de un error (Enter desde la contraseña)", 
     expect(campoCorreo()).toHaveFocus();
   });
 
-  it.skip("QA #18: servicio no disponible: el foco no se pierde en el <body> (Chromium: document.activeElement = BODY)", async () => {
+  it("QA #18: servicio no disponible: el foco no se pierde en el <body> (Chromium: document.activeElement = BODY)", async () => {
     const iniciar = vi.fn<PropiedadesDeAcceso["iniciar"]>(async () => {
       perderFocoAlEnviar();
       return { tipo: "no-disponible" };
@@ -76,7 +76,7 @@ describe("QA #18 · el foco después de un error (Enter desde la contraseña)", 
     expect(document.activeElement).not.toBe(document.body);
   });
 
-  it.skip("QA #18: la acción no llega al servidor: el foco no se pierde en el <body> (Chromium: BODY)", async () => {
+  it("QA #18: la acción no llega al servidor: el foco no se pierde en el <body> (Chromium: BODY)", async () => {
     const iniciar = vi.fn<PropiedadesDeAcceso["iniciar"]>(async () => {
       perderFocoAlEnviar();
       throw new Error("sin red");
