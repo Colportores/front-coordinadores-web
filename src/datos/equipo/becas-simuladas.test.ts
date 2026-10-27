@@ -64,6 +64,21 @@ describe("las becas simuladas", () => {
     expect(becas.asignarTipoDeBeca("emi", "media")).toMatchObject({ ok: true, beca: { apuntaA: "media", meta: { libros: 120, monto: 180000 } } });
   });
 
+  it("«Sin beca» (null) lo deja sin tipo ni meta, conserva el avance y se puede volver a asignar", () => {
+    const becas = crearBecasSimuladas(GENTE, HOY);
+    const antes = becas.datos().porColportor.emi.avance;
+
+    expect(becas.asignarTipoDeBeca("emi", null)).toMatchObject({ ok: true, beca: { apuntaA: null, meta: null, avance: antes } });
+    expect(becas.datos().porColportor.emi).toMatchObject({ apuntaA: null, meta: null });
+    expect(becas.asignarTipoDeBeca("emi", "completa")).toMatchObject({ ok: true, beca: { apuntaA: "completa", meta: { libros: 240, monto: 360000 } } });
+  });
+
+  it("«Sin beca» pide la carrera igual que los otros tipos y rechaza a quien no está en la campaña", () => {
+    const becas = crearBecasSimuladas(GENTE, HOY);
+    expect(becas.asignarTipoDeBeca("mar", null)).toMatchObject({ ok: false, recargar: true });
+    expect(becas.asignarTipoDeBeca("nadie", null)).toMatchObject({ ok: false, recargar: true });
+  });
+
   it("una carrera sin meta cargada avisa «Falta configurar la meta de esta carrera» y no cambia nada", () => {
     const sinMeta: CarreraDelCatalogo = { id: "sin", nombre: "Archivología", metaMedia: null, metaCompleta: null };
     const becas = crearBecasSimuladas(GENTE, HOY, [...CARRERAS_SIMULADAS, sinMeta]);

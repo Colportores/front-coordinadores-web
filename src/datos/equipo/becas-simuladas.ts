@@ -123,10 +123,16 @@ export function crearBecasSimuladas(
       return { ok: true, beca: copia(beca) };
     },
 
-    asignarTipoDeBeca(colportorId: string, tipo: TipoDeBeca): ResultadoBeca {
+    asignarTipoDeBeca(colportorId: string, tipo: TipoDeBeca | null): ResultadoBeca {
       const beca = becas.get(colportorId);
       if (!beca) return { ok: false, mensaje: COLPORTOR_FUERA, recargar: true };
       if (!beca.carrera) return { ok: false, mensaje: SIN_CARRERA_ELEGIDA, recargar: true };
+      if (tipo === null) {
+        // «Sin beca»: no hay meta que buscar en el catálogo; lo que ya llevaba de avance queda.
+        beca.apuntaA = null;
+        beca.meta = null;
+        return { ok: true, beca: copia(beca) };
+      }
       const id = beca.carrera.id;
       const objetivo = carreras.find((c) => c.id === id);
       const nueva = objetivo ? metaDe(objetivo, tipo) : null;

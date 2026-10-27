@@ -301,13 +301,20 @@ export function esUnidadDeAvance(valor: unknown): valor is UnidadDeAvance {
 
 export const ETIQUETA_DE_TIPO: Record<TipoDeBeca, string> = { media: "Media", completa: "Completa" };
 
+/** Las tres opciones de «Apunta a»: media, completa y «Sin beca» (`null`, como `tipo_beca` en el esquema). */
+export const OPCIONES_DE_TIPO: { tipo: TipoDeBeca | null; etiqueta: string }[] = [
+  { tipo: "media", etiqueta: ETIQUETA_DE_TIPO.media },
+  { tipo: "completa", etiqueta: ETIQUETA_DE_TIPO.completa },
+  { tipo: null, etiqueta: "Sin beca" },
+];
+
 /** Lo que muestra la columna de avance de un colportor en la tabla «Becas». */
 export type AvanceDeBeca =
   | { tipo: "sin-carrera" }
   | { tipo: "sin-tipo" }
   | {
       tipo: "con-meta";
-      /** «64 de 120 libros · le faltan 56»; con la meta cumplida, «130 de 120 libros · meta alcanzada». */
+      /** «64 de 120 libros · le faltan 56 · 53 %»; con la meta cumplida, «130 de 120 libros · meta alcanzada · 108 %». */
       texto: string;
       /** De 0 a 100, para el ancho de la barra. */
       porcentaje: number;
@@ -336,11 +343,18 @@ export function avanceDeBeca(beca: BecaDeColportor | undefined, unidad: UnidadDe
   const falta = Math.max(0, objetivo - logrado);
   const alcanzada = falta === 0;
   const cola = alcanzada ? "meta alcanzada" : `${falta === 1 ? "le falta" : "le faltan"} ${unidad === "libros" ? falta : formatMonto(falta)}`;
+  // El mismo redondeo y sin tope que el filtro y el orden por avance (`porcentajeDeAvance`): lo que se lee es lo que se filtra.
+  const porcentajeReal = Math.round((logrado / objetivo) * 100);
   const texto =
     unidad === "libros"
-      ? `${logrado} de ${libros(objetivo)} · ${cola}`
-      : `${formatMonto(logrado)} de ${formatMonto(objetivo)} · ${cola}`;
-  return { tipo: "con-meta", texto, porcentaje: Math.max(0, Math.min(100, Math.round((logrado / objetivo) * 100))), alcanzada };
+      ? `${logrado} de ${libros(objetivo)} · ${cola} · ${porcentajeReal} %`
+      : `${formatMonto(logrado)} de ${formatMonto(objetivo)} · ${cola} · ${porcentajeReal} %`;
+  return { tipo: "con-meta", texto, porcentaje: Math.max(0, Math.min(100, porcentajeReal)), alcanzada };
+}
+
+/** «Rocío Benítez quedó sin beca: ya no tiene meta.» */
+export function avisoDeSinBeca(nombre: string): string {
+  return `${nombre} quedó sin beca: ya no tiene meta.`;
 }
 
 /** «Rocío Benítez ahora apunta a beca completa: meta de 240 libros y $U 360.000 a la CES.» */
