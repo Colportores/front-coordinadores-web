@@ -196,7 +196,7 @@ describe("QA #41 · búsqueda lenta y reintentos", () => {
 describe("QA #41 · sin campaña en curso", () => {
   it("dice qué pasa, deja volver a Equipo y es accesible (axe A/AA)", async () => {
     const { container } = render(<SinCampaniaParaAnadir />);
-    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso a la que añadir colportores.");
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso ni por empezar a la que añadir colportores.");
     expect(screen.getByRole("link", { name: "‹ Equipo" })).toHaveAttribute("href", "/equipo");
     expect(await violaciones(container)).toEqual([]);
   });

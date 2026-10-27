@@ -137,10 +137,23 @@ describe("fuente de la vista 23 contra las RPC", () => {
       expect(llamarRpc).toHaveBeenCalledTimes(1);
     });
 
-    it("si la primera campaña todavía no empezó (`CI002`: solo se inscribe en una vigente), `null`", async () => {
+    it("una campaña por empezar también se carga, con sus sugeridos y su equipo (decisión del 21/10, «Antes inicio»)", async () => {
+      const { cliente, llamarRpc } = clienteCon({
+        campanias_del_coordinador: [{ id: CAMPANIA, nombre: "Verano 2027", tipo: "VERANO", fecha_inicio: "2027-12-01", fecha_fin: null }],
+        buscar_candidatos: [],
+        colportores_de_campania: [],
+      });
+
+      const datos = await crearFuenteAnadirRpc(cliente).obtenerAnadirColportor();
+
+      expect(datos).toMatchObject({ campaniaId: CAMPANIA, campania: "Verano 2027", sugeridos: [], equipoActual: [] });
+      expect(llamarRpc).toHaveBeenCalledWith("buscar_candidatos", { p_campania_id: CAMPANIA, p_texto: null, p_despues_de: null });
+    });
+
+    it("si la campaña terminó entre la lista y la carga (`CI002`), `null`", async () => {
       const { cliente } = clienteCon({
         campanias_del_coordinador: campanias,
-        buscar_candidatos: rechazo("CI002", "La campaña no está activa: solo se inscribe en una campaña vigente."),
+        buscar_candidatos: rechazo("CI002", "La campaña ya terminó. Elegí una campaña en curso o por empezar."),
         colportores_de_campania: [],
       });
 
@@ -245,7 +258,7 @@ describe("fuente de la vista 23 contra las RPC", () => {
 
     it.each([
       ["CI001", "La campaña no existe."],
-      ["CI002", "La campaña no está activa: solo se inscribe en una campaña vigente."],
+      ["CI002", "La campaña ya terminó. Elegí una campaña en curso o por empezar."],
     ])("%s sale con el texto de la base", async (codigo, mensaje) => {
       const { cliente } = clienteCon({ buscar_candidatos: rechazo(codigo, mensaje) });
 
@@ -299,7 +312,7 @@ describe("fuente de la vista 23 contra las RPC", () => {
 
     it.each([
       ["CI001", "La campaña no existe."],
-      ["CI002", "La campaña no está activa: solo se inscribe en una campaña vigente."],
+      ["CI002", "La campaña ya terminó. Elegí una campaña en curso o por empezar."],
       ["CI003", "El usuario no existe o fue dado de baja."],
       ["CI004", "El usuario todavía no verificó su email."],
       ["CI005", "La cuenta está suspendida. Contactá al administrador."],
@@ -312,7 +325,7 @@ describe("fuente de la vista 23 contra las RPC", () => {
 
     it.each([
       ["CI001", "La campaña no existe."],
-      ["CI002", "La campaña no está activa: solo se inscribe en una campaña vigente."],
+      ["CI002", "La campaña ya terminó. Elegí una campaña en curso o por empezar."],
       ["CI003", "El usuario no existe o fue dado de baja."],
       ["CI004", "El usuario todavía no verificó su email."],
       ["CI005", "La cuenta está suspendida. Contactá al administrador."],

@@ -172,7 +172,7 @@ export interface FuenteDatosEquipo {
   jornadasParaAcompanar(campaniaId: string, colportorId: string): Promise<ResultadoJornadas>;
   /** El coordinador de la sesión se anota como acompañante de esa jornada. */
   registrarAcompanamiento(campaniaId: string, jornadaId: string): Promise<ResultadoAcompanamiento>;
-  /** `null`: el coordinador no tiene una campaña en curso a la que añadir colportores. */
+  /** `null`: el coordinador no tiene una campaña en curso ni por empezar a la que añadir colportores. */
   obtenerAnadirColportor(): Promise<DatosAnadirColportor | null>;
   /**
    * Una página de cuentas que coinciden con `texto` (no vacío), primero las que empiezan con él y después por orden

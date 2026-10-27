@@ -11,8 +11,8 @@ import { esDiaIso } from "@/lib/dias";
  * en él: solo vale si figura en la lista de quien llama.
  *
  * Devuelve la elegida **aunque todavía no haya empezado**: qué hacer con una campaña por empezar lo decide cada vista, no
- * este helper. La vista 23 la trata como «sin campaña en curso» (la base no deja inscribir en ella: `CI002`, pantalla
- * `SinCampaniaParaAnadir`); la vista 24 sí trabaja con ella (se pueden armar zonas antes de que empiece).
+ * este helper. Las vistas 23 y 24 trabajan con ella (se suma gente y se arman zonas antes de que empiece; decisión de
+ * Cristian, 21/10, «Antes inicio»).
  *
  * `null` si el coordinador no tiene una campaña que no haya terminado.
  */

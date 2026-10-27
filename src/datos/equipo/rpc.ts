@@ -92,7 +92,7 @@ function aMiembro(fila: Objeto): MiembroEquipo {
  */
 const TEXTO_INSCRIPCION: Record<string, string> = {
   CI001: "La campaña no existe.",
-  CI002: "La campaña no está activa: solo se inscribe en una campaña vigente.",
+  CI002: "La campaña ya terminó. Elegí una campaña en curso o por empezar.",
   CI003: "El usuario no existe o fue dado de baja.",
   CI004: "El usuario todavía no verificó su email.",
   CI005: "La cuenta está suspendida. Contactá al administrador.",
@@ -159,8 +159,8 @@ export function crearFuenteAnadirRpc(
   return {
     async obtenerAnadirColportor(): Promise<DatosAnadirColportor | null> {
       // La campaña del panel es la misma que usa la vista 24 (`campaniaProvisoria`: la elegida en el topbar o, si no, la
-      // primera de la lista, con las en curso antes). Acá una campaña que todavía no empezó equivale a «sin campaña en curso»: la base no deja inscribir (`CI002`,
-      // más abajo) y la pantalla es `SinCampaniaParaAnadir`. La vista 24, en cambio, sí trabaja con una por empezar.
+      // primera de la lista, con las en curso antes). Una campaña por empezar también acepta colportores (decisión de Cristian,
+      // 21/10, «Antes inicio»; migración 0058): se arma el equipo antes del primer día. Solo una terminada la rechaza (`CI002`).
       const campania = await campaniaProvisoria(cliente, await campaniaElegida());
       if (!campania) return null;
       const { id: campaniaId, nombre } = campania;
@@ -177,7 +177,7 @@ export function crearFuenteAnadirRpc(
           equipoActual: filas("colportores_de_campania", equipo).map(aMiembro),
         };
       } catch (error) {
-        // Todavía no empezó: la base solo deja inscribir en una campaña vigente (`CI002`), así que no hay a quién añadir.
+        // Terminó entre la lista de campañas y esta llamada (`CI002`): no hay campaña a la que añadir.
         if (error instanceof ErrorSupabase && error.codigo === "CI002") return null;
         throw error;
       }
