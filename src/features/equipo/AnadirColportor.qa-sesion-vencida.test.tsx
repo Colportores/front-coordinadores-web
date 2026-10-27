@@ -239,7 +239,7 @@ describe("QA #41 · sesión vencida en la vista 23", () => {
       await userEvent.type(caja(), "ana");
       await esperarResultados();
 
-      expect(screen.getByRole("alert")).toHaveTextContent(/^Volvé a entrar para seguir\./);
+      expect(screen.getByRole("alert")).toHaveTextContent("No se pudo buscar cuentas. Volvé a entrar para seguir.");
       expect(screen.getByRole("link", { name: "Entrar de nuevo" })).toHaveAttribute("href", "/acceso?motivo=sin-acceso");
       expect(caja()).toBeEnabled();
       expect(caja()).toHaveFocus();
