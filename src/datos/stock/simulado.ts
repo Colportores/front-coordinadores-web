@@ -12,7 +12,8 @@ import type {
  * 11 productos. Es el mismo generador del canvas (mismo `hash` y mismo `rng` por colportor y producto), con sus casos
  * puestos a mano: «La Gran Esperanza» no alcanza en Rivera, las revistas «Salud y Hogar» se agotaron en Rivera y los
  * misioneros se agotaron en Artigas con 4 Pamplonas por entregar. `canvas-34.json` (salida del script del canvas) se compara
- * contra esto en los tests de la vista.
+ * contra esto en los tests de la vista. La fecha del último dato de cada teléfono (`ultimoDatoAt`) no está en el canvas: sale
+ * de la misma semilla, relativa a `ahora`; Natalia Vidal lleva tres días sin señal y Nicolás Viera todavía no sincronizó.
  */
 
 const CIUDADES: CiudadDeStock[] = [
@@ -72,6 +73,8 @@ const rng = (semilla: number) => () => {
 const LGE_RIVERA: Record<string, number> = { "Valentina Silva": 3, "Santiago Pereira": 1 };
 const LGE_POR_ENTREGAR: Record<string, number> = { "Lucía Fernández": 2, "Emiliano Sosa": 3, "Camila Núñez": 1 };
 const RSH_POR_ENTREGAR: Record<string, number> = { "Micaela Rodríguez": 2, "Joaquín Duarte": 1 };
+const HORAS_SIN_SENAL: Record<string, number | null> = { "Natalia Vidal": 74, "Nicolás Viera": null };
+
 const PAMPLONA_POR_ENTREGAR: Record<string, number> = { "Sofía Cabral": 2, "Natalia Vidal": 2 };
 
 function existencia(ciudadId: string, nombre: string, producto: (typeof PRODUCTOS)[number]): ExistenciaDeStock {
@@ -108,12 +111,22 @@ const slug = (nombre: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-");
 
-export function crearDatosDeStockSimulados(): DatosDeStock {
+/** Hace cuántas horas llegó el último dato del teléfono: casi siempre de hoy, a veces de ayer; `null` = ninguno. */
+function ultimoDato(nombre: string, ahora: Date): string | null {
+  const horas = nombre in HORAS_SIN_SENAL ? HORAS_SIN_SENAL[nombre] : 1 + Math.floor(rng(hash(nombre + "sincronizo"))() * 30);
+  if (horas === null) return null;
+  // Con minutos distintos para que no queden todos a la misma hora en punto.
+  const minutos = Math.floor(rng(hash(nombre + "minuto"))() * 60);
+  return new Date(ahora.getTime() - horas * 3_600_000 - minutos * 60_000).toISOString();
+}
+
+export function crearDatosDeStockSimulados(ahora: Date = new Date()): DatosDeStock {
   const colportores: ColportorDeStock[] = CIUDADES.flatMap((ciudad) =>
     NOMBRES[ciudad.id].map((nombre) => ({
       id: slug(nombre),
       nombre,
       ciudadId: ciudad.id,
+      ultimoDatoAt: ultimoDato(nombre, ahora),
       existencias: PRODUCTOS.map((p) => existencia(ciudad.id, nombre, p)),
     })),
   );

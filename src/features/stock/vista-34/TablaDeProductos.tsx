@@ -58,6 +58,7 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
                   <tr key={q.id} className="min-h-[30px] border-t border-borde text-chico">
                     <th scope="row" className="py-1.5 pr-3 text-left font-semibold text-tinta">
                       <span className="block wrap-anywhere">{q.nombre}</span>
+                      <span className="block text-mini font-normal wrap-anywhere text-tinta-suave">{q.sincronizo}</span>
                     </th>
                     <td className="py-1.5 text-right">
                       <Cifra valor={q.tiene} />

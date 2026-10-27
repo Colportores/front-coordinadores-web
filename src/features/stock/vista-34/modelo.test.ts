@@ -16,12 +16,13 @@ import {
   formatearCantidad,
   mismoAmbito,
   resolverAmbito,
+  textoDeSincronizacion,
   type Ambito,
 } from "./modelo";
 
 const producto = (id: string, tipo: ProductoDeStock["tipo"], nombre = id, nota: string | null = null): ProductoDeStock => ({ id, nombre, tipo, nota });
 const ex = (productoId: string, tiene: number, porEntregar = 0, entregados = 0, porCobrar = 0): ExistenciaDeStock => ({ productoId, tiene, porEntregar, entregados, porCobrar });
-const col = (id: string, ciudadId: string | null, ...existencias: ExistenciaDeStock[]): ColportorDeStock => ({ id, nombre: id, ciudadId, existencias });
+const col = (id: string, ciudadId: string | null, ...existencias: ExistenciaDeStock[]): ColportorDeStock => ({ id, nombre: id, ciudadId, ultimoDatoAt: null, existencias });
 
 function datos(parcial: Partial<DatosDeStock> = {}): DatosDeStock {
   return {
@@ -310,5 +311,41 @@ describe("construirTabla", () => {
     const [libros] = construirTabla(mundo, resuelto);
     expect(libros.filas).toHaveLength(60);
     expect(libros.filas[0].totalPersonas).toBe(400);
+  });
+});
+
+describe("textoDeSincronizacion y la fila del colportor", () => {
+  const AHORA = new Date("2026-10-27T15:00:00Z");
+
+  it("«Sincronizó el 22/10 a las 18:30» con la hora de Montevideo", () => {
+    expect(textoDeSincronizacion("2026-10-22T21:30:00Z", AHORA)).toBe("Sincronizó el 22/10 a las 18:30");
+  });
+
+  it("un dato de otro año lleva el año en la fecha", () => {
+    expect(textoDeSincronizacion("2025-12-31T21:30:00Z", AHORA)).toBe("Sincronizó el 31/12/2025 a las 18:30");
+    expect(textoDeSincronizacion("2026-01-01T03:00:00Z", AHORA)).toBe("Sincronizó el 01/01 a las 00:00");
+  });
+
+  it("sin ningún dato dice que todavía no sincronizó, y una fecha que no es fecha también", () => {
+    expect(textoDeSincronizacion(null)).toBe("Todavía no sincronizó");
+    expect(textoDeSincronizacion("no es una fecha")).toBe("Todavía no sincronizó");
+  });
+
+  it("cada colportor de la fila abierta trae el suyo, también al juntar varias ciudades", () => {
+    const d = datos({
+      colportores: [
+        { ...col("ana", "riv", ex("l1", 2)), ultimoDatoAt: "2026-10-22T21:30:00Z" },
+        { ...col("cata", "art", ex("l1", 1)), ultimoDatoAt: null },
+        { ...col("dora", null, ex("l1", 4)), ultimoDatoAt: "2026-10-19T12:00:00Z" },
+      ],
+    });
+    const mundo = construirMundo(d, AHORA);
+    const resuelto = resolverAmbito(mundo, AMBITO_TODAS);
+
+    expect(construirTabla(mundo, resuelto)[0].filas[0].quien.map((q) => [q.nombre, q.sincronizo])).toEqual([
+      ["cata · Artigas", "Todavía no sincronizó"],
+      ["ana · Rivera", "Sincronizó el 22/10 a las 18:30"],
+      ["dora · Sin ciudad", "Sincronizó el 19/10 a las 09:00"],
+    ]);
   });
 });

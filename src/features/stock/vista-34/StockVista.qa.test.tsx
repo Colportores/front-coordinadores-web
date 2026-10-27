@@ -13,7 +13,7 @@ import { StockVista } from "./StockVista";
 // QA de la vista 34 (PR #88, issue #65): lo que los tests del implementador no cubren.
 
 const ex = (productoId: string, tiene: number, porEntregar = 0): ExistenciaDeStock => ({ productoId, tiene, porEntregar, entregados: 0, porCobrar: 0 });
-const col = (id: string, ciudadId: string | null, ...existencias: ExistenciaDeStock[]): ColportorDeStock => ({ id, nombre: id, ciudadId, existencias });
+const col = (id: string, ciudadId: string | null, ...existencias: ExistenciaDeStock[]): ColportorDeStock => ({ id, nombre: id, ciudadId, ultimoDatoAt: null, existencias });
 const chico = (parcial: Partial<DatosDeStock> = {}): DatosDeStock => ({
   campaniaId: "c",
   ciudades: [{ id: "riv", nombre: "Rivera", departamento: "Rivera" }],
@@ -125,7 +125,7 @@ describe("StockVista · QA · datos límite", () => {
     expect(screen.getByText(/2 colportores · 1 producto/)).toBeInTheDocument();
     await userEvent.click(within(lista()).getByRole("button", { name: /^Sin ciudad/ }));
     await userEvent.click(within(tabla()).getByRole("button", { name: /Libro uno/ }));
-    expect(screen.getByRole("rowheader", { name: "huérfano" })).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: /^huérfano/ })).toBeInTheDocument();
   });
 
   it("existencias de un producto que no está en el catálogo no rompen ni suman", () => {
