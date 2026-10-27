@@ -44,6 +44,9 @@ export function destinoSeguro(valor: unknown): string {
     return RUTA_INICIAL;
   }
   if (url.origin !== "http://panel.invalido") return RUTA_INICIAL;
+  // `new URL` normaliza `/.//sitio.malo`, `/..//x` y `/%2e//x` a `//sitio.malo`: el chequeo de arriba mira el texto sin normalizar, y
+  // el navegador lee un `//` inicial como otro sitio. Se vuelve a mirar el camino ya normalizado.
+  if (!url.pathname.startsWith("/") || url.pathname.startsWith("//")) return RUTA_INICIAL;
   if (url.pathname === RUTA_ACCESO || url.pathname.startsWith(`${RUTA_ACCESO}/`)) return RUTA_INICIAL;
   return `${url.pathname}${url.search}`;
 }

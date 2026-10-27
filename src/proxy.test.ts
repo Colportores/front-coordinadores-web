@@ -251,7 +251,7 @@ describe("proxy: la guarda de rutas (issue #18, vista 38)", () => {
       const navegador = await conSesion();
       prenderSupabaseFalso();
 
-      for (const malo of ["%2F%2Fsitio.malo", "https%3A%2F%2Fsitio.malo", "%2F%5Csitio.malo"]) {
+      for (const malo of ["%2F%2Fsitio.malo", "https%3A%2F%2Fsitio.malo", "%2F%5Csitio.malo", "%2F.%2F%2Fsitio.malo", "%2F..%2F%2Fsitio.malo", "%2F%252e%2F%2Fsitio.malo"]) {
         expect(destino(await proxy(pedido(`/acceso?siguiente=${malo}`, { cookies: navegador }))), malo).toBe("http://localhost:3000/inicio");
       }
     });

@@ -29,6 +29,16 @@ describe("destinoSeguro", () => {
     }
   });
 
+  it("un camino que al normalizarse queda como `//sitio.malo` tampoco pasa (redirección abierta)", () => {
+    for (const malo of ["/.//sitio.malo", "/..//sitio.malo", "/%2e//sitio.malo", "/%2E%2E//sitio.malo", "/././/sitio.malo", "/a/..//sitio.malo", "/.//sitio.malo?x=1"]) {
+      expect(destinoSeguro(malo), malo).toBe("/inicio");
+      expect(rutaDeAcceso("vencida", malo), malo).toBe("/acceso?motivo=vencida");
+    }
+    // Lo que sí es una ruta del panel con puntos o barras dobles más adentro se conserva.
+    expect(destinoSeguro("/equipo/./anadir")).toBe("/equipo/anadir");
+    expect(destinoSeguro("/equipo//anadir")).toBe("/equipo//anadir");
+  });
+
   it("no vuelve a la pantalla de acceso: sería un círculo", () => {
     expect(destinoSeguro("/acceso")).toBe("/inicio");
     expect(destinoSeguro("/acceso?motivo=cerrada")).toBe("/inicio");
