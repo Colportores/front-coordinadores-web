@@ -40,15 +40,38 @@ export const DIAS_EN_VISTA_DIAS = 14;
 export interface Calendario {
   inicio: Fecha;
   hoy: Fecha;
-  /** Días de la campaña hasta hoy (o hasta su último día, si ya terminó), sin domingos (no se trabaja). */
+  /**
+   * Días de la campaña hasta hoy (o hasta su último día, si ya terminó): de lunes a sábado, y los domingos solo si tienen
+   * datos (el domingo no se trabaja, pero el teléfono deja cerrar una jornada y esas horas existen, issue #116).
+   */
   diasHabiles: Fecha[];
 }
 
-export function crearCalendario(inicio: Fecha, hoy: Fecha, fin: Fecha | null = null): Calendario {
+/**
+ * Los domingos en que alguno de los colportores tiene datos: horas, ventas o jornadas con acompañamiento. Un domingo sin
+ * datos no está: no es un «día sin datos» ni corta la tendencia.
+ */
+export function domingosConDatos(colportores: readonly DiasDeColportor[]): Set<Fecha> {
+  const domingos = new Set<Fecha>();
+  for (const colportor of colportores) {
+    for (const porDia of [colportor.horasPorDia, colportor.ventasPorDia, colportor.acompaniadasPorDia]) {
+      for (const fecha of Object.keys(porDia ?? {})) if (diaDeSemana(fecha) === 0) domingos.add(fecha);
+    }
+  }
+  return domingos;
+}
+
+/** El calendario de la campaña; `conDatos` son los domingos con datos (ver `domingosConDatos`), que entran como cualquier día. */
+export function crearCalendario(
+  inicio: Fecha,
+  hoy: Fecha,
+  fin: Fecha | null = null,
+  conDatos: ReadonlySet<Fecha> = new Set(),
+): Calendario {
   const ultimo = fin !== null && fin < hoy ? fin : hoy;
   const diasHabiles: Fecha[] = [];
   for (let d = inicio; d <= ultimo; d = sumarDias(d, 1)) {
-    if (diaDeSemana(d) !== 0) diasHabiles.push(d);
+    if (diaDeSemana(d) !== 0 || conDatos.has(d)) diasHabiles.push(d);
   }
   return { inicio, hoy, diasHabiles };
 }
@@ -165,7 +188,7 @@ export interface Comparacion {
 }
 
 function esAyer(fecha: Fecha, hoy: Fecha): boolean {
-  // Los domingos no se trabaja: el día anterior a un lunes es el sábado.
+  // Los domingos no se trabaja: el día anterior a un lunes es el sábado (salvo que el domingo tenga datos: entonces es él).
   return fecha === sumarDias(hoy, -1) || (diaDeSemana(hoy) === 1 && fecha === sumarDias(hoy, -2));
 }
 
