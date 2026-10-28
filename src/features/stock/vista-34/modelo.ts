@@ -59,10 +59,11 @@ export interface Cantidades {
   tiene: number;
   porEntregar: number;
   entregados: number;
+  devueltos: number;
   porCobrar: number;
 }
 
-const CERO: Cantidades = { tiene: 0, porEntregar: 0, entregados: 0, porCobrar: 0 };
+const CERO: Cantidades = { tiene: 0, porEntregar: 0, entregados: 0, devueltos: 0, porCobrar: 0 };
 
 /** Una cantidad que no es un entero positivo (negativa, NaN) cuenta como cero: no hay stock negativo que mostrar. */
 function cantidad(n: number): number {
@@ -157,6 +158,7 @@ function personaDe(c: ColportorDeStock, ciudadNombre: string | null, ciudadId: s
       tiene: antes.tiene + cantidad(e.tiene),
       porEntregar: antes.porEntregar + cantidad(e.porEntregar),
       entregados: antes.entregados + cantidad(e.entregados),
+      devueltos: antes.devueltos + cantidad(e.devueltos),
       porCobrar: antes.porCobrar + cantidad(e.porCobrar),
     });
   }
@@ -212,6 +214,7 @@ export function cantidadesDe(persona: PersonaDeStock, unidad: Unidad): Cantidade
     suma.tiene += c.tiene;
     suma.porEntregar += c.porEntregar;
     suma.entregados += c.entregados;
+    suma.devueltos += c.devueltos;
     suma.porCobrar += c.porCobrar;
   }
   return suma;
@@ -224,6 +227,7 @@ export function sumar(personas: PersonaDeStock[], unidad: Unidad): Suma {
     total.tiene += c.tiene;
     total.porEntregar += c.porEntregar;
     total.entregados += c.entregados;
+    total.devueltos += c.devueltos;
     total.porCobrar += c.porCobrar;
     if (c.tiene > 0) total.poseedores++;
   }
@@ -502,6 +506,7 @@ export interface QuienTiene {
   tiene: number;
   porEntregar: number;
   entregados: number;
+  devueltos: number;
   porCobrar: number;
 }
 
@@ -514,6 +519,7 @@ export interface FilaDeUnidad {
   totalPersonas: number;
   porEntregar: number;
   entregados: number;
+  devueltos: number;
   porCobrar: number;
   estado: EstadoDeUnidad;
   quien: QuienTiene[];
@@ -556,6 +562,7 @@ export function construirTabla(mundo: Mundo, resuelto: AmbitoResuelto): GrupoDeF
           totalPersonas: resuelto.personas.length,
           porEntregar: suma.porEntregar,
           entregados: suma.entregados,
+          devueltos: suma.devueltos,
           porCobrar: suma.porCobrar,
           estado: estadoDe(suma),
           quien,

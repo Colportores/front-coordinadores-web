@@ -12,7 +12,7 @@ import { StockVista } from "./StockVista";
 
 // QA de la vista 34 (PR #88, issue #65): lo que los tests del implementador no cubren.
 
-const ex = (productoId: string, tiene: number, porEntregar = 0): ExistenciaDeStock => ({ productoId, tiene, porEntregar, entregados: 0, porCobrar: 0 });
+const ex = (productoId: string, tiene: number, porEntregar = 0): ExistenciaDeStock => ({ productoId, tiene, porEntregar, entregados: 0, devueltos: 0, porCobrar: 0 });
 const col = (id: string, ciudadId: string | null, ...existencias: ExistenciaDeStock[]): ColportorDeStock => ({ id, nombre: id, ciudadId, ultimoDatoAt: null, existencias });
 const chico = (parcial: Partial<DatosDeStock> = {}): DatosDeStock => ({
   campaniaId: "c",

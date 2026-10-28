@@ -9,7 +9,7 @@ import { StockVista } from "./StockVista";
 
 const simulados = () => crearDatosDeStockSimulados();
 
-const ex = (productoId: string, tiene: number, porEntregar = 0): ExistenciaDeStock => ({ productoId, tiene, porEntregar, entregados: 0, porCobrar: 0 });
+const ex = (productoId: string, tiene: number, porEntregar = 0): ExistenciaDeStock => ({ productoId, tiene, porEntregar, entregados: 0, devueltos: 0, porCobrar: 0 });
 const col = (id: string, ciudadId: string | null, ...existencias: ExistenciaDeStock[]): ColportorDeStock => ({ id, nombre: id, ciudadId, ultimoDatoAt: null, existencias });
 
 const chico = (parcial: Partial<DatosDeStock> = {}): DatosDeStock => ({
@@ -39,15 +39,62 @@ describe("StockVista", () => {
       expect.stringContaining("MISIONEROS"),
     ]);
     expect(screen.getByRole("list", { name: "Avisos de stock" })).toBeInTheDocument();
-    expect(within(tabla()).getAllByRole("columnheader").slice(0, 7).map((h) => h.textContent)).toEqual([
+    expect(within(tabla()).getAllByRole("columnheader").slice(0, 8).map((h) => h.textContent)).toEqual([
       "PRODUCTO",
       "EN LA CIUDAD",
       "EN MANOS DE",
       "POR ENTREGAR",
       "ENTREGADOS",
+      "DEVUELTOS",
       "POR COBRAR",
       "ESTADO",
     ]);
+  });
+
+  describe("columna «Devueltos» y «Por cobrar» (backend-supabase#101, respuestas del 27/10)", () => {
+    const conDevueltos = () =>
+      chico({
+        colportores: [
+          col("ana", "riv", { productoId: "l1", tiene: 3, porEntregar: 0, entregados: 1500, devueltos: 1234, porCobrar: 2 }),
+          col("beto", "riv", { productoId: "l1", tiene: 1, porEntregar: 0, entregados: 4, devueltos: 0, porCobrar: 0 }),
+        ],
+      });
+
+    it("la fila suma lo devuelto, aparte de lo entregado, con separador de miles", () => {
+      render(<StockVista datos={conDevueltos()} />);
+
+      const celdas = within(within(tabla()).getByRole("row", { name: /Libro uno/ })).getAllByRole("cell");
+      // en la ciudad · en manos de · por entregar · entregados · devueltos · por cobrar · estado
+      expect(celdas.map((c) => c.textContent)).toEqual(["4", "2 de 2", "0", "1.504", "1.234", "2", "✓Alcanza"]);
+    });
+
+    it("el detalle dice cuántos devolvió cada colportor y deja en cero (atenuado) a quien no devolvió", async () => {
+      render(<StockVista datos={conDevueltos()} />);
+      await userEvent.click(fila("Libro uno"));
+
+      const detalle = screen.getByRole("table", { name: "Quién tiene Libro uno en Todas las ciudades" });
+      const filas = within(detalle).getAllByRole("row").slice(1);
+      expect(filas.map((f) => [...f.querySelectorAll("th span:first-child, td")].map((c) => c.textContent))).toEqual([
+        ["ana", "3", "0", "1.500", "1.234", "2"],
+        ["beto", "1", "0", "4", "0", "0"],
+      ]);
+      expect(within(filas[1]).getAllByRole("cell")[3].firstElementChild).toHaveClass("text-tinta-suave");
+    });
+
+    it("si la fuente todavía no manda los devueltos, la columna muestra cero y la vista no se rompe", () => {
+      const viejos = chico({ colportores: [col("ana", "riv", { productoId: "l1", tiene: 3, porEntregar: 0, entregados: 2, porCobrar: 1 } as ExistenciaDeStock)] });
+      render(<StockVista datos={viejos} />);
+
+      expect(within(within(tabla()).getByRole("row", { name: /Libro uno/ })).getAllByRole("cell")[4]).toHaveTextContent("0");
+    });
+
+    it("la tabla de productos tiene una columna más y el detalle abierto ocupa todo el ancho", async () => {
+      render(<StockVista datos={conDevueltos()} />);
+      await userEvent.click(fila("Libro uno"));
+
+      expect(tabla().querySelectorAll(":scope > colgroup > col")).toHaveLength(8);
+      expect(tabla().querySelector("td[colspan]")).toHaveAttribute("colspan", "8");
+    });
   });
 
   describe("artboard 34A·01 · Rivera por producto", () => {
@@ -100,6 +147,7 @@ describe("StockVista", () => {
         "TIENE",
         "POR ENTREGAR",
         "ENTREGADOS",
+        "DEVUELTOS",
         "POR COBRAR",
       ]);
       const filas = within(detalle).getAllByRole("row").slice(1);
