@@ -41,6 +41,12 @@ export interface ZonaAnterior {
  */
 export type OrigenDeAcompanamiento = "COLPORTOR" | "COORDINADOR";
 
+/**
+ * Quién cargó desde el panel un acompañamiento (`jornada.acompaniamiento_cargado_por`, lo pone el servidor con la sesión de
+ * quien lo registró): `esVos` si fue quien tiene la sesión; si no, el nombre de la otra persona.
+ */
+export type CargadoPor = { esVos: true } | { esVos: false; nombre: string };
+
 /** Cuántos caracteres admite la nota de un acompañamiento (el mismo tope que el servidor, decisión del 26/10). */
 export const LARGO_MAXIMO_NOTA = 500;
 
@@ -60,6 +66,11 @@ export interface AcompanamientoDeColportor {
   acompananteEsVos: boolean;
   /** De dónde salió el dato; `null` si no se sabe. */
   origen: OrigenDeAcompanamiento | null;
+  /**
+   * Quién lo cargó desde el panel. Ausente o `null` si no se sabe (lo marcó el colportor, es anterior a ese dato o el
+   * cargador no tiene nombre): el panel entonces solo dice «cargado desde el panel».
+   */
+  cargadoPor?: CargadoPor | null;
   /** La nota opcional de la coordinación (hasta `LARGO_MAXIMO_NOTA` caracteres); `null` si no hay. */
   nota: string | null;
 }

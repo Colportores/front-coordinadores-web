@@ -106,7 +106,7 @@ function Historial({ colportor }: { colportor: ColportorDeEquipo }) {
               </span>
               <span className="wrap-anywhere text-tinta-suave">
                 <span className="sr-only">Origen: </span>
-                {textoDeOrigen(a.origen) ?? <Vacio lectura="sin dato" />}
+                {textoDeOrigen(a.origen, a.cargadoPor) ?? <Vacio lectura="sin dato" />}
               </span>
               <span className="wrap-anywhere text-tinta-2">
                 <span className="sr-only">Nota: </span>

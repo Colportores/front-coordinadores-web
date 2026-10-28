@@ -1,5 +1,6 @@
 import type {
   AcompanamientoDeColportor,
+  CargadoPor,
   CiudadDeEquipo,
   ColportorDeEquipo,
   DatosDeAcompanamiento,
@@ -31,7 +32,7 @@ import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
 /**
  * Fuente de la vista 33 (HU-JOR-004, HU-CAM-006) contra las RPC de Supabase (ADR-013): `campanias_del_coordinador()`,
  * `ciudades_de_campania()`, `zonas_por_colportor()` (la zona de hoy, las anteriores con sus fechas y las casas),
- * `historial_de_acompaniamientos()` (todos los acompañamientos de la campaña de una sola vez, con su origen y su nota),
+ * `historial_de_acompaniamientos()` (todos los acompañamientos de la campaña de una sola vez, con su origen, su nota y quién los cargó desde el panel),
  * `acompaniamientos_por_colportor()` (solo por `contado_desde`), `jornadas_cerradas_de_colportor()` y
  * `agregar_acompaniamiento()` (con otro colportor y una nota opcional, migración 0100). Habla con un `ClienteRpc`, o sea
  * con el JWT del coordinador.
@@ -90,6 +91,23 @@ function origenDe(rpc: string, fila: Objeto): OrigenDeAcompanamiento | null {
   throw new RespuestaInesperada(rpc, `\`acompaniamiento_origen\` no es un origen conocido (${valor})`);
 }
 
+/**
+ * Quién cargó el acompañamiento (0116): el servidor manda el id y el nombre de quien lo registró desde el panel. Si es
+ * quien tiene la sesión, «vos»; si no, su nombre. Sin id (lo marcó el colportor o es anterior a la 0116) o sin nombre
+ * que mostrar, `null`: no se inventa quién fue.
+ */
+function cargadoPorDe(rpc: string, fila: Objeto, yo: string | null): CargadoPor | null {
+  const id = cadenaONula(rpc, fila, "acompaniamiento_cargado_por");
+  if (id === null) return null;
+  if (yo !== null && id === yo) return { esVos: true };
+  const nombre = nombreVisible(
+    cadenaONula(rpc, fila, "acompaniamiento_cargado_por_nombre") ?? "",
+    cadenaONula(rpc, fila, "acompaniamiento_cargado_por_apellido") ?? "",
+    "",
+  );
+  return nombre === "" ? null : { esVos: false, nombre };
+}
+
 function aAnterior(rpc: string, tramo: Objeto): ZonaAnterior {
   return {
     nombre: cadena(rpc, tramo, "nombre"),
@@ -118,6 +136,7 @@ function acompanamientosPorColportor(filasHistorial: Objeto[], yo: string | null
       ),
       acompananteEsVos: yo !== null && cadenaONula(rpc, fila, "acompaniante_id") === yo,
       origen: origenDe(rpc, fila),
+      cargadoPor: cargadoPorDe(rpc, fila, yo),
       nota: cadenaONula(rpc, fila, "acompaniamiento_nota"),
     });
     porColportor.set(colportorId, lista);

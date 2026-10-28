@@ -130,7 +130,8 @@ describe("«Quién lo acompañó» y la nota", () => {
     expect(items[0]).not.toHaveTextContent("(vos)");
     await usuario.click(screen.getByRole("button", { name: "Ver historial de Florencia Pintos" }));
     const historial = within(screen.getByRole("region", { name: /Historial de acompañamientos de Florencia/ }));
-    expect(historial.getByText("cargado desde el panel")).toBeInTheDocument();
+    // Lo acaba de cargar quien tiene la sesión (aunque el acompañante sea otro colportor): «por vos».
+    expect(historial.getByText("cargado por vos")).toBeInTheDocument();
     expect(historial.getByText("Repasamos la colección.")).toBeInTheDocument();
   });
 
@@ -330,6 +331,35 @@ describe("la nota sobre un acompañamiento que ya estaba registrado", () => {
     expect(historial.getByText("lo marcó en el celular")).toBeInTheDocument();
     expect(historial.queryByText("No se guarda")).not.toBeInTheDocument();
   });
+
+  it("si ya estaba cargado desde el panel, la base no dice por quién al registrar: no se afirma «por vos», se dice «desde el panel»", async () => {
+    const acciones = crearAcciones();
+    acciones.registrarAcompanamiento.mockResolvedValueOnce(ok("2026-10-20", { yaEstaba: true, origen: "COORDINADOR", nota: "La de antes." }));
+    const { usuario } = await abrir({ acciones });
+    await screen.findByRole("list", { name: /Jornadas terminadas/ });
+    await usuario.click(botonDe("mar 20/10"));
+    await screen.findByText(/Esa jornada ya figuraba a tu nombre/);
+
+    await usuario.click(screen.getByRole("button", { name: "Ver historial de Florencia Pintos" }));
+
+    const historial = within(screen.getByRole("region", { name: /Historial de acompañamientos de Florencia/ }));
+    expect(historial.getByText("cargado desde el panel")).toBeInTheDocument();
+    expect(historial.queryByText("cargado por vos")).not.toBeInTheDocument();
+  });
+
+  it("dos registros seguidos de jornadas distintas quedan los dos «por vos» en el historial", async () => {
+    const { usuario } = await abrir();
+    await screen.findByRole("list", { name: /Jornadas terminadas/ });
+
+    await usuario.click(botonDe("mar 20/10"));
+    await screen.findByText(/Acompañamiento registrado: jornada de Florencia Pintos, mar 20\/10/);
+    await usuario.click(botonDe("sáb 17/10"));
+    await screen.findByText(/Acompañamiento registrado: jornada de Florencia Pintos, sáb 17\/10/);
+    await usuario.click(screen.getByRole("button", { name: "Ver historial de Florencia Pintos" }));
+
+    const historial = within(screen.getByRole("region", { name: /Historial de acompañamientos de Florencia/ }));
+    expect(historial.getAllByText("cargado por vos")).toHaveLength(2);
+  });
 });
 
 describe("el origen y la nota en el historial", () => {
@@ -340,7 +370,9 @@ describe("el origen y la nota en el historial", () => {
           id: "ana",
           nombre: "Ana Prueba",
           acompanamientos: [
-            { jornadaId: "a3", dia: "2026-10-12", horas: 4, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", nota: "Trabajamos juntos el sector norte de la zona." },
+            { jornadaId: "a3", dia: "2026-10-12", horas: 4, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: { esVos: true }, nota: "Trabajamos juntos el sector norte de la zona." },
+            { jornadaId: "a4", dia: "2026-10-08", horas: 4, acompanante: "Tomás Ibarra", acompananteEsVos: false, origen: "COORDINADOR", cargadoPor: { esVos: false, nombre: "Santiago Pereira" }, nota: null },
+            { jornadaId: "a5", dia: "2026-10-06", horas: 4, acompanante: "Tomás Ibarra", acompananteEsVos: false, origen: "COORDINADOR", cargadoPor: null, nota: null },
             { jornadaId: "a2", dia: "2026-10-05", horas: 5, acompanante: "Tomás Ibarra", acompananteEsVos: false, origen: "COLPORTOR", nota: null },
             { jornadaId: "a1", dia: "2026-09-08", horas: 5, acompanante: "Tomás Ibarra", acompananteEsVos: false, origen: null, nota: null },
           ],
@@ -355,12 +387,15 @@ describe("el origen y la nota en el historial", () => {
 
     const filas = within(screen.getByRole("region", { name: /Historial de acompañamientos de Ana Prueba/ })).getAllByRole("listitem");
     expect(filas[0]).toHaveTextContent("Acompañó: Mariana Pérez (vos)");
-    expect(filas[0]).toHaveTextContent("Origen: cargado desde el panel");
+    expect(filas[0]).toHaveTextContent("Origen: cargado por vos");
     expect(filas[0]).toHaveTextContent("Nota: Trabajamos juntos el sector norte de la zona.");
-    expect(filas[1]).toHaveTextContent("Origen: lo marcó en el celular");
-    expect(filas[1]).toHaveTextContent(/Nota: .*sin nota/);
+    // Cargado por otra persona: su nombre. Sin quién lo cargó (filas anteriores a ese dato): solo «desde el panel».
+    expect(filas[1]).toHaveTextContent("Origen: cargado por Santiago Pereira");
+    expect(filas[2]).toHaveTextContent("Origen: cargado desde el panel");
+    expect(filas[3]).toHaveTextContent("Origen: lo marcó en el celular");
+    expect(filas[3]).toHaveTextContent(/Nota: .*sin nota/);
     // Una jornada anterior al dato: no se inventa el origen.
-    expect(filas[2]).toHaveTextContent(/Origen: .*sin dato/);
+    expect(filas[4]).toHaveTextContent(/Origen: .*sin dato/);
   });
 
   it("una nota de 500 caracteres sin espacios no rompe la fila: se corta en vez de ensanchar la tabla", async () => {
