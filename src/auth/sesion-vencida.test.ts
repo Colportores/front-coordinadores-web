@@ -1,28 +1,50 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { esSesionVencida, MARCA_SESION_VENCIDA, rutaParaVolverAEntrar } from "@/auth/sesion-vencida";
+import { marcaDeRechazo, mensajeDeRechazo, motivoDelRechazo, rutaParaVolverAEntrar } from "@/auth/sesion-vencida";
 
-describe("sesión vencida con la pantalla abierta (#41, P3)", () => {
+describe("el panel le cierra la puerta con la pantalla abierta (#41, P3)", () => {
   afterEach(() => window.history.pushState({}, "", "/"));
 
-  it("reconoce el rechazo del proxy y nada más: ni una caída ni un texto parecido", () => {
-    expect(esSesionVencida(new Error(MARCA_SESION_VENCIDA))).toBe(true);
-    expect(esSesionVencida(new Error("An unexpected response was received from the server."))).toBe(false);
-    expect(esSesionVencida(new Error(`${MARCA_SESION_VENCIDA} y más`))).toBe(false);
-    expect(esSesionVencida(new TypeError("Failed to fetch"))).toBe(false);
-    expect(esSesionVencida(MARCA_SESION_VENCIDA)).toBe(false);
-    expect(esSesionVencida(null)).toBe(false);
+  it.each(["vencida", "sin-acceso", "suspendida"] as const)("reconoce el rechazo del proxy con el motivo «%s»", (motivo) => {
+    expect(motivoDelRechazo(new Error(marcaDeRechazo(motivo)))).toBe(motivo);
   });
 
-  it("lleva a la pantalla de acceso con el motivo y vuelve a la pantalla de donde se vino", () => {
-    window.history.pushState({}, "", "/equipo/anadir?x=1");
-
-    expect(rutaParaVolverAEntrar()).toBe("/acceso?motivo=vencida&siguiente=%2Fequipo%2Fanadir%3Fx%3D1");
+  it("no toma por rechazo una caída, un texto parecido ni algo que no es un error", () => {
+    expect(motivoDelRechazo(new Error("An unexpected response was received from the server."))).toBeNull();
+    expect(motivoDelRechazo(new Error(`${marcaDeRechazo("vencida")} y más`))).toBeNull();
+    expect(motivoDelRechazo(new Error("panel-acceso:no-disponible"))).toBeNull();
+    expect(motivoDelRechazo(new TypeError("Failed to fetch"))).toBeNull();
+    expect(motivoDelRechazo(marcaDeRechazo("vencida"))).toBeNull();
+    expect(motivoDelRechazo(null)).toBeNull();
   });
 
-  it("desde la pantalla inicial no repite el destino por defecto", () => {
-    window.history.pushState({}, "", "/inicio");
+  it("«Tu sesión venció.» solo si venció; con «sin acceso» o «suspendida» no se dice lo que no pasó", () => {
+    expect(mensajeDeRechazo("vencida")).toBe("Tu sesión venció. Volvé a entrar para seguir.");
+    expect(mensajeDeRechazo("vencida", "buscar cuentas")).toBe("Tu sesión venció. Volvé a entrar para seguir.");
+    expect(mensajeDeRechazo("sin-acceso")).toBe("Volvé a entrar para seguir.");
+    expect(mensajeDeRechazo("suspendida")).toBe("Volvé a entrar para seguir.");
+    expect(mensajeDeRechazo("sin-acceso", "buscar cuentas")).toBe("No se pudo buscar cuentas. Volvé a entrar para seguir.");
+    expect(mensajeDeRechazo("suspendida", "cargar más cuentas")).toBe("No se pudo cargar más cuentas. Volvé a entrar para seguir.");
+  });
 
-    expect(rutaParaVolverAEntrar()).toBe("/acceso?motivo=vencida");
+  describe("a dónde lleva «Entrar de nuevo»", () => {
+    it("la sesión vencida vuelve a la pantalla de donde se vino", () => {
+      window.history.pushState({}, "", "/equipo/anadir?x=1");
+
+      expect(rutaParaVolverAEntrar("vencida")).toBe("/acceso?motivo=vencida&siguiente=%2Fequipo%2Fanadir%3Fx%3D1");
+    });
+
+    it("desde la pantalla inicial no repite el destino por defecto", () => {
+      window.history.pushState({}, "", "/inicio");
+
+      expect(rutaParaVolverAEntrar("vencida")).toBe("/acceso?motivo=vencida");
+    });
+
+    it("«sin acceso» y «suspendida» no vuelven a la pantalla de antes: la cuenta no sirve para el panel", () => {
+      window.history.pushState({}, "", "/equipo/anadir");
+
+      expect(rutaParaVolverAEntrar("sin-acceso")).toBe("/acceso?motivo=sin-acceso");
+      expect(rutaParaVolverAEntrar("suspendida")).toBe("/acceso?motivo=suspendida");
+    });
   });
 });

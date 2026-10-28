@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { iniciarSesion } from "@/auth/acceso";
 import { CABECERA_SIN_MARCO } from "@/auth/guarda";
-import { MARCA_SESION_VENCIDA } from "@/auth/sesion-vencida";
+import { marcaDeRechazo } from "@/auth/sesion-vencida";
 import { crearSupabaseConCookies } from "@/auth/supabase-cookies";
 import { proxy, RUTA_NO_DISPONIBLE } from "@/proxy";
 import { CONFIG_PRUEBA, navegadorFalso, prenderSupabaseFalso, type NavegadorFalso } from "@/test/cookies-supabase";
@@ -200,23 +200,33 @@ describe("proxy: la guarda de rutas (issue #18, vista 38)", () => {
       const respuesta = await proxy(pedido("/equipo", { metodo: "POST", cabeceras: { "next-action": "abc123" } }));
       expect(respuesta.status).toBe(401);
       expect(respuesta.headers.get("location")).toBeNull();
-      // Next solo lee el texto de un rechazo si es exactamente `text/plain`: la pantalla se entera de que fue la sesión (#41, P3).
+      // Next solo lee el texto de un rechazo si es exactamente `text/plain`: la pantalla se entera de por qué fue (#41, P3).
       expect(respuesta.headers.get("content-type")).toBe("text/plain");
-      expect(await respuesta.text()).toBe(MARCA_SESION_VENCIDA);
+      expect(await respuesta.text()).toBe(marcaDeRechazo("vencida"));
     });
 
-    it("una sesión vencida en una server action también lleva la marca; «sin acceso» y «suspendida» no (ahí no hay sesión que vencer)", async () => {
+    it("una server action rechazada lleva la marca con su motivo: sesión vencida, sin acceso y cuenta suspendida (#41, P3)", async () => {
       prenderLogin();
       const navegador = await conSesion();
+      const accion = () => proxy(pedido("/equipo", { cookies: navegador, metodo: "POST", cabeceras: { "next-action": "abc" } }));
+
       prenderSupabaseFalso({ tieneRol: () => errorDePostgrest(401, "PGRST301", "JWT expired") });
-      const vencida = await proxy(pedido("/equipo", { cookies: navegador, metodo: "POST", cabeceras: { "next-action": "abc" } }));
+      const vencida = await accion();
       expect(vencida.status).toBe(401);
-      expect(await vencida.text()).toBe(MARCA_SESION_VENCIDA);
+      expect(vencida.headers.get("content-type")).toBe("text/plain");
+      expect(await vencida.text()).toBe(marcaDeRechazo("vencida"));
+
+      prenderSupabaseFalso({ tieneRol: () => json(false) });
+      const sinAcceso = await accion();
+      expect(sinAcceso.status).toBe(401);
+      expect(sinAcceso.headers.get("content-type")).toBe("text/plain");
+      expect(await sinAcceso.text()).toBe(marcaDeRechazo("sin-acceso"));
 
       prenderSupabaseFalso({ estadoCuenta: () => json("SUSPENDIDA") });
-      const suspendida = await proxy(pedido("/equipo", { cookies: navegador, metodo: "POST", cabeceras: { "next-action": "abc" } }));
+      const suspendida = await accion();
       expect(suspendida.status).toBe(401);
-      expect(await suspendida.text()).toBe("");
+      expect(suspendida.headers.get("content-type")).toBe("text/plain");
+      expect(await suspendida.text()).toBe(marcaDeRechazo("suspendida"));
     });
 
     it("con el Supabase caído, la server action recibe 503 y no 401", async () => {

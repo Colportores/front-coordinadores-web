@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MARCA_SESION_VENCIDA } from "@/auth/sesion-vencida";
+import { marcaDeRechazo, type MotivoDeRechazo } from "@/auth/sesion-vencida";
 import type { CandidatoColportor, ResultadoBusqueda, ResultadoInscripcion } from "@/datos/equipo/contrato";
 import { DATOS_ANADIR_COLPORTOR_SIMULADO, fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { AnadirColportor, mensajeAnadirRechazado, MS_DESHACER } from "@/features/equipo/AnadirColportor";
@@ -14,7 +14,8 @@ type Inscribir = (id: string) => Promise<ResultadoInscripcion>;
 type Buscar = (texto: string, despuesDe: string | null) => Promise<ResultadoBusqueda>;
 
 const buscarEnLaSimulada: Buscar = (texto, despuesDe) => fuenteEquipoSimulada.buscarCandidatos("c", texto, despuesDe);
-const sesionVencida = () => new Error(MARCA_SESION_VENCIDA);
+const sesionVencida = () => new Error(marcaDeRechazo("vencida"));
+const rechazo = (motivo: MotivoDeRechazo) => new Error(marcaDeRechazo(motivo));
 const resultadoVencido = { ok: false, mensaje: MENSAJE_SESION_VENCIDA, sesionVencida: true } as const;
 const HREF = "/acceso?motivo=vencida&siguiente=%2Fequipo%2Fanadir";
 
@@ -168,6 +169,55 @@ describe("AnadirColportor: la sesión vence con la pantalla abierta (#41, P3)", 
 
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
       expect(screen.queryByRole("link", { name: "Entrar de nuevo" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe.each([
+    ["sin-acceso", "/acceso?motivo=sin-acceso"],
+    ["suspendida", "/acceso?motivo=suspendida"],
+  ] as const)("el proxy dice «%s» (le sacaron el acceso con la pantalla abierta)", (motivo, href) => {
+    it("al inscribir: el aviso nombra a la cuenta, no dice que la sesión venció y lleva a la pantalla de acceso con su motivo", async () => {
+      vi.useFakeTimers();
+      montar({ inscribir: async () => Promise.reject(rechazo(motivo)) });
+      await tocar(anadirEnFila("Ana Martínez"));
+
+      await pasar(MS_DESHACER);
+
+      const alerta = screen.getByRole("alert");
+      expect(alerta).toHaveTextContent("No se pudo añadir a Ana Martínez. Volvé a entrar para seguir.");
+      expect(alerta).not.toHaveTextContent("venció");
+      expect(alerta).not.toHaveTextContent("Necesitás conexión");
+      expect(enlace(alerta)).toHaveAttribute("href", href);
+      expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
+      expect(anadirEnFila("Ana Martínez")).toBeEnabled();
+    });
+
+    it("al buscar: el aviso lleva a la pantalla de acceso con su motivo, sin «Reintentar»", async () => {
+      montar({ buscar: async () => Promise.reject(rechazo(motivo)) });
+
+      await userEvent.type(caja(), "ana");
+      await esperarResultados();
+
+      const alerta = screen.getByRole("alert");
+      expect(alerta).toHaveTextContent("No se pudo buscar cuentas. Volvé a entrar para seguir.");
+      expect(alerta).not.toHaveTextContent("venció");
+      expect(enlace(alerta)).toHaveAttribute("href", href);
+      expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
+    });
+
+    it("en la página siguiente: la lista que ya se ve queda y el aviso lleva a entrar de nuevo", async () => {
+      const buscar = vi.fn<Buscar>(async () => paginaLlena());
+      montar({ buscar });
+      await userEvent.type(caja(), "persona");
+      await esperarResultados();
+      buscar.mockRejectedValueOnce(rechazo(motivo));
+
+      await ObservadorFalso.llegarAlFinal();
+
+      const alerta = await screen.findByRole("alert");
+      expect(alerta).toHaveTextContent("No se pudo cargar más cuentas. Volvé a entrar para seguir.");
+      expect(enlace(alerta)).toHaveAttribute("href", href);
+      expect(within(screen.getByRole("list", { name: "Cuentas" })).getAllByRole("listitem")).toHaveLength(10);
     });
   });
 

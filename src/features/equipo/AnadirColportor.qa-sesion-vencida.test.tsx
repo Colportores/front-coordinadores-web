@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MARCA_SESION_VENCIDA } from "@/auth/sesion-vencida";
+import { marcaDeRechazo } from "@/auth/sesion-vencida";
 import type { ResultadoBusqueda, ResultadoInscripcion } from "@/datos/equipo/contrato";
 import { DATOS_ANADIR_COLPORTOR_SIMULADO, fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { AnadirColportor, MS_DESHACER } from "@/features/equipo/AnadirColportor";
@@ -21,7 +21,7 @@ type Inscribir = (id: string) => Promise<ResultadoInscripcion>;
 type Buscar = (texto: string, despuesDe: string | null) => Promise<ResultadoBusqueda>;
 
 const buscarEnLaSimulada: Buscar = (texto, despuesDe) => fuenteEquipoSimulada.buscarCandidatos("c", texto, despuesDe);
-const sesionVencida = () => new Error(MARCA_SESION_VENCIDA);
+const sesionVencida = () => new Error(marcaDeRechazo("vencida"));
 
 function montar(opciones: { inscribir?: Inscribir; buscar?: Buscar } = {}) {
   const inscribir = vi.fn(opciones.inscribir ?? (async () => ({ ok: true as const })));
@@ -197,6 +197,52 @@ describe("QA #41 · sesión vencida en la vista 23", () => {
 
       expect(screen.getByRole("link", { name: "Entrar de nuevo" })).toBeVisible();
       expect(await sinReglasDeContraste(container)).toEqual([]);
+    });
+  });
+
+  describe("con motivo (PR #112): vencida, sin acceso, suspendida", () => {
+    it("dos cuentas con motivos distintos: cada aviso lleva su texto y su enlace, sin «Reintentar»", async () => {
+      vi.useFakeTimers();
+      montar({
+        inscribir: async (id) =>
+          Promise.reject(new Error(marcaDeRechazo(id === "usr-ana-martinez" ? "vencida" : "suspendida"))),
+      });
+      await tocar(anadirEnFila("Ana Martínez"));
+      await pasar(2000);
+      await tocar(anadirEnFila("Gonzalo Sosa"));
+      await pasar(MS_DESHACER);
+
+      const [ana, gonzalo] = screen.getAllByRole("alert");
+      expect(ana).toHaveTextContent("No se pudo añadir a Ana Martínez. Tu sesión venció. Volvé a entrar para seguir.");
+      expect(within(ana).getByRole("link", { name: "Entrar de nuevo" }).getAttribute("href")).toMatch(/^\/acceso\?motivo=vencida&siguiente=/);
+      expect(gonzalo).toHaveTextContent("No se pudo añadir a Gonzalo Sosa. Volvé a entrar para seguir.");
+      expect(gonzalo).not.toHaveTextContent("venció");
+      expect(within(gonzalo).getByRole("link", { name: "Entrar de nuevo" })).toHaveAttribute("href", "/acceso?motivo=suspendida");
+      expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
+    });
+
+    it.each(["panel-sesion-vencida", "panel-acceso:", "panel-acceso:no-disponible", "Panel-Acceso:vencida", " panel-acceso:vencida"])(
+      "un error con el texto «%s» no es un rechazo del proxy: sigue «sin conexión» con «Reintentar»",
+      async (texto) => {
+        montar({ buscar: async () => Promise.reject(new Error(texto)) });
+        await userEvent.type(caja(), "ana");
+        await esperarResultados();
+
+        expect(screen.getByRole("alert")).toHaveTextContent("Necesitás conexión para buscar cuentas");
+        expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: "Entrar de nuevo" })).not.toBeInTheDocument();
+      },
+    );
+
+    it("«sin acceso» al buscar: el enlace no lleva «siguiente» y la búsqueda sigue habilitada", async () => {
+      montar({ buscar: async () => Promise.reject(new Error(marcaDeRechazo("sin-acceso"))) });
+      await userEvent.type(caja(), "ana");
+      await esperarResultados();
+
+      expect(screen.getByRole("alert")).toHaveTextContent("No se pudo buscar cuentas. Volvé a entrar para seguir.");
+      expect(screen.getByRole("link", { name: "Entrar de nuevo" })).toHaveAttribute("href", "/acceso?motivo=sin-acceso");
+      expect(caja()).toBeEnabled();
+      expect(caja()).toHaveFocus();
     });
   });
 });
