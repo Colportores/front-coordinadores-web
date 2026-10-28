@@ -81,6 +81,31 @@ export function resolverAmbito(datos: DatosHoras, ambito: Ambito): AmbitoResuelt
   return todas();
 }
 
+/** Los colportores del ámbito entre los que se puede elegir (los de la lista de la derecha), con su ciudad. */
+export function colportoresElegibles(resuelto: AmbitoResuelto): { colportor: ColportorHoras; ciudad: CiudadHoras }[] {
+  return resuelto.ciudades.flatMap((ciudad) => ciudad.colportores.map((colportor) => ({ colportor, ciudad })));
+}
+
+/**
+ * Acota un ámbito a los colportores elegidos (issue #107, «elegir uno o varios colportores»). Sin elección, o con un
+ * ámbito que ya es un solo colportor, queda igual. Una elección que no coincide con nadie del ámbito (los elegidos ya no
+ * están) se ignora: nunca se muestra un reporte vacío por una elección vieja. Con uno solo, se ve como si se hubiera
+ * elegido ese colportor en la lista (una fila por período), pero sin botón para volver: se vuelve quitando la elección.
+ */
+export function acotarAColportores(resuelto: AmbitoResuelto, elegidos: readonly string[]): AmbitoResuelto {
+  if (elegidos.length === 0 || resuelto.ambito.tipo === "colportor") return resuelto;
+  const ids = new Set(elegidos);
+  const ciudades = resuelto.ciudades
+    .map((ciudad) => ({ ...ciudad, colportores: ciudad.colportores.filter((c) => ids.has(c.id)) }))
+    .filter((ciudad) => ciudad.colportores.length > 0);
+  const colportores = ciudades.flatMap((c) => c.colportores);
+  if (colportores.length === 0) return resuelto;
+  if (colportores.length === 1) {
+    return { ambito: resuelto.ambito, ciudades, colportor: { colportor: colportores[0], ciudad: ciudades[0] }, colportores, titulo: colportores[0].nombre };
+  }
+  return { ...resuelto, ciudades, colportor: null, colportores };
+}
+
 export interface NodoLista {
   clave: string;
   ambito: Ambito;

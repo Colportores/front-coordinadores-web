@@ -50,12 +50,16 @@ export function BotonesDeExportar({ estado }: { estado: EstadoDeExportacion }) {
 }
 
 /** Lo que pasó con la exportación, dicho para que se sepa qué hacer: bajó, se abrió, falló o no hay nada que exportar. */
-export function AvisoDeExportacion({ estado }: { estado: EstadoDeExportacion }) {
+export function AvisoDeExportacion({ estado, rangoSinCorregir = false }: { estado: EstadoDeExportacion; rangoSinCorregir?: boolean }) {
   const { resultado, vacio } = estado;
   return (
     <div className="max-w-lg text-right text-mini wrap-anywhere">
       <p id={ID_DEL_MOTIVO} className={vacio ? "text-tinta-suave" : "sr-only"}>
-        {vacio ? "No hay colportores para exportar en este reporte." : ""}
+        {vacio
+          ? rangoSinCorregir
+            ? "Corregí las fechas del rango para poder exportar."
+            : "No hay colportores para exportar en este reporte."
+          : ""}
       </p>
       <p role="status" className="text-tinta-2">
         {resultado?.tipo === "listo" &&

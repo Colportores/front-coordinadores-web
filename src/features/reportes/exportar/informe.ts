@@ -62,7 +62,7 @@ function filtrosDelInforme(reporte: ReporteArmado, contexto: ContextoDeExportaci
   return [
     { etiqueta: "Ver", valor: elegido ? `${elegido.colportor.nombre} (${elegido.ciudad.nombre})` : reporte.titulo },
     { etiqueta: "Agrupado por", valor: ETIQUETA_DE_GRANULARIDAD[contexto.granularidad] },
-    { etiqueta: "Período", valor: reporte.periodo || "Todavía no hay un período completo" },
+    { etiqueta: "Período", valor: reporte.periodo || (contexto.granularidad === "rango" ? "Sin rango válido" : "Todavía no hay un período completo") },
     { etiqueta: "Al día", valor: fechaCompleta(contexto.hoy) },
   ];
 }
@@ -88,8 +88,9 @@ export function armarInformeHtml(reporte: ReporteArmado, contexto: ContextoDeExp
       return (
         `<section class="cifra"><h3>${e(t.etiqueta)}</h3>` +
         `<div><span class="valor">${e(t.valor)}</span>${t.tendencia ? `<span class="tendencia">${e(t.tendencia.texto)}</span>` : ""}</div>` +
-        `<p>${e(t.nota)}</p><p>${e(t.campania)}</p>` +
-        `<div class="barras">${barras}</div><div class="rotulos">${rotulos}</div></section>`
+        `<p>${e(t.nota)}</p>${t.campania ? `<p>${e(t.campania)}</p>` : ""}` +
+        (t.barras.length > 0 ? `<div class="barras">${barras}</div><div class="rotulos">${rotulos}</div>` : "") +
+        `</section>`
       );
     })
     .join("");

@@ -1,22 +1,24 @@
 import type { DatosHoras, Fecha } from "@/datos/reportes/contrato";
-import { diaYMes } from "@/datos/reportes/fechas";
+import { diaYMes, nombreDelDia } from "@/datos/reportes/fechas";
 
-import { pluralColportores, type Ambito, type AmbitoResuelto, resolverAmbito } from "./ambito";
+import { acotarAColportores, pluralColportores, type Ambito, type AmbitoResuelto, resolverAmbito } from "./ambito";
 import {
   CIFRA_SIN_DATOS,
   compararCon,
   crearCalendario,
   formatearCifra,
+  formatearEntero,
   periodosDe,
   ultimoDatoAntesDe,
   type Calendario,
+  type ColumnaDeReporte,
   type Granularidad,
-  type MedidaMostrada,
   type Periodo,
   type Tendencia,
 } from "./calculo";
 import {
   agregadoresDe,
+  cifrasDelRango,
   cifrasVisibles,
   listarNombres,
   MOSTRAR_POR_COBRAR,
@@ -24,6 +26,7 @@ import {
   type Agregadores,
   type DefinicionDeCifra,
 } from "./metricas";
+import { diasDelRango, fechaConAnio, limitesDelRango, textoDelRango, validarRango } from "./rango";
 import type { CeldaDeTabla, FilaDeTabla } from "./TablaDeReporte";
 import type { BarraDeCifra } from "./TarjetaDeCifra";
 
@@ -33,7 +36,7 @@ export function textoSinDatosDesde(fecha: Fecha): string {
 
 /** Una tarjeta de la vista: la cifra del período con su tendencia, su gráfico y el total de la campaña. */
 export interface TarjetaArmada {
-  clave: MedidaMostrada;
+  clave: ColumnaDeReporte;
   etiqueta: string;
   valor: string;
   tendencia: Tendencia | null;
@@ -57,14 +60,21 @@ export interface ReporteArmado {
   tabla: {
     descripcion: string;
     primeraColumna: string;
-    columnas: { clave: MedidaMostrada; encabezado: string }[];
+    columnas: { clave: ColumnaDeReporte; encabezado: string }[];
     filas: FilaDeTabla[];
   };
+  /**
+   * Solo en el rango libre: por qué no se puede armar el reporte con las fechas escritas («desde» después de «hasta»,
+   * fuera de la campaña, sin completar), dicho para la persona. Entonces no hay tarjetas ni filas. `null` si no hay problema.
+   */
+  problemaDeRango: string | null;
 }
 
 export interface OpcionesDelReporte {
   /** Mostrar el % por cobrar (V2). Por omisión, lo que diga `MOSTRAR_POR_COBRAR`. */
   porCobrar?: boolean;
+  /** Los colportores elegidos del ámbito (issue #107); vacío o ausente = todos los del ámbito. */
+  elegidos?: readonly string[];
 }
 
 const NOMBRE_DE_GRANULARIDAD: Record<Granularidad, string> = { dia: "día", semana: "semana", mes: "mes" };
@@ -78,7 +88,7 @@ export function armarReporte(
   opciones: OpcionesDelReporte = {},
 ): ReporteArmado {
   const cifras = cifrasVisibles(opciones.porCobrar ?? MOSTRAR_POR_COBRAR);
-  const resuelto = resolverAmbito(datos, ambito);
+  const resuelto = acotarAColportores(resolverAmbito(datos, ambito), opciones.elegidos ?? []);
   const calendario = crearCalendario(datos.inicioCampania, datos.hoy, datos.finCampania);
   const elegido = resuelto.colportor;
   // Una cifra de varios colportores se muestra entera; la de uno solo, con un decimal.
@@ -96,17 +106,7 @@ export function armarReporte(
   const rotuloActual = comparacion?.rotulo ?? null;
   const frasePeriodo = comparacion ? [comparacion.rotulo, comparacion.contra].filter(Boolean).join(" ") : "";
 
-  const unaCiudad = resuelto.ciudades.length === 1 ? resuelto.ciudades[0] : null;
-  const ubicacion = elegido
-    ? [elegido.ciudad.nombre, elegido.ciudad.departamento ? `Departamento ${elegido.ciudad.departamento}` : null]
-        .filter(Boolean)
-        .join(" · ")
-    : [
-        unaCiudad?.departamento ? `Departamento ${unaCiudad.departamento}` : null,
-        pluralColportores(resuelto.colportores.length),
-      ]
-        .filter(Boolean)
-        .join(" · ");
+  const ubicacion = textoDeUbicacion(resuelto);
 
   const nombres = listarNombres(cifras);
   let filas: FilaDeTabla[];
@@ -191,10 +191,30 @@ export function armarReporte(
     subtitulo: [ubicacion, frasePeriodo].filter(Boolean).join(" · "),
     periodo: frasePeriodo,
     rotuloDelPeriodo: rotuloActual,
-    volverA: elegido ? { nombre: elegido.ciudad.nombre, ambito: { tipo: "ciudad", ciudadId: elegido.ciudad.id } } : null,
+    volverA: volverALaCiudad(resuelto),
     tarjetas,
     tabla: { descripcion, primeraColumna, columnas: cifras.map((c) => ({ clave: c.clave, encabezado: c.columna })), filas },
+    problemaDeRango: null,
   };
+}
+
+/** Debajo del título: la ciudad del colportor, o el departamento y cuántos colportores se ven. */
+function textoDeUbicacion(resuelto: AmbitoResuelto): string {
+  const elegido = resuelto.colportor;
+  const unaCiudad = resuelto.ciudades.length === 1 ? resuelto.ciudades[0] : null;
+  return elegido
+    ? [elegido.ciudad.nombre, elegido.ciudad.departamento ? `Departamento ${elegido.ciudad.departamento}` : null].filter(Boolean).join(" · ")
+    : [unaCiudad?.departamento ? `Departamento ${unaCiudad.departamento}` : null, pluralColportores(resuelto.colportores.length)]
+        .filter(Boolean)
+        .join(" · ");
+}
+
+/** «‹ Rivera» solo si se llegó al colportor desde la lista; uno elegido con las casillas se deja quitando la elección. */
+function volverALaCiudad(resuelto: AmbitoResuelto): ReporteArmado["volverA"] {
+  const elegido = resuelto.colportor;
+  return elegido && resuelto.ambito.tipo === "colportor"
+    ? { nombre: elegido.ciudad.nombre, ambito: { tipo: "ciudad", ciudadId: elegido.ciudad.id } }
+    : null;
 }
 
 function capitalizar(texto: string): string {
@@ -257,4 +277,147 @@ function armarTarjeta(
     barras,
     resumenDelGrafico,
   };
+}
+
+/**
+ * El reporte de un rango de fechas libre (issue #107, «Rango horas», HU-REP-001): las cifras de todo el rango (total de
+ * horas, promedio por día trabajado y jornadas con acompañamiento) y la tabla por colportor o, con uno solo, por día.
+ * `desde` y `hasta` son lo que escribió la persona: si no sirven (vacías, al revés, fuera de la campaña) el reporte
+ * viene sin cifras y con `problemaDeRango`. Sin tendencia: un rango libre no tiene período anterior contra el cual comparar.
+ */
+export function armarReporteDeRango(
+  datos: DatosHoras,
+  ambito: Ambito,
+  rango: { desde: string; hasta: string },
+  opciones: OpcionesDelReporte = {},
+): ReporteArmado {
+  const cifras = cifrasDelRango(opciones.porCobrar ?? MOSTRAR_POR_COBRAR);
+  const resuelto = acotarAColportores(resolverAmbito(datos, ambito), opciones.elegidos ?? []);
+  const validado = validarRango(rango.desde, rango.hasta, limitesDelRango(datos));
+  const ubicacion = textoDeUbicacion(resuelto);
+  const columnas = cifras.map((c) => ({ clave: c.clave, encabezado: c.columna }));
+
+  if (!validado.ok) {
+    return {
+      resuelto,
+      titulo: resuelto.titulo,
+      subtitulo: ubicacion,
+      periodo: "",
+      rotuloDelPeriodo: null,
+      volverA: volverALaCiudad(resuelto),
+      tarjetas: [],
+      tabla: { descripcion: "Reporte del rango de fechas", primeraColumna: "COLPORTOR", columnas, filas: [] },
+      problemaDeRango: validado.texto,
+    };
+  }
+
+  const elegido = resuelto.colportor;
+  const esTotal = elegido === null;
+  const dias = diasDelRango(crearCalendario(datos.inicioCampania, datos.hoy, datos.finCampania), validado.rango);
+  const agregadores = agregadoresDe(resuelto.colportores);
+  const periodo = capitalizar(textoDelRango(validado.rango));
+
+  const tarjetas = cifras.flatMap((cifra): TarjetaArmada[] => {
+    if (!cifra.tarjeta) return [];
+    const valor = agregadores[cifra.clave](dias);
+    const monto = agregadores.monto(dias);
+    return [
+      {
+        clave: cifra.clave,
+        etiqueta: cifra.tarjeta.etiqueta,
+        valor: formatearCifra(valor, esTotal, cifra.clave),
+        tendencia: null,
+        nota: notaDeRango(cifra.clave, valor.hayDatos, agregadores, dias, esTotal, periodo),
+        // El monto vendido va dentro de la tarjeta de ventas, como en el resto de la vista.
+        campania: cifra.clave === "ventas" && monto.hayDatos ? formatearCifra(monto, true, "monto") : "",
+        barras: [],
+        resumenDelGrafico: "",
+      },
+    ];
+  });
+
+  const nombres = listarNombres(cifras);
+  const celdasDe = (agregar: Agregadores, losDias: Fecha[]): CeldaDeTabla[] =>
+    cifras.map((c): CeldaDeTabla => {
+      const cifra = agregar[c.clave](losDias);
+      return {
+        clave: c.clave,
+        valor: formatearCifra(cifra, false, c.clave),
+        crudo: cifra.hayDatos ? cifra.valor : null,
+        sinDatos: !cifra.hayDatos,
+        tendencia: null,
+      };
+    });
+
+  let filas: FilaDeTabla[];
+  let primeraColumna: string;
+  let descripcion: string;
+
+  if (elegido) {
+    descripcion = `${capitalizar(nombres)} de ${elegido.colportor.nombre} por día, ${textoDelRango(validado.rango)}`;
+    primeraColumna = "DÍA";
+    const propios = agregadoresDe([elegido.colportor]);
+    filas = dias.map((fecha): FilaDeTabla => {
+      const sinDatos = !propios.horas([fecha]).hayDatos;
+      const enCurso = fecha === datos.hoy;
+      return {
+        tipo: "fila",
+        clave: fecha,
+        nombre: `${nombreDelDia(fecha)} ${diaYMes(fecha)}`,
+        nota: sinDatos ? "sin datos" : enCurso ? "en curso" : null,
+        enCurso,
+        celdas: celdasDe(propios, [fecha]),
+      };
+    });
+  } else {
+    descripcion = `${capitalizar(nombres)} por colportor, ${textoDelRango(validado.rango)}`;
+    primeraColumna = "COLPORTOR";
+    filas = [];
+    for (const ciudad of resuelto.ciudades) {
+      if (resuelto.ciudades.length > 1) {
+        filas.push({ tipo: "grupo", clave: `ciudad:${ciudad.id}`, nombre: ciudad.nombre, detalle: pluralColportores(ciudad.colportores.length) });
+      }
+      for (const colportor of ciudad.colportores) {
+        const propios = agregadoresDe([colportor]);
+        filas.push({
+          tipo: "fila",
+          clave: colportor.id,
+          nombre: colportor.nombre,
+          nota: propios.horas(dias).hayDatos ? null : colportor.sinDatosDesde ? textoSinDatosDesde(colportor.sinDatosDesde) : "sin datos",
+          enCurso: false,
+          celdas: celdasDe(propios, dias),
+        });
+      }
+    }
+  }
+
+  return {
+    resuelto,
+    titulo: resuelto.titulo,
+    subtitulo: [ubicacion, periodo].filter(Boolean).join(" · "),
+    periodo,
+    rotuloDelPeriodo: `${fechaConAnio(validado.rango.desde)} al ${fechaConAnio(validado.rango.hasta)}`,
+    volverA: volverALaCiudad(resuelto),
+    tarjetas,
+    tabla: { descripcion, primeraColumna, columnas, filas },
+    problemaDeRango: null,
+  };
+}
+
+/** La línea chica de cada tarjeta del rango: de qué días es, o por qué no hay cifra. */
+function notaDeRango(
+  clave: ColumnaDeReporte,
+  hayDatos: boolean,
+  agregadores: Agregadores,
+  dias: Fecha[],
+  esTotal: boolean,
+  periodo: string,
+): string {
+  if (!hayDatos) return "Sin datos en estos días";
+  if (clave === "promedio") {
+    const trabajados = agregadores.diasTrabajados(dias).valor;
+    return `${formatearEntero(trabajados)} ${trabajados === 1 ? "día trabajado" : "días trabajados"}${esTotal ? " (sumando colportores)" : ""}`;
+  }
+  if (clave === "acompaniadas") return "Jornadas cerradas con acompañante";
+  return periodo;
 }

@@ -82,6 +82,12 @@ export interface ColportorHoras {
    */
   horasPorDia: Readonly<Record<Fecha, number>>;
   /**
+   * Cuántas de las jornadas cerradas de cada día tuvieron acompañante (`jornada.acompaniante_id`, HU-JOR-004). Figura el
+   * mismo conjunto de días que `horasPorDia` (un día con jornadas cerradas y 0 acompañadas figura con 0); un día que no
+   * figura es un día sin datos, no un día sin acompañamiento. De ahí sale «jornadas con acompañamiento» del rango (HU-REP-001).
+   */
+  acompaniadasPorDia: Readonly<Record<Fecha, number>>;
+  /**
    * Presentaciones, ventas y monto de cada día con datos. Igual que las horas, un día que no figura es un día sin
    * datos (no se pudo sincronizar), no un día de 0 ventas: se muestra con guion y no lleva tendencia.
    */
