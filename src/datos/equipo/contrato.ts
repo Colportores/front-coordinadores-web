@@ -108,10 +108,11 @@ export interface BecaDeColportor {
    */
   alcanzada?: TipoDeBeca | null;
   /**
-   * Administración corrigió la carrera y la meta pasó a ser la de la carrera nueva («Carrera corr», Cristian 27/10): la fila
-   * lo avisa. La lectura de Becas devuelve la marca (backend-supabase#202). Ausente o `false`: la carrera nunca se corrigió.
+   * Cuándo se recalculó la meta porque Administración corrigió la carrera («Carrera corr», Cristian 27/10), timestamptz ISO:
+   * `meta_recalculada_en` de backend-supabase#202. Vuelve a `null` cuando la meta cambia otra vez, y mientras no sea `null`
+   * la fila avisa «Carrera corregida: meta de <carrera>». Ausente o `null`: no hay nada que avisar.
    */
-  carreraCorregida?: boolean;
+  metaRecalculadaEn?: string | null;
 }
 
 /** Las becas de la campaña: el catálogo de carreras para elegir y la beca de cada colportor (por su id). */
@@ -138,6 +139,11 @@ export interface DatosEquipoPorCiudad {
   campaniaInicio: string;
   /** Fin de la campaña, `AAAA-MM-DD`; `null` si no tiene. */
   campaniaFin: string | null;
+  /**
+   * El tipo de la campaña como lo devuelve `campanias_del_coordinador()` (`VERANO`, `INVIERNO`, `PERMANENTE`…); `null` si la
+   * fuente no lo trae. En una `PERMANENTE` no hay becas (BC006, «Beca perman.»). No se deduce de `campaniaFin`.
+   */
+  campaniaTipo: string | null;
   /** El día de hoy en Montevideo, `AAAA-MM-DD`: lo pone el servidor, de ahí salen los «días sin acompañar». */
   hoy: string;
   ciudades: CiudadDeEquipo[];

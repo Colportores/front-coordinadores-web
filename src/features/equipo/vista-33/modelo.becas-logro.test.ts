@@ -64,8 +64,14 @@ describe("«Logro beca»: lo alcanzado se ve aunque pase a «Sin beca»", () => 
 });
 
 describe("«Beca perman.» y «Carrera corr»: textos y campaña permanente", () => {
-  it("una campaña sin fecha de fin es permanente", () => {
-    expect(esCampaniaPermanente(datosDePrueba({ campaniaFin: null }))).toBe(true);
+  it("es permanente la de tipo PERMANENTE, y la fecha de fin no cuenta: se prueban los casos cruzados", () => {
+    expect(esCampaniaPermanente(datosDePrueba({ campaniaTipo: "PERMANENTE" }))).toBe(true);
+    expect(esCampaniaPermanente(datosDePrueba({ campaniaTipo: "PERMANENTE", campaniaFin: null }))).toBe(true);
+    // Con fecha de fin pero PERMANENTE (la base lo permite): no hay becas.
+    expect(esCampaniaPermanente(datosDePrueba({ campaniaTipo: "PERMANENTE", campaniaFin: "2026-12-19" }))).toBe(true);
+    // Sin fecha de fin pero de verano: la base no lo prohíbe y sí hay becas.
+    expect(esCampaniaPermanente(datosDePrueba({ campaniaTipo: "VERANO", campaniaFin: null }))).toBe(false);
+    expect(esCampaniaPermanente(datosDePrueba({ campaniaTipo: null }))).toBe(false);
     expect(esCampaniaPermanente(datosDePrueba())).toBe(false);
   });
 

@@ -50,6 +50,7 @@ export function datosDePrueba(cambios: Partial<DatosEquipoPorCiudad> = {}): Dato
     campania: "Primavera 2026",
     campaniaInicio: INICIO,
     campaniaFin: "2026-12-19",
+    campaniaTipo: "VERANO",
     hoy: HOY,
     ciudades: [
       { id: "riv", nombre: "Rivera", departamento: "Rivera" },

@@ -55,7 +55,7 @@ describe("campaniaProvisoriaConFechas", () => {
   it("es la misma campaña que campaniaProvisoria, con sus fechas", async () => {
     const { cliente } = clienteQueContesta([fila, { ...fila, id: "c-2" }]);
 
-    expect(await campaniaProvisoriaConFechas(cliente)).toEqual({ id: "c-1", nombre: "Verano 2026", fechaInicio: "2026-09-01", fechaFin: "2026-12-19" });
+    expect(await campaniaProvisoriaConFechas(cliente)).toEqual({ id: "c-1", nombre: "Verano 2026", fechaInicio: "2026-09-01", fechaFin: "2026-12-19", tipo: "VERANO" });
   });
 
   it("toma la elegida en el topbar si figura en la lista, y si no, la primera", async () => {
@@ -69,6 +69,12 @@ describe("campaniaProvisoriaConFechas", () => {
     const { cliente } = clienteQueContesta([{ ...fila, fecha_fin: null }]);
 
     expect(await campaniaProvisoriaConFechas(cliente)).toMatchObject({ fechaFin: null });
+  });
+
+  it("trae el tipo tal cual lo devuelve la base, también en una permanente con fecha de fin", async () => {
+    const { cliente } = clienteQueContesta([{ ...fila, tipo: "PERMANENTE" }]);
+
+    expect(await campaniaProvisoriaConFechas(cliente)).toMatchObject({ tipo: "PERMANENTE", fechaFin: "2026-12-19" });
   });
 
   it("sin ninguna campaña que no haya terminado es null", async () => {

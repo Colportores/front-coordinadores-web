@@ -184,6 +184,7 @@ export function crearEquipoSimulado(): Pick<
         campania: "Primavera 2026",
         campaniaInicio: INICIO,
         campaniaFin: FIN,
+        campaniaTipo: "VERANO",
         hoy: HOY_SIMULADO,
         ciudades: CIUDADES,
         colportores: base.map((c) => ({ ...c, acompanamientos: acompanamientosDe(c.id) })),

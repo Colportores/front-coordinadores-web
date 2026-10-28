@@ -211,6 +211,7 @@ export function crearFuentePestanaRpc(
         campania: campania.nombre,
         campaniaInicio: campania.fechaInicio,
         campaniaFin: campania.fechaFin,
+        campaniaTipo: campania.tipo,
         hoy: hoyEnMontevideo(ahora()),
         ciudades: Array.from(ciudades.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
         colportores,

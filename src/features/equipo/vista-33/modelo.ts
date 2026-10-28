@@ -376,17 +376,17 @@ export function avisoDeSinBeca(nombre: string, beca?: BecaDeColportor): string {
 }
 
 /**
- * En una campaña permanente no hay becas («Beca perman.», Cristian 27/10). La campaña permanente es la que no tiene fecha de
- * fin (R-CM01: `fecha_fin` es NULL solo si es PERMANENTE).
+ * En una campaña permanente no hay becas («Beca perman.», Cristian 27/10). Es permanente la de `tipo` PERMANENTE, el mismo
+ * dato por el que el servidor rechaza (BC006); la fecha de fin no cuenta: la base no ata `fecha_fin` nula con ese tipo.
  */
-export function esCampaniaPermanente(datos: Pick<DatosEquipoPorCiudad, "campaniaFin">): boolean {
-  return datos.campaniaFin === null;
+export function esCampaniaPermanente(datos: Pick<DatosEquipoPorCiudad, "campaniaTipo">): boolean {
+  return datos.campaniaTipo === "PERMANENTE";
 }
 
 export const TEXTO_SIN_BECAS_EN_PERMANENTE =
   "En una campaña permanente no hay becas. Para dar una media beca o una beca completa, el colportor tiene que estar en una campaña de verano o de invierno.";
 
-/** «Carrera corregida: meta de Teología» (`carreraCorregida`, «Carrera corr»). */
+/** «Carrera corregida: meta de Teología» (`metaRecalculadaEn`, «Carrera corr»). */
 export function textoDeCarreraCorregida(carreraNombre: string): string {
   return `Carrera corregida: meta de ${carreraNombre}`;
 }

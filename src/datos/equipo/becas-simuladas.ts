@@ -83,7 +83,7 @@ function copia(beca: BecaDeColportor): BecaDeColportor {
     avance: { ...beca.avance },
     // Las marcas del servidor solo viajan cuando valen algo.
     ...(beca.alcanzada ? { alcanzada: beca.alcanzada } : {}),
-    ...(beca.carreraCorregida ? { carreraCorregida: true } : {}),
+    ...(beca.metaRecalculadaEn ? { metaRecalculadaEn: beca.metaRecalculadaEn } : {}),
   };
 }
 

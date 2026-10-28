@@ -193,7 +193,7 @@ describe("«Logro beca»: pasar a «Sin beca» a quien ya alcanzó una meta", ()
 
 describe("«Beca perman.»: en una campaña permanente no hay becas", () => {
   const sinTipo = (): DatosEquipoPorCiudad => {
-    const datos = datosDePrueba({ campaniaFin: null });
+    const datos = datosDePrueba({ campaniaTipo: "PERMANENTE", campaniaFin: null });
     for (const [id, beca] of Object.entries(datos.becas!.porColportor)) {
       datos.becas!.porColportor[id] = beca.carrera ? { ...beca, apuntaA: null, meta: null } : beca;
     }
@@ -230,7 +230,7 @@ describe("«Beca perman.»: en una campaña permanente no hay becas", () => {
   });
 
   it("sin las becas conectadas, la pestaña dice eso y no el aviso de permanente", async () => {
-    const { usuario } = mostrar({ ...datosDePrueba({ campaniaFin: null }), becas: null });
+    const { usuario } = mostrar({ ...datosDePrueba({ campaniaTipo: "PERMANENTE" }), becas: null });
     await irA(usuario, "Becas");
 
     expect(screen.queryByText(/campaña permanente/)).not.toBeInTheDocument();
@@ -256,7 +256,7 @@ describe("«Carrera corr»: la carrera la corrigió Administración", () => {
       ...becasDePrueba().porColportor.emiliano,
       carrera: { id: "teo", nombre: "Teología", elegidaEl: "2026-09-01" },
       meta: { libros: 100, monto: 150000 },
-      carreraCorregida: true,
+      metaRecalculadaEn: "2026-10-27T15:30:00Z",
       ...cambios,
     };
     return datos;
