@@ -6,6 +6,7 @@ import {
   compararPeriodos,
   crearCalendario,
   domingosConDatos,
+  domingosDeTodos,
   formatearCifra,
   formatearDecimal,
   formatearEntero,
@@ -85,6 +86,29 @@ describe("domingos con datos (issue #116)", () => {
     const cal = crearCalendario("2026-10-05", "2026-10-21", null, new Set(["2026-10-11"]));
     expect(periodosDe("semana", cal)[0].dias.at(-1)).toBe("2026-10-11");
     expect(periodosDe("mes", cal)[0].dias).toContain("2026-10-11");
+  });
+
+  it("domingosDeTodos: solo los domingos en que todos los colportores tienen datos", () => {
+    const otro = { horasPorDia: { "2026-10-11": 3, "2026-10-18": 2 } };
+    expect([...domingosDeTodos([colportorConDomingo, otro])]).toEqual(["2026-10-11"]);
+    expect([...domingosDeTodos([colportorConDomingo])]).toEqual(["2026-10-11"]);
+    expect(domingosDeTodos([colportorConDomingo, { horasPorDia: { "2026-10-05": 6 } }]).size).toBe(0);
+  });
+
+  it("un domingo con datos de solo algunos suma pero no es «ayer» ni el día de comparación", () => {
+    const domingo = new Set(["2026-10-11"]);
+    const cal = crearCalendario("2026-10-05", "2026-10-12", null, domingo, new Set());
+    expect(cal.diasHabiles).toContain("2026-10-11");
+    expect([...cal.domingosAparte]).toEqual(["2026-10-11"]);
+    // «ayer» es el sábado (las horas de cada día valen su fecha) y se compara con el viernes
+    const porFecha: Serie = (fecha) => ({ valor: Number(fecha.slice(8, 10)), hayDatos: true });
+    const c = compararPeriodos("dia", porFecha, cal);
+    expect(c).toMatchObject({ rotulo: "ayer", contra: "contra el día anterior" });
+    expect(c?.actual.valor).toBe(10);
+    expect(c?.base?.valor).toBe(9);
+    // en la semana y el mes sí cuenta
+    expect(periodosDe("semana", cal)[0].dias).toContain("2026-10-11");
+    expect(compararPeriodos("dia", porFecha, crearCalendario("2026-10-05", "2026-10-12", null, domingo))?.actual.valor).toBe(11);
   });
 
   it("ayer de un lunes es el domingo si tiene datos y el sábado si no", () => {

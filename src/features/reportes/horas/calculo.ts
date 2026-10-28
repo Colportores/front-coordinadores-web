@@ -45,6 +45,11 @@ export interface Calendario {
    * datos (el domingo no se trabaja, pero el teléfono deja cerrar una jornada y esas horas existen, issue #116).
    */
   diasHabiles: Fecha[];
+  /**
+   * Domingos de `diasHabiles` en los que no todos los colportores del ámbito tienen datos: suman en la semana, el mes, el
+   * rango y el gráfico, pero no son «ayer» ni el día contra el que se compara (el resto no trabajó: saldría «sin datos»).
+   */
+  domingosAparte: ReadonlySet<Fecha>;
 }
 
 /**
@@ -53,27 +58,47 @@ export interface Calendario {
  */
 export function domingosConDatos(colportores: readonly DiasDeColportor[]): Set<Fecha> {
   const domingos = new Set<Fecha>();
-  for (const colportor of colportores) {
-    for (const porDia of [colportor.horasPorDia, colportor.ventasPorDia, colportor.acompaniadasPorDia]) {
-      for (const fecha of Object.keys(porDia ?? {})) if (diaDeSemana(fecha) === 0) domingos.add(fecha);
-    }
+  for (const colportor of colportores) for (const fecha of domingosDe(colportor)) domingos.add(fecha);
+  return domingos;
+}
+
+/** Los domingos en que TODOS los colportores tienen datos: los únicos que pueden ser «ayer» de un lunes en un ámbito. */
+export function domingosDeTodos(colportores: readonly DiasDeColportor[]): Set<Fecha> {
+  const propios = colportores.map((c) => domingosDe(c));
+  return new Set([...domingosConDatos(colportores)].filter((fecha) => propios.every((p) => p.has(fecha))));
+}
+
+function domingosDe(colportor: DiasDeColportor): Set<Fecha> {
+  const domingos = new Set<Fecha>();
+  for (const porDia of [colportor.horasPorDia, colportor.ventasPorDia, colportor.acompaniadasPorDia]) {
+    for (const fecha of Object.keys(porDia ?? {})) if (diaDeSemana(fecha) === 0) domingos.add(fecha);
   }
   return domingos;
 }
 
-/** El calendario de la campaña; `conDatos` son los domingos con datos (ver `domingosConDatos`), que entran como cualquier día. */
+/**
+ * El calendario de la campaña; `conDatos` son los domingos con datos (ver `domingosConDatos`), que entran como cualquier
+ * día. `comparables` son los que además sirven de «ayer» y de día de comparación (por omisión, todos los que entran): en
+ * un ámbito con varios colportores, los domingos en que solo trabajaron algunos quedan «aparte» (ver `domingosDeTodos`).
+ */
 export function crearCalendario(
   inicio: Fecha,
   hoy: Fecha,
   fin: Fecha | null = null,
   conDatos: ReadonlySet<Fecha> = new Set(),
+  comparables: ReadonlySet<Fecha> = conDatos,
 ): Calendario {
   const ultimo = fin !== null && fin < hoy ? fin : hoy;
   const diasHabiles: Fecha[] = [];
+  const domingosAparte = new Set<Fecha>();
   for (let d = inicio; d <= ultimo; d = sumarDias(d, 1)) {
-    if (diaDeSemana(d) !== 0 || conDatos.has(d)) diasHabiles.push(d);
+    if (diaDeSemana(d) !== 0) diasHabiles.push(d);
+    else if (conDatos.has(d)) {
+      diasHabiles.push(d);
+      if (!comparables.has(d)) domingosAparte.add(d);
+    }
   }
-  return { inicio, hoy, diasHabiles };
+  return { inicio, hoy, diasHabiles, domingosAparte };
 }
 
 /** La cifra de un día: de un colportor, o la suma de varios. */
@@ -203,10 +228,10 @@ export function compararPeriodos(granularidad: Granularidad, serie: Serie, calen
 
 /** Lo mismo que `compararPeriodos`, para una cifra que no es una suma de días (el % por cobrar). */
 export function compararCon(granularidad: Granularidad, agregar: Agregar, calendario: Calendario): Comparacion | null {
-  const { diasHabiles, hoy } = calendario;
+  const { diasHabiles, hoy, domingosAparte } = calendario;
 
   if (granularidad === "dia") {
-    const completos = diasHabiles.filter((d) => d !== hoy);
+    const completos = diasHabiles.filter((d) => d !== hoy && !domingosAparte.has(d));
     const actual = completos.at(-1);
     if (actual === undefined) return null;
     const anterior = completos.at(-2);

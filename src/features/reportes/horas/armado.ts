@@ -7,6 +7,7 @@ import {
   compararCon,
   crearCalendario,
   domingosConDatos,
+  domingosDeTodos,
   formatearCifra,
   formatearEntero,
   periodosDe,
@@ -90,7 +91,13 @@ export function armarReporte(
 ): ReporteArmado {
   const cifras = cifrasVisibles(opciones.porCobrar ?? MOSTRAR_POR_COBRAR);
   const resuelto = acotarAColportores(resolverAmbito(datos, ambito), opciones.elegidos ?? []);
-  const calendario = crearCalendario(datos.inicioCampania, datos.hoy, datos.finCampania, domingosConDatos(resuelto.colportores));
+  const calendario = crearCalendario(
+    datos.inicioCampania,
+    datos.hoy,
+    datos.finCampania,
+    domingosConDatos(resuelto.colportores),
+    domingosDeTodos(resuelto.colportores),
+  );
   const elegido = resuelto.colportor;
   // Una cifra de varios colportores se muestra entera; la de uno solo, con un decimal.
   const esTotal = elegido === null;
