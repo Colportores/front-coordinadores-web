@@ -102,6 +102,16 @@ export interface BecaDeColportor {
   meta: MetaDeBeca | null;
   /** Lo que lleva: libros bonificables y compra a la CES. */
   avance: MetaDeBeca;
+  /**
+   * La mayor meta que ya alcanzó (HU-BEC-002), la marca que guarda el servidor: sigue aunque el tipo pase a «Sin beca»
+   * («Logro beca», Cristian 27/10: lo alcanzado no se pierde). Ausente o `null`: no alcanzó ninguna.
+   */
+  alcanzada?: TipoDeBeca | null;
+  /**
+   * Administración corrigió la carrera y la meta pasó a ser la de la carrera nueva («Carrera corr», Cristian 27/10): la fila
+   * lo avisa. La lectura de Becas devuelve la marca (backend-supabase#202). Ausente o `false`: la carrera nunca se corrigió.
+   */
+  carreraCorregida?: boolean;
 }
 
 /** Las becas de la campaña: el catálogo de carreras para elegir y la beca de cada colportor (por su id). */

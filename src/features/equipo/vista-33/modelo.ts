@@ -313,6 +313,12 @@ export type AvanceDeBeca =
   | { tipo: "sin-carrera" }
   | { tipo: "sin-tipo" }
   | {
+      /** Sin beca, pero ya alcanzó una meta: se ve lo vendido, sin meta que medir («Logro beca»). */
+      tipo: "lograda";
+      /** «130 libros vendidos · alcanzó la beca completa». */
+      texto: string;
+    }
+  | {
       tipo: "con-meta";
       /** «64 de 120 libros · le faltan 56 · 53 %»; con la meta cumplida, «130 de 120 libros · meta alcanzada · 108 %». */
       texto: string;
@@ -337,7 +343,13 @@ function libros(cantidad: number): string {
 export function avanceDeBeca(beca: BecaDeColportor | undefined, unidad: UnidadDeAvance): AvanceDeBeca {
   if (!beca || !beca.carrera) return { tipo: "sin-carrera" };
   const meta = beca.meta;
-  if (!meta || beca.apuntaA === null || enMedida(meta, unidad) <= 0) return { tipo: "sin-tipo" };
+  if (!meta || beca.apuntaA === null || enMedida(meta, unidad) <= 0) {
+    if (beca.apuntaA === null && beca.alcanzada) {
+      const vendido = unidad === "libros" ? `${beca.avance.libros} ${beca.avance.libros === 1 ? "libro vendido" : "libros vendidos"}` : `${formatMonto(beca.avance.monto)} de compra a la CES`;
+      return { tipo: "lograda", texto: `${vendido} · alcanzó ${beca.alcanzada === "completa" ? "la beca completa" : "la media beca"}` };
+    }
+    return { tipo: "sin-tipo" };
+  }
   const logrado = enMedida(beca.avance, unidad);
   const objetivo = enMedida(meta, unidad);
   const falta = Math.max(0, objetivo - logrado);
@@ -352,9 +364,36 @@ export function avanceDeBeca(beca: BecaDeColportor | undefined, unidad: UnidadDe
   return { tipo: "con-meta", texto, porcentaje: Math.max(0, Math.min(100, porcentajeReal)), alcanzada };
 }
 
-/** «Rocío Benítez quedó sin beca: ya no tiene meta.» */
-export function avisoDeSinBeca(nombre: string): string {
+/**
+ * «Rocío Benítez quedó sin beca: ya no tiene meta.»; si ya había alcanzado una, «…pero conserva la beca completa alcanzada.»
+ * (lo alcanzado no se pierde).
+ */
+export function avisoDeSinBeca(nombre: string, beca?: BecaDeColportor): string {
+  if (beca?.alcanzada) {
+    return `${nombre} quedó sin beca: ya no tiene meta, pero conserva ${beca.alcanzada === "completa" ? "la beca completa alcanzada" : "la media beca alcanzada"}.`;
+  }
   return `${nombre} quedó sin beca: ya no tiene meta.`;
+}
+
+/**
+ * En una campaña permanente no hay becas («Beca perman.», Cristian 27/10). La campaña permanente es la que no tiene fecha de
+ * fin (R-CM01: `fecha_fin` es NULL solo si es PERMANENTE).
+ */
+export function esCampaniaPermanente(datos: Pick<DatosEquipoPorCiudad, "campaniaFin">): boolean {
+  return datos.campaniaFin === null;
+}
+
+export const TEXTO_SIN_BECAS_EN_PERMANENTE =
+  "En una campaña permanente no hay becas. Para dar una media beca o una beca completa, el colportor tiene que estar en una campaña de verano o de invierno.";
+
+/** «Carrera corregida: meta de Teología» (`carreraCorregida`, «Carrera corr»). */
+export function textoDeCarreraCorregida(carreraNombre: string): string {
+  return `Carrera corregida: meta de ${carreraNombre}`;
+}
+
+/** La meta que quedó tras corregir la carrera, en las dos medidas: «Meta nueva: 100 libros · $U 150.000 a la CES». */
+export function textoDeMetaNueva(meta: MetaDeBeca): string {
+  return `Meta nueva: ${libros(meta.libros)} · ${formatMonto(meta.monto)} a la CES`;
 }
 
 /** «Rocío Benítez ahora apunta a beca completa: meta de 240 libros y $U 360.000 a la CES.» */

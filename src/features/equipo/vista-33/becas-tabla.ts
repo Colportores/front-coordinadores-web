@@ -1,4 +1,5 @@
-import type { BecaDeColportor, CarreraDelCatalogo, ColportorDeEquipo, TipoDeBeca } from "@/datos/equipo/contrato";
+import type { BecaDeColportor, CarreraDelCatalogo, ColportorDeEquipo } from "@/datos/equipo/contrato";
+import { logroDeBeca } from "@/datos/equipo/logro-de-beca";
 
 import type { AmbitoResuelto, UnidadDeAvance } from "./modelo";
 
@@ -22,27 +23,17 @@ export function etiquetaDeEstado(estado: EstadoDeBeca): string {
   return ESTADOS.find((e) => e.valor === estado)?.etiqueta ?? estado;
 }
 
-function metaEnLibros(beca: BecaDeColportor, carrera: CarreraDelCatalogo | undefined, tipo: TipoDeBeca): number | null {
-  const delCatalogo = tipo === "media" ? carrera?.metaMedia : carrera?.metaCompleta;
-  // Si la carrera ya no está en el catálogo, la meta que se copió al asignar el tipo sigue valiendo para su propio tipo.
-  const libros = delCatalogo?.libros ?? (beca.apuntaA === tipo ? beca.meta?.libros : undefined);
-  return libros !== undefined && libros > 0 ? libros : null;
-}
-
 /**
- * «Sin tipo asignado no hay estado de beca»: sin carrera, «Falta la carrera»; con carrera y sin tipo, «Sin beca». Con tipo,
- * «En progreso» por debajo de la meta media, «Media alcanzada» desde ella y «Completa alcanzada» desde la completa, con las
- * metas de la carrera (aunque apunte a media, lo que ya alcanzó no se le quita).
+ * «Sin tipo asignado no hay estado de beca»: sin carrera, «Falta la carrera»; con carrera y sin tipo ni nada alcanzado, «Sin beca».
+ * Con tipo, «En progreso» por debajo de la meta media, «Media alcanzada» desde ella y «Completa alcanzada» desde la completa,
+ * con las metas de la carrera. Lo que ya alcanzó no se le quita: ni al apuntar a media, ni al pasar a «Sin beca» («Logro beca»,
+ * Cristian 27/10): el estado sigue en lo alcanzado.
  */
 export function estadoDeBeca(beca: BecaDeColportor | undefined, carreras: readonly CarreraDelCatalogo[]): EstadoDeBeca {
   if (!beca || !beca.carrera) return "sin-carrera";
-  if (beca.apuntaA === null) return "sin-beca";
-  const carrera = carreras.find((c) => c.id === beca.carrera?.id);
-  const completa = metaEnLibros(beca, carrera, "completa");
-  if (completa !== null && beca.avance.libros >= completa) return "completa";
-  const media = metaEnLibros(beca, carrera, "media");
-  if (media !== null && beca.avance.libros >= media) return "media";
-  return "en-progreso";
+  const logro = logroDeBeca(beca, carreras);
+  if (logro !== null) return logro;
+  return beca.apuntaA === null ? "sin-beca" : "en-progreso";
 }
 
 /**

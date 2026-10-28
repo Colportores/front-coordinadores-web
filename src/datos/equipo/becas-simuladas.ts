@@ -1,4 +1,5 @@
 import type { BecaDeColportor, CarreraDelCatalogo, DatosDeBecas, MetaDeBeca, ResultadoBeca, TipoDeBeca } from "@/datos/equipo/contrato";
+import { logroDeBeca } from "@/datos/equipo/logro-de-beca";
 
 /**
  * Datos de ejemplo de la pestaña «Becas» de la vista 33 (diseño «33 Equipo», canvas del 21/10). Las metas por carrera son
@@ -72,6 +73,7 @@ function becaInicial(nombre: string): BecaDeColportor {
 const COLPORTOR_FUERA = "El colportor no está en esta campaña. Recargá la página.";
 const SIN_CARRERA_ELEGIDA = "Primero elegí la carrera del colportor.";
 const SIN_META = "Falta configurar la meta de esta carrera. Avisale al administrador para que la cargue.";
+const PERMANENTE = "En una campaña permanente no hay becas.";
 
 function copia(beca: BecaDeColportor): BecaDeColportor {
   return {
@@ -79,6 +81,9 @@ function copia(beca: BecaDeColportor): BecaDeColportor {
     apuntaA: beca.apuntaA,
     meta: beca.meta ? { ...beca.meta } : null,
     avance: { ...beca.avance },
+    // Las marcas del servidor solo viajan cuando valen algo.
+    ...(beca.alcanzada ? { alcanzada: beca.alcanzada } : {}),
+    ...(beca.carreraCorregida ? { carreraCorregida: true } : {}),
   };
 }
 
@@ -88,14 +93,21 @@ function metaDe(carreraDelCatalogo: CarreraDelCatalogo, tipo: TipoDeBeca): MetaD
 
 /**
  * Las becas de ejemplo con su propio estado: elegir la carrera o el tipo cambia lo que ve la siguiente lectura. Aplica las
- * reglas de HU-BEC-006: la carrera se elige una vez, el tipo fija la meta con la de la carrera y, sin meta cargada, avisa.
+ * reglas de HU-BEC-006: la carrera se elige una vez, el tipo fija la meta con la de la carrera y, sin meta cargada, avisa;
+ * lo que ya alcanzó no se pierde al pasar a «Sin beca» («Logro beca»). `permanente`: en una campaña permanente no hay becas
+ * («Beca perman.»): todos arrancan sin beca y la base rechaza cualquier tipo.
  */
 export function crearBecasSimuladas(
   colportores: { id: string; nombre: string }[],
   hoy: string,
   carreras: CarreraDelCatalogo[] = CARRERAS_SIMULADAS,
+  { permanente = false }: { permanente?: boolean } = {},
 ) {
-  const becas = new Map<string, BecaDeColportor>(colportores.map((c) => [c.id, becaInicial(c.nombre)]));
+  const inicial = (nombre: string): BecaDeColportor => {
+    const beca = becaInicial(nombre);
+    return permanente ? { ...beca, apuntaA: null, meta: null } : beca;
+  };
+  const becas = new Map<string, BecaDeColportor>(colportores.map((c) => [c.id, inicial(c.nombre)]));
 
   return {
     datos(): DatosDeBecas {
@@ -127,6 +139,10 @@ export function crearBecasSimuladas(
       const beca = becas.get(colportorId);
       if (!beca) return { ok: false, mensaje: COLPORTOR_FUERA, recargar: true };
       if (!beca.carrera) return { ok: false, mensaje: SIN_CARRERA_ELEGIDA, recargar: true };
+      if (tipo !== null && permanente) return { ok: false, mensaje: PERMANENTE };
+      // Lo que ya alcanzó con el tipo de antes queda marcado, cualquiera sea el cambio.
+      const logro = logroDeBeca(beca, carreras);
+      if (logro !== null) beca.alcanzada = logro;
       if (tipo === null) {
         // «Sin beca»: no hay meta que buscar en el catálogo; lo que ya llevaba de avance queda.
         beca.apuntaA = null;
