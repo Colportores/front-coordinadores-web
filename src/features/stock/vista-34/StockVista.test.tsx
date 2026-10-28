@@ -88,6 +88,19 @@ describe("StockVista", () => {
       expect(within(within(tabla()).getByRole("row", { name: /Libro uno/ })).getAllByRole("cell")[4]).toHaveTextContent("0");
     });
 
+    it("«POR COBRAR» lleva su ayuda como descripción accesible, en la tabla de productos y en el detalle, sin cambiar el nombre", async () => {
+      render(<StockVista datos={conDevueltos()} />);
+      await userEvent.click(fila("Libro uno"));
+
+      const ayuda = "Unidades entregadas que todavía no se pagaron, en proporción al saldo de cada venta.";
+      const encabezados = [
+        within(tabla()).getAllByRole("columnheader", { name: "POR COBRAR" })[0],
+        within(screen.getByRole("table", { name: "Quién tiene Libro uno en Todas las ciudades" })).getByRole("columnheader", { name: "POR COBRAR" }),
+      ];
+      for (const encabezado of encabezados) expect(encabezado).toHaveAccessibleDescription(ayuda);
+      expect(within(tabla()).getAllByRole("columnheader", { name: "ENTREGADOS" })[0]).not.toHaveAccessibleDescription();
+    });
+
     it("la tabla de productos tiene una columna más y el detalle abierto ocupa todo el ancho", async () => {
       render(<StockVista datos={conDevueltos()} />);
       await userEvent.click(fila("Libro uno"));
