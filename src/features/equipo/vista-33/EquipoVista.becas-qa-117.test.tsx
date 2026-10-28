@@ -222,6 +222,31 @@ describe("QA #117 · «Beca perman.»", () => {
     expect(sinBeca("Federico Da Rosa")).toHaveFocus();
   });
 
+  it("P2 (decisión 28/10): una campaña de verano sin fecha de fin NO es permanente: tres opciones y ningún aviso", async () => {
+    const { usuario } = mostrar(datosDePrueba({ campaniaTipo: "VERANO", campaniaFin: null }));
+    await irA(usuario, "Becas");
+
+    expect(screen.queryByText(/campaña permanente/)).not.toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "A qué beca apunta Emiliano Sosa" })).getAllByRole("button")).toHaveLength(3);
+  });
+
+  it("P2 (decisión 28/10): una campaña PERMANENTE con fecha de fin sí es permanente", async () => {
+    const datos = permanente();
+    datos.campaniaFin = "2026-12-19";
+    const { usuario } = mostrar(datos);
+    await irA(usuario, "Becas");
+
+    expect(screen.getByText(/^En una campaña permanente no hay becas./)).toBeInTheDocument();
+    expect(screen.queryAllByRole("button", { name: /^Apuntar a / })).toHaveLength(0);
+  });
+
+  it("sin el tipo de la campaña (null) no se afirma que sea permanente", async () => {
+    const { usuario } = mostrar(datosDePrueba({ campaniaTipo: null, campaniaFin: null }));
+    await irA(usuario, "Becas");
+
+    expect(screen.queryByText(/campaña permanente/)).not.toBeInTheDocument();
+  });
+
   it("al guardar la carrera en una permanente, la fila queda con «Sin beca» y sin los botones de tipo", async () => {
     const { usuario } = mostrar(permanente());
     await irA(usuario, "Becas");
