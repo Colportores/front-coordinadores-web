@@ -66,7 +66,7 @@ export function datosDePrueba(cambios: Partial<DatosEquipoPorCiudad> = {}): Dato
         zonasAnteriores: [{ nombre: "Bisso", desde: "2026-09-01", hasta: "2026-10-05", eliminada: false, inicial: false }],
         casasRegistradas: 340,
         acompanamientos: [
-          { jornadaId: "j-e2", dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", nota: "Trabajamos juntos el sector norte de la zona." },
+          { jornadaId: "j-e2", dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: { esVos: true }, nota: "Trabajamos juntos el sector norte de la zona." },
           { jornadaId: "j-e1", dia: "2026-09-08", horas: 5, acompanante: "Tomás Ibarra", acompananteEsVos: false, origen: "COLPORTOR", nota: null },
         ],
       }),

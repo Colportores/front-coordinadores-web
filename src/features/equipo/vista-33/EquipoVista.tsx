@@ -130,11 +130,11 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
     setRegistrandoId(null);
   };
 
-  const alRegistrar = useCallback((colportorId: string, { jornada, dia, acompanante, acompananteEsVos, origen, nota }: AcompanamientoRegistrado) => {
+  const alRegistrar = useCallback((colportorId: string, { jornada, dia, acompanante, acompananteEsVos, origen, cargadoPor, nota }: AcompanamientoRegistrado) => {
     setRegistrados((anteriores) => {
       const delColportor = anteriores[colportorId] ?? [];
       if (delColportor.some((r) => r.jornadaId === jornada.id)) return anteriores;
-      return { ...anteriores, [colportorId]: [{ jornadaId: jornada.id, dia, horas: jornada.horas, acompanante, acompananteEsVos, origen, nota }, ...delColportor] };
+      return { ...anteriores, [colportorId]: [{ jornadaId: jornada.id, dia, horas: jornada.horas, acompanante, acompananteEsVos, origen, cargadoPor, nota }, ...delColportor] };
     });
   }, []);
 

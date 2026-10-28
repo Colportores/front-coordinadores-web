@@ -113,7 +113,7 @@ describe("QA #96 · cerrar el panel", () => {
     await usuario.click(screen.getByRole("button", { name: "Ver historial de Florencia Pintos" }));
     const historial = screen.getByRole("region", { name: "Historial de acompañamientos de Florencia Pintos" });
     expect(historial).toHaveTextContent("Una nota");
-    expect(historial).toHaveTextContent("cargado desde el panel");
+    expect(historial).toHaveTextContent("cargado por vos");
   });
 
   it("al cerrar, el foco vuelve al botón «Registrar acompañamiento» de esa fila", async () => {

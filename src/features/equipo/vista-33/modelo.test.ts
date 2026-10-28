@@ -269,6 +269,22 @@ describe("textoDeOrigen", () => {
     expect(textoDeOrigen("COORDINADOR")).toBe("cargado desde el panel");
     expect(textoDeOrigen(null)).toBeNull();
   });
+
+  it("dice quién lo cargó desde el panel: «por vos» o «por <nombre>»", () => {
+    expect(textoDeOrigen("COORDINADOR", { esVos: true })).toBe("cargado por vos");
+    expect(textoDeOrigen("COORDINADOR", { esVos: false, nombre: "Santiago Pereira" })).toBe("cargado por Santiago Pereira");
+  });
+
+  it("sin quién lo cargó (filas anteriores) sigue «cargado desde el panel», que es cierto", () => {
+    expect(textoDeOrigen("COORDINADOR", null)).toBe("cargado desde el panel");
+    expect(textoDeOrigen("COORDINADOR", undefined)).toBe("cargado desde el panel");
+    expect(textoDeOrigen("COORDINADOR", { esVos: false, nombre: "  " })).toBe("cargado desde el panel");
+  });
+
+  it("quien cargó solo cuenta si el dato salió del panel: lo que marcó el colportor o no tiene origen no lo lleva", () => {
+    expect(textoDeOrigen("COLPORTOR", { esVos: true })).toBe("lo marcó en el celular");
+    expect(textoDeOrigen(null, { esVos: true })).toBeNull();
+  });
 });
 
 describe("plazoVencido (CZ011)", () => {

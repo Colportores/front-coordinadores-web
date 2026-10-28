@@ -1,5 +1,6 @@
 import type {
   AcompanamientoDeColportor,
+  CargadoPor,
   ColportorDeEquipo,
   DatosEquipoPorCiudad,
   FuenteDatosEquipo,
@@ -103,6 +104,8 @@ interface JornadaSimulada {
   /** Quién acompañó, por id: un coordinador o un colportor de la campaña. */
   acompananteId: string | null;
   origen: OrigenDeAcompanamiento | null;
+  /** Quién lo cargó desde el panel; `null` si lo marcó el colportor. */
+  cargadoPor: CargadoPor | null;
   nota: string | null;
 }
 
@@ -152,6 +155,9 @@ function armar(): Armado {
         const origen: OrigenDeAcompanamiento | null =
           acompanante === null ? null : fijos ? (dia === fijos[0] ? "COLPORTOR" : "COORDINADOR") : sorteos() < 0.5 ? "COLPORTOR" : "COORDINADOR";
         const nota = origen !== "COORDINADOR" ? null : fijos ? NOTAS[1] : NOTAS[Math.floor(sorteos() * NOTAS.length)] || null;
+        // Los cargados desde el panel: el del diseño, por «vos»; el resto, casi todos por «vos» y algunos por el otro coordinador.
+        const cargadoPor: CargadoPor | null =
+          origen !== "COORDINADOR" ? null : fijos || sorteos() < 0.75 ? { esVos: true } : { esVos: false, nombre: OTRO_COORDINADOR };
         jornadas.push({
           id: jornadaId,
           colportorId: id,
@@ -160,6 +166,7 @@ function armar(): Armado {
           acompanante,
           acompananteId: acompanante === null ? null : acompanante === COORDINADOR_SIMULADO ? COORDINADOR_ID : OTRO_COORDINADOR_ID,
           origen,
+          cargadoPor,
           nota,
         });
       }
@@ -203,6 +210,7 @@ export function crearEquipoSimulado(): Pick<
         acompanante: j.acompanante as string,
         acompananteEsVos: j.acompananteId === COORDINADOR_ID,
         origen: j.origen,
+        cargadoPor: j.cargadoPor,
         nota: j.nota,
       }));
 
@@ -262,6 +270,7 @@ export function crearEquipoSimulado(): Pick<
       jornada.acompananteId = acompananteId;
       jornada.acompanante = acompanante;
       jornada.origen = "COORDINADOR";
+      jornada.cargadoPor = { esVos: true };
       jornada.nota = nota === "" ? null : nota;
       return { ok: true, dia: jornada.dia, acompanante, yaEstaba: false, origen: "COORDINADOR", nota: jornada.nota };
     },

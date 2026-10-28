@@ -5,6 +5,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type RefObjec
 import {
   DIAS_DE_GRACIA_ACOMPANAMIENTO,
   LARGO_MAXIMO_NOTA,
+  type CargadoPor,
   type ColportorDeEquipo,
   type DatosEquipoPorCiudad,
   type JornadaParaAcompanar,
@@ -47,6 +48,8 @@ export interface AcompanamientoRegistrado {
   /** Quien acompañó es quien tiene la sesión («Yo»). */
   acompananteEsVos: boolean;
   origen: OrigenDeAcompanamiento | null;
+  /** Quien lo cargó: «vos» si lo acaba de registrar esta sesión; `null` si ya estaba y la base no lo devuelve al registrar. */
+  cargadoPor: CargadoPor | null;
   nota: string | null;
 }
 
@@ -211,6 +214,8 @@ function PanelDeRegistro({
           acompanante: respuesta.acompanante,
           acompananteEsVos: eraYo,
           origen: respuesta.origen,
+          // Si lo registró recién esta sesión, lo cargó quien tiene la sesión. Si ya estaba, la base no dice quién fue.
+          cargadoPor: respuesta.yaEstaba ? null : { esVos: true },
           nota: respuesta.nota,
         });
         if (!montado.current) return;

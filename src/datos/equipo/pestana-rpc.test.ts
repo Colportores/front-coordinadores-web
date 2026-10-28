@@ -71,6 +71,10 @@ function historial(parcial: Record<string, unknown> = {}) {
     acompaniante_apellido: "Pérez",
     acompaniamiento_origen: "COORDINADOR",
     acompaniamiento_nota: null,
+    // Quién lo cargó desde el panel (0116, #173): sin dato en las filas anteriores.
+    acompaniamiento_cargado_por: null,
+    acompaniamiento_cargado_por_nombre: null,
+    acompaniamiento_cargado_por_apellido: null,
     ...parcial,
   };
 }
@@ -127,7 +131,7 @@ describe("obtenerEquipoPorCiudad", () => {
           zonasAnteriores: [{ nombre: "Bisso", desde: "2026-09-01", hasta: "2026-10-05", eliminada: false, inicial: false }],
           casasRegistradas: 340,
           acompanamientos: [
-            { jornadaId: JORNADA, dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", nota: null },
+            { jornadaId: JORNADA, dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: null, nota: null },
           ],
           contadoDesde: "2026-09-01",
         },
@@ -140,6 +144,46 @@ describe("obtenerEquipoPorCiudad", () => {
     expect(llamarRpc).toHaveBeenCalledWith("historial_de_acompaniamientos", { p_campania_id: CAMPANIA, p_colportor_id: null });
     expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: CAMPANIA });
     expect(llamarRpc).toHaveBeenCalledWith("acompaniamientos_por_colportor", { p_campania_id: CAMPANIA });
+  });
+
+  it("quién lo cargó (0116): «vos» si es quien tiene la sesión, el nombre si fue otra persona y nada si la base no lo dice", async () => {
+    const { cliente } = clienteCon(
+      completas({
+        historial_de_acompaniamientos: [
+          historial({ jornada_id: "j-4", dia: "2026-10-22", acompaniamiento_cargado_por: "m", acompaniamiento_cargado_por_nombre: "Mariana", acompaniamiento_cargado_por_apellido: "Pérez" }),
+          historial({ jornada_id: "j-3", dia: "2026-10-21", acompaniamiento_cargado_por: "t", acompaniamiento_cargado_por_nombre: "Tomás", acompaniamiento_cargado_por_apellido: "Ibarra" }),
+          // Quien lo cargó no tiene nombre ni apellido: no se inventa, queda como «cargado desde el panel».
+          historial({ jornada_id: "j-2", dia: "2026-10-02", acompaniamiento_cargado_por: "t", acompaniamiento_cargado_por_nombre: "", acompaniamiento_cargado_por_apellido: "" }),
+          // Lo marcó el colportor, o es anterior a la 0116.
+          historial({ jornada_id: "j-1", dia: "2026-09-08", acompaniamiento_origen: "COLPORTOR" }),
+          // Una base sin las columnas nuevas.
+          { ...historial({ jornada_id: "j-0", dia: "2026-09-01" }), acompaniamiento_cargado_por: undefined },
+        ],
+      }),
+    );
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.colportores[0].acompanamientos.map((a) => [a.jornadaId, a.cargadoPor])).toEqual([
+      ["j-4", { esVos: true }],
+      ["j-3", { esVos: false, nombre: "Tomás Ibarra" }],
+      ["j-2", null],
+      ["j-1", null],
+      ["j-0", null],
+    ]);
+  });
+
+  it("sin `mi_perfil` nadie es «vos»: quien lo cargó figura con su nombre", async () => {
+    const { cliente } = clienteCon(
+      completas({
+        mi_perfil: [],
+        historial_de_acompaniamientos: [historial({ acompaniamiento_cargado_por: "m", acompaniamiento_cargado_por_nombre: "Mariana", acompaniamiento_cargado_por_apellido: "Pérez" })],
+      }),
+    );
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.colportores[0].acompanamientos[0].cargadoPor).toEqual({ esVos: false, nombre: "Mariana Pérez" });
   });
 
   it("el origen y la nota de cada acompañamiento vienen del historial; una fila anterior al dato queda sin origen", async () => {
@@ -215,10 +259,10 @@ describe("obtenerEquipoPorCiudad", () => {
     const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
 
     expect(datos?.colportores[0].acompanamientos).toEqual([
-      { jornadaId: "j-3", dia: "2026-10-21", horas: null, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", nota: null },
-      { jornadaId: "j-2", dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", nota: null },
+      { jornadaId: "j-3", dia: "2026-10-21", horas: null, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: null, nota: null },
+      { jornadaId: "j-2", dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: null, nota: null },
       // Sin nombre ni apellido, la fila no queda sin acompañante.
-      { jornadaId: "j-1", dia: "2026-09-08", horas: 4.5, acompanante: "Cuenta sin nombre", acompananteEsVos: true, origen: "COORDINADOR", nota: null },
+      { jornadaId: "j-1", dia: "2026-09-08", horas: 4.5, acompanante: "Cuenta sin nombre", acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: null, nota: null },
     ]);
   });
 

@@ -93,7 +93,7 @@ describe("fuente simulada de la vista 33", () => {
 
     const despues = (await datosDe(fuente)).colportores.find((c) => c.nombre === "Florencia Pintos");
     expect(despues?.acompanamientos).toEqual([
-      { jornadaId: libre.id, dia: libre.dia, horas: expect.any(Number), acompanante: COORDINADOR_SIMULADO, acompananteEsVos: true, origen: "COORDINADOR", nota: null },
+      { jornadaId: libre.id, dia: libre.dia, horas: expect.any(Number), acompanante: COORDINADOR_SIMULADO, acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: { esVos: true }, nota: null },
     ]);
   });
 
@@ -149,9 +149,9 @@ describe("fuente simulada de la vista 33", () => {
     const emiliano = datos.colportores.find((c) => c.nombre === "Emiliano Sosa");
     const rocio = datos.colportores.find((c) => c.nombre === "Rocío Benítez");
 
-    expect(emiliano?.acompanamientos.map((a) => [a.dia, a.origen, a.nota])).toEqual([
-      ["2026-10-02", "COORDINADOR", expect.any(String)],
-      ["2026-09-08", "COLPORTOR", null],
+    expect(emiliano?.acompanamientos.map((a) => [a.dia, a.origen, a.cargadoPor, a.nota])).toEqual([
+      ["2026-10-02", "COORDINADOR", { esVos: true }, expect.any(String)],
+      ["2026-09-08", "COLPORTOR", null, null],
     ]);
     expect(emiliano?.contadoDesde).toBe("2026-09-01");
     expect(rocio?.contadoDesde).toBe(datos.hoy);

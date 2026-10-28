@@ -1,6 +1,7 @@
 import {
   DIAS_DE_GRACIA_ACOMPANAMIENTO,
   type BecaDeColportor,
+  type CargadoPor,
   type ColportorDeEquipo,
   type DatosEquipoPorCiudad,
   type MetaDeBeca,
@@ -310,13 +311,16 @@ export function nombreDeAcompanante(nombre: string, esVos: boolean): string {
 }
 
 /**
- * De dónde salió un acompañamiento, como en el diseño: «lo marcó en el celular» o «cargado desde el panel». Sin dato
- * (jornadas anteriores a que se guardara) no se inventa: `null`.
+ * De dónde salió un acompañamiento, como en el diseño: «lo marcó en el celular», «cargado por vos» o «cargado por
+ * <nombre>». Si la base no dice quién lo cargó (filas anteriores a ese dato), «cargado desde el panel», que es cierto.
+ * Sin dato de origen no se inventa: `null`.
  */
-export function textoDeOrigen(origen: OrigenDeAcompanamiento | null): string | null {
+export function textoDeOrigen(origen: OrigenDeAcompanamiento | null, cargadoPor?: CargadoPor | null): string | null {
   if (origen === "COLPORTOR") return "lo marcó en el celular";
-  if (origen === "COORDINADOR") return "cargado desde el panel";
-  return null;
+  if (origen !== "COORDINADOR") return null;
+  if (cargadoPor?.esVos) return "cargado por vos";
+  if (cargadoPor && cargadoPor.nombre.trim() !== "") return `cargado por ${cargadoPor.nombre}`;
+  return "cargado desde el panel";
 }
 
 /**
