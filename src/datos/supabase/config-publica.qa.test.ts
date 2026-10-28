@@ -64,9 +64,8 @@ describe("#101 · verificarEntornoDeProduccion (casos límite)", () => {
     ).not.toThrow();
   });
 
-  // `activa()` solo conoce 1/true/si/sí/on: un typo en el deploy de diciembre deja salir el build sin Supabase, que es el
-  // descuido que la decisión «Sin env» quiere cortar (el aviso del panel es la única red).
-  it.skip("QA #101: un valor no reconocido de PANEL_EXIGIR_SUPABASE («yes», «enabled») desarma el chequeo en silencio; tendría que frenar el build diciendo qué valores vale", () => {
-    for (const valor of ["yes", "enabled", "y", "armado"]) expect(mensajeDe({ PANEL_EXIGIR_SUPABASE: valor })).not.toBe("");
+  // Un typo en el deploy de diciembre no puede dejar salir el build sin Supabase (el aviso del panel sería la única red).
+  it("QA #101: un valor no reconocido de PANEL_EXIGIR_SUPABASE («yes», «enabled») frena el build diciendo qué valores vale", () => {
+    for (const valor of ["yes", "enabled", "y", "armado"]) expect(mensajeDe({ PANEL_EXIGIR_SUPABASE: valor })).toContain("PANEL_EXIGIR_SUPABASE");
   });
 });

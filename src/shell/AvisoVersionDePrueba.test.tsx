@@ -19,6 +19,7 @@ describe("AvisoVersionDePrueba", () => {
       render(<AvisoVersionDePrueba />);
 
       expect(screen.getByRole("note")).toHaveTextContent(TEXTO);
+      expect(screen.getByRole("note")).not.toHaveTextContent("Administración");
       expect(screen.queryByRole("button")).not.toBeInTheDocument();
     });
   });
@@ -31,6 +32,7 @@ describe("AvisoVersionDePrueba", () => {
       expect(aviso).toHaveTextContent("Versión de prueba con datos simulados.");
       expect(aviso).toHaveTextContent("no está conectado a la base de datos");
       expect(aviso).toHaveTextContent("lo que hagas no se guarda");
+      expect(aviso).toHaveTextContent("Si esperabas ver los datos de tu campaña, avisale a Administración.");
       expect(screen.queryByRole("button")).not.toBeInTheDocument();
     });
 
@@ -63,6 +65,7 @@ describe("AvisoVersionDePrueba", () => {
       const aviso = screen.getByRole("note");
       expect(aviso).toHaveTextContent("Stock y Cuentas: datos simulados.");
       expect(aviso).toHaveTextContent("Esas pestañas todavía no están conectadas");
+      expect(aviso).not.toHaveTextContent("Administración");
     });
 
     it("con una sola de las dos a la vista, habla de esa", () => {

@@ -91,6 +91,7 @@ export function verificarEntornoSupabase(env: Entorno): void {
 }
 
 const VALORES_VERDADEROS = new Set(["1", "true", "si", "sí", "on"]);
+const VALORES_FALSOS = new Set(["0", "false", "no", "off", ""]);
 const activa = (valor: string | undefined) => VALORES_VERDADEROS.has(valor?.trim().toLowerCase() ?? "");
 
 /**
@@ -105,6 +106,13 @@ const activa = (valor: string | undefined) => VALORES_VERDADEROS.has(valor?.trim
  * - Se llama desde `next.config.ts`, junto a `verificarEntornoSupabase`. El mensaje dice qué falta y qué hacer, nunca el valor.
  */
 export function verificarEntornoDeProduccion(env: Entorno): void {
+  // Un valor que no es ni verdadero ni falso («yes», un typo) no desarma el chequeo en silencio: frena el build (QA de #101).
+  const pedido = env.PANEL_EXIGIR_SUPABASE?.trim().toLowerCase();
+  if (pedido !== undefined && !VALORES_VERDADEROS.has(pedido) && !VALORES_FALSOS.has(pedido)) {
+    throw new Error(
+      "PANEL_EXIGIR_SUPABASE tiene un valor que no se reconoce. Usá 1, true, si, sí u on para exigir Supabase, o 0, false, no, off o vacía para no exigirlo.",
+    );
+  }
   if (!activa(env.PANEL_EXIGIR_SUPABASE)) return;
   if (activa(env.PANEL_DATOS_SIMULADOS) || env.DEPLOY_PAGES === "1") return;
   if (leerConfigPublicaSupabase(env)) return;

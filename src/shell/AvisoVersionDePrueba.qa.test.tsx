@@ -40,7 +40,7 @@ describe("#101 · texto literal de cada caso del aviso", () => {
     render(<AvisoVersionDePrueba />);
 
     expect(textoDelAviso()).toBe(
-      "Versión de prueba con datos simulados. Este panel no está conectado a la base de datos: lo que ves es de ejemplo y lo que hagas no se guarda.",
+      "Versión de prueba con datos simulados. Este panel no está conectado a la base de datos: lo que ves es de ejemplo y lo que hagas no se guarda. Si esperabas ver los datos de tu campaña, avisale a Administración.",
     );
   });
 
@@ -63,7 +63,7 @@ describe("#101 · texto literal de cada caso del aviso", () => {
     expect(textoDelAviso()).toContain("lo que hagas en ella no se guarda");
   });
 
-  it.skip("QA #101: con una sola pestaña simulada el aviso dice «lo que muestran» (plural); tendría que decir «lo que muestra»", () => {
+  it("QA #101: con una sola pestaña simulada el aviso concuerda en singular («lo que muestra»)", () => {
     conexion();
     fijarFlags({ modoDev: false, stock: true });
     render(<AvisoVersionDePrueba />);

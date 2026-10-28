@@ -38,7 +38,8 @@ function AvisoSinConexion() {
   return (
     <p>
       <strong className="font-semibold">Versión de prueba con datos simulados.</strong> Este panel no está conectado a la
-      base de datos: lo que ves es de ejemplo y lo que hagas no se guarda.
+      base de datos: lo que ves es de ejemplo y lo que hagas no se guarda. Si esperabas ver los datos de tu campaña,
+      avisale a Administración.
     </p>
   );
 }
@@ -50,7 +51,8 @@ function AvisoDePestanas() {
     <p>
       <strong className="font-semibold">{lista}: datos simulados.</strong>{" "}
       {nombres.length > 1 ? "Esas pestañas todavía no están conectadas" : "Esa pestaña todavía no está conectada"} a la base de
-      datos: lo que muestran es de ejemplo y lo que hagas en {nombres.length > 1 ? "ellas" : "ella"} no se guarda.
+      datos: lo que {nombres.length > 1 ? "muestran" : "muestra"} es de ejemplo y lo que hagas en{" "}
+      {nombres.length > 1 ? "ellas" : "ella"} no se guarda.
     </p>
   );
 }
