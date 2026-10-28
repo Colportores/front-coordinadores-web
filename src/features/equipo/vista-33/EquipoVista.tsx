@@ -13,6 +13,7 @@ import {
   AMBITO_TODAS,
   construirLista,
   construirRiel,
+  esCampaniaPermanente,
   mismoAmbito,
   pluralAcompanamientos,
   pluralColportores,
@@ -250,7 +251,7 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
           ) : vista === "zonas" ? (
             <TablaZonas resuelto={resuelto} />
           ) : vista === "becas" ? (
-            <TablaBecas resuelto={resuelto} becas={datos.becas} estado={becas} unidad={unidad} vista={vistaDeBecas} />
+            <TablaBecas resuelto={resuelto} becas={datos.becas} estado={becas} unidad={unidad} vista={vistaDeBecas} permanente={esCampaniaPermanente(datos)} />
           ) : (
             <TablaAcompanamientos
               resuelto={resuelto}

@@ -143,7 +143,7 @@ export function useBecas(inicial: DatosDeBecas | null, acciones: AccionesEquipo)
       encolar(
         colportor,
         () => accionesVigentes.current.asignarTipoDeBeca(colportor.id, tipo),
-        (beca) => (tipo === null ? avisoDeSinBeca(colportor.nombre) : avisoDeBecaAsignada(colportor.nombre, beca)),
+        (beca) => (tipo === null ? avisoDeSinBeca(colportor.nombre, beca) : avisoDeBecaAsignada(colportor.nombre, beca)),
       );
     },
     [encolar],

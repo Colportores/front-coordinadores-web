@@ -92,6 +92,7 @@ describe("obtenerEquipoPorCiudad", () => {
       campania: "Primavera 2026",
       campaniaInicio: "2026-09-01",
       campaniaFin: "2026-12-19",
+      campaniaTipo: "PRIMAVERA",
       hoy: "2026-10-21",
       ciudades: [
         { id: ARTIGAS, nombre: "Artigas", departamento: "Artigas" },
@@ -239,6 +240,15 @@ describe("obtenerEquipoPorCiudad", () => {
       const { cliente } = clienteCon(completas(cambio));
       await expect(crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad()).rejects.toBeInstanceOf(RespuestaInesperada);
     }
+  });
+
+  it("el tipo de la campaña viaja tal cual, sin deducirlo de la fecha de fin", async () => {
+    const permanente = completas({ campanias_del_coordinador: [{ ...campania, tipo: "PERMANENTE" }] });
+    const sinFin = completas({ campanias_del_coordinador: [{ ...campania, tipo: "VERANO", fecha_fin: null }] });
+
+    expect((await crearFuentePestanaRpc(clienteCon(permanente).cliente, AHORA).obtenerEquipoPorCiudad())?.campaniaTipo).toBe("PERMANENTE");
+    const datos = await crearFuentePestanaRpc(clienteCon(sinFin).cliente, AHORA).obtenerEquipoPorCiudad();
+    expect(datos).toMatchObject({ campaniaTipo: "VERANO", campaniaFin: null });
   });
 
   it("una campaña sin fecha de fin la deja en null", async () => {

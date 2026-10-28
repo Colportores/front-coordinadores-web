@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
 
 import type { CarreraDelCatalogo, ColportorDeEquipo, DatosDeBecas, TipoDeBeca } from "@/datos/equipo/contrato";
 import { diaYMes } from "@/lib/dias";
@@ -21,7 +21,16 @@ import {
   type FiltrosDeBecas,
   type OrdenDeBecas,
 } from "./becas-tabla";
-import { avanceDeBeca, OPCIONES_DE_TIPO, pluralColportores, type AmbitoResuelto, type UnidadDeAvance } from "./modelo";
+import {
+  avanceDeBeca,
+  OPCIONES_DE_TIPO,
+  pluralColportores,
+  TEXTO_SIN_BECAS_EN_PERMANENTE,
+  textoDeCarreraCorregida,
+  textoDeMetaNueva,
+  type AmbitoResuelto,
+  type UnidadDeAvance,
+} from "./modelo";
 import type { EstadoDeBecas } from "./useBecas";
 import type { VistaDeBecas } from "./useVistaDeBecas";
 import { CabeceraDeGrupo, CLASE_BOTON_PRIMARIO, CLASE_BOTON_SECUNDARIO } from "./TablaZonas";
@@ -144,6 +153,17 @@ function Avance({ colportor, estado, unidad }: { colportor: ColportorDeEquipo; e
   const avance = avanceDeBeca(estado.porColportor[colportor.id], unidad);
   const guardando = estado.guardando.has(colportor.id);
   if (avance.tipo === "sin-carrera") return <span className="text-tinta-suave">Sin meta: falta la carrera</span>;
+  if (avance.tipo === "lograda") {
+    return (
+      <span className="flex min-w-0 flex-col gap-0.5" aria-busy={guardando}>
+        <span className="font-mono text-[11.5px] wrap-anywhere">
+          {avance.texto}
+          {guardando && <span className="ml-2 font-sans text-tinta-suave">Guardando…</span>}
+        </span>
+        <span className="text-[10.5px] text-tinta-suave">Sin beca: ya no tiene meta que medir.</span>
+      </span>
+    );
+  }
   if (avance.tipo === "sin-tipo") {
     return (
       <span className="text-tinta-suave">
@@ -168,18 +188,23 @@ function Avance({ colportor, estado, unidad }: { colportor: ColportorDeEquipo; e
 function ApuntaA({
   colportor,
   estado,
+  soloSinBeca,
+  descripcion,
   alTocar,
 }: {
   colportor: ColportorDeEquipo;
   estado: EstadoDeBecas;
+  /** Campaña permanente: no hay becas, así que la única opción es «Sin beca». */
+  soloSinBeca: boolean;
+  descripcion: string | undefined;
   alTocar: (tipo: TipoDeBeca | null) => void;
 }) {
   const beca = estado.porColportor[colportor.id];
   // «Sin beca» es null: lo pedido puede ser null, así que se mira si hay un pedido y no si el valor es null.
   const marcado = colportor.id in estado.pedido ? estado.pedido[colportor.id] : (beca?.apuntaA ?? null);
   return (
-    <span role="group" aria-label={`A qué beca apunta ${colportor.nombre}`} className="inline-flex overflow-hidden rounded-control border border-borde bg-superficie">
-      {OPCIONES_DE_TIPO.map(({ tipo, etiqueta }) => {
+    <span role="group" aria-label={`A qué beca apunta ${colportor.nombre}`} aria-describedby={descripcion} className="inline-flex overflow-hidden rounded-control border border-borde bg-superficie">
+      {OPCIONES_DE_TIPO.filter(({ tipo }) => !soloSinBeca || tipo === null).map(({ tipo, etiqueta }) => {
         const activo = marcado === tipo;
         const clave = tipo ?? "ninguna";
         return (
@@ -357,13 +382,17 @@ export function TablaBecas({
   estado,
   unidad,
   vista,
+  permanente = false,
 }: {
   resuelto: AmbitoResuelto;
   becas: DatosDeBecas | null;
   estado: EstadoDeBecas;
   unidad: UnidadDeAvance;
   vista: VistaDeBecas;
+  /** La campaña es permanente (sin fecha de fin): no hay becas, solo «Sin beca». */
+  permanente?: boolean;
 }) {
+  const idAvisoPermanente = useId();
   const [eligiendoId, setEligiendoId] = useState<string | null>(null);
   const raiz = useRef<HTMLDivElement>(null);
   // Tras guardar la carrera se enfoca el primer botón de «Apunta a» de esa fila; al cancelar, el botón que la abrió.
@@ -425,6 +454,11 @@ export function TablaBecas({
       <p aria-live="polite" className="sr-only">
         {vista.orden === null ? "" : textoDeOrden(vista.orden)}
       </p>
+      {permanente && (
+        <p id={idAvisoPermanente} className="border-b border-borde bg-fondo px-[18px] py-2.5 text-chico wrap-anywhere text-tinta-2">
+          {TEXTO_SIN_BECAS_EN_PERMANENTE}
+        </p>
+      )}
       <BarraDeFiltros vista={vista} carreras={becas.carreras} unidad={unidad} total={tabla.total} coinciden={tabla.coinciden} />
       <table aria-label="Becas de cada colportor" className="w-full table-fixed border-collapse">
         <colgroup>
@@ -466,7 +500,8 @@ export function TablaBecas({
               )}
               {grupo.filas.map((fila) => {
                 const c = fila.colportor;
-                const carrera = estado.porColportor[c.id]?.carrera ?? null;
+                const beca = estado.porColportor[c.id];
+                const carrera = beca?.carrera ?? null;
                 const abierto = eligiendoId === c.id && carrera === null;
                 const guardando = estado.guardando.has(c.id);
                 const error = estado.errores[c.id];
@@ -484,6 +519,12 @@ export function TablaBecas({
                           <span className="flex min-w-0 flex-col">
                             <span className="wrap-anywhere">{carrera.nombre}</span>
                             <span className="text-[10.5px] text-tinta-suave">elegida el {diaYMes(carrera.elegidaEl)}</span>
+                            {beca?.metaRecalculadaEn && (
+                              <>
+                                <span className="mt-0.5 text-[10.5px] font-semibold wrap-anywhere text-tinta-2">{textoDeCarreraCorregida(carrera.nombre)}</span>
+                                {beca.meta && <span className="text-[10.5px] wrap-anywhere text-tinta-suave">{textoDeMetaNueva(beca.meta)}</span>}
+                              </>
+                            )}
                           </span>
                         ) : (
                           <button
@@ -503,6 +544,8 @@ export function TablaBecas({
                           <ApuntaA
                             colportor={c}
                             estado={estado}
+                            soloSinBeca={permanente}
+                            descripcion={permanente ? idAvisoPermanente : undefined}
                             alTocar={(tipo) => {
                               fijar(c.id);
                               focoTocado.current = { id: c.id, clave: `apunta:${c.id}:${tipo ?? "ninguna"}` };
@@ -529,7 +572,8 @@ export function TablaBecas({
                             error={error}
                             alGuardar={(carreraId) => {
                               fijar(c.id);
-                              focoPendiente.current = `apunta:${c.id}:media`;
+                              // En una campaña permanente solo existe «Sin beca» (clave «ninguna»): ahí cae el foco.
+                              focoPendiente.current = `apunta:${c.id}:${permanente ? "ninguna" : "media"}`;
                               estado.elegirCarrera({ id: c.id, nombre: c.nombre }, carreraId);
                             }}
                             alCancelar={() => {
