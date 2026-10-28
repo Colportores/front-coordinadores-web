@@ -37,9 +37,15 @@ export interface ExistenciaDeStock {
   tiene: number;
   /** Vendidas y todavía no entregadas. */
   porEntregar: number;
-  /** Entregadas. */
+  /** Entregadas. No se les resta lo devuelto: la devolución va aparte, en `devueltos`. */
   entregados: number;
-  /** Entregadas y no pagadas, en unidades (no en plata). */
+  /** Devueltas al stock (devolución de una venta, HU-VEN-004). Columna «Devueltos», aparte de `entregados` (decisión de Cristian, 27/10, «Devol. stock»). */
+  devueltos: number;
+  /**
+   * Entregadas y no pagadas, en unidades (no en plata). Llega del servidor ya proporcional al saldo y redondeado hacia
+   * arriba (una venta de 3 libros cobrada a la mitad cuenta 2; sin saldo, 0; decisión de Cristian, 27/10, «Por cobrar»):
+   * el panel muestra el número tal cual, no recalcula nada.
+   */
   porCobrar: number;
 }
 

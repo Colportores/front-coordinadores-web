@@ -83,6 +83,9 @@ function existencia(ciudadId: string, nombre: string, producto: (typeof PRODUCTO
   let porEntregar = r() < 0.65 ? 0 : 1 + Math.floor(r() * 2);
   const entregados = Math.floor(r() * (producto.max + 4));
   const porCobrar = Math.min(entregados, Math.floor(r() * 3));
+  // Los devueltos salen de su propio generador: así las demás cifras (las del canvas) no cambian. Nunca más que lo entregado.
+  const rd = rng(hash(nombre + producto.id + "devueltos"));
+  const devueltos = Math.min(entregados, rd() < 0.7 ? 0 : 1 + Math.floor(rd() * 2));
   const rivera = ciudadId === "rivera";
   const artigas = ciudadId === "artigas";
   if (rivera && producto.id === "rsh") {
@@ -101,7 +104,7 @@ function existencia(ciudadId: string, nombre: string, producto: (typeof PRODUCTO
     porEntregar = tiene;
   }
   if (artigas && producto.id === "pam") porEntregar = PAMPLONA_POR_ENTREGAR[nombre] || 0;
-  return { productoId: producto.id, tiene, porEntregar, entregados, porCobrar };
+  return { productoId: producto.id, tiene, porEntregar, entregados, devueltos, porCobrar };
 }
 
 const slug = (nombre: string) =>

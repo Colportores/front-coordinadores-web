@@ -21,7 +21,7 @@ import {
 } from "./modelo";
 
 const producto = (id: string, tipo: ProductoDeStock["tipo"], nombre = id, nota: string | null = null): ProductoDeStock => ({ id, nombre, tipo, nota });
-const ex = (productoId: string, tiene: number, porEntregar = 0, entregados = 0, porCobrar = 0): ExistenciaDeStock => ({ productoId, tiene, porEntregar, entregados, porCobrar });
+const ex = (productoId: string, tiene: number, porEntregar = 0, entregados = 0, porCobrar = 0, devueltos = 0): ExistenciaDeStock => ({ productoId, tiene, porEntregar, entregados, devueltos, porCobrar });
 const col = (id: string, ciudadId: string | null, ...existencias: ExistenciaDeStock[]): ColportorDeStock => ({ id, nombre: id, ciudadId, ultimoDatoAt: null, existencias });
 
 function datos(parcial: Partial<DatosDeStock> = {}): DatosDeStock {
@@ -45,16 +45,16 @@ const resolver = (d: DatosDeStock, ambito: Ambito = AMBITO_TODAS) => {
 
 describe("estadoDe", () => {
   it("sin nada en la ciudad está agotado, tenga o no entregas pendientes", () => {
-    expect(estadoDe({ tiene: 0, porEntregar: 0, entregados: 3, porCobrar: 0 })).toMatchObject({ tipo: "agotado", simbolo: "⊘", texto: "Agotado en la ciudad" });
-    expect(estadoDe({ tiene: 0, porEntregar: 4, entregados: 0, porCobrar: 0 }).tipo).toBe("agotado");
+    expect(estadoDe({ tiene: 0, porEntregar: 0, entregados: 3, devueltos: 0, porCobrar: 0 })).toMatchObject({ tipo: "agotado", simbolo: "⊘", texto: "Agotado en la ciudad" });
+    expect(estadoDe({ tiene: 0, porEntregar: 4, entregados: 0, devueltos: 0, porCobrar: 0 }).tipo).toBe("agotado");
   });
 
   it("no alcanza cuando lo que hay es menos que lo vendido y no entregado, y dice cuánto falta", () => {
-    expect(estadoDe({ tiene: 4, porEntregar: 6, entregados: 0, porCobrar: 0 })).toMatchObject({ tipo: "faltan", simbolo: "△", texto: "Faltan 2 para entregar", faltan: 2 });
+    expect(estadoDe({ tiene: 4, porEntregar: 6, entregados: 0, devueltos: 0, porCobrar: 0 })).toMatchObject({ tipo: "faltan", simbolo: "△", texto: "Faltan 2 para entregar", faltan: 2 });
   });
 
   it("alcanza justo cuando hay lo mismo que por entregar", () => {
-    expect(estadoDe({ tiene: 5, porEntregar: 5, entregados: 0, porCobrar: 0 })).toMatchObject({ tipo: "alcanza", simbolo: "✓", texto: "Alcanza" });
+    expect(estadoDe({ tiene: 5, porEntregar: 5, entregados: 0, devueltos: 0, porCobrar: 0 })).toMatchObject({ tipo: "alcanza", simbolo: "✓", texto: "Alcanza" });
   });
 });
 
@@ -72,6 +72,19 @@ describe("construirMundo", () => {
     const { resuelto, mundo } = resolver(datos({ colportores: [col("a", "riv", ex("l1", -3, Number.NaN, 2.9, Number.POSITIVE_INFINITY))] }));
     const [fila] = construirTabla(mundo, resuelto)[0].filas;
     expect([fila.tiene, fila.porEntregar, fila.entregados, fila.porCobrar]).toEqual([0, 0, 2, 0]);
+  });
+
+  it("los devueltos son una cifra aparte: no se restan de lo entregado y una cantidad rota cuenta cero", () => {
+    const { resuelto, mundo } = resolver(datos({ colportores: [col("a", "riv", ex("l1", 5, 0, 10, 0, 3)), col("b", "riv", ex("l1", 1, 0, 4, 0, -2)), col("c", "riv", ex("l1", 1, 0, 1, 0, Number.NaN))] }), { tipo: "ciudad", ciudadId: "riv" });
+    const [fila] = construirTabla(mundo, resuelto)[0].filas;
+    expect([fila.entregados, fila.devueltos]).toEqual([15, 3]);
+    expect(fila.quien.map((q) => [q.nombre, q.entregados, q.devueltos])).toEqual([["a", 10, 3], ["b", 4, 0], ["c", 1, 0]]);
+  });
+
+  it("«por cobrar» se muestra tal cual llega: el panel no lo prorratea ni lo vuelve a redondear", () => {
+    // 3 libros entregados, cobrados a la mitad: el servidor manda 2 (proporcional al saldo, hacia arriba).
+    const { resuelto, mundo } = resolver(datos({ colportores: [col("a", "riv", ex("l1", 0, 0, 3, 2))] }));
+    expect(construirTabla(mundo, resuelto)[0].filas[0]).toMatchObject({ entregados: 3, porCobrar: 2 });
   });
 
   it("un producto que el colportor no tiene cargado vale cero, y uno que no está en el catálogo se ignora", () => {

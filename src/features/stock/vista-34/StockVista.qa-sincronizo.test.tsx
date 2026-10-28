@@ -17,7 +17,7 @@ const col = (id: string, nombre: string, ultimoDatoAt: string | null, tiene = 3)
   nombre,
   ciudadId: "riv",
   ultimoDatoAt,
-  existencias: [{ productoId: "l1", tiene, porEntregar: 0, entregados: 0, porCobrar: 0 }],
+  existencias: [{ productoId: "l1", tiene, porEntregar: 0, entregados: 0, devueltos: 0, porCobrar: 0 }],
 });
 const datos = (...colportores: ColportorDeStock[]): DatosDeStock => ({
   campaniaId: "c",

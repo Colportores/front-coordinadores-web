@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 import { formatearCantidad, type EstadoDeUnidad, type FilaDeUnidad, type GrupoDeFilas } from "./modelo";
 
-const COLUMNAS = 7;
+const COLUMNAS = 8;
 
 const CLASES_ESTADO: Record<EstadoDeUnidad["tipo"], string> = {
   agotado: "bg-peligro-fondo text-peligro",
@@ -28,7 +28,8 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
           ) : (
             <table aria-label={`Quién tiene ${fila.nombre} en ${nombreDelLugar}`} className="w-full table-fixed border-collapse">
               <colgroup>
-                <col className="w-[32%]" />
+                <col className="w-[28%]" />
+                <col />
                 <col />
                 <col />
                 <col />
@@ -49,6 +50,9 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
                     ENTREGADOS
                   </th>
                   <th scope="col" className="pb-1 text-right font-semibold">
+                    DEVUELTOS
+                  </th>
+                  <th scope="col" className="pb-1 text-right font-semibold">
                     POR COBRAR
                   </th>
                 </tr>
@@ -67,6 +71,9 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
                       <Cifra valor={q.porEntregar} />
                     </td>
                     <td className="py-1.5 text-right font-mono text-tinta">{formatearCantidad(q.entregados)}</td>
+                    <td className="py-1.5 text-right">
+                      <Cifra valor={q.devueltos} />
+                    </td>
                     <td className="py-1.5 text-right font-mono text-tinta">{formatearCantidad(q.porCobrar)}</td>
                   </tr>
                 ))}
@@ -98,12 +105,13 @@ export function TablaDeProductos({
   return (
     <table aria-label={`Stock por producto en ${nombreDelLugar}`} className="w-full table-fixed border-collapse">
       <colgroup>
-        <col className="w-[26%]" />
-        <col className="w-[10%]" />
-        <col className="w-[11%]" />
-        <col className="w-[11%]" />
+        <col className="w-[22%]" />
+        <col className="w-[9%]" />
         <col className="w-[10%]" />
         <col className="w-[10%]" />
+        <col className="w-[10%]" />
+        <col className="w-[9%]" />
+        <col className="w-[9%]" />
         <col />
       </colgroup>
       <thead className="sticky top-0 z-10 bg-superficie">
@@ -122,6 +130,9 @@ export function TablaDeProductos({
           </th>
           <th scope="col" className="px-2 py-[9px] text-right font-semibold">
             ENTREGADOS
+          </th>
+          <th scope="col" className="px-2 py-[9px] text-right font-semibold">
+            DEVUELTOS
           </th>
           <th scope="col" className="px-2 py-[9px] text-right font-semibold">
             POR COBRAR
@@ -182,6 +193,9 @@ export function TablaDeProductos({
                     </td>
                     <td className="px-2 py-1.5 text-right align-middle">
                       <Cifra valor={fila.entregados} />
+                    </td>
+                    <td className="px-2 py-1.5 text-right align-middle">
+                      <Cifra valor={fila.devueltos} />
                     </td>
                     <td className="px-2 py-1.5 text-right align-middle">
                       <Cifra valor={fila.porCobrar} />
