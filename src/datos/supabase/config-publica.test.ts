@@ -4,6 +4,7 @@ import {
   configPublicaSupabase,
   esClaveDeServicio,
   leerConfigPublicaSupabase,
+  verificarEntornoDeProduccion,
   verificarEntornoSupabase,
 } from "@/datos/supabase/config-publica";
 
@@ -141,5 +142,61 @@ describe("verificarEntornoSupabase (el chequeo del build)", () => {
 
       expect((await import("../../../next.config")).default).toBeTypeOf("object");
     });
+  });
+});
+
+describe("verificarEntornoDeProduccion (el build de producción exige Supabase, #101)", () => {
+  const ARMADO = { PANEL_EXIGIR_SUPABASE: "1" };
+
+  function mensajeDe(env: Record<string, string | undefined>): string {
+    try {
+      verificarEntornoDeProduccion(env);
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return "";
+  }
+
+  it("sin PANEL_EXIGIR_SUPABASE no hace nada, tampoco sin variables: hasta diciembre el build queda como estaba", () => {
+    expect(() => verificarEntornoDeProduccion({})).not.toThrow();
+    expect(() => verificarEntornoDeProduccion({ PANEL_EXIGIR_SUPABASE: "0" })).not.toThrow();
+    expect(() => verificarEntornoDeProduccion({ PANEL_EXIGIR_SUPABASE: "" })).not.toThrow();
+  });
+
+  it("armado y con la URL y la clave publicable, el build sigue", () => {
+    expect(() => verificarEntornoDeProduccion({ ...ARMADO, ...COMPLETO })).not.toThrow();
+  });
+
+  it.each(["1", "true", "si", "on", " TRUE "])("armado con %j y sin variables, el build falla y dice cuáles faltan", (valor) => {
+    const mensaje = mensajeDe({ PANEL_EXIGIR_SUPABASE: valor });
+
+    expect(mensaje).toContain("NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    expect(mensaje).toContain("PANEL_DATOS_SIMULADOS=1");
+  });
+
+  it("dice cuál de las dos falta", () => {
+    expect(mensajeDe({ ...ARMADO, NEXT_PUBLIC_SUPABASE_URL: COMPLETO.NEXT_PUBLIC_SUPABASE_URL })).toContain(
+      "falta NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    );
+    expect(mensajeDe({ ...ARMADO, NEXT_PUBLIC_SUPABASE_ANON_KEY: COMPLETO.NEXT_PUBLIC_SUPABASE_ANON_KEY })).toContain(
+      "falta NEXT_PUBLIC_SUPABASE_URL",
+    );
+  });
+
+  it("variables que no sirven (URL http:// ajena a localhost) también frenan, sin escribir la clave", () => {
+    const mensaje = mensajeDe({ ...ARMADO, NEXT_PUBLIC_SUPABASE_URL: "http://otro-host.com", NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_secretito" });
+
+    expect(mensaje).toContain("no es una URL https:// válida");
+    expect(mensaje).not.toContain("secretito");
+    expect(mensaje).not.toContain("otro-host");
+  });
+
+  it("el modo simulado explícito (PANEL_DATOS_SIMULADOS) o el build de Pages dejan pasar sin variables", () => {
+    expect(() => verificarEntornoDeProduccion({ ...ARMADO, PANEL_DATOS_SIMULADOS: "1" })).not.toThrow();
+    expect(() => verificarEntornoDeProduccion({ ...ARMADO, DEPLOY_PAGES: "1" })).not.toThrow();
+  });
+
+  it("PANEL_DATOS_SIMULADOS apagado no es un permiso", () => {
+    expect(mensajeDe({ ...ARMADO, PANEL_DATOS_SIMULADOS: "0" })).not.toBe("");
   });
 });
