@@ -1,0 +1,61 @@
+name: Artefacto del panel con Supabase dev
+
+# Pruebas de demo (issue #123): el panel compilado y CONECTADO al Supabase de desarrollo, subido como artefacto de
+# Actions (7 días) para descargarlo y servirlo en una PC propia. Es de uso interno: NO se publica en GitHub Pages ni en
+# ningún hosting, y no se guarda en el repo. El sitio de prueba de Pages (datos simulados) no cambia.
+#
+# Lleva solo la URL pública del proyecto dev y la clave ANÓNIMA (pública por diseño: la autoridad es la RLS), que salen de
+# las variables del repo (Settings → Secrets and variables → Actions → Variables) SUPABASE_URL y SUPABASE_ANON_KEY. Nunca la
+# clave de servicio, claves del BFF ni secretos: `npm run build:demo-supabase` falla si la URL no es la del proyecto dev, si
+# la clave no es anónima, si el entorno trae otras credenciales o si algún archivo del artefacto lleva otra clave.
+#
+# El panel conectado necesita servidor (proxy, cookies de sesión, server actions): el artefacto es un servidor Node
+# autónomo (`node server.js`), no un export estático. El README de dentro explica cómo servirlo y las cuentas demo.
+
+on:
+  push:
+    branches: [develop]
+  # Corrida manual: solo sobre develop (el job lo verifica).
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-supabase-dev
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build del panel conectado a Supabase dev
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Node 24, el mismo que trae la imagen de desarrollo (dockerfile.dev).
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      # La conexión entra solo a este paso y por las dos variables públicas; el script rechaza cualquier otra cosa.
+      - name: Build, guardas y prueba de humo
+        run: npm run build:demo-supabase
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+
+      # `.next/` es una carpeta oculta y hace falta: sin include-hidden-files el artefacto saldría sin el servidor compilado.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: panel-supabase-dev
+          path: panel-supabase-dev
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error

@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "next start",
     "build:pages": "node scripts/build-pages.mjs",
+    "build:demo-supabase": "node scripts/build-demo-supabase.mjs",
     "servir:pages": "node scripts/servir-pages.mjs",
     "lint": "eslint --max-warnings=0",
     "typecheck": "next typegen && tsc --noEmit",
