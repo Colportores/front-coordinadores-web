@@ -11,6 +11,7 @@ export function colportor(datos: Partial<ColportorDeEquipo> & Pick<ColportorDeEq
     zonasAnteriores: [],
     casasRegistradas: 100,
     acompanamientos: [],
+    contadoDesde: INICIO,
     ...datos,
   };
 }
@@ -65,8 +66,8 @@ export function datosDePrueba(cambios: Partial<DatosEquipoPorCiudad> = {}): Dato
         zonasAnteriores: [{ nombre: "Bisso", desde: "2026-09-01", hasta: "2026-10-05", eliminada: false, inicial: false }],
         casasRegistradas: 340,
         acompanamientos: [
-          { jornadaId: "j-e2", dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true },
-          { jornadaId: "j-e1", dia: "2026-09-08", horas: 5, acompanante: "Tomás Ibarra", acompananteEsVos: false },
+          { jornadaId: "j-e2", dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", nota: "Trabajamos juntos el sector norte de la zona." },
+          { jornadaId: "j-e1", dia: "2026-09-08", horas: 5, acompanante: "Tomás Ibarra", acompananteEsVos: false, origen: "COLPORTOR", nota: null },
         ],
       }),
       colportor({ id: "florencia", nombre: "Florencia Pintos", casasRegistradas: 120 }),
@@ -80,7 +81,7 @@ export function datosDePrueba(cambios: Partial<DatosEquipoPorCiudad> = {}): Dato
           { nombre: "Cuaró", desde: "2026-09-21", hasta: "2026-10-11", eliminada: true, inicial: false },
         ],
         casasRegistradas: 410,
-        acompanamientos: [{ jornadaId: "j-s1", dia: "2026-10-12", horas: 6, acompanante: "Mariana Pérez", acompananteEsVos: true }],
+        acompanamientos: [{ jornadaId: "j-s1", dia: "2026-10-12", horas: 6, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: null, nota: null }],
       }),
       colportor({ id: "federico", nombre: "Federico Da Rosa", ciudadId: "bu", casasRegistradas: 75 }),
       colportor({ id: "rocio", nombre: "Rocío Benítez", ciudadId: null, zonaActual: null, casasRegistradas: 0 }),

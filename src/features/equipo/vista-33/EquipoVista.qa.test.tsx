@@ -22,7 +22,7 @@ const J1: JornadaParaAcompanar = { id: "j1", dia: "2026-10-20", horas: 5.5, acom
 const J2: JornadaParaAcompanar = { id: "j2", dia: "2026-10-19", horas: 4, acompanante: "Tomás Ibarra", acompananteEsVos: false };
 const J3: JornadaParaAcompanar = { id: "j3", dia: "2026-10-17", horas: 3.2, acompanante: null, acompananteEsVos: false };
 
-const ok = (dia: string): ResultadoAcompanamiento => ({ ok: true, dia, acompanante: "Mariana Pérez", yaEstaba: false });
+const ok = (dia: string): ResultadoAcompanamiento => ({ ok: true, dia, acompanante: "Mariana Pérez", yaEstaba: false, origen: null, nota: null });
 
 function acciones(jornadas: JornadaParaAcompanar[] = [J1, J2, J3]) {
   return {
@@ -72,8 +72,8 @@ describe("QA #63 · HU-JOR-004, criterios de aceptación", () => {
           id: "x",
           nombre: "Colportor X",
           acompanamientos: [
-            { jornadaId: "a", dia: "2026-10-09", horas: 4, acompanante: "Mariana Pérez", acompananteEsVos: true },
-            { jornadaId: "b", dia: "2026-10-02", horas: 5, acompanante: "Mariana Pérez", acompananteEsVos: true },
+            { jornadaId: "a", dia: "2026-10-09", horas: 4, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: null, nota: null },
+            { jornadaId: "b", dia: "2026-10-02", horas: 5, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: null, nota: null },
           ],
         }),
       ],
@@ -111,7 +111,7 @@ describe("QA #63 · HU-JOR-004, criterios de aceptación", () => {
     await u.click(registrarJ("Florencia Pintos", "mar 20/10"));
 
     await waitFor(() => expect(a.registrarAcompanamiento).toHaveBeenCalledTimes(1));
-    expect(a.registrarAcompanamiento).toHaveBeenCalledWith("j1");
+    expect(a.registrarAcompanamiento).toHaveBeenCalledWith("j1", {});
     expect(await screen.findByRole("status")).toHaveTextContent("Acompañamiento registrado: jornada de Florencia Pintos, mar 20/10.");
     expect(fila(/^Florencia Pintos/)).toHaveTextContent("ayer");
   });
@@ -226,7 +226,7 @@ describe("QA #63 · casos límite de «Registrar acompañamiento»", () => {
 
   it("una respuesta de «ya figuraba a tu nombre» no suma un segundo acompañamiento a la fila", async () => {
     const a = acciones();
-    a.registrarAcompanamiento.mockResolvedValue({ ok: true, dia: "2026-10-20", acompanante: "Mariana Pérez", yaEstaba: true });
+    a.registrarAcompanamiento.mockResolvedValue({ ok: true, dia: "2026-10-20", acompanante: "Mariana Pérez", yaEstaba: true, origen: null, nota: null });
     const { u } = mostrar(datosDePrueba(), a);
     await verAcompanamientos(u, "Rivera");
     await abrirRegistro(u, "Florencia Pintos");
@@ -267,7 +267,7 @@ describe("QA #63 · casos límite de «Registrar acompañamiento»", () => {
   it("datos límite: una jornada en curso (sin horas) o un acompañamiento posterior a hoy no dan días negativos ni «NaN»", async () => {
     const datos = datosDePrueba({
       colportores: [
-        colportor({ id: "f", nombre: "Futuro", acompanamientos: [{ jornadaId: "f1", dia: "2026-10-25", horas: null, acompanante: "Mariana Pérez", acompananteEsVos: true }] }),
+        colportor({ id: "f", nombre: "Futuro", acompanamientos: [{ jornadaId: "f1", dia: "2026-10-25", horas: null, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: null, nota: null }] }),
       ],
     });
     const { u } = mostrar(datos);

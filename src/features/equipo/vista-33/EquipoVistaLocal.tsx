@@ -27,7 +27,8 @@ export function EquipoVistaLocal({ datos }: { datos: DatosEquipoPorCiudad }) {
   const acciones = useMemo<AccionesEquipo>(
     () => ({
       jornadasParaAcompanar: async (colportorId) => (await fuenteSimulada()).jornadasParaAcompanar(datos.campaniaId, colportorId),
-      registrarAcompanamiento: async (jornadaId) => (await fuenteSimulada()).registrarAcompanamiento(datos.campaniaId, jornadaId),
+      registrarAcompanamiento: async (jornadaId, datosDelRegistro) =>
+        (await fuenteSimulada()).registrarAcompanamiento(datos.campaniaId, jornadaId, datosDelRegistro),
       elegirCarrera: async (colportorId, carreraId) => (await fuenteSimulada()).elegirCarrera(datos.campaniaId, colportorId, carreraId),
       asignarTipoDeBeca: async (colportorId, tipo) => (await fuenteSimulada()).asignarTipoDeBeca(datos.campaniaId, colportorId, tipo),
     }),

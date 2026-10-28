@@ -35,6 +35,19 @@ export interface ZonaAnterior {
   inicial: boolean;
 }
 
+/**
+ * De dónde salió un acompañamiento (`jornada.acompaniamiento_origen`, lo pone el servidor): `COLPORTOR` si lo marcó el
+ * colportor en el celular, `COORDINADOR` si lo cargó la coordinación desde el panel. `null` en las jornadas anteriores a
+ * ese dato: no se sabe y no se inventa.
+ */
+export type OrigenDeAcompanamiento = "COLPORTOR" | "COORDINADOR";
+
+/** Cuántos caracteres admite la nota de un acompañamiento (el mismo tope que el servidor, decisión del 26/10). */
+export const LARGO_MAXIMO_NOTA = 500;
+
+/** Cuántos días después del fin de la campaña se puede todavía registrar un acompañamiento (CZ011 pasado ese plazo). */
+export const DIAS_DE_GRACIA_ACOMPANAMIENTO = 15;
+
 /** Una jornada acompañada de un colportor: la fila del historial de acompañamientos. */
 export interface AcompanamientoDeColportor {
   jornadaId: string;
@@ -46,6 +59,10 @@ export interface AcompanamientoDeColportor {
   acompanante: string;
   /** Quien acompañó es quien tiene la sesión: el panel lo escribe «Nombre (vos)». */
   acompananteEsVos: boolean;
+  /** De dónde salió el dato; `null` si no se sabe. */
+  origen: OrigenDeAcompanamiento | null;
+  /** La nota opcional de la coordinación (hasta `LARGO_MAXIMO_NOTA` caracteres); `null` si no hay. */
+  nota: string | null;
 }
 
 /** Un colportor inscripto en la campaña, con lo que muestran las dos tablas de la vista 33. */
@@ -59,8 +76,13 @@ export interface ColportorDeEquipo {
   zonasAnteriores: ZonaAnterior[];
   /** Casas que cargó en las ciudades de la campaña, sin mirar la zona: las de una zona vieja siguen contando. */
   casasRegistradas: number;
-  /** El más nuevo primero. Los «días sin acompañar» se cuentan desde el primero o, si no hay, desde el inicio de la campaña. */
+  /** El más nuevo primero. */
   acompanamientos: AcompanamientoDeColportor[];
+  /**
+   * Desde cuándo se cuentan los «días sin acompañar» de quien nunca fue acompañado (`contado_desde`, `AAAA-MM-DD`): el
+   * inicio de la campaña o, si el colportor se sumó (o volvió) después, ese día. Quien tiene acompañamientos cuenta desde el último.
+   */
+  contadoDesde: string;
 }
 
 /** A qué beca apunta el colportor (HU-BEC-006): la meta que se le muestra depende de esto y de su carrera. */
@@ -176,12 +198,22 @@ export interface JornadaParaAcompanar {
 export type ResultadoJornadas = { ok: true; jornadas: JornadaParaAcompanar[] } | { ok: false; mensaje: string };
 
 /**
- * Respuesta a registrar un acompañamiento (`agregar_acompaniamiento()`). `yaEstaba`: ya figuraba a nombre del mismo
- * coordinador (un reintento o un doble toque): no se tocó nada. `recargar`: la jornada cambió y la lista que se está
- * viendo ya no es cierta.
+ * Quién acompañó y qué nota lleva al registrar un acompañamiento. Sin `acompananteId` es «Yo» (la coordinación de la
+ * sesión); con él, otro colportor inscripto en la misma campaña. `nota` ya viene recortada y sin pasar de
+ * `LARGO_MAXIMO_NOTA`; vacía o ausente es sin nota.
+ */
+export interface DatosDeAcompanamiento {
+  acompananteId?: string;
+  nota?: string;
+}
+
+/**
+ * Respuesta a registrar un acompañamiento (`agregar_acompaniamiento()`). `yaEstaba`: ya figuraba a nombre de esa misma
+ * persona (un reintento, un doble toque o el teléfono que la marcó antes): no se tocó nada, **tampoco la nota**; `origen`
+ * y `nota` son los que quedaron guardados. `recargar`: la jornada cambió y la lista que se está viendo ya no es cierta.
  */
 export type ResultadoAcompanamiento =
-  | { ok: true; dia: string; acompanante: string; yaEstaba: boolean }
+  | { ok: true; dia: string; acompanante: string; yaEstaba: boolean; origen: OrigenDeAcompanamiento | null; nota: string | null }
   | { ok: false; mensaje: string; recargar?: boolean };
 
 /** Estado de la cuenta de un candidato (HU-CAM-004). `suspendida` no se puede añadir. */
@@ -253,8 +285,11 @@ export interface FuenteDatosEquipo {
    * `ok: false`; una falla de conexión, como excepción.
    */
   jornadasParaAcompanar(campaniaId: string, colportorId: string): Promise<ResultadoJornadas>;
-  /** El coordinador de la sesión se anota como acompañante de esa jornada. */
-  registrarAcompanamiento(campaniaId: string, jornadaId: string): Promise<ResultadoAcompanamiento>;
+  /**
+   * Registra el acompañamiento de esa jornada: a nombre del coordinador de la sesión («Yo») o, con `acompananteId`, de otro
+   * colportor de la campaña, con una nota opcional.
+   */
+  registrarAcompanamiento(campaniaId: string, jornadaId: string, datos?: DatosDeAcompanamiento): Promise<ResultadoAcompanamiento>;
   /**
    * El coordinador elige la carrera de un colportor de la campaña, del catálogo y una sola vez (HU-BEC-004). Si ya tiene
    * una, no se cambia desde el panel. Un rechazo de la regla vuelve como `ok: false`; una falla de conexión, como excepción.
