@@ -34,6 +34,23 @@ function sinMetaCargada(carrera: CarreraDelCatalogo): boolean {
 }
 
 /**
+ * El aviso de un guardado que falló. La tabla se desplaza sola y el foco se queda en el botón que se tocó: si el aviso
+ * quedó fuera de la parte visible, quien tocó no se entera de que no se guardó. Al aparecer (o cambiar el texto) se trae a la vista.
+ */
+function AvisoDeGuardado({ className, children }: { className: string; children: string }) {
+  const aviso = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    const elemento = aviso.current;
+    if (elemento && typeof elemento.scrollIntoView === "function") elemento.scrollIntoView({ block: "nearest" });
+  }, [children]);
+  return (
+    <p ref={aviso} role="alert" className={className}>
+      {children}
+    </p>
+  );
+}
+
+/**
  * «Elegir carrera» de una fila: la carrera se elige una sola vez, del catálogo. No hay marcha atrás desde el panel (si hubo
  * un error lo corrige el administrador), así que el botón dice «Guardar carrera» y el texto lo avisa antes de tocarlo.
  */
@@ -117,9 +134,7 @@ function ElegirCarrera({
         </div>
       )}
       {error && (
-        <p role="alert" className="text-chico wrap-anywhere text-peligro">
-          {error}
-        </p>
+        <AvisoDeGuardado className="text-chico wrap-anywhere text-peligro">{error}</AvisoDeGuardado>
       )}
     </section>
   );
@@ -528,9 +543,9 @@ export function TablaBecas({
                     {!abierto && error && (
                       <tr>
                         <td colSpan={COLUMNAS} className="p-0">
-                          <p role="alert" className="border-b border-borde bg-peligro-fondo py-2 pr-[18px] pl-[18px] text-chico wrap-anywhere text-peligro">
+                          <AvisoDeGuardado className="border-b border-borde bg-peligro-fondo py-2 pr-[18px] pl-[18px] text-chico wrap-anywhere text-peligro">
                             {error}
-                          </p>
+                          </AvisoDeGuardado>
                         </td>
                       </tr>
                     )}

@@ -359,7 +359,7 @@ describe("QA #87 · el aviso de un guardado fallido se ve sin tener que desplaza
   });
   const traidoAVista = (aviso: HTMLElement) => scrollIntoView.mock.contexts.some((el) => el === aviso || (el as Element).contains(aviso) || aviso.contains(el as Element));
 
-  it.skip("«Guardar carrera» sin conexión: el aviso del panel se trae a la vista o queda antes del botón (a 1280×800 queda bajo el borde de la tabla)", async () => { // QA #68: a 1280×800 el aviso del panel «Elegir carrera» queda 7 px bajo el borde visible de la tabla y el foco se queda en el botón: no se ve que falló (TablaBecas.tsx:119)
+  it("«Guardar carrera» sin conexión: el aviso del panel se trae a la vista o queda antes del botón (a 1280×800 queda bajo el borde de la tabla)", async () => { // QA #68: a 1280×800 el aviso del panel «Elegir carrera» queda 7 px bajo el borde visible de la tabla y el foco se queda en el botón: no se ve que falló (TablaBecas.tsx:119)
     const acciones = crearAcciones(() => new Promise(() => {}));
     acciones.elegirCarrera.mockRejectedValueOnce(new Error("Failed to fetch"));
     const { usuario } = mostrar(equipoDe("Juan Pérez", "juan", sinCarrera), acciones);
@@ -376,7 +376,7 @@ describe("QA #87 · el aviso de un guardado fallido se ve sin tener que desplaza
     expect(antes || traidoAVista(aviso)).toBe(true);
   });
 
-  it.skip("«Apunta a» sin conexión en una fila del final: el aviso de la fila se trae a la vista", async () => { // QA #68: el aviso de la fila de abajo queda bajo el borde visible de la tabla (a 1280×800, 0 de 35 px visibles): quien toca «Completa» no ve que no se guardó (TablaBecas.tsx:528)
+  it("«Apunta a» sin conexión en una fila del final: el aviso de la fila se trae a la vista", async () => { // QA #68: el aviso de la fila de abajo queda bajo el borde visible de la tabla (a 1280×800, 0 de 35 px visibles): quien toca «Completa» no ve que no se guardó (TablaBecas.tsx:528)
     const acciones = crearAcciones(() => Promise.reject(new Error("Failed to fetch")));
     const { usuario } = mostrar(equipoDe("Juan Pérez", "juan", media), acciones);
     await irABecas(usuario);
