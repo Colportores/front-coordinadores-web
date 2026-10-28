@@ -37,7 +37,7 @@ function conDiego(beca: BecaDeColportor, cambios: Partial<DatosEquipoPorCiudad> 
 
 /** Todos sin beca, como los deja una campaña permanente. */
 function permanente(): DatosEquipoPorCiudad {
-  const datos = datosDePrueba({ campaniaFin: null });
+  const datos = datosDePrueba({ campaniaTipo: "PERMANENTE", campaniaFin: null });
   for (const [id, beca] of Object.entries(datos.becas!.porColportor)) {
     datos.becas!.porColportor[id] = beca.carrera ? { ...beca, apuntaA: null, meta: null } : beca;
   }
@@ -257,7 +257,7 @@ describe("QA #117 · «Carrera corr»", () => {
       ...becasDePrueba().porColportor.emiliano,
       carrera: { id: "teo", nombre: "Teología", elegidaEl: "2026-09-01" },
       meta: { libros: 100, monto: 150000 },
-      carreraCorregida: true,
+      metaRecalculadaEn: "2026-10-20T14:30:00Z",
       ...cambios,
     };
     return datos;
@@ -266,7 +266,7 @@ describe("QA #117 · «Carrera corr»", () => {
   it("el aviso y «Sin beca» a la vez: si la respuesta trae la marca, el aviso sigue; si no, desaparece sin error", async () => {
     const acciones = crearAcciones((_id, tipo) => ({
       ok: true,
-      beca: { ...becasDePrueba().porColportor.emiliano, carrera: { id: "teo", nombre: "Teología", elegidaEl: "2026-09-01" }, apuntaA: tipo, meta: null, carreraCorregida: true },
+      beca: { ...becasDePrueba().porColportor.emiliano, carrera: { id: "teo", nombre: "Teología", elegidaEl: "2026-09-01" }, apuntaA: tipo, meta: null, metaRecalculadaEn: "2026-10-20T14:30:00Z" },
     }));
     const { usuario } = mostrar(corregida(), acciones);
     await irA(usuario, "Becas");
