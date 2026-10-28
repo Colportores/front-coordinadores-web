@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { ResultadoCierre } from "@/auth/acceso";
-import { datosSimulados } from "@/config/datos-simulados";
+import { hayAvisoDeVersionDePrueba } from "@/config/datos-simulados";
 import type { ResultadoCampanias, ResumenCoordinador } from "@/datos/shell/contrato";
 import { cn } from "@/lib/utils";
 import { AvisoVersionDePrueba } from "@/shell/AvisoVersionDePrueba";
@@ -29,7 +29,7 @@ export function MarcoDelPanel({
   cerrarSesion?: () => Promise<ResultadoCierre>;
   children: ReactNode;
 }) {
-  const avisoDePrueba = datosSimulados() !== null;
+  const avisoDePrueba = hayAvisoDeVersionDePrueba();
 
   return (
     <div
