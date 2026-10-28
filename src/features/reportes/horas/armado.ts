@@ -6,6 +6,8 @@ import {
   CIFRA_SIN_DATOS,
   compararCon,
   crearCalendario,
+  domingosConDatos,
+  domingosComparables,
   formatearCifra,
   formatearEntero,
   periodosDe,
@@ -89,7 +91,13 @@ export function armarReporte(
 ): ReporteArmado {
   const cifras = cifrasVisibles(opciones.porCobrar ?? MOSTRAR_POR_COBRAR);
   const resuelto = acotarAColportores(resolverAmbito(datos, ambito), opciones.elegidos ?? []);
-  const calendario = crearCalendario(datos.inicioCampania, datos.hoy, datos.finCampania);
+  const calendario = crearCalendario(
+    datos.inicioCampania,
+    datos.hoy,
+    datos.finCampania,
+    domingosConDatos(resuelto.colportores),
+    domingosComparables(resuelto.colportores),
+  );
   const elegido = resuelto.colportor;
   // Una cifra de varios colportores se muestra entera; la de uno solo, con un decimal.
   const esTotal = elegido === null;
@@ -313,7 +321,10 @@ export function armarReporteDeRango(
 
   const elegido = resuelto.colportor;
   const esTotal = elegido === null;
-  const dias = diasDelRango(crearCalendario(datos.inicioCampania, datos.hoy, datos.finCampania), validado.rango);
+  const dias = diasDelRango(
+    crearCalendario(datos.inicioCampania, datos.hoy, datos.finCampania, domingosConDatos(resuelto.colportores)),
+    validado.rango,
+  );
   const agregadores = agregadoresDe(resuelto.colportores);
   const periodo = capitalizar(textoDelRango(validado.rango));
 

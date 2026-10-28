@@ -5,6 +5,8 @@ import {
   cifraDeDias,
   compararPeriodos,
   crearCalendario,
+  domingosConDatos,
+  domingosComparables,
   formatearCifra,
   formatearDecimal,
   formatearEntero,
@@ -42,6 +44,80 @@ describe("crearCalendario", () => {
 
   it("una campaña que todavía no empezó no tiene días", () => {
     expect(crearCalendario("2026-11-02", "2026-10-21").diasHabiles).toEqual([]);
+  });
+});
+
+describe("domingos con datos (issue #116)", () => {
+  // 2026-10-04 y 2026-10-11 son domingos.
+  const colportorConDomingo = { horasPorDia: { "2026-10-05": 6, "2026-10-11": 4 } };
+
+  it("domingosConDatos junta los domingos con horas, ventas o jornadas acompañadas de cualquier colportor", () => {
+    const soloVentas = {
+      horasPorDia: {},
+      ventasPorDia: { "2026-10-04": { presentaciones: 1, ventas: 1, monto: 10, cobrado: null } },
+    };
+    const soloAcompanadas = { horasPorDia: {}, acompaniadasPorDia: { "2026-10-18": 1 } };
+    expect([...domingosConDatos([colportorConDomingo, soloVentas, soloAcompanadas])].sort()).toEqual([
+      "2026-10-04",
+      "2026-10-11",
+      "2026-10-18",
+    ]);
+  });
+
+  it("los días de lunes a sábado no son domingos con datos y sin datos no hay ninguno", () => {
+    expect(domingosConDatos([{ horasPorDia: { "2026-10-05": 6 } }]).size).toBe(0);
+    expect(domingosConDatos([]).size).toBe(0);
+  });
+
+  it("un domingo con datos entra al calendario; los otros domingos siguen afuera", () => {
+    const cal = crearCalendario("2026-10-05", "2026-10-21", null, domingosConDatos([colportorConDomingo]));
+    expect(cal.diasHabiles).toContain("2026-10-11");
+    expect(cal.diasHabiles).not.toContain("2026-10-18");
+    expect(cal.diasHabiles).toHaveLength(16);
+  });
+
+  it("un domingo con datos posterior a hoy o al fin de la campaña no entra", () => {
+    const futuro = new Set(["2026-10-25"]);
+    expect(crearCalendario("2026-10-05", "2026-10-21", null, futuro).diasHabiles).not.toContain("2026-10-25");
+    expect(crearCalendario("2026-10-05", "2026-10-21", "2026-10-09", new Set(["2026-10-11"])).diasHabiles).not.toContain("2026-10-11");
+  });
+
+  it("el domingo con datos cuenta en su semana (la del lunes anterior) y en su mes", () => {
+    const cal = crearCalendario("2026-10-05", "2026-10-21", null, new Set(["2026-10-11"]));
+    expect(periodosDe("semana", cal)[0].dias.at(-1)).toBe("2026-10-11");
+    expect(periodosDe("mes", cal)[0].dias).toContain("2026-10-11");
+  });
+
+  it("domingosComparables: con un colportor, sus domingos con datos; con varios, ninguno (aunque trabajen todos)", () => {
+    const otro = { horasPorDia: { "2026-10-11": 3, "2026-10-18": 2 } };
+    expect([...domingosComparables([colportorConDomingo])]).toEqual(["2026-10-11"]);
+    expect(domingosComparables([colportorConDomingo, otro]).size).toBe(0);
+    expect(domingosComparables([]).size).toBe(0);
+  });
+
+  it("un domingo de un ámbito con varios colportores suma pero no es «ayer» ni el día de comparación", () => {
+    const domingo = new Set(["2026-10-11"]);
+    const cal = crearCalendario("2026-10-05", "2026-10-12", null, domingo, new Set());
+    expect(cal.diasHabiles).toContain("2026-10-11");
+    expect([...cal.domingosAparte]).toEqual(["2026-10-11"]);
+    // «ayer» es el sábado (las horas de cada día valen su fecha) y se compara con el viernes
+    const porFecha: Serie = (fecha) => ({ valor: Number(fecha.slice(8, 10)), hayDatos: true });
+    const c = compararPeriodos("dia", porFecha, cal);
+    expect(c).toMatchObject({ rotulo: "ayer", contra: "contra el día anterior" });
+    expect(c?.actual.valor).toBe(10);
+    expect(c?.base?.valor).toBe(9);
+    // en la semana y el mes sí cuenta
+    expect(periodosDe("semana", cal)[0].dias).toContain("2026-10-11");
+    expect(compararPeriodos("dia", porFecha, crearCalendario("2026-10-05", "2026-10-12", null, domingo))?.actual.valor).toBe(11);
+  });
+
+  it("ayer de un lunes es el domingo si tiene datos y el sábado si no", () => {
+    const con = crearCalendario("2026-10-05", "2026-10-12", null, new Set(["2026-10-11"]));
+    expect(compararPeriodos("dia", constante(5), con)).toMatchObject({ rotulo: "ayer", contra: "contra el día anterior" });
+    const sin = crearCalendario("2026-10-05", "2026-10-12");
+    expect(compararPeriodos("dia", constante(5), sin)).toMatchObject({ rotulo: "ayer", contra: "contra el día anterior" });
+    expect(periodosDe("dia", con).map((p) => p.detalle)).toContain("dom 11/10");
+    expect(periodosDe("dia", sin).map((p) => p.detalle)).not.toContain("dom 11/10");
   });
 });
 

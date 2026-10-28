@@ -73,7 +73,7 @@ export function validarRango(desde: string, hasta: string, limites: LimitesDelRa
   return { ok: true, rango: { desde, hasta } };
 }
 
-/** Los días de trabajo de la campaña (sin domingos, igual que en las semanas y los meses) que caen dentro del rango. */
+/** Los días de trabajo de la campaña (igual que en las semanas y los meses: los domingos solo con datos) que caen dentro del rango. */
 export function diasDelRango(calendario: Calendario, rango: RangoDeFechas): Fecha[] {
   return calendario.diasHabiles.filter((d) => d >= rango.desde && d <= rango.hasta);
 }
