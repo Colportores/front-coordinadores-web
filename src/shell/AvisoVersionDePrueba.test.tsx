@@ -75,6 +75,57 @@ describe("AvisoVersionDePrueba", () => {
     });
   });
 
+  describe("en el artefacto de pruebas de demo (conectado a Supabase dev)", () => {
+    const TEXTO_DEMO = "Versión de prueba conectada a Supabase dev (datos de demostración)";
+
+    beforeEach(() => {
+      vi.stubEnv("NEXT_PUBLIC_DEMO_SUPABASE_DEV", "1");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://proyecto.supabase.co");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "sb_publishable_prueba");
+      fijarFlags({ modoDev: false });
+    });
+
+    it("muestra el aviso aunque todo esté conectado, sin botón para cerrarlo ni el texto de datos simulados", () => {
+      render(<AvisoVersionDePrueba />);
+
+      const aviso = screen.getByRole("note");
+      expect(aviso).toHaveTextContent(TEXTO_DEMO);
+      expect(aviso).not.toHaveTextContent("datos simulados");
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    });
+
+    it("con Stock y Cuentas a la vista suma el aviso de esas pestañas, sin perder el de la demo", () => {
+      fijarFlags({ modoDev: true });
+      render(<AvisoVersionDePrueba />);
+
+      const aviso = screen.getByRole("note");
+      expect(aviso).toHaveTextContent(TEXTO_DEMO);
+      expect(aviso).toHaveTextContent("Stock y Cuentas: datos simulados.");
+    });
+
+    it("el sitio de prueba de Pages sigue con su propio aviso, no con el de la demo", () => {
+      vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "1");
+      render(<AvisoVersionDePrueba />);
+
+      expect(screen.getByRole("note")).toHaveTextContent("Versión de prueba con datos simulados.");
+      expect(screen.getByRole("note")).not.toHaveTextContent("Supabase dev");
+    });
+
+    it("el marco del panel le reserva su fila a la franja", () => {
+      const { container } = render(
+        <ProveedorModoDev activo={false}>
+          <MarcoDelPanel resumen={RESUMEN_COORDINADOR_SIMULADO} pestanas={pestanasVisibles()}>
+            <p>contenido de la pestaña</p>
+          </MarcoDelPanel>
+        </ProveedorModoDev>,
+      );
+
+      const grilla = container.firstElementChild!;
+      expect(grilla.firstElementChild).toHaveAttribute("role", "note");
+      expect(grilla.className).toContain("grid-rows-[auto_var(--spacing-topbar)_1fr]");
+    });
+  });
+
   it("con la conexión mal configurada no hay datos que avisar: el panel bloquea todo", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://proyecto.supabase.co");
     const { container } = render(<AvisoVersionDePrueba />);

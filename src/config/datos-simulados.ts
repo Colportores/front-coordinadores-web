@@ -1,5 +1,5 @@
 import { modoDeAcceso } from "@/auth/modo";
-import { pestanaVisible, sitioDePruebaActivo } from "@/config/flags";
+import { demoSupabaseDevActivo, pestanaVisible, sitioDePruebaActivo } from "@/config/flags";
 import { leerConfigSupabase } from "@/datos/supabase/config";
 
 /**
@@ -31,6 +31,14 @@ export function datosSimulados(): DatosSimulados | null {
   const conectado = modo === "activo" || leerConfigSupabase() !== null;
   if (!conectado) return "todo";
   return pestanasSimuladasVisibles().length > 0 ? "pestanas" : null;
+}
+
+/**
+ * Si la franja fija de arriba (`AvisoVersionDePrueba`) va en este build: hay datos simulados a la vista, o es el artefacto de
+ * pruebas de demo conectado a Supabase dev (`demoSupabaseDevActivo`; el sitio de prueba de Pages no es ese).
+ */
+export function hayAvisoDeVersionDePrueba(): boolean {
+  return datosSimulados() !== null || (demoSupabaseDevActivo() && !sitioDePruebaActivo());
 }
 
 /** Nombres de las pestañas visibles que muestran datos simulados aunque el resto esté conectado. */

@@ -1,5 +1,5 @@
 import { datosSimulados, pestanasSimuladasVisibles } from "@/config/datos-simulados";
-import { sitioDePruebaActivo } from "@/config/flags";
+import { demoSupabaseDevActivo, sitioDePruebaActivo } from "@/config/flags";
 
 /**
  * Franja fija arriba de cada pantalla donde hay datos simulados (issue #101): quien la abre ve un panel que parece de
@@ -9,19 +9,33 @@ import { sitioDePruebaActivo } from "@/config/flags";
  * - en cualquier otro build donde ninguna pestaña hable con Supabase (sin la conexión ni el puente de desarrollo);
  * - con la conexión real, mientras haya a la vista pestañas que todavía son simuladas (Stock y Cuentas, solo con el
  *   modo dev o su flag): el aviso dice cuáles.
+ * - en el artefacto de pruebas de demo (`NEXT_PUBLIC_DEMO_SUPABASE_DEV`, conectado a Supabase dev): «Versión de prueba conectada
+ *   a Supabase dev (datos de demostración)», con o sin datos simulados a la vista (si los hay, el aviso suma el de esas pestañas).
  * Con todo conectado, en staging y producción, no aparece. Qué es simulado: `src/config/datos-simulados.ts`.
  */
 export function AvisoVersionDePrueba() {
   const simulado = datosSimulados();
-  if (!simulado) return null;
+  const demo = demoSupabaseDevActivo() && !sitioDePruebaActivo();
+  if (!simulado && !demo) return null;
 
   return (
     <div
       role="note"
-      className="flex min-h-[var(--spacing-aviso)] items-center justify-center border-b border-alerta-punto bg-alerta-fondo px-[22px] py-1 text-center text-chico text-tinta"
+      className="flex min-h-[var(--spacing-aviso)] flex-wrap items-center justify-center gap-x-4 border-b border-alerta-punto bg-alerta-fondo px-[22px] py-1 text-center text-chico text-tinta"
     >
-      {simulado === "pestanas" ? <AvisoDePestanas /> : sitioDePruebaActivo() ? <AvisoDelSitioDePrueba /> : <AvisoSinConexion />}
+      {demo ? <AvisoDeDemoSupabaseDev /> : null}
+      {simulado === "pestanas" ? <AvisoDePestanas /> : null}
+      {simulado === "todo" ? sitioDePruebaActivo() ? <AvisoDelSitioDePrueba /> : <AvisoSinConexion /> : null}
     </div>
+  );
+}
+
+/** Texto pedido por Cristian (28/10) para el artefacto de pruebas de demo; `build:demo-supabase` exige que esté en el build. */
+function AvisoDeDemoSupabaseDev() {
+  return (
+    <p>
+      <strong className="font-semibold">Versión de prueba conectada a Supabase dev (datos de demostración)</strong>
+    </p>
   );
 }
 

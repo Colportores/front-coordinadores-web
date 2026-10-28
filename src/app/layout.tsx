@@ -5,11 +5,12 @@ import type { ResultadoCierre } from "@/auth/acceso";
 import { CABECERA_SIN_MARCO } from "@/auth/guarda";
 import { modoDeAcceso } from "@/auth/modo";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { modoDevActivo } from "@/config/flags";
+import { demoSupabaseDevActivo, modoDevActivo } from "@/config/flags";
 import { fuenteShell } from "@/datos/shell";
 import type { ResultadoCampanias, ResumenCoordinador } from "@/datos/shell";
 import { PanelEstadoHu } from "@/dev/PanelEstadoHu";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
+import { AvisoVersionDePrueba } from "@/shell/AvisoVersionDePrueba";
 import { MarcoDelPanel } from "@/shell/MarcoDelPanel";
 import { pestanasVisibles } from "@/shell/pestanas";
 
@@ -43,8 +44,8 @@ const jetbrainsMono = localFont({
 export const metadata: Metadata = {
   title: "Colportaje · Coordinador",
   description: "Panel del coordinador: seguimiento del equipo de colportores de su región.",
-  // Sitio de prueba (GitHub Pages, datos simulados): que ningún buscador lo indexe.
-  ...(process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1" ? { robots: { index: false, follow: false } } : {}),
+  // Sitio de prueba (GitHub Pages, datos simulados) y artefacto de pruebas de demo (Supabase dev): que ningún buscador los indexe.
+  ...(process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1" || demoSupabaseDevActivo() ? { robots: { index: false, follow: false } } : {}),
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -83,7 +84,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 {children}
               </MarcoDelPanel>
             ) : (
-              children
+              <>
+                {/* Pantalla de acceso (sin marco): en el artefacto de demo también lleva el aviso. */}
+                {demoSupabaseDevActivo() ? <AvisoVersionDePrueba /> : null}
+                {children}
+              </>
             )}
             <PanelEstadoHu />
           </TooltipProvider>

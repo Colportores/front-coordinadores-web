@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 
+import { demoSupabaseDevActivo } from "./src/config/flags";
 import { verificarEntornoDeProduccion, verificarEntornoSupabase } from "./src/datos/supabase/config-publica";
 
 // Next incrusta `NEXT_PUBLIC_*` en los archivos del navegador durante el build: una clave de servicio puesta
@@ -20,7 +21,19 @@ const intervaloSondeo = Number(process.env.NEXT_WATCH_POLL_MS) || undefined;
 const BASE_PATH_PAGES = "/front-coordinadores-web";
 const buildDePages = process.env.DEPLOY_PAGES === "1";
 
+// Artefacto de pruebas de demo (Supabase dev, de uso interno): el panel conectado necesita servidor (proxy, cookies de sesión y
+// server actions), así que no se exporta: se compila como servidor autónomo (`output: "standalone"`) y se sube a Actions. Lo
+// prende `npm run build:demo-supabase` (scripts/build-demo-supabase.mjs) con NEXT_PUBLIC_DEMO_SUPABASE_DEV=1; ningún otro build.
+const buildDeDemo = demoSupabaseDevActivo();
+
 const nextConfig: NextConfig = {
+  ...(buildDeDemo
+    ? {
+        output: "standalone" as const,
+        // Además de la meta `robots` del layout: que tampoco lo indexe nada que lea solo las cabeceras.
+        headers: async () => [{ source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] }],
+      }
+    : {}),
   ...(intervaloSondeo ? { watchOptions: { pollIntervalMs: intervaloSondeo } } : {}),
   ...(buildDePages
     ? {
