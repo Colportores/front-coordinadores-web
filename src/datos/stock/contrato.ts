@@ -37,9 +37,15 @@ export interface ExistenciaDeStock {
   tiene: number;
   /** Vendidas y todavía no entregadas. */
   porEntregar: number;
-  /** Entregadas. */
+  /** Entregadas. No se les resta lo devuelto: la devolución va aparte, en `devueltos`. */
   entregados: number;
-  /** Entregadas y no pagadas, en unidades (no en plata). */
+  /** Devueltas al stock (devolución de una venta, HU-VEN-004). Columna «Devueltos», aparte de `entregados` (decisión de Cristian, 27/10, «Devol. stock»). */
+  devueltos: number;
+  /**
+   * Entregadas y no pagadas, en unidades (no en plata). Llega del servidor ya proporcional al saldo y redondeado hacia
+   * arriba (una venta de 3 libros cobrada a la mitad cuenta 2; sin saldo, 0; decisión de Cristian, 27/10, «Por cobrar»):
+   * el panel muestra el número tal cual, no recalcula nada.
+   */
   porCobrar: number;
 }
 
@@ -48,6 +54,12 @@ export interface ColportorDeStock {
   nombre: string;
   /** `null` si no tiene zona asignada. */
   ciudadId: string | null;
+  /**
+   * Cuándo el servidor recibió el último dato de su teléfono (marca de tiempo ISO; `ultimo_dato_at` de la RPC): la vista
+   * la muestra como «Sincronizó el 22/10 a las 18:30» para que nadie tome por de hoy una cifra vieja (decisión de Cristian
+   * del 25/10, «Fecha stock»). `null` = todavía no llegó ninguno.
+   */
+  ultimoDatoAt: string | null;
   existencias: ExistenciaDeStock[];
 }
 

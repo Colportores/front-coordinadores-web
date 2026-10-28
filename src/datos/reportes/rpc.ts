@@ -32,6 +32,9 @@ import { diasEntre, esDiaIso, hoyEnMontevideo, lunesDe, sumarDias } from "@/lib/
  *   · `departamento` sale de `ciudades_de_campania()` por `ciudad_id`; una ciudad que ya no figura ahí (o una campaña
  *     terminada, que no deja leerlas: `CZ011`) queda con `departamento: null` y va sin título.
  *
+ *   · `jornadas_acompaniadas` (cuántas de las jornadas del día tienen acompañante) se guarda por día junto a las horas, para
+ *     «jornadas con acompañamiento» del rango libre de la vista 32 (issue #107, sin parámetros nuevos en la RPC).
+ *
  *   · La RPC solo devuelve a quienes tienen horas, así que la lista se completa con `zonas_por_colportor()` (0047/0062, la
  *     que usa Equipo): quien está inscripto y todavía no cerró ninguna jornada figura igual, con guion, en su ciudad o en
  *     «Sin zona asignada» (decisión del 25/10, P2 de los pendientes de #60). Quien ya figura por sus horas no se toca.
@@ -134,6 +137,7 @@ interface ColportorAcumulado {
   apellido: string;
   nombreSolo: string;
   horasPorDia: Record<Fecha, number>;
+  acompaniadasPorDia: Record<Fecha, number>;
 }
 
 interface CiudadAcumulada {
@@ -159,10 +163,20 @@ export function sinDatosDesde(horasPorDia: Record<Fecha, number>, hoy: Fecha, ul
   return sinHoras >= DIAS_SIN_DATOS ? ultimoConHoras : null;
 }
 
+// Las ventas por día todavía no tienen RPC: sin datos (vacío) hasta que se conecten, como mostraba la vista antes de #61.
 function ordenarColportores(colportores: Map<string, ColportorAcumulado>, hoy: Fecha, ultimoDia: Fecha): ColportorHoras[] {
   return [...colportores.values()]
     .sort((a, b) => COLLATOR.compare(a.apellido, b.apellido) || COLLATOR.compare(a.nombreSolo, b.nombreSolo))
-    .map((a): ColportorHoras => ({ id: a.id, nombre: a.nombre, horasPorDia: a.horasPorDia, sinDatosDesde: sinDatosDesde(a.horasPorDia, hoy, ultimoDia) }));
+    .map(
+      (a): ColportorHoras => ({
+        id: a.id,
+        nombre: a.nombre,
+        horasPorDia: a.horasPorDia,
+        acompaniadasPorDia: a.acompaniadasPorDia,
+        ventasPorDia: {},
+        sinDatosDesde: sinDatosDesde(a.horasPorDia, hoy, ultimoDia),
+      }),
+    );
 }
 
 export function crearFuenteReportesRpc(
@@ -219,6 +233,7 @@ export function crearFuenteReportesRpc(
           apellido,
           nombreSolo: nombre,
           horasPorDia: {},
+          acompaniadasPorDia: {},
         };
         ciudad.colportores.set(colportorId, acumulado);
       }
@@ -235,6 +250,8 @@ export function crearFuenteReportesRpc(
       if (numero(RPC, fila, "jornadas") > 0) {
         const fecha = dia(RPC, fila, "periodo_inicio");
         acumulado.horasPorDia[fecha] = Math.round(((acumulado.horasPorDia[fecha] ?? 0) + horas) * 100) / 100;
+        // Las jornadas con acompañante del día (HU-REP-001): el mismo día con datos que las horas, aunque sean 0.
+        acumulado.acompaniadasPorDia[fecha] = (acumulado.acompaniadasPorDia[fecha] ?? 0) + numero(RPC, fila, "jornadas_acompaniadas");
       }
     }
 

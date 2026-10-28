@@ -163,13 +163,15 @@ export type ResultadoEliminarZona = { ok: true; colportoresSinZona: number } | {
 export type ResultadoAgregarCiudad = { ok: true; ciudad: CiudadDeCampania } | { ok: false; mensaje: string };
 
 /**
- * Ciudad del catálogo global que se puede sumar a la campaña. `provincia` falta cuando la fuente no la tiene:
- * `ciudades_del_catalogo()` devuelve solo el nombre, porque `ciudad` no tiene esa columna (backend-supabase, 0033).
+ * Ciudad del catálogo global que se puede sumar a la campaña. `departamento` sale de `ciudades_del_catalogo()`
+ * (migración 0066, backend-supabase#92): `null` es una ciudad vieja que todavía no lo tiene cargado. Distingue a las
+ * que se llaman igual (hay dos «San José»); el panel lo muestra, nunca lo pide: el departamento se elige de la lista
+ * del catálogo, no se escribe (decisión de Cristian, 23/10, «Área depto»).
  */
 export interface CiudadDelCatalogo {
   id: string;
   nombre: string;
-  provincia?: string;
+  departamento: string | null;
 }
 
 export interface FuenteDatosZonas {
@@ -187,7 +189,7 @@ export interface FuenteDatosZonas {
   quitarZona(campaniaId: string, usuarioId: string): Promise<ResultadoAsignacion>;
   /** `baja_zona`: los colportores asignados quedan sin zona; las ubicaciones no se tocan. */
   eliminarZona(campaniaId: string, zonaId: string): Promise<ResultadoEliminarZona>;
-  /** Busca en el catálogo (por nombre o provincia, si la fuente tiene la provincia), sin las ciudades que ya están en la campaña. */
+  /** Busca en el catálogo por nombre o por departamento, sin las ciudades que ya están en la campaña. */
   buscarCiudades(campaniaId: string, texto: string): Promise<CiudadDelCatalogo[]>;
   /** `agregar_ciudad_a_campania`. */
   agregarCiudad(campaniaId: string, catalogoId: string): Promise<ResultadoAgregarCiudad>;

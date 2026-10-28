@@ -11,8 +11,8 @@ import { esDiaIso } from "@/lib/dias";
  * en él: solo vale si figura en la lista de quien llama.
  *
  * Devuelve la elegida **aunque todavía no haya empezado**: qué hacer con una campaña por empezar lo decide cada vista, no
- * este helper. La vista 23 la trata como «sin campaña en curso» (la base no deja inscribir en ella: `CI002`, pantalla
- * `SinCampaniaParaAnadir`); la vista 24 sí trabaja con ella (se pueden armar zonas antes de que empiece).
+ * este helper. Las vistas 23 y 24 trabajan con ella (se suma gente y se arman zonas antes de que empiece; decisión de
+ * Cristian, 21/10, «Antes inicio»).
  *
  * `null` si el coordinador no tiene una campaña que no haya terminado.
  */
@@ -30,12 +30,13 @@ export async function campaniaProvisoria(
 
 /**
  * La campaña provisoria (la elegida en el topbar si figura en la lista, si no la primera) con sus fechas (`AAAA-MM-DD`),
- * para las vistas que cuentan semanas o días desde su inicio.
+ * para las vistas que cuentan semanas o días desde su inicio, y su `tipo` (`VERANO`, `INVIERNO`, `PERMANENTE`…) tal como lo
+ * devuelve la base: la fecha de fin no dice si es permanente (la base solo exige `fecha_fin >= fecha_inicio`).
  */
 export async function campaniaProvisoriaConFechas(
   cliente: ClienteRpc,
   elegidaId?: string | null,
-): Promise<{ id: string; nombre: string; fechaInicio: string; fechaFin: string | null } | null> {
+): Promise<{ id: string; nombre: string; fechaInicio: string; fechaFin: string | null; tipo: string | null } | null> {
   const rpc = "campanias_del_coordinador";
   const todas = filas(rpc, await cliente.llamarRpc(rpc, {}));
   const primera = todas.find((fila) => fila.id === elegidaId) ?? todas[0];
@@ -44,5 +45,5 @@ export async function campaniaProvisoriaConFechas(
   const fechaFin = cadenaONula(rpc, primera, "fecha_fin");
   if (!esDiaIso(fechaInicio)) throw new RespuestaInesperada(rpc, `\`fecha_inicio\` no es un día (${fechaInicio})`);
   if (fechaFin !== null && !esDiaIso(fechaFin)) throw new RespuestaInesperada(rpc, `\`fecha_fin\` no es un día (${fechaFin})`);
-  return { id: cadena(rpc, primera, "id"), nombre: cadena(rpc, primera, "nombre"), fechaInicio, fechaFin };
+  return { id: cadena(rpc, primera, "id"), nombre: cadena(rpc, primera, "nombre"), fechaInicio, fechaFin, tipo: cadenaONula(rpc, primera, "tipo") };
 }

@@ -6,7 +6,10 @@ import { cn } from "@/lib/utils";
 
 import { formatearCantidad, type EstadoDeUnidad, type FilaDeUnidad, type GrupoDeFilas } from "./modelo";
 
-const COLUMNAS = 7;
+const COLUMNAS = 8;
+
+/** Ayuda del encabezado «POR COBRAR» (decisión del 28/10, nota del canvas 34): el número llega ya proporcional del servidor. */
+const AYUDA_POR_COBRAR = "Unidades entregadas que todavía no se pagaron, en proporción al saldo de cada venta.";
 
 const CLASES_ESTADO: Record<EstadoDeUnidad["tipo"], string> = {
   agotado: "bg-peligro-fondo text-peligro",
@@ -28,7 +31,8 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
           ) : (
             <table aria-label={`Quién tiene ${fila.nombre} en ${nombreDelLugar}`} className="w-full table-fixed border-collapse">
               <colgroup>
-                <col className="w-[32%]" />
+                <col className="w-[28%]" />
+                <col />
                 <col />
                 <col />
                 <col />
@@ -49,6 +53,9 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
                     ENTREGADOS
                   </th>
                   <th scope="col" className="pb-1 text-right font-semibold">
+                    DEVUELTOS
+                  </th>
+                  <th scope="col" title={AYUDA_POR_COBRAR} className="pb-1 text-right font-semibold">
                     POR COBRAR
                   </th>
                 </tr>
@@ -58,6 +65,7 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
                   <tr key={q.id} className="min-h-[30px] border-t border-borde text-chico">
                     <th scope="row" className="py-1.5 pr-3 text-left font-semibold text-tinta">
                       <span className="block wrap-anywhere">{q.nombre}</span>
+                      <span className="block text-mini font-normal wrap-anywhere text-tinta-suave">{q.sincronizo}</span>
                     </th>
                     <td className="py-1.5 text-right">
                       <Cifra valor={q.tiene} />
@@ -66,6 +74,9 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
                       <Cifra valor={q.porEntregar} />
                     </td>
                     <td className="py-1.5 text-right font-mono text-tinta">{formatearCantidad(q.entregados)}</td>
+                    <td className="py-1.5 text-right">
+                      <Cifra valor={q.devueltos} />
+                    </td>
                     <td className="py-1.5 text-right font-mono text-tinta">{formatearCantidad(q.porCobrar)}</td>
                   </tr>
                 ))}
@@ -97,12 +108,13 @@ export function TablaDeProductos({
   return (
     <table aria-label={`Stock por producto en ${nombreDelLugar}`} className="w-full table-fixed border-collapse">
       <colgroup>
-        <col className="w-[26%]" />
-        <col className="w-[10%]" />
-        <col className="w-[11%]" />
-        <col className="w-[11%]" />
+        <col className="w-[22%]" />
+        <col className="w-[9%]" />
         <col className="w-[10%]" />
         <col className="w-[10%]" />
+        <col className="w-[10%]" />
+        <col className="w-[9%]" />
+        <col className="w-[9%]" />
         <col />
       </colgroup>
       <thead className="sticky top-0 z-10 bg-superficie">
@@ -123,6 +135,9 @@ export function TablaDeProductos({
             ENTREGADOS
           </th>
           <th scope="col" className="px-2 py-[9px] text-right font-semibold">
+            DEVUELTOS
+          </th>
+          <th scope="col" title={AYUDA_POR_COBRAR} className="px-2 py-[9px] text-right font-semibold">
             POR COBRAR
           </th>
           <th scope="col" className="py-[9px] pr-[18px] pl-2 text-left font-semibold">
@@ -181,6 +196,9 @@ export function TablaDeProductos({
                     </td>
                     <td className="px-2 py-1.5 text-right align-middle">
                       <Cifra valor={fila.entregados} />
+                    </td>
+                    <td className="px-2 py-1.5 text-right align-middle">
+                      <Cifra valor={fila.devueltos} />
                     </td>
                     <td className="px-2 py-1.5 text-right align-middle">
                       <Cifra valor={fila.porCobrar} />

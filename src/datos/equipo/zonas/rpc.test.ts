@@ -756,18 +756,18 @@ describe("fuente de la vista 24 contra las RPC", () => {
 
   describe("buscarCiudades", () => {
     const catalogo = [
-      { ciudad_id: LAS_PIEDRAS_CATALOGO, nombre: "Las Piedras" },
-      { ciudad_id: MVD_CATALOGO, nombre: "Montevideo" },
+      { ciudad_id: LAS_PIEDRAS_CATALOGO, nombre: "Las Piedras", departamento: "Canelones" },
+      { ciudad_id: MVD_CATALOGO, nombre: "Montevideo", departamento: null },
     ];
 
-    it("busca en el catálogo de la campaña por el texto (sin provincia: la base no la tiene)", async () => {
+    it("busca en el catálogo de la campaña por el texto y trae el departamento (null en una ciudad vieja sin cargar)", async () => {
       const { cliente, llamarRpc } = clienteCon({ ciudades_del_catalogo: catalogo });
 
       const encontradas = await crearFuenteZonasRpc(cliente).buscarCiudades(CAMPANIA, "  pie ");
 
       expect(encontradas).toEqual([
-        { id: LAS_PIEDRAS_CATALOGO, nombre: "Las Piedras" },
-        { id: MVD_CATALOGO, nombre: "Montevideo" },
+        { id: LAS_PIEDRAS_CATALOGO, nombre: "Las Piedras", departamento: "Canelones" },
+        { id: MVD_CATALOGO, nombre: "Montevideo", departamento: null },
       ]);
       expect(llamarRpc).toHaveBeenCalledWith("ciudades_del_catalogo", { p_campania_id: CAMPANIA, p_texto: "pie" });
     });
@@ -794,6 +794,28 @@ describe("fuente de la vista 24 contra las RPC", () => {
       const { cliente } = clienteCon({ ciudades_del_catalogo: [{ ciudad_id: MVD_CATALOGO }] });
 
       await expect(crearFuenteZonasRpc(cliente).buscarCiudades(CAMPANIA, "")).rejects.toBeInstanceOf(RespuestaInesperada);
+    });
+
+    it("un departamento que no es un texto es una respuesta inesperada", async () => {
+      const { cliente } = clienteCon({ ciudades_del_catalogo: [{ ciudad_id: MVD_CATALOGO, nombre: "Montevideo", departamento: 3 }] });
+
+      await expect(crearFuenteZonasRpc(cliente).buscarCiudades(CAMPANIA, "")).rejects.toBeInstanceOf(RespuestaInesperada);
+    });
+
+    it("dos ciudades con el mismo nombre se distinguen por el departamento", async () => {
+      const { cliente } = clienteCon({
+        ciudades_del_catalogo: [
+          { ciudad_id: LAS_PIEDRAS_CATALOGO, nombre: "San José", departamento: "San José" },
+          { ciudad_id: MVD_CATALOGO, nombre: "San José", departamento: "Flores" },
+        ],
+      });
+
+      const encontradas = await crearFuenteZonasRpc(cliente).buscarCiudades(CAMPANIA, "san jose");
+
+      expect(encontradas.map((c) => [c.id, c.nombre, c.departamento])).toEqual([
+        [LAS_PIEDRAS_CATALOGO, "San José", "San José"],
+        [MVD_CATALOGO, "San José", "Flores"],
+      ]);
     });
   });
 

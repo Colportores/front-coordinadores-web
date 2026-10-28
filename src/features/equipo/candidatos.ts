@@ -5,14 +5,14 @@ export function motivoBloqueo(c: CandidatoColportor): string | null {
   if (c.estadoCuenta === "suspendida") {
     return "Cuenta suspendida. Pedí a un administrador que la reactive para añadirla.";
   }
-  if (c.campaniaActual !== null) return `Está en campaña ${c.campaniaActual}. Reasignar primero.`;
+  if (c.enOtraCampania) return c.campaniaActual !== null ? `Está en campaña ${c.campaniaActual}. Reasignar primero.` : "Está en otra campaña. Reasignar primero.";
   return null;
 }
 
 /** Ayuda bajo el botón cuando la cuenta no se puede añadir: otra campaña o suspendida (se repite, decisión del 30/09). */
 export function ayudaBloqueo(c: CandidatoColportor): string | null {
   if (c.estadoCuenta === "suspendida") return "Pedile a un administrador que la reactive.";
-  if (c.campaniaActual !== null) return `Pedile al coordinador de ${c.campaniaActual} que lo libere.`;
+  if (c.enOtraCampania) return c.campaniaActual !== null ? `Pedile al coordinador de ${c.campaniaActual} que lo libere.` : "Pedile al coordinador de la otra campaña que lo libere.";
   return null;
 }
 

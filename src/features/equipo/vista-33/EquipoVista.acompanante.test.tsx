@@ -35,7 +35,9 @@ function crearAcciones(jornadas: JornadaParaAcompanar[] = [J1, J2, J3]) {
   const registrarAcompanamiento = vi.fn<AccionesEquipo["registrarAcompanamiento"]>(async (id, datos) =>
     ok(jornadas.find((j) => j.id === id)?.dia ?? HOY, { nota: datos?.nota ?? null }),
   );
-  return { jornadasParaAcompanar, registrarAcompanamiento } satisfies AccionesEquipo;
+  const elegirCarrera = vi.fn<AccionesEquipo["elegirCarrera"]>(async () => ({ ok: false, mensaje: "No en este test." }));
+  const asignarTipoDeBeca = vi.fn<AccionesEquipo["asignarTipoDeBeca"]>(async () => ({ ok: false, mensaje: "No en este test." }));
+  return { jornadasParaAcompanar, registrarAcompanamiento, elegirCarrera, asignarTipoDeBeca } satisfies AccionesEquipo;
 }
 
 type Usuario = ReturnType<typeof userEvent.setup>;

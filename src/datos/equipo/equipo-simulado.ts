@@ -6,6 +6,7 @@ import type {
   OrigenDeAcompanamiento,
   ZonaAnterior,
 } from "@/datos/equipo/contrato";
+import { crearBecasSimuladas } from "@/datos/equipo/becas-simuladas";
 import { LARGO_MAXIMO_NOTA } from "@/datos/equipo/contrato";
 import { diasEntre, sumarDias } from "@/lib/dias";
 
@@ -186,9 +187,10 @@ const SU_PROPIA_JORNADA = "Un colportor no puede figurar como acompañante de su
 /** Una fuente con su propio estado: registrar un acompañamiento cambia lo que ve la siguiente lectura. */
 export function crearEquipoSimulado(): Pick<
   FuenteDatosEquipo,
-  "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento"
+  "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
 > {
   const { base, jornadas } = armar();
+  const becas = crearBecasSimuladas(base, HOY_SIMULADO);
 
   const acompanamientosDe = (colportorId: string): AcompanamientoDeColportor[] =>
     jornadas
@@ -211,11 +213,13 @@ export function crearEquipoSimulado(): Pick<
         campania: "Primavera 2026",
         campaniaInicio: INICIO,
         campaniaFin: FIN,
+        campaniaTipo: "VERANO",
         hoy: HOY_SIMULADO,
         ciudades: CIUDADES,
         colportores: base.map((c) => ({ ...c, acompanamientos: acompanamientosDe(c.id) })),
         // Sin flujo de «pedir entrar» (HU-CAM-009, después del 20/11): la franja «SOLICITUD» no aparece.
         solicitudesPendientes: 0,
+        becas: becas.datos(),
       };
     },
 
@@ -260,6 +264,14 @@ export function crearEquipoSimulado(): Pick<
       jornada.origen = "COORDINADOR";
       jornada.nota = nota === "" ? null : nota;
       return { ok: true, dia: jornada.dia, acompanante, yaEstaba: false, origen: "COORDINADOR", nota: jornada.nota };
+    },
+
+    async elegirCarrera(_campaniaId, colportorId, carreraId) {
+      return becas.elegirCarrera(colportorId, carreraId);
+    },
+
+    async asignarTipoDeBeca(_campaniaId, colportorId, tipo) {
+      return becas.asignarTipoDeBeca(colportorId, tipo);
     },
   };
 }

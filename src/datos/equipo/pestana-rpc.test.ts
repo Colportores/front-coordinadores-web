@@ -18,8 +18,8 @@ const AHORA = () => new Date("2026-10-22T01:30:00Z");
 const campania = { id: CAMPANIA, nombre: "Primavera 2026", tipo: "PRIMAVERA", fecha_inicio: "2026-09-01", fecha_fin: "2026-12-19" };
 
 const ciudades = [
-  { campania_ciudad_id: "x1", ciudad_id: RIVERA, nombre: "Rivera", lat_centro: 0, lon_centro: 0, zoom_inicial: 12, cantidad_zonas: 3 },
-  { campania_ciudad_id: "x2", ciudad_id: ARTIGAS, nombre: "Artigas", lat_centro: 0, lon_centro: 0, zoom_inicial: 12, cantidad_zonas: 1 },
+  { campania_ciudad_id: "x1", ciudad_id: RIVERA, nombre: "Rivera", departamento: "Rivera", lat_centro: 0, lon_centro: 0, zoom_inicial: 12, cantidad_zonas: 3 },
+  { campania_ciudad_id: "x2", ciudad_id: ARTIGAS, nombre: "Artigas", departamento: "Artigas", lat_centro: 0, lon_centro: 0, zoom_inicial: 12, cantidad_zonas: 1 },
 ];
 
 /** Una fila de `zonas_por_colportor()` (migración 0062). */
@@ -112,10 +112,11 @@ describe("obtenerEquipoPorCiudad", () => {
       campania: "Primavera 2026",
       campaniaInicio: "2026-09-01",
       campaniaFin: "2026-12-19",
+      campaniaTipo: "PRIMAVERA",
       hoy: "2026-10-21",
       ciudades: [
-        { id: ARTIGAS, nombre: "Artigas", departamento: null },
-        { id: RIVERA, nombre: "Rivera", departamento: null },
+        { id: ARTIGAS, nombre: "Artigas", departamento: "Artigas" },
+        { id: RIVERA, nombre: "Rivera", departamento: "Rivera" },
       ],
       colportores: [
         {
@@ -132,6 +133,8 @@ describe("obtenerEquipoPorCiudad", () => {
         },
       ],
       solicitudesPendientes: 0,
+      // Las becas (V2) todavía no tienen RPC: la vista lo dice en vez de mostrar una tabla vacía.
+      becas: null,
     });
     expect(llamarRpc).toHaveBeenCalledWith("zonas_por_colportor", { p_campania_id: CAMPANIA });
     expect(llamarRpc).toHaveBeenCalledWith("historial_de_acompaniamientos", { p_campania_id: CAMPANIA, p_colportor_id: null });
@@ -233,6 +236,26 @@ describe("obtenerEquipoPorCiudad", () => {
     expect(otroDatos?.colportores[0].acompanamientos[0].acompananteEsVos).toBe(false);
   });
 
+  it("el departamento de cada ciudad es el de la base; una ciudad vieja sin cargar queda en null (sin inventarlo)", async () => {
+    const sinCargar = { ...ciudades[0], departamento: null };
+    const sinColumna = { ...ciudades[1] } as Record<string, unknown>;
+    delete sinColumna.departamento;
+    const { cliente } = clienteCon(completas({ ciudades_de_campania: [sinCargar, sinColumna] }));
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.ciudades.map((c) => [c.nombre, c.departamento])).toEqual([
+      ["Artigas", null],
+      ["Rivera", null],
+    ]);
+  });
+
+  it("un departamento que no es un texto es una respuesta inesperada", async () => {
+    const { cliente } = clienteCon(completas({ ciudades_de_campania: [{ ...ciudades[0], departamento: 7 }] }));
+
+    await expect(crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad()).rejects.toBeInstanceOf(RespuestaInesperada);
+  });
+
   it("una zona de una ciudad que la lista de la campaña no trae suma esa ciudad", async () => {
     const { cliente } = clienteCon(completas({ ciudades_de_campania: [ciudades[1]] }));
 
@@ -279,6 +302,15 @@ describe("obtenerEquipoPorCiudad", () => {
       const { cliente } = clienteCon(completas(cambio));
       await expect(crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad()).rejects.toBeInstanceOf(RespuestaInesperada);
     }
+  });
+
+  it("el tipo de la campaña viaja tal cual, sin deducirlo de la fecha de fin", async () => {
+    const permanente = completas({ campanias_del_coordinador: [{ ...campania, tipo: "PERMANENTE" }] });
+    const sinFin = completas({ campanias_del_coordinador: [{ ...campania, tipo: "VERANO", fecha_fin: null }] });
+
+    expect((await crearFuentePestanaRpc(clienteCon(permanente).cliente, AHORA).obtenerEquipoPorCiudad())?.campaniaTipo).toBe("PERMANENTE");
+    const datos = await crearFuentePestanaRpc(clienteCon(sinFin).cliente, AHORA).obtenerEquipoPorCiudad();
+    expect(datos).toMatchObject({ campaniaTipo: "VERANO", campaniaFin: null });
   });
 
   it("una campaña sin fecha de fin la deja en null", async () => {
@@ -535,5 +567,21 @@ describe("registrarAcompanamiento", () => {
       const { cliente } = clienteCon({ agregar_acompaniamiento: respuesta });
       await expect(crearFuentePestanaRpc(cliente).registrarAcompanamiento(CAMPANIA, JORNADA)).rejects.toBeInstanceOf(RespuestaInesperada);
     }
+  });
+});
+
+describe("becas (V2, sin RPC todavía)", () => {
+  it("elegir la carrera o el tipo no llama a la base: avisa que las becas no están conectadas", async () => {
+    const { cliente, llamarRpc } = clienteCon({});
+    const fuente = crearFuentePestanaRpc(cliente);
+
+    const carrera = await fuente.elegirCarrera(CAMPANIA, EMILIANO, "sis");
+    const tipo = await fuente.asignarTipoDeBeca(CAMPANIA, EMILIANO, "media");
+
+    for (const respuesta of [carrera, tipo]) {
+      expect(respuesta).toMatchObject({ ok: false });
+      expect(respuesta.ok === false && respuesta.mensaje).toContain("Las becas todavía no están conectadas");
+    }
+    expect(llamarRpc).not.toHaveBeenCalled();
   });
 });

@@ -13,19 +13,26 @@ import {
   AMBITO_TODAS,
   construirLista,
   construirRiel,
+  esCampaniaPermanente,
   mismoAmbito,
   pluralAcompanamientos,
   pluralColportores,
   resolverAmbito,
   type Ambito,
+  type UnidadDeAvance,
   type VistaEquipo,
 } from "./modelo";
 import type { AcompanamientoRegistrado } from "./RegistrarAcompanamiento";
 import { TablaAcompanamientos } from "./TablaAcompanamientos";
+import { TablaBecas } from "./TablaBecas";
 import { TablaZonas } from "./TablaZonas";
+import { useUnidadDeAvance } from "./unidad-de-avance";
+import { useBecas } from "./useBecas";
+import { useVistaDeBecas } from "./useVistaDeBecas";
 
 const VISTAS: { valor: VistaEquipo; etiqueta: string }[] = [
   { valor: "zonas", etiqueta: "Zonas" },
+  { valor: "becas", etiqueta: "Becas" },
   { valor: "acompanamientos", etiqueta: "Acompañamientos" },
 ];
 
@@ -40,6 +47,11 @@ function conRegistrados(datos: DatosEquipoPorCiudad, registrados: Record<string,
     }),
   };
 }
+
+const UNIDADES: { valor: UnidadDeAvance; etiqueta: string }[] = [
+  { valor: "libros", etiqueta: "Libros" },
+  { valor: "ces", etiqueta: "Compra a la CES" },
+];
 
 function pendientesDe(sinZona: string[], solicitudes: number, vista: VistaEquipo): Pendiente[] {
   const pendientes: Pendiente[] = [];
@@ -67,9 +79,9 @@ function pendientesDe(sinZona: string[], solicitudes: number, vista: VistaEquipo
 
 /**
  * Vista 33 (HU-JOR-004, HU-CAM-006): el equipo de la campaña por ciudad. A la izquierda la lista de ciudades por
- * departamento (que se contrae); a la derecha la tabla de zonas o la de acompañamientos de la ciudad elegida, con la
- * acción de cada tema en la misma fila. Cambiar de ciudad o de pestaña no pide nada al servidor: solo abrir las
- * jornadas de un colportor y registrar un acompañamiento hablan con él.
+ * departamento (que se contrae); a la derecha la tabla de zonas, de becas o de acompañamientos de la ciudad elegida, con
+ * la acción de cada tema en la misma fila. Cambiar de ciudad o de pestaña no pide nada al servidor: solo abrir las
+ * jornadas de un colportor, registrar un acompañamiento y elegir la carrera o el tipo de beca hablan con él.
  */
 export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; acciones: AccionesEquipo }) {
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_TODAS);
@@ -78,6 +90,9 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
   const [historialesAbiertos, setHistorialesAbiertos] = useState<ReadonlySet<string>>(new Set());
   const [registrandoId, setRegistrandoId] = useState<string | null>(null);
   const [registrados, setRegistrados] = useState<Record<string, AcompanamientoDeColportor[]>>({});
+  const [unidad, elegirUnidad] = useUnidadDeAvance();
+  const becas = useBecas(datos.becas, acciones);
+  const vistaDeBecas = useVistaDeBecas();
   const raiz = useRef<HTMLDivElement>(null);
   // Al apagar el botón que tenía el foco (contraer la lista, cerrar el registro) el foco se devuelve a su par.
   const focoPendiente = useRef<string | null>(null);
@@ -166,13 +181,39 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
             <h2 className="font-serif text-[22px] font-semibold wrap-anywhere text-tinta">{resuelto.titulo}</h2>
             <p className="text-chico text-tinta-suave">{subtitulo}</p>
           </div>
-          <div className="flex flex-none items-center gap-2">
+          <div className="flex flex-none flex-wrap items-center justify-end gap-2">
             <Link
               href="/equipo/anadir"
               className="inline-flex min-h-8 items-center rounded-control border border-borde bg-superficie px-3.5 text-chico font-semibold text-tinta-2 hover:bg-fondo focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
             >
               + Añadir colportor
             </Link>
+            {vista === "becas" && datos.becas !== null && (
+              <div className="flex items-center gap-2">
+                <span id="ver-avance-en" className="text-chico text-tinta-suave">
+                  Ver avance en
+                </span>
+                <div role="group" aria-labelledby="ver-avance-en" className="flex overflow-hidden rounded-control border border-borde bg-superficie">
+                  {UNIDADES.map(({ valor, etiqueta }) => {
+                    const activa = valor === unidad;
+                    return (
+                      <button
+                        key={valor}
+                        type="button"
+                        aria-pressed={activa}
+                        onClick={() => elegirUnidad(valor)}
+                        className={cn(
+                          "inline-flex min-h-8 items-center border-r border-borde px-3 text-chico font-semibold last:border-r-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-acento",
+                          activa ? "bg-marca text-superficie" : "bg-superficie text-tinta-2 hover:bg-marca-clara",
+                        )}
+                      >
+                        {etiqueta}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div role="group" aria-label="Ver" className="flex overflow-hidden rounded-control border border-borde bg-superficie">
               {VISTAS.map(({ valor, etiqueta }) => {
                 const activa = valor === vista;
@@ -209,6 +250,8 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
             </p>
           ) : vista === "zonas" ? (
             <TablaZonas resuelto={resuelto} />
+          ) : vista === "becas" ? (
+            <TablaBecas resuelto={resuelto} becas={datos.becas} estado={becas} unidad={unidad} vista={vistaDeBecas} permanente={esCampaniaPermanente(datos)} />
           ) : (
             <TablaAcompanamientos
               resuelto={resuelto}
