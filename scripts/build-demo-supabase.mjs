@@ -8,7 +8,7 @@
 //    credenciales o si hay archivos `.env*`. Ningún mensaje lleva un valor.
 // 2. `next build` con entorno limpio y NEXT_PUBLIC_DEMO_SUPABASE_DEV=1 (servidor autónomo `standalone`, aviso, noindex).
 //    El panel conectado necesita servidor (proxy, cookies, server actions): NO es un export estático (a diferencia de Pages).
-// 3. Arma `panel-supabase-dev/` (server.js, .next, public, robots.txt, README.md con cómo servirlo y las cuentas demo).
+// 3. Arma `panel-supabase-dev/` (server.js, .next, public, robots.txt, README.md con cómo servirlo y el correo de la cuenta demo, sin contraseña).
 // 4. Revisa los archivos del artefacto (sin node_modules): solo la URL dev y la clave anónima; ni JWT de servicio ni secretos.
 // 5. Levanta el servidor armado y comprueba el aviso, `noindex`, robots.txt y que una ruta protegida manda a iniciar sesión.
 import { spawn, spawnSync } from "node:child_process";
@@ -20,6 +20,7 @@ import {
   archivosEnvProhibidos,
   AVISO_DEMO_TEXTO,
   entornoDelBuild,
+  hallazgosEnArchivoDeTexto,
   hallazgosEnTexto,
   problemasDelEntorno,
   readmeDelArtefacto,
@@ -81,9 +82,10 @@ function recorrer(carpeta) {
       hallazgos.push(`${relative(salida, ruta)}: archivo de entorno dentro del artefacto`);
     } else if (EXTENSIONES_DE_TEXTO.test(nombre) || nombre === "server.js") {
       const texto = readFileSync(ruta, "utf8");
-      if (ruta !== join(salida, "README.md")) {
-        for (const motivo of hallazgosEnTexto(texto)) hallazgos.push(`${relative(salida, ruta)}: ${motivo}`);
-      }
+      // Fuera del código compilado (`.next/`), incluido el README, tampoco puede haber una contraseña escrita (el repo es público).
+      const enElCompilado = relative(salida, ruta).split(sep)[0] === ".next";
+      const motivos = enElCompilado ? hallazgosEnTexto(texto) : hallazgosEnArchivoDeTexto(texto);
+      for (const motivo of motivos) hallazgos.push(`${relative(salida, ruta)}: ${motivo}`);
       if (texto.includes(AVISO_DEMO_TEXTO)) avisoEnElBuild = true;
     }
   }

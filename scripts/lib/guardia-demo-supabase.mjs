@@ -10,7 +10,9 @@ export const HOST_PROYECTO_DEV = "ohdsavwpasfpapbyutrv.supabase.co";
 /** Texto pedido por Cristian (28/10); el panel lo pinta en `src/shell/AvisoVersionDePrueba.tsx`. */
 export const AVISO_DEMO_TEXTO = "Versión de prueba conectada a Supabase dev (datos de demostración)";
 
-export const CUENTA_DEMO = Object.freeze({ correo: "coordinador.demo@example.com", contrasena: "Demo2026!" });
+// El repo es PÚBLICO y el artefacto lo baja cualquier cuenta de GitHub: la contraseña de la cuenta demo no vive en el repo ni en
+// el artefacto (decisión de Cristian, 28/10); quien muestra la demo la recibe de él. Acá solo el correo.
+export const CUENTA_DEMO = Object.freeze({ correo: "coordinador.demo@example.com" });
 
 /** Las dos únicas variables de conexión que entran al build. */
 export const VARIABLES_DE_CONEXION = Object.freeze(["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]);
@@ -108,8 +110,22 @@ export function hallazgosEnTexto(texto) {
   }
   // El nombre de la variable de la clave de servicio, no la palabra `service_role` suelta (ver guardia-pages.mjs).
   if (/SERVICE_ROLE_KEY/i.test(texto)) motivos.add("la variable de la clave de servicio de Supabase");
-  if (texto.includes(CUENTA_DEMO.contrasena)) motivos.add("la contraseña de la cuenta demo (solo va en el README del artefacto)");
   return [...motivos];
+}
+
+/** «Contraseña: algo», «password = algo»: un valor puesto a mano en un texto de documentación. */
+const CONTRASENA_ESCRITA = /(?:contrase[ñn]a|password|passwd)\s*[:=]\s*["'`]?[^\s"'`]{3,}/i;
+
+/**
+ * Los archivos del artefacto que no son el código compilado (el README, `robots.txt`, `server.js`, `package.json`):
+ * `hallazgosEnTexto` más cualquier contraseña escrita, la de la cuenta demo incluida. El repo es público y el artefacto lo
+ * baja cualquier cuenta de GitHub: la contraseña no va en ningún archivo. No se aplica a `.next/`, que trae campos llamados
+ * `password` en el código del formulario de acceso.
+ */
+export function hallazgosEnArchivoDeTexto(texto) {
+  const motivos = hallazgosEnTexto(texto);
+  if (CONTRASENA_ESCRITA.test(texto)) motivos.push("una contraseña escrita (el artefacto es descargable por cualquier cuenta de GitHub)");
+  return motivos;
 }
 
 /** Contenido de `robots.txt` del artefacto: no se indexa. */
@@ -146,10 +162,10 @@ Abrilo siempre como **http://localhost:3000**: la cookie de sesión es \`Secure\
 \`localhost\`. Desde otro equipo hace falta HTTPS (por ejemplo un túnel). Si GitHub descomprime sin respetar las carpetas
 ocultas, comprobá que existe \`.next/\` junto a \`server.js\`.
 
-## Cuentas demo (datos de demostración)
+## Cuenta demo (datos de demostración)
 
 - Correo: ${CUENTA_DEMO.correo}
-- Contraseña: ${CUENTA_DEMO.contrasena}
+- La contraseña de la cuenta demo te la da Cristian (este artefacto lo puede bajar cualquier cuenta de GitHub, así que no se escribe acá).
 
 Lo que se haga se guarda en la base de desarrollo (datos de demostración, no hay personas reales).
 `;

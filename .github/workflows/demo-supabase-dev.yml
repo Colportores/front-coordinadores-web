@@ -10,7 +10,7 @@ name: Artefacto del panel con Supabase dev
 # la clave no es anónima, si el entorno trae otras credenciales o si algún archivo del artefacto lleva otra clave.
 #
 # El panel conectado necesita servidor (proxy, cookies de sesión, server actions): el artefacto es un servidor Node
-# autónomo (`node server.js`), no un export estático. El README de dentro explica cómo servirlo y las cuentas demo.
+# autónomo (`node server.js`), no un export estático. El README de dentro explica cómo servirlo y el correo de la cuenta demo (la contraseña no va: la da Cristian).
 
 on:
   push:

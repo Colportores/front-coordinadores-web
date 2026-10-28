@@ -9,6 +9,7 @@ import {
   CUENTA_DEMO,
   entornoDelBuild,
   esClaveAnonima,
+  hallazgosEnArchivoDeTexto,
   hallazgosEnTexto,
   problemasDelEntorno,
   readmeDelArtefacto,
@@ -125,26 +126,51 @@ describe("guardia del artefacto de demo con Supabase dev", () => {
       expect(hallazgosEnTexto("https://otroproyecto.supabase.co/rest/v1")).toEqual([expect.stringContaining("no es el de desarrollo")]);
     });
 
-    it("rechaza el nombre de la variable de la clave de servicio y la contraseña de la cuenta demo", () => {
+    it("rechaza el nombre de la variable de la clave de servicio", () => {
       expect(hallazgosEnTexto("SUPABASE_SERVICE_ROLE_KEY=x")).toEqual([expect.stringContaining("clave de servicio")]);
-      expect(hallazgosEnTexto(`password: "${CUENTA_DEMO.contrasena}"`)).toEqual([expect.stringContaining("contraseña de la cuenta demo")]);
+    });
+  });
+
+  describe("hallazgosEnArchivoDeTexto (README y demás archivos que no son el código compilado)", () => {
+    // Valores ficticios: la contraseña real de la cuenta demo no está en el repo, tampoco en los tests.
+    it.each([
+      "Contraseña: Ficticia-123",
+      "contraseña = Ficticia123",
+      "Contrasena:Ficticia123",
+      "password: Ficticia123",
+      'PASSWORD="Ficticia123"',
+      "- Contraseña: `Ficticia123`",
+    ])("rechaza una contraseña escrita: %s", (texto) => {
+      expect(hallazgosEnArchivoDeTexto(`Cuenta demo
+${texto}
+`)).toEqual([expect.stringContaining("contraseña escrita")]);
+    });
+
+    it("sigue rechazando las claves", () => {
+      expect(hallazgosEnArchivoDeTexto(`k=${JWT_SERVICIO}`)).toEqual([expect.stringContaining("JWT que no es de la clave anónima")]);
+    });
+
+    it("deja pasar el texto que manda a pedir la contraseña, sin ningún valor", () => {
+      expect(hallazgosEnArchivoDeTexto("La contraseña de la cuenta demo te la da Cristian.")).toEqual([]);
+      expect(hallazgosEnArchivoDeTexto("Correo: coordinador.demo@example.com")).toEqual([]);
     });
   });
 
   describe("README del artefacto", () => {
     const readme = readmeDelArtefacto({ commit: "abc123", fecha: "2026-10-28T00:00:00.000Z" });
 
-    it("dice cómo servirlo, que necesita Node y las cuentas demo", () => {
+    it("dice cómo servirlo, que necesita Node y el correo de la cuenta demo, y manda a pedir la contraseña", () => {
       expect(readme).toContain(AVISO_DEMO_TEXTO);
       expect(readme).toContain("node server.js");
       expect(readme).toContain("localhost:3000");
       expect(readme).toContain(CUENTA_DEMO.correo);
-      expect(readme).toContain(CUENTA_DEMO.contrasena);
+      expect(readme).toContain("La contraseña de la cuenta demo te la da Cristian");
       expect(readme).toContain("abc123");
     });
 
-    it("no lleva claves ni la URL de otro proyecto", () => {
-      expect(hallazgosEnTexto(readme.replace(CUENTA_DEMO.contrasena, ""))).toEqual([]);
+    it("no lleva claves, ni la URL de otro proyecto, ni ninguna contraseña", () => {
+      expect(hallazgosEnArchivoDeTexto(readme)).toEqual([]);
+      expect(CUENTA_DEMO).not.toHaveProperty("contrasena");
     });
   });
 
