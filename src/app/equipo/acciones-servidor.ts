@@ -19,5 +19,17 @@ export function crearAccionesEquipo(campaniaId: string): AccionesEquipo {
       "use server";
       return fuenteEquipo.registrarAcompanamiento(campaniaId, jornadaId);
     },
+    async elegirCarrera(colportorId, carreraId) {
+      "use server";
+      return fuenteEquipo.elegirCarrera(campaniaId, colportorId, carreraId);
+    },
+    async asignarTipoDeBeca(colportorId, tipo) {
+      "use server";
+      // El tipo viene del navegador: solo vale uno de los tres que ofrece la tabla («Sin beca» es null).
+      if (tipo !== null && tipo !== "media" && tipo !== "completa") {
+        return { ok: false, mensaje: "Ese tipo de beca no existe. Recargá la página y volvé a elegir." };
+      }
+      return fuenteEquipo.asignarTipoDeBeca(campaniaId, colportorId, tipo);
+    },
   };
 }

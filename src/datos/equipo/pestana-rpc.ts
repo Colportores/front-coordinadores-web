@@ -6,6 +6,7 @@ import type {
   FuenteDatosEquipo,
   JornadaParaAcompanar,
   ResultadoAcompanamiento,
+  ResultadoBeca,
   ResultadoJornadas,
   ZonaAnterior,
 } from "@/datos/equipo/contrato";
@@ -136,7 +137,13 @@ function textoDeRechazo(error: ErrorSupabase, sinPermiso: string, generico: stri
   return CODIGOS_CON_TEXTO.has(error.codigo) && error.message !== "" ? error.message : generico;
 }
 
-type FuentePestana = Pick<FuenteDatosEquipo, "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento">;
+type FuentePestana = Pick<
+  FuenteDatosEquipo,
+  "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
+>;
+
+/** Las becas (V2) todavía no tienen RPC (se conectan después del 20/11): la vista no ofrece guardarlas con esta fuente. */
+const BECAS_SIN_CONECTAR = "Las becas todavía no están conectadas a la base de datos, así que no se puede guardar este cambio.";
 
 export function crearFuentePestanaRpc(
   cliente: ClienteRpc,
@@ -208,7 +215,16 @@ export function crearFuentePestanaRpc(
         ciudades: Array.from(ciudades.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
         colportores,
         solicitudesPendientes: 0,
+        becas: null,
       };
+    },
+
+    async elegirCarrera(): Promise<ResultadoBeca> {
+      return { ok: false, mensaje: BECAS_SIN_CONECTAR };
+    },
+
+    async asignarTipoDeBeca(): Promise<ResultadoBeca> {
+      return { ok: false, mensaje: BECAS_SIN_CONECTAR };
     },
 
     async jornadasParaAcompanar(campaniaId, colportorId): Promise<ResultadoJornadas> {
