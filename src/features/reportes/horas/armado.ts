@@ -7,7 +7,7 @@ import {
   compararCon,
   crearCalendario,
   domingosConDatos,
-  domingosDeTodos,
+  domingosComparables,
   formatearCifra,
   formatearEntero,
   periodosDe,
@@ -96,7 +96,7 @@ export function armarReporte(
     datos.hoy,
     datos.finCampania,
     domingosConDatos(resuelto.colportores),
-    domingosDeTodos(resuelto.colportores),
+    domingosComparables(resuelto.colportores),
   );
   const elegido = resuelto.colportor;
   // Una cifra de varios colportores se muestra entera; la de uno solo, con un decimal.

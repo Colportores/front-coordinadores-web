@@ -6,7 +6,7 @@ import {
   compararPeriodos,
   crearCalendario,
   domingosConDatos,
-  domingosDeTodos,
+  domingosComparables,
   formatearCifra,
   formatearDecimal,
   formatearEntero,
@@ -88,14 +88,14 @@ describe("domingos con datos (issue #116)", () => {
     expect(periodosDe("mes", cal)[0].dias).toContain("2026-10-11");
   });
 
-  it("domingosDeTodos: solo los domingos en que todos los colportores tienen datos", () => {
+  it("domingosComparables: con un colportor, sus domingos con datos; con varios, ninguno (aunque trabajen todos)", () => {
     const otro = { horasPorDia: { "2026-10-11": 3, "2026-10-18": 2 } };
-    expect([...domingosDeTodos([colportorConDomingo, otro])]).toEqual(["2026-10-11"]);
-    expect([...domingosDeTodos([colportorConDomingo])]).toEqual(["2026-10-11"]);
-    expect(domingosDeTodos([colportorConDomingo, { horasPorDia: { "2026-10-05": 6 } }]).size).toBe(0);
+    expect([...domingosComparables([colportorConDomingo])]).toEqual(["2026-10-11"]);
+    expect(domingosComparables([colportorConDomingo, otro]).size).toBe(0);
+    expect(domingosComparables([]).size).toBe(0);
   });
 
-  it("un domingo con datos de solo algunos suma pero no es «ayer» ni el día de comparación", () => {
+  it("un domingo de un ámbito con varios colportores suma pero no es «ayer» ni el día de comparación", () => {
     const domingo = new Set(["2026-10-11"]);
     const cal = crearCalendario("2026-10-05", "2026-10-12", null, domingo, new Set());
     expect(cal.diasHabiles).toContain("2026-10-11");

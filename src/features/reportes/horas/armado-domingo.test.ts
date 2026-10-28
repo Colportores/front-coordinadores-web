@@ -116,7 +116,7 @@ describe("un domingo con datos de uno solo · Días, varios colportores", () => 
     expect(tarjeta(armarReporte(conDomingo, AMBITO_TODAS, "semana"), "horas").valor).toBe("89");
   });
 
-  it("si trabajaron todos el domingo, «ayer» es el domingo", () => {
+  it("aunque trabajen todos el domingo, con varios colportores «ayer» sigue siendo el sábado (decisión 28/10)", () => {
     const rivera = conDomingo.ciudades[0];
     const ambos: DatosHoras = {
       ...conDomingo,
@@ -131,12 +131,11 @@ describe("un domingo con datos de uno solo · Días, varios colportores", () => 
       ],
     };
     const r = armarReporte(ambos, AMBITO_TODAS, "dia");
-    // Domingo: Ana 5 h + Beto 3 h = 8 h, contra el sábado (14 h).
-    expect(tarjeta(r, "horas")).toMatchObject({ valor: "8", nota: "ayer · contra el día anterior" });
-    expect(tarjeta(r, "horas").tendencia?.texto).toBe("▼ 43%");
+    expect(tarjeta(r, "horas")).toMatchObject({ valor: "14", nota: "ayer · contra el día anterior" });
+    expect(tarjeta(r, "horas").tendencia?.texto).toBe("= 0%");
     expect(filasDeColportor(r.tabla.filas).map((f) => [f.nombre, f.nota, celda(f, "horas").valor])).toEqual([
-      ["Ana Silva", null, "5,0"],
-      ["Beto Techera", null, "3,0"],
+      ["Ana Silva", null, "6,0"],
+      ["Beto Techera", null, "8,0"],
     ]);
   });
 });

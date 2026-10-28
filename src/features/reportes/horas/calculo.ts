@@ -46,8 +46,9 @@ export interface Calendario {
    */
   diasHabiles: Fecha[];
   /**
-   * Domingos de `diasHabiles` en los que no todos los colportores del ámbito tienen datos: suman en la semana, el mes, el
-   * rango y el gráfico, pero no son «ayer» ni el día contra el que se compara (el resto no trabajó: saldría «sin datos»).
+   * Domingos de `diasHabiles` en un ámbito con varios colportores: suman en la semana, el mes, el rango y el gráfico, pero
+   * no son «ayer» ni el día contra el que se compara (el resto no trabajó: saldría «sin datos»). Decisión del 28/10 (mapa
+   * §2, R4): con un solo colportor, el domingo con datos sí es «ayer» del lunes.
    */
   domingosAparte: ReadonlySet<Fecha>;
 }
@@ -62,10 +63,12 @@ export function domingosConDatos(colportores: readonly DiasDeColportor[]): Set<F
   return domingos;
 }
 
-/** Los domingos en que TODOS los colportores tienen datos: los únicos que pueden ser «ayer» de un lunes en un ámbito. */
-export function domingosDeTodos(colportores: readonly DiasDeColportor[]): Set<Fecha> {
-  const propios = colportores.map((c) => domingosDe(c));
-  return new Set([...domingosConDatos(colportores)].filter((fecha) => propios.every((p) => p.has(fecha))));
+/**
+ * Los domingos que pueden ser «ayer» de un lunes: con un solo colportor, los suyos con datos; con varios, ninguno (el
+ * domingo de uno no es el día de los demás: «ayer» sigue siendo el sábado).
+ */
+export function domingosComparables(colportores: readonly DiasDeColportor[]): Set<Fecha> {
+  return colportores.length === 1 ? domingosConDatos(colportores) : new Set();
 }
 
 function domingosDe(colportor: DiasDeColportor): Set<Fecha> {
@@ -79,7 +82,7 @@ function domingosDe(colportor: DiasDeColportor): Set<Fecha> {
 /**
  * El calendario de la campaña; `conDatos` son los domingos con datos (ver `domingosConDatos`), que entran como cualquier
  * día. `comparables` son los que además sirven de «ayer» y de día de comparación (por omisión, todos los que entran): en
- * un ámbito con varios colportores, los domingos en que solo trabajaron algunos quedan «aparte» (ver `domingosDeTodos`).
+ * un ámbito con varios colportores, los domingos quedan «aparte» (ver `domingosComparables`).
  */
 export function crearCalendario(
   inicio: Fecha,
