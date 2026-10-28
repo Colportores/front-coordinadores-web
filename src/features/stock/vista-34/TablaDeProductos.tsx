@@ -8,6 +8,9 @@ import { formatearCantidad, type EstadoDeUnidad, type FilaDeUnidad, type GrupoDe
 
 const COLUMNAS = 8;
 
+/** Ayuda del encabezado «POR COBRAR» (decisión del 28/10, nota del canvas 34): el número llega ya proporcional del servidor. */
+const AYUDA_POR_COBRAR = "Unidades entregadas que todavía no se pagaron, en proporción al saldo de cada venta.";
+
 const CLASES_ESTADO: Record<EstadoDeUnidad["tipo"], string> = {
   agotado: "bg-peligro-fondo text-peligro",
   faltan: "bg-alerta-fondo text-alerta",
@@ -52,7 +55,7 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
                   <th scope="col" className="pb-1 text-right font-semibold">
                     DEVUELTOS
                   </th>
-                  <th scope="col" className="pb-1 text-right font-semibold">
+                  <th scope="col" title={AYUDA_POR_COBRAR} className="pb-1 text-right font-semibold">
                     POR COBRAR
                   </th>
                 </tr>
@@ -134,7 +137,7 @@ export function TablaDeProductos({
           <th scope="col" className="px-2 py-[9px] text-right font-semibold">
             DEVUELTOS
           </th>
-          <th scope="col" className="px-2 py-[9px] text-right font-semibold">
+          <th scope="col" title={AYUDA_POR_COBRAR} className="px-2 py-[9px] text-right font-semibold">
             POR COBRAR
           </th>
           <th scope="col" className="py-[9px] pr-[18px] pl-2 text-left font-semibold">
