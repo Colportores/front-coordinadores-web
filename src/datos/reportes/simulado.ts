@@ -90,6 +90,7 @@ function colportorSimulado(nombre: string, dias: Fecha[]): ColportorHoras {
   const sinDatosDesde = SIN_DATOS[nombre] ?? null;
   const horasPorDia: Record<Fecha, number> = {};
   const ventasPorDia: Record<Fecha, VentasDelDia> = {};
+  const acompaniadasPorDia: Record<Fecha, number> = {};
   const lunesBase = "2026-08-31";
   dias.forEach((fecha, i) => {
     const semana = Math.floor(diasEntre(lunesBase, fecha) / 7);
@@ -106,10 +107,13 @@ function colportorSimulado(nombre: string, dias: Fecha[]): ColportorHoras {
       semana < 4 ? 0.9 + r() * 0.08 : semana < 6 ? 0.74 + r() * 0.12 : semana === 6 ? 0.55 + r() * 0.15 : 0.35 + r() * 0.15;
     if (!sinDatos) {
       horasPorDia[fecha] = horas;
+      // Una de cada cinco jornadas con acompañante, repartida con un hash del nombre y el día (no gasta números del azar
+      // del canvas, así que las demás cifras no cambian).
+      acompaniadasPorDia[fecha] = hashDeTexto(`${nombre}|${fecha}`) % 5 === 0 ? 1 : 0;
       ventasPorDia[fecha] = { presentaciones, ventas, monto, cobrado: Math.round(monto * tasaCobrada) };
     }
   });
-  return { id: `col-${hashDeTexto(nombre).toString(36)}`, nombre, horasPorDia, ventasPorDia, sinDatosDesde };
+  return { id: `col-${hashDeTexto(nombre).toString(36)}`, nombre, horasPorDia, acompaniadasPorDia, ventasPorDia, sinDatosDesde };
 }
 
 const CIUDADES_SIMULADAS: { id: string; nombre: string; departamento: string; colportores: string[] }[] = [

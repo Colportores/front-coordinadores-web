@@ -54,7 +54,7 @@ export function useExportacion(reporte: ReporteArmado, contexto: ContextoDeExpor
       enCurso.current = formato;
       setOcupado(formato);
       setAviso(null);
-      const archivo = nombreDeArchivo(reporte.titulo, contexto.granularidad, contexto.hoy, formato);
+      const archivo = nombreDeArchivo(reporte.titulo, contexto.granularidad, contexto.hoy, formato, contexto.rango ?? null);
 
       const liberar = () => {
         enCurso.current = null;

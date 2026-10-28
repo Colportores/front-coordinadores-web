@@ -201,9 +201,9 @@ describe("datos de ejemplo del diseño", () => {
     expect(crearHorasSimuladas()).toEqual(crearHorasSimuladas());
   });
 
-  it("no incluye nada de clientes ni de contacto: solo ciudades, colportores, horas y cifras de ventas", () => {
+  it("no incluye nada de clientes ni de contacto: solo ciudades, colportores, horas, acompañadas y cifras de ventas", () => {
     const claves = new Set(sim.ciudades.flatMap((c) => c.colportores.flatMap((p) => Object.keys(p))));
-    expect([...claves].sort()).toEqual(["horasPorDia", "id", "nombre", "sinDatosDesde", "ventasPorDia"]);
+    expect([...claves].sort()).toEqual(["acompaniadasPorDia", "horasPorDia", "id", "nombre", "sinDatosDesde", "ventasPorDia"]);
     const delDia = new Set(
       sim.ciudades.flatMap((c) => c.colportores.flatMap((p) => Object.values(p.ventasPorDia).flatMap((d) => Object.keys(d)))),
     );

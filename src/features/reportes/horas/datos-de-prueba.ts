@@ -38,8 +38,11 @@ export function colportor(
   horasPorDia: Record<Fecha, number>,
   sinDatosDesde: Fecha | null = null,
   ventasPorDia: Record<Fecha, VentasDelDia> = {},
+  acompaniadasPorDia?: Record<Fecha, number>,
 ): ColportorHoras {
-  return { id, nombre, horasPorDia, ventasPorDia, sinDatosDesde };
+  // Sin acompañamientos dichos, cada día con horas figura con 0 acompañadas (mismo conjunto de días que las horas).
+  const sinAcompanar = Object.fromEntries(Object.keys(horasPorDia).map((fecha) => [fecha, 0]));
+  return { id, nombre, horasPorDia, acompaniadasPorDia: { ...sinAcompanar, ...acompaniadasPorDia }, ventasPorDia, sinDatosDesde };
 }
 
 /**
@@ -120,6 +123,29 @@ export function datosDePruebaConVentas(): DatosHoras {
     ciudades: base.ciudades.map((ciudad) => ({
       ...ciudad,
       colportores: ciudad.colportores.map((c) => ({ ...c, ventasPorDia: ventas[c.id] ?? {} })),
+    })),
+  };
+}
+
+/**
+ * Los colportores de `datosDePrueba` con jornadas acompañadas (issue #107): cada día con horas figura con 0 y estos con 1.
+ *   Ana: martes 13/10, miércoles 14/10 y martes 20/10.   Beto: martes 13/10.   Darío: viernes 16/10.
+ * Del 12 al 17/10 (S2): Ana 2, Beto 1, Darío 1 = 4. Toda la campaña: Ana 3, Beto 1, Darío 1 = 5.
+ */
+export function conAcompanamientos(base: DatosHoras = datosDePrueba()): DatosHoras {
+  const dias: Record<string, Fecha[]> = {
+    ana: ["2026-10-13", "2026-10-14", "2026-10-20"],
+    beto: ["2026-10-13"],
+    dario: ["2026-10-16"],
+  };
+  return {
+    ...base,
+    ciudades: base.ciudades.map((ciudad) => ({
+      ...ciudad,
+      colportores: ciudad.colportores.map((c) => ({
+        ...c,
+        acompaniadasPorDia: { ...c.acompaniadasPorDia, ...Object.fromEntries((dias[c.id] ?? []).map((d) => [d, 1])) },
+      })),
     })),
   };
 }

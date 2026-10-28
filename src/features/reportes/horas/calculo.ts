@@ -20,6 +20,9 @@ import {
 
 export type Granularidad = "dia" | "semana" | "mes";
 
+/** Cómo se mira el reporte: por días, semanas o meses, o un rango de fechas libre (issue #107). */
+export type ModoDeReporte = Granularidad | "rango";
+
 /** Lo que se mide día por día. `monto` y `cobrado` son los dos números de los que sale el % por cobrar. */
 export type Medida = "horas" | "presentaciones" | "ventas" | "monto" | "cobrado";
 
@@ -57,7 +60,7 @@ export type Serie = (fecha: Fecha) => Cifra;
 export type Agregar = (dias: Fecha[]) => Cifra;
 
 /** Lo que hace falta de un colportor para armar sus series. `ventasPorDia` puede faltar (solo horas). */
-export type DiasDeColportor = Pick<ColportorHoras, "horasPorDia"> & Partial<Pick<ColportorHoras, "ventasPorDia">>;
+export type DiasDeColportor = Pick<ColportorHoras, "horasPorDia"> & Partial<Pick<ColportorHoras, "ventasPorDia" | "acompaniadasPorDia">>;
 
 export function serieDeColportor(colportor: DiasDeColportor, medida: Medida = "horas"): Serie {
   if (medida === "horas") {
@@ -280,10 +283,16 @@ export function formatearDecimal(valor: number): string {
 export type MedidaMostrada = "horas" | "presentaciones" | "ventas" | "monto" | "porCobrar";
 
 /**
+ * Las columnas y tarjetas del reporte: las cifras de siempre y las tres del rango libre (issue #107): los días en que el
+ * colportor trabajó, el promedio de horas por día trabajado y las jornadas con acompañamiento.
+ */
+export type ColumnaDeReporte = MedidaMostrada | "diasTrabajados" | "promedio" | "acompaniadas";
+
+/**
  * Cifra para mostrar: «—» sin datos. Las horas van enteras si son el total de varios colportores y con un decimal si
  * son de uno; los $U con «$U » y miles con punto; el % por cobrar con «%».
  */
-export function formatearCifra(cifra: Cifra, total: boolean, medida: MedidaMostrada = "horas"): string {
+export function formatearCifra(cifra: Cifra, total: boolean, medida: ColumnaDeReporte = "horas"): string {
   if (!cifra.hayDatos) return "—";
   switch (medida) {
     case "horas":
@@ -292,6 +301,8 @@ export function formatearCifra(cifra: Cifra, total: boolean, medida: MedidaMostr
       return `$U ${formatearEntero(cifra.valor)}`;
     case "porCobrar":
       return `${cifra.valor}%`;
+    case "promedio":
+      return formatearDecimal(cifra.valor);
     default:
       return formatearEntero(cifra.valor);
   }

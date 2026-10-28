@@ -1,11 +1,11 @@
 import { cn } from "@/lib/utils";
 
-import type { MedidaMostrada, Tendencia } from "./calculo";
+import type { ColumnaDeReporte, Tendencia } from "./calculo";
 import { TendenciaDeCifra } from "./TendenciaDeCifra";
 
 /** Una cifra de la tabla con su tendencia al lado. */
 export interface CeldaDeTabla {
-  clave: MedidaMostrada;
+  clave: ColumnaDeReporte;
   /** La cifra ya formateada; «—» si no hay datos. */
   valor: string;
   /** La cifra sin formato (para exportar); `null` si no hay datos. */
@@ -45,7 +45,7 @@ export function TablaDeReporte({
   /** Nombre accesible de la tabla. */
   descripcion: string;
   primeraColumna: string;
-  columnas: { clave: MedidaMostrada; encabezado: string }[];
+  columnas: { clave: ColumnaDeReporte; encabezado: string }[];
   filas: FilaDeTabla[];
   mensajeVacio: string;
 }) {
