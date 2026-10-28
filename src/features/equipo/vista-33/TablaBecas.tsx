@@ -572,7 +572,8 @@ export function TablaBecas({
                             error={error}
                             alGuardar={(carreraId) => {
                               fijar(c.id);
-                              focoPendiente.current = `apunta:${c.id}:media`;
+                              // En una campaña permanente solo existe «Sin beca» (clave «ninguna»): ahí cae el foco.
+                              focoPendiente.current = `apunta:${c.id}:${permanente ? "ninguna" : "media"}`;
                               estado.elegirCarrera({ id: c.id, nombre: c.nombre }, carreraId);
                             }}
                             alCancelar={() => {

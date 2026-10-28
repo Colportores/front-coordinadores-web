@@ -208,8 +208,7 @@ describe("QA #117 · «Beca perman.»", () => {
     await waitFor(() => expect(sinBeca("Emiliano Sosa")).toHaveAttribute("aria-pressed", "true"));
   });
 
-  // QA #117: en una permanente, al guardar la carrera el foco pendiente apunta al botón «Media», que no existe (TablaBecas.tsx:575): el panel se cierra y el foco cae al <body>.
-  it.skip("QA #117: al guardar la carrera en una permanente, el foco pasa al único botón de «Apunta a» y no al <body>", async () => {
+  it("QA #117: al guardar la carrera en una permanente, el foco pasa al único botón de «Apunta a» y no al <body>", async () => {
     const { usuario } = mostrar(permanente());
     await irA(usuario, "Becas");
     await usuario.click(screen.getByRole("button", { name: "Elegir carrera de Federico Da Rosa" }));
