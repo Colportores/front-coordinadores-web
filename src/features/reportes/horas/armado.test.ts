@@ -4,22 +4,32 @@ import { crearHorasSimuladas } from "@/datos/reportes/simulado";
 
 import { AMBITO_TODAS, construirLista, construirRiel, resolverAmbito, abreviarCiudad } from "./ambito";
 import { armarReporte, textoSinDatosDesde } from "./armado";
+import type { MedidaMostrada } from "./calculo";
 import { datosDePrueba } from "./datos-de-prueba";
+import type { FilaDeTabla } from "./TablaDeReporte";
 
 const datos = datosDePrueba();
+
+/** La celda de una columna de una fila (por omisión, la de horas). */
+function celda(fila: FilaDeTabla | undefined, clave: MedidaMostrada = "horas") {
+  if (!fila || fila.tipo !== "fila") throw new Error("no es una fila de colportor");
+  const encontrada = fila.celdas.find((c) => c.clave === clave);
+  if (!encontrada) throw new Error(`no hay columna ${clave}`);
+  return encontrada;
+}
 
 describe("armarReporte · todas las ciudades", () => {
   it("semanas: la última completa (S2) contra la anterior, con el total de la campaña", () => {
     const r = armarReporte(datos, AMBITO_TODAS, "semana");
     expect(r.titulo).toBe("Todas las ciudades");
     expect(r.subtitulo).toBe("4 colportores · S2 contra S1");
-    expect(r.cifra).toMatchObject({ valor: "122", nota: "S2 · contra S1", campania: "Campaña: 302" });
-    expect(r.cifra.tendencia?.texto).toBe("▼ 12%");
+    expect(r.tarjetas[0]).toMatchObject({ valor: "122", nota: "S2 · contra S1", campania: "Campaña: 302" });
+    expect(r.tarjetas[0].tendencia?.texto).toBe("▼ 12%");
     expect(r.volverA).toBeNull();
   });
 
   it("las barras son las tres semanas; la que está en curso va rayada y la más alta ocupa todo el alto", () => {
-    const { barras } = armarReporte(datos, AMBITO_TODAS, "semana").cifra;
+    const { barras } = armarReporte(datos, AMBITO_TODAS, "semana").tarjetas[0];
     expect(barras.map((b) => [b.rotulo, b.enCurso, b.sinDatos])).toEqual([
       ["S1", false, false],
       ["S2", false, false],
@@ -42,10 +52,11 @@ describe("armarReporte · todas las ciudades", () => {
     ]);
     const ana = filas.find((f) => f.clave === "ana");
     const beto = filas.find((f) => f.clave === "beto");
-    expect(ana).toMatchObject({ valor: "36,0", nota: null });
-    expect(ana && ana.tipo === "fila" && ana.tendencia?.texto).toBe("= 0%");
-    expect(beto).toMatchObject({ valor: "32,0" });
-    expect(beto && beto.tipo === "fila" && beto.tendencia?.texto).toBe("▼ 33%");
+    expect(ana).toMatchObject({ nota: null });
+    expect(celda(ana)).toMatchObject({ valor: "36,0" });
+    expect(celda(ana).tendencia?.texto).toBe("= 0%");
+    expect(celda(beto).valor).toBe("32,0");
+    expect(celda(beto).tendencia?.texto).toBe("▼ 33%");
   });
 
   it("el encabezado de la primera columna dice qué período se compara", () => {
@@ -60,8 +71,8 @@ describe("armarReporte · ciudad, departamento y colportor", () => {
     const r = armarReporte(datos, { tipo: "ciudad", ciudadId: "rivera" }, "semana");
     expect(r.titulo).toBe("Rivera");
     expect(r.subtitulo).toBe("Departamento Rivera · 2 colportores · S2 contra S1");
-    expect(r.cifra).toMatchObject({ valor: "68", campania: "Campaña: 167" });
-    expect(r.cifra.tendencia?.texto).toBe("▼ 19%");
+    expect(r.tarjetas[0]).toMatchObject({ valor: "68", campania: "Campaña: 167" });
+    expect(r.tarjetas[0].tendencia?.texto).toBe("▼ 19%");
     expect(r.tabla.filas.every((f) => f.tipo === "fila")).toBe(true);
   });
 
@@ -69,8 +80,8 @@ describe("armarReporte · ciudad, departamento y colportor", () => {
     const r = armarReporte(datos, { tipo: "departamento", departamento: "Artigas" }, "semana");
     expect(r.titulo).toBe("Departamento Artigas");
     expect(r.subtitulo).toBe("2 colportores · S2 contra S1");
-    expect(r.cifra.valor).toBe("54");
-    expect(r.cifra.tendencia?.texto).toBe("= 0%");
+    expect(r.tarjetas[0].valor).toBe("54");
+    expect(r.tarjetas[0].tendencia?.texto).toBe("= 0%");
     expect(r.tabla.filas.filter((f) => f.tipo === "grupo").map((f) => f.nombre)).toEqual(["Artigas", "Bella Unión"]);
   });
 
@@ -79,10 +90,10 @@ describe("armarReporte · ciudad, departamento y colportor", () => {
     expect(r.titulo).toBe("Ana Silva");
     expect(r.subtitulo).toBe("Rivera · Departamento Rivera · S2 contra S1");
     expect(r.volverA).toEqual({ nombre: "Rivera", ambito: { tipo: "ciudad", ciudadId: "rivera" } });
-    expect(r.cifra.valor).toBe("36,0");
+    expect(r.tarjetas[0].valor).toBe("36,0");
     expect(r.tabla.primeraColumna).toBe("SEMANA");
     const filas = r.tabla.filas.flatMap((f) => (f.tipo === "fila" ? [f] : []));
-    expect(filas.map((f) => [f.nombre, f.valor, f.nota, f.tendencia?.texto ?? null])).toEqual([
+    expect(filas.map((f) => [f.nombre, celda(f).valor, f.nota, celda(f).tendencia?.texto ?? null])).toEqual([
       ["S1 · 05/10", "36,0", null, null], // la primera no tiene con qué compararse
       ["S2 · 12/10", "36,0", null, "= 0%"],
       ["S3 · 19/10", "15,0", "en curso", null], // la que está en curso no lleva tendencia
@@ -92,29 +103,25 @@ describe("armarReporte · ciudad, departamento y colportor", () => {
   it("un colportor sin datos: guion, sin tendencia y desde cuándo no hay datos", () => {
     const r = armarReporte(datos, { tipo: "colportor", colportorId: "beto" }, "semana");
     const filas = r.tabla.filas.flatMap((f) => (f.tipo === "fila" ? [f] : []));
-    expect(filas[2]).toMatchObject({
-      nombre: "S3 · 19/10",
-      valor: "—",
-      sinDatos: true,
-      nota: "sin datos · últimos datos el 15/10",
-      tendencia: null,
-    });
+    expect(filas[2]).toMatchObject({ nombre: "S3 · 19/10", nota: "sin datos · últimos datos el 15/10" });
+    expect(celda(filas[2])).toMatchObject({ valor: "—", sinDatos: true, tendencia: null });
     // el día sin datos tampoco arrastra a la fila siguiente
     const dias = armarReporte(datos, { tipo: "colportor", colportorId: "beto" }, "dia").tabla.filas;
-    expect(dias.at(-1)).toMatchObject({ valor: "—", sinDatos: true, tendencia: null });
+    expect(celda(dias.at(-1))).toMatchObject({ valor: "—", sinDatos: true, tendencia: null });
   });
 
   it("días: ayer contra el día anterior; un colportor sin datos ayer se ve con guion y el aviso de desde cuándo", () => {
     const r = armarReporte(datos, AMBITO_TODAS, "dia");
     expect(r.subtitulo).toBe("4 colportores · ayer contra el día anterior");
-    expect(r.cifra.valor).toBe("15"); // Ana 6 + Carla 5 + Darío 4; Beto no tiene datos ayer
+    expect(r.tarjetas[0].valor).toBe("15"); // Ana 6 + Carla 5 + Darío 4; Beto no tiene datos ayer
     const beto = r.tabla.filas.find((f) => f.clave === "beto");
-    expect(beto).toMatchObject({ valor: "—", sinDatos: true, nota: "sin datos desde el 15/10", tendencia: null });
+    expect(beto).toMatchObject({ nota: "sin datos desde el 15/10" });
+    expect(celda(beto)).toMatchObject({ valor: "—", sinDatos: true, tendencia: null });
   });
 
   it("meses: el mes a la fecha, sin tendencia si no hay mes anterior", () => {
     const r = armarReporte(datos, AMBITO_TODAS, "mes");
-    expect(r.cifra).toMatchObject({ valor: "302", nota: "oct. a la fecha", tendencia: null });
+    expect(r.tarjetas[0]).toMatchObject({ valor: "302", nota: "oct. a la fecha", tendencia: null });
     expect(r.subtitulo).toBe("4 colportores · oct. a la fecha");
   });
 
@@ -130,14 +137,14 @@ describe("armarReporte · casos límite", () => {
     const vacio = { ...datos, ciudades: [] };
     const r = armarReporte(vacio, AMBITO_TODAS, "semana");
     expect(r.subtitulo).toBe("0 colportores · S2 contra S1");
-    expect(r.cifra.valor).toBe("—");
-    expect(r.cifra.campania).toBe("Campaña: —");
+    expect(r.tarjetas[0].valor).toBe("—");
+    expect(r.tarjetas[0].campania).toBe("Campaña: —");
     expect(r.tabla.filas).toEqual([]);
   });
 
   it("una campaña que recién empieza: todavía no hay un período completo", () => {
     const hoy = armarReporte({ ...datos, inicioCampania: "2026-10-21" }, AMBITO_TODAS, "semana");
-    expect(hoy.cifra).toMatchObject({ valor: "—", nota: "Todavía no hay un período completo", tendencia: null });
+    expect(hoy.tarjetas[0]).toMatchObject({ valor: "—", nota: "Todavía no hay un período completo", tendencia: null });
     expect(hoy.subtitulo).toBe("4 colportores");
   });
 
@@ -149,7 +156,7 @@ describe("armarReporte · casos límite", () => {
   });
 
   it("el resumen del gráfico dice cada período con su cifra y marca el que está en curso y los que no tienen datos", () => {
-    const { resumenDelGrafico } = armarReporte(datos, { tipo: "colportor", colportorId: "beto" }, "semana").cifra;
+    const { resumenDelGrafico } = armarReporte(datos, { tipo: "colportor", colportorId: "beto" }, "semana").tarjetas[0];
     expect(resumenDelGrafico).toBe("Horas por semana: S1: 48,0; S2: 32,0; S3: sin datos (en curso).");
   });
 });
@@ -172,20 +179,21 @@ describe("datos de ejemplo del diseño", () => {
     expect(bruno?.horasPorDia["2026-10-19"]).toBeUndefined();
     const r = armarReporte(sim, { tipo: "colportor", colportorId: bruno!.id }, "semana");
     const ultima = r.tabla.filas.at(-1);
-    expect(ultima).toMatchObject({ nombre: "S8 · 19/10", valor: "—", nota: "sin datos · últimos datos el 17/10" });
+    expect(ultima).toMatchObject({ nombre: "S8 · 19/10", nota: "sin datos · últimos datos el 17/10" });
+    expect(celda(ultima).valor).toBe("—");
   });
 
   it("el total de «Todas las ciudades» es la suma de las ciudades, para cualquier período", () => {
     const campaniaDe = (ciudadId?: string) =>
       Number(
-        armarReporte(sim, ciudadId ? { tipo: "ciudad", ciudadId } : AMBITO_TODAS, "semana").cifra.campania.replace(/\D/g, ""),
+        armarReporte(sim, ciudadId ? { tipo: "ciudad", ciudadId } : AMBITO_TODAS, "semana").tarjetas[0].campania.replace(/\D/g, ""),
       );
     expect(sim.ciudades.reduce((total, c) => total + campaniaDe(c.id), 0)).toBeGreaterThanOrEqual(campaniaDe() - 3);
     expect(sim.ciudades.reduce((total, c) => total + campaniaDe(c.id), 0)).toBeLessThanOrEqual(campaniaDe() + 3);
     const suma = sim.ciudades
       .flatMap((c) => c.colportores)
       .reduce((total, c) => total + Object.values(c.horasPorDia).reduce((a, b) => a + b, 0), 0);
-    const campania = armarReporte(sim, AMBITO_TODAS, "semana").cifra.campania;
+    const campania = armarReporte(sim, AMBITO_TODAS, "semana").tarjetas[0].campania;
     expect(campania).toBe(`Campaña: ${Math.round(suma).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`);
   });
 
@@ -193,9 +201,13 @@ describe("datos de ejemplo del diseño", () => {
     expect(crearHorasSimuladas()).toEqual(crearHorasSimuladas());
   });
 
-  it("no incluye nada de clientes ni de contacto: solo ciudades, colportores y horas", () => {
+  it("no incluye nada de clientes ni de contacto: solo ciudades, colportores, horas, acompañadas y cifras de ventas", () => {
     const claves = new Set(sim.ciudades.flatMap((c) => c.colportores.flatMap((p) => Object.keys(p))));
-    expect([...claves].sort()).toEqual(["horasPorDia", "id", "nombre", "sinDatosDesde"]);
+    expect([...claves].sort()).toEqual(["acompaniadasPorDia", "horasPorDia", "id", "nombre", "sinDatosDesde", "ventasPorDia"]);
+    const delDia = new Set(
+      sim.ciudades.flatMap((c) => c.colportores.flatMap((p) => Object.values(p.ventasPorDia).flatMap((d) => Object.keys(d)))),
+    );
+    expect([...delDia].sort()).toEqual(["cobrado", "monto", "presentaciones", "ventas"]);
   });
 });
 

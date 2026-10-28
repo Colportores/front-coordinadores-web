@@ -9,6 +9,7 @@ import type {
   JornadaParaAcompanar,
   OrigenDeAcompanamiento,
   ResultadoAcompanamiento,
+  ResultadoBeca,
   ResultadoJornadas,
   ZonaAnterior,
 } from "@/datos/equipo/contrato";
@@ -41,8 +42,9 @@ import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
  * historial que se muestra en «Ver historial», así que la tabla y el historial no se pueden contradecir. De esa RPC sale
  * una sola cosa, `contado_desde`: desde cuándo se cuentan los días de quien nunca fue acompañado.
  *
- * Lo que la base todavía no tiene y por eso queda sin conectar: el departamento de cada ciudad (backend-supabase#92) y las
- * solicitudes para entrar a la campaña (`solicitudesPendientes` es siempre 0). Ver los pendientes del PR.
+ * El departamento de cada ciudad sale de `ciudades_de_campania()` (0066): una ciudad vieja sin cargar queda en `null`.
+ * Lo que la base todavía no tiene y por eso queda sin conectar: las solicitudes para entrar a la campaña
+ * (`solicitudesPendientes` es siempre 0). Ver los pendientes del PR.
  *
  * Los rechazos de la base (`JO001`…`JO005`, `CZ001`, `CZ011`, `42501`, `22023`) se traducen al texto para mostrar: las
  * pantallas no conocen códigos. Una falla de conexión, de servicio o de sesión no es un rechazo y sale como excepción
@@ -170,7 +172,13 @@ function textoDeRechazo(error: ErrorSupabase, sinPermiso: string, generico: stri
   return CODIGOS_CON_TEXTO.has(error.codigo) && error.message !== "" ? error.message : generico;
 }
 
-type FuentePestana = Pick<FuenteDatosEquipo, "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento">;
+type FuentePestana = Pick<
+  FuenteDatosEquipo,
+  "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
+>;
+
+/** Las becas (V2) todavía no tienen RPC (se conectan después del 20/11): la vista no ofrece guardarlas con esta fuente. */
+const BECAS_SIN_CONECTAR = "Las becas todavía no están conectadas a la base de datos, así que no se puede guardar este cambio.";
 
 export function crearFuentePestanaRpc(
   cliente: ClienteRpc,
@@ -201,7 +209,7 @@ export function crearFuentePestanaRpc(
       const ciudades = new Map<string, CiudadDeEquipo>();
       for (const fila of filas("ciudades_de_campania", ciudadesCrudas)) {
         const id = cadena("ciudades_de_campania", fila, "ciudad_id");
-        ciudades.set(id, { id, nombre: cadena("ciudades_de_campania", fila, "nombre"), departamento: null });
+        ciudades.set(id, { id, nombre: cadena("ciudades_de_campania", fila, "nombre"), departamento: cadenaONula("ciudades_de_campania", fila, "departamento") });
       }
 
       // `contado_desde` de cada uno; a quien la tabla no trae se le cuenta desde el inicio de la campaña, como decía el diseño.
@@ -245,11 +253,21 @@ export function crearFuentePestanaRpc(
         campania: campania.nombre,
         campaniaInicio: campania.fechaInicio,
         campaniaFin: campania.fechaFin,
+        campaniaTipo: campania.tipo,
         hoy: hoyEnMontevideo(ahora()),
         ciudades: Array.from(ciudades.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
         colportores,
         solicitudesPendientes: 0,
+        becas: null,
       };
+    },
+
+    async elegirCarrera(): Promise<ResultadoBeca> {
+      return { ok: false, mensaje: BECAS_SIN_CONECTAR };
+    },
+
+    async asignarTipoDeBeca(): Promise<ResultadoBeca> {
+      return { ok: false, mensaje: BECAS_SIN_CONECTAR };
     },
 
     async jornadasParaAcompanar(campaniaId, colportorId): Promise<ResultadoJornadas> {

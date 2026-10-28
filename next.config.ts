@@ -1,10 +1,12 @@
 import type { NextConfig } from "next";
 
-import { verificarEntornoSupabase } from "./src/datos/supabase/config-publica";
+import { verificarEntornoDeProduccion, verificarEntornoSupabase } from "./src/datos/supabase/config-publica";
 
 // Next incrusta `NEXT_PUBLIC_*` en los archivos del navegador durante el build: una clave de servicio puesta
 // ahí (por error) tiene que frenar el arranque, no descubrirse después en un chunk publicado (#18).
 verificarEntornoSupabase(process.env);
+// En producción, sin variables de Supabase el build falla salvo que se pida el modo simulado (#101; se arma con PANEL_EXIGIR_SUPABASE).
+verificarEntornoDeProduccion(process.env);
 
 // En Docker el código entra por un bind mount desde Windows/macOS, que no
 // propaga eventos de archivos: el dev server tiene que sondear. Turbopack

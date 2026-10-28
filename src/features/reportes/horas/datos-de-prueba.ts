@@ -1,4 +1,4 @@
-import type { CiudadHoras, ColportorHoras, DatosHoras, Fecha } from "@/datos/reportes/contrato";
+import type { CiudadHoras, ColportorHoras, DatosHoras, Fecha, VentasDelDia } from "@/datos/reportes/contrato";
 import { diaDeSemana, sumarDias } from "@/datos/reportes/fechas";
 
 /** Datos chicos y a mano para los tests de la vista 32: cada cifra se puede calcular de cabeza. */
@@ -15,8 +15,34 @@ export function horasConstantes(desde: Fecha, hasta: Fecha, horas: number, salvo
   return resultado;
 }
 
-export function colportor(id: string, nombre: string, horasPorDia: Record<Fecha, number>, sinDatosDesde: Fecha | null = null): ColportorHoras {
-  return { id, nombre, horasPorDia, sinDatosDesde };
+/** Lo mismo que `horasConstantes`, para las ventas: el mismo día con las mismas cifras entre dos fechas. */
+export function ventasConstantes(
+  desde: Fecha,
+  hasta: Fecha,
+  dia: VentasDelDia,
+  salvo: Record<Fecha, VentasDelDia | null> = {},
+): Record<Fecha, VentasDelDia> {
+  const resultado: Record<Fecha, VentasDelDia> = {};
+  for (let d = desde; d <= hasta; d = sumarDias(d, 1)) {
+    if (diaDeSemana(d) === 0) continue;
+    const propio = salvo[d];
+    if (propio === null) continue;
+    resultado[d] = propio ?? dia;
+  }
+  return resultado;
+}
+
+export function colportor(
+  id: string,
+  nombre: string,
+  horasPorDia: Record<Fecha, number>,
+  sinDatosDesde: Fecha | null = null,
+  ventasPorDia: Record<Fecha, VentasDelDia> = {},
+  acompaniadasPorDia?: Record<Fecha, number>,
+): ColportorHoras {
+  // Sin acompañamientos dichos, cada día con horas figura con 0 acompañadas (mismo conjunto de días que las horas).
+  const sinAcompanar = Object.fromEntries(Object.keys(horasPorDia).map((fecha) => [fecha, 0]));
+  return { id, nombre, horasPorDia, acompaniadasPorDia: { ...sinAcompanar, ...acompaniadasPorDia }, ventasPorDia, sinDatosDesde };
 }
 
 /**
@@ -51,4 +77,75 @@ export function datosDePrueba(): DatosHoras {
     },
   ];
   return { inicioCampania: "2026-10-05", finCampania: null, hoy: "2026-10-21", ciudades };
+}
+
+const dia = (presentaciones: number, ventas: number, monto: number, cobrado: number | null): VentasDelDia => ({
+  presentaciones,
+  ventas,
+  monto,
+  cobrado,
+});
+
+/**
+ * Los mismos colportores de `datosDePrueba` con sus ventas. Cada día de trabajo (sin domingos) de una semana vale lo
+ * mismo, así que cada total se hace de cabeza:
+ *   Ana:   S1 = 6 días de 4 pres., 1 venta, $U 1.000 (cobró 800); S2 = 6 días de 5 / 2 / 1.500 (900);
+ *          S3 = 19 y 20 de 5 / 2 / 1.500 (cobró 1.500); hoy, 21, 2 / 0 / 0 / 0.
+ *   Beto:  S1 = 6 días de 3 / 1 / 800 (800); S2 = 12 al 15 de 3 / 1 / 800 (400); después sin datos.
+ *   Carla: S1 = 6 días de 6 / 2 / 2.000 (1.000); S2 y S3 = 6 / 3 / 3.000 (1.500).
+ *   Darío: S1 = 6 días de 2 / 1 / 500 (500); S2 y S3 = 3 / 1 / 600 (600).
+ * Todas las ciudades: S1 = 90 pres., 30 ventas, $U 25.800 (cobró 18.600, 28 % por cobrar);
+ *                     S2 = 96 pres., 40 ventas, $U 33.800 (cobró 19.600, 42 % por cobrar).
+ */
+export function datosDePruebaConVentas(): DatosHoras {
+  const base = datosDePrueba();
+  const ventas: Record<string, Record<Fecha, VentasDelDia>> = {
+    ana: {
+      ...ventasConstantes("2026-10-05", "2026-10-10", dia(4, 1, 1000, 800)),
+      ...ventasConstantes("2026-10-12", "2026-10-17", dia(5, 2, 1500, 900)),
+      ...ventasConstantes("2026-10-19", "2026-10-21", dia(5, 2, 1500, 1500), { "2026-10-21": dia(2, 0, 0, 0) }),
+    },
+    beto: {
+      ...ventasConstantes("2026-10-05", "2026-10-10", dia(3, 1, 800, 800)),
+      ...ventasConstantes("2026-10-12", "2026-10-15", dia(3, 1, 800, 400)),
+    },
+    carla: {
+      ...ventasConstantes("2026-10-05", "2026-10-10", dia(6, 2, 2000, 1000)),
+      ...ventasConstantes("2026-10-12", "2026-10-21", dia(6, 3, 3000, 1500)),
+    },
+    dario: {
+      ...ventasConstantes("2026-10-05", "2026-10-10", dia(2, 1, 500, 500)),
+      ...ventasConstantes("2026-10-12", "2026-10-21", dia(3, 1, 600, 600)),
+    },
+  };
+  return {
+    ...base,
+    ciudades: base.ciudades.map((ciudad) => ({
+      ...ciudad,
+      colportores: ciudad.colportores.map((c) => ({ ...c, ventasPorDia: ventas[c.id] ?? {} })),
+    })),
+  };
+}
+
+/**
+ * Los colportores de `datosDePrueba` con jornadas acompañadas (issue #107): cada día con horas figura con 0 y estos con 1.
+ *   Ana: martes 13/10, miércoles 14/10 y martes 20/10.   Beto: martes 13/10.   Darío: viernes 16/10.
+ * Del 12 al 17/10 (S2): Ana 2, Beto 1, Darío 1 = 4. Toda la campaña: Ana 3, Beto 1, Darío 1 = 5.
+ */
+export function conAcompanamientos(base: DatosHoras = datosDePrueba()): DatosHoras {
+  const dias: Record<string, Fecha[]> = {
+    ana: ["2026-10-13", "2026-10-14", "2026-10-20"],
+    beto: ["2026-10-13"],
+    dario: ["2026-10-16"],
+  };
+  return {
+    ...base,
+    ciudades: base.ciudades.map((ciudad) => ({
+      ...ciudad,
+      colportores: ciudad.colportores.map((c) => ({
+        ...c,
+        acompaniadasPorDia: { ...c.acompaniadasPorDia, ...Object.fromEntries((dias[c.id] ?? []).map((d) => [d, 1])) },
+      })),
+    })),
+  };
 }

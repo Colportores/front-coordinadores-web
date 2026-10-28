@@ -109,7 +109,7 @@ describe("QA #60 · fuente de Reportes, datos límite", () => {
     const datos = await leer(base({ horas_por_ciudad_y_colportor: [fila({ email: "x@y.z", telefono: "099123456" })] }));
     const texto = JSON.stringify(datos);
     expect(texto).not.toMatch(/x@y\.z|099123456/);
-    expect(Object.keys(datos!.ciudades[0].colportores[0]).sort()).toEqual(["horasPorDia", "id", "nombre", "sinDatosDesde"]);
+    expect(Object.keys(datos!.ciudades[0].colportores[0]).sort()).toEqual(["acompaniadasPorDia", "horasPorDia", "id", "nombre", "sinDatosDesde", "ventasPorDia"]);
   });
 });
 

@@ -122,15 +122,15 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
           id: ARTIGAS,
           nombre: "Artigas",
           departamento: "Artigas",
-          colportores: [{ id: "u-3", nombre: "Sofía Cabral", horasPorDia: { "2026-10-20": 6 }, sinDatosDesde: null }],
+          colportores: [{ id: "u-3", nombre: "Sofía Cabral", horasPorDia: { "2026-10-20": 6 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: {}, sinDatosDesde: null }],
         },
         {
           id: RIVERA,
           nombre: "Rivera",
           departamento: "Rivera",
           colportores: [
-            { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-19": 3.25, "2026-10-20": 4.5 }, sinDatosDesde: null },
-            { id: "u-2", nombre: "Bruno Techera", horasPorDia: { "2026-10-20": 2 }, sinDatosDesde: null },
+            { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-19": 3.25, "2026-10-20": 4.5 }, acompaniadasPorDia: { "2026-10-19": 0, "2026-10-20": 0 }, ventasPorDia: {}, sinDatosDesde: null },
+            { id: "u-2", nombre: "Bruno Techera", horasPorDia: { "2026-10-20": 2 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: {}, sinDatosDesde: null },
           ],
         },
       ],
@@ -157,7 +157,7 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
 
     const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
 
-    expect(datos?.ciudades[0].colportores).toEqual([{ id: "u-1", nombre: "Lucía Fernández", horasPorDia: {}, sinDatosDesde: null }]);
+    expect(datos?.ciudades[0].colportores).toEqual([{ id: "u-1", nombre: "Lucía Fernández", horasPorDia: {}, acompaniadasPorDia: {}, ventasPorDia: {}, sinDatosDesde: null }]);
   });
 
   it("los colportores sin zona (ciudad nula) van en un solo grupo «Sin zona asignada», al final", async () => {
@@ -176,8 +176,8 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
     const sinZona = datos?.ciudades[1];
     expect(sinZona).toMatchObject({ id: ID_SIN_ZONA, departamento: null });
     expect(sinZona?.colportores).toEqual([
-      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 20, "2026-10-19": 1.5 }, sinDatosDesde: null },
-      { id: "u-8", nombre: "Ana Zapata", horasPorDia: { "2026-10-20": 3 }, sinDatosDesde: null },
+      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 20, "2026-10-19": 1.5 }, acompaniadasPorDia: { "2026-10-20": 0, "2026-10-19": 0 }, ventasPorDia: {}, sinDatosDesde: null },
+      { id: "u-8", nombre: "Ana Zapata", horasPorDia: { "2026-10-20": 3 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: {}, sinDatosDesde: null },
     ]);
   });
 
@@ -201,8 +201,8 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
 
     expect(datos?.ciudades).toHaveLength(1);
     expect(datos?.ciudades[0].colportores).toEqual([
-      { id: "u-5", nombre: "Rocío Benítez", horasPorDia: {}, sinDatosDesde: null },
-      { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-20": 4.5 }, sinDatosDesde: null },
+      { id: "u-5", nombre: "Rocío Benítez", horasPorDia: {}, acompaniadasPorDia: {}, ventasPorDia: {}, sinDatosDesde: null },
+      { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-20": 4.5 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: {}, sinDatosDesde: null },
     ]);
   });
 
@@ -219,8 +219,8 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
 
     expect(datos?.ciudades.map((c) => c.id)).toEqual([ID_SIN_ZONA]);
     expect(datos?.ciudades[0].colportores).toEqual([
-      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 4.5 }, sinDatosDesde: null },
-      { id: "u-8", nombre: "Ana Zapata", horasPorDia: {}, sinDatosDesde: null },
+      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 4.5 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: {}, sinDatosDesde: null },
+      { id: "u-8", nombre: "Ana Zapata", horasPorDia: {}, acompaniadasPorDia: {}, ventasPorDia: {}, sinDatosDesde: null },
     ]);
   });
 
@@ -239,7 +239,7 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
         id: BELLA_UNION,
         nombre: "Bella Unión",
         departamento: "Artigas",
-        colportores: [{ id: "u-7", nombre: "Gonzalo Méndez", horasPorDia: {}, sinDatosDesde: null }],
+        colportores: [{ id: "u-7", nombre: "Gonzalo Méndez", horasPorDia: {}, acompaniadasPorDia: {}, ventasPorDia: {}, sinDatosDesde: null }],
       },
     ]);
   });
@@ -520,5 +520,57 @@ describe("«sin datos desde» (decisión de Cristian del 25/10: 2 días de traba
 
     const porId = Object.fromEntries((datos?.ciudades[0].colportores ?? []).map((c) => [c.id, c.sinDatosDesde]));
     expect(porId).toEqual({ "u-1": null, "u-2": "2026-10-17" });
+  });
+});
+
+describe("fuente de Reportes (horas) · jornadas con acompañamiento por día (issue #107)", () => {
+  it("guarda por día cuántas jornadas cerradas tuvieron acompañante, junto a las horas", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [
+        fila({ periodo_inicio: "2026-10-19", horas: 3, jornadas: 1, jornadas_acompaniadas: 1 }),
+        fila({ periodo_inicio: "2026-10-20", horas: 8, jornadas: 2, dias_trabajados: 1, jornadas_acompaniadas: 2 }),
+        fila({ periodo_inicio: "2026-10-20", colportor_id: "u-2", nombre: "Bruno", apellido: "Techera", horas: 2, jornadas: 1, jornadas_acompaniadas: 0 }),
+      ],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    const porId = Object.fromEntries((datos?.ciudades[0].colportores ?? []).map((c) => [c.id, c.acompaniadasPorDia]));
+    expect(porId).toEqual({
+      "u-1": { "2026-10-19": 1, "2026-10-20": 2 },
+      "u-2": { "2026-10-20": 0 },
+    });
+  });
+
+  it("un día sin jornadas cerradas no entra (es un día sin datos, no un día sin acompañamiento)", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [
+        fila({ periodo_inicio: "2026-10-19", horas: 0, jornadas: 0, dias_trabajados: 0, jornadas_acompaniadas: 0 }),
+        fila({ periodo_inicio: "2026-10-20", horas: 4, jornadas: 1, jornadas_acompaniadas: 1 }),
+      ],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades[0].colportores[0].acompaniadasPorDia).toEqual({ "2026-10-20": 1 });
+  });
+
+  it("quien todavía no tiene jornadas cerradas figura sin acompañamientos", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [],
+      zonas_por_colportor: [inscripto({})],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades[0].colportores[0].acompaniadasPorDia).toEqual({});
+  });
+
+  it("una respuesta sin el conteo es una respuesta inesperada, no un 0", async () => {
+    const sinConteo: Record<string, unknown> = fila({});
+    delete sinConteo.jornadas_acompaniadas;
+    const { cliente } = lecturas({ horas_por_ciudad_y_colportor: [sinConteo] });
+
+    await expect(crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras()).rejects.toBeInstanceOf(RespuestaInesperada);
   });
 });

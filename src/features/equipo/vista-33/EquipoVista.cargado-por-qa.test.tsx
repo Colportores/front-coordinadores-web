@@ -33,7 +33,9 @@ const ok = (dia: string, resto: Partial<Extract<ResultadoAcompanamiento, { ok: t
 function crearAcciones(jornadas: JornadaParaAcompanar[] = [J1, J3]) {
   const jornadasParaAcompanar = vi.fn<AccionesEquipo["jornadasParaAcompanar"]>(async (): Promise<ResultadoJornadas> => ({ ok: true, jornadas }));
   const registrarAcompanamiento = vi.fn<AccionesEquipo["registrarAcompanamiento"]>(async (id) => ok(jornadas.find((j) => j.id === id)?.dia ?? HOY));
-  return { jornadasParaAcompanar, registrarAcompanamiento } satisfies AccionesEquipo;
+  const elegirCarrera = vi.fn<AccionesEquipo["elegirCarrera"]>(async () => ({ ok: false, mensaje: "No en este test." }));
+  const asignarTipoDeBeca = vi.fn<AccionesEquipo["asignarTipoDeBeca"]>(async () => ({ ok: false, mensaje: "No en este test." }));
+  return { jornadasParaAcompanar, registrarAcompanamiento, elegirCarrera, asignarTipoDeBeca } satisfies AccionesEquipo;
 }
 
 const fila = (n: number, dia: string, resto: Partial<AcompanamientoDeColportor>): AcompanamientoDeColportor => ({

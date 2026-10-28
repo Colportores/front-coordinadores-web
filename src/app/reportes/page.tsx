@@ -5,7 +5,10 @@ import { ReporteHoras } from "@/features/reportes/horas/ReporteHoras";
 import { SinCampaniaParaReportes } from "@/features/reportes/horas/SinCampaniaParaReportes";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
-/** Vista 32 (HU-REP-001): horas por ciudad y colportor, en días, semanas o meses, con la tendencia de cada cifra. */
+/**
+ * Vista 32 (HU-REP-001 y HU-REP-002): horas, presentaciones y ventas por ciudad y colportor, en días, semanas o
+ * meses, con la tendencia de cada cifra. El % por cobrar es V2 y no se muestra todavía.
+ */
 export default async function PestanaReportes() {
   // El sitio de prueba (export estático) es siempre simulado por construcción: nunca lee el selector de fuente.
   const fuente = process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1" ? fuenteReportesSimulada : fuenteReportes;

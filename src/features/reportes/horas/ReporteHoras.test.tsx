@@ -49,10 +49,10 @@ describe("ReporteHoras · vista inicial", () => {
     expect(l.getByRole("button", { name: /^Artigas/ })).toHaveTextContent("1 colportor");
   });
 
-  it("las acciones de exportar no están disponibles todavía (HU-REP-005)", () => {
+  it("las acciones de exportar están disponibles (HU-REP-005; el detalle, en ReporteHoras.exportar.test)", () => {
     render(<ReporteHoras datos={datosDePrueba()} />);
     for (const nombre of ["Informe PDF", "Datos CSV"]) {
-      expect(screen.getByRole("button", { name: nombre })).toHaveAttribute("aria-disabled", "true");
+      expect(screen.getByRole("button", { name: nombre })).not.toHaveAttribute("aria-disabled");
     }
   });
 

@@ -28,6 +28,8 @@ function acciones(jornadas: JornadaParaAcompanar[] = [J1, J2, J3]) {
   return {
     jornadasParaAcompanar: vi.fn<AccionesEquipo["jornadasParaAcompanar"]>(async (): Promise<ResultadoJornadas> => ({ ok: true, jornadas })),
     registrarAcompanamiento: vi.fn<AccionesEquipo["registrarAcompanamiento"]>(async (id) => ok(jornadas.find((j) => j.id === id)?.dia ?? HOY)),
+    elegirCarrera: vi.fn<AccionesEquipo["elegirCarrera"]>(async () => ({ ok: false, mensaje: "Sin becas en este test." })),
+    asignarTipoDeBeca: vi.fn<AccionesEquipo["asignarTipoDeBeca"]>(async () => ({ ok: false, mensaje: "Sin becas en este test." })),
   } satisfies AccionesEquipo;
 }
 

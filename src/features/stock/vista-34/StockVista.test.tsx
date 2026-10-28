@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ColportorDeStock, DatosDeStock, ExistenciaDeStock } from "@/datos/stock/contrato";
 import { crearDatosDeStockSimulados } from "@/datos/stock/simulado";
@@ -9,8 +9,8 @@ import { StockVista } from "./StockVista";
 
 const simulados = () => crearDatosDeStockSimulados();
 
-const ex = (productoId: string, tiene: number, porEntregar = 0): ExistenciaDeStock => ({ productoId, tiene, porEntregar, entregados: 0, porCobrar: 0 });
-const col = (id: string, ciudadId: string | null, ...existencias: ExistenciaDeStock[]): ColportorDeStock => ({ id, nombre: id, ciudadId, existencias });
+const ex = (productoId: string, tiene: number, porEntregar = 0): ExistenciaDeStock => ({ productoId, tiene, porEntregar, entregados: 0, devueltos: 0, porCobrar: 0 });
+const col = (id: string, ciudadId: string | null, ...existencias: ExistenciaDeStock[]): ColportorDeStock => ({ id, nombre: id, ciudadId, ultimoDatoAt: null, existencias });
 
 const chico = (parcial: Partial<DatosDeStock> = {}): DatosDeStock => ({
   campaniaId: "c",
@@ -39,15 +39,75 @@ describe("StockVista", () => {
       expect.stringContaining("MISIONEROS"),
     ]);
     expect(screen.getByRole("list", { name: "Avisos de stock" })).toBeInTheDocument();
-    expect(within(tabla()).getAllByRole("columnheader").slice(0, 7).map((h) => h.textContent)).toEqual([
+    expect(within(tabla()).getAllByRole("columnheader").slice(0, 8).map((h) => h.textContent)).toEqual([
       "PRODUCTO",
       "EN LA CIUDAD",
       "EN MANOS DE",
       "POR ENTREGAR",
       "ENTREGADOS",
+      "DEVUELTOS",
       "POR COBRAR",
       "ESTADO",
     ]);
+  });
+
+  describe("columna «Devueltos» y «Por cobrar» (backend-supabase#101, respuestas del 27/10)", () => {
+    const conDevueltos = () =>
+      chico({
+        colportores: [
+          col("ana", "riv", { productoId: "l1", tiene: 3, porEntregar: 0, entregados: 1500, devueltos: 1234, porCobrar: 2 }),
+          col("beto", "riv", { productoId: "l1", tiene: 1, porEntregar: 0, entregados: 4, devueltos: 0, porCobrar: 0 }),
+        ],
+      });
+
+    it("la fila suma lo devuelto, aparte de lo entregado, con separador de miles", () => {
+      render(<StockVista datos={conDevueltos()} />);
+
+      const celdas = within(within(tabla()).getByRole("row", { name: /Libro uno/ })).getAllByRole("cell");
+      // en la ciudad · en manos de · por entregar · entregados · devueltos · por cobrar · estado
+      expect(celdas.map((c) => c.textContent)).toEqual(["4", "2 de 2", "0", "1.504", "1.234", "2", "✓Alcanza"]);
+    });
+
+    it("el detalle dice cuántos devolvió cada colportor y deja en cero (atenuado) a quien no devolvió", async () => {
+      render(<StockVista datos={conDevueltos()} />);
+      await userEvent.click(fila("Libro uno"));
+
+      const detalle = screen.getByRole("table", { name: "Quién tiene Libro uno en Todas las ciudades" });
+      const filas = within(detalle).getAllByRole("row").slice(1);
+      expect(filas.map((f) => [...f.querySelectorAll("th span:first-child, td")].map((c) => c.textContent))).toEqual([
+        ["ana", "3", "0", "1.500", "1.234", "2"],
+        ["beto", "1", "0", "4", "0", "0"],
+      ]);
+      expect(within(filas[1]).getAllByRole("cell")[3].firstElementChild).toHaveClass("text-tinta-suave");
+    });
+
+    it("si la fuente todavía no manda los devueltos, la columna muestra cero y la vista no se rompe", () => {
+      const viejos = chico({ colportores: [col("ana", "riv", { productoId: "l1", tiene: 3, porEntregar: 0, entregados: 2, porCobrar: 1 } as ExistenciaDeStock)] });
+      render(<StockVista datos={viejos} />);
+
+      expect(within(within(tabla()).getByRole("row", { name: /Libro uno/ })).getAllByRole("cell")[4]).toHaveTextContent("0");
+    });
+
+    it("«POR COBRAR» lleva su ayuda como descripción accesible, en la tabla de productos y en el detalle, sin cambiar el nombre", async () => {
+      render(<StockVista datos={conDevueltos()} />);
+      await userEvent.click(fila("Libro uno"));
+
+      const ayuda = "Unidades entregadas que todavía no se pagaron, en proporción al saldo de cada venta.";
+      const encabezados = [
+        within(tabla()).getAllByRole("columnheader", { name: "POR COBRAR" })[0],
+        within(screen.getByRole("table", { name: "Quién tiene Libro uno en Todas las ciudades" })).getByRole("columnheader", { name: "POR COBRAR" }),
+      ];
+      for (const encabezado of encabezados) expect(encabezado).toHaveAccessibleDescription(ayuda);
+      expect(within(tabla()).getAllByRole("columnheader", { name: "ENTREGADOS" })[0]).not.toHaveAccessibleDescription();
+    });
+
+    it("la tabla de productos tiene una columna más y el detalle abierto ocupa todo el ancho", async () => {
+      render(<StockVista datos={conDevueltos()} />);
+      await userEvent.click(fila("Libro uno"));
+
+      expect(tabla().querySelectorAll(":scope > colgroup > col")).toHaveLength(8);
+      expect(tabla().querySelector("td[colspan]")).toHaveAttribute("colspan", "8");
+    });
   });
 
   describe("artboard 34A·01 · Rivera por producto", () => {
@@ -100,10 +160,11 @@ describe("StockVista", () => {
         "TIENE",
         "POR ENTREGAR",
         "ENTREGADOS",
+        "DEVUELTOS",
         "POR COBRAR",
       ]);
       const filas = within(detalle).getAllByRole("row").slice(1);
-      expect(filas.map((f) => f.querySelector("th")?.textContent)).toEqual([
+      expect(filas.map((f) => f.querySelector("th span")?.textContent)).toEqual([
         "Camila Núñez",
         "Emiliano Sosa",
         "Lucía Fernández",
@@ -171,8 +232,8 @@ describe("StockVista", () => {
 
       await userEvent.click(fila("Misioneros · todos"));
       const detalle = screen.getByRole("table", { name: "Quién tiene Misioneros · todos en Artigas" });
-      expect(within(detalle).getByRole("rowheader", { name: "Natalia Vidal" })).toBeInTheDocument();
-      expect(within(detalle).getByRole("rowheader", { name: "Sofía Cabral" })).toBeInTheDocument();
+      expect(within(detalle).getByRole("rowheader", { name: /^Natalia Vidal/ })).toBeInTheDocument();
+      expect(within(detalle).getByRole("rowheader", { name: /^Sofía Cabral/ })).toBeInTheDocument();
       expect(within(fila("Misioneros · todos").closest("tr")!).getByText("nadie")).toBeInTheDocument();
     });
 
@@ -258,7 +319,7 @@ describe("StockVista", () => {
       expect(screen.getByText("15 colportores · 11 productos")).toBeInTheDocument();
       await userEvent.click(fila("Revistas · todas"));
       const detalle = screen.getByRole("table", { name: "Quién tiene Revistas · todas en Departamento Artigas" });
-      expect(within(detalle).getAllByRole("rowheader")[0]).toHaveTextContent(/ · (Artigas|Bella Unión)$/);
+      expect(within(detalle).getAllByRole("rowheader")[0]).toHaveTextContent(/ · (Artigas|Bella Unión)Sincronizó el \d\d\/\d\d(\/\d{4})? a las \d\d:\d\d$/);
     });
 
     it("se contrae a un riel con las abreviaturas y se vuelve a abrir, devolviendo el foco al botón", async () => {
@@ -364,5 +425,115 @@ describe("StockVista", () => {
       await userEvent.click(fila("Producto 7"));
       expect(screen.getByRole("table", { name: /Quién tiene Producto 7/ })).toBeInTheDocument();
     });
+  });
+});
+
+describe("StockVista · «Sincronizó el …» en la fila del colportor", () => {
+  const con = (...colportores: ColportorDeStock[]) => chico({ colportores });
+  const conFecha = (id: string, ultimoDatoAt: string | null, ...existencias: ExistenciaDeStock[]): ColportorDeStock => ({ ...col(id, "riv", ...existencias), ultimoDatoAt });
+  const detalle = () => screen.getByRole("table", { name: /^Quién tiene Libro uno en/ });
+
+  // Las fechas de los datos son de 2026: «hoy» queda fijo para que el año salga igual en cualquier día (solo se falsea Date).
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-27T15:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("la fila abierta muestra cuándo sincronizó cada colportor, con fecha y hora de Montevideo", async () => {
+    render(<StockVista datos={con(conFecha("Ana", "2026-10-22T21:30:00Z", ex("l1", 3)), conFecha("Bea", "2026-10-19T12:00:00Z", ex("l1", 1)))} />);
+    await userEvent.click(fila("Libro uno"));
+
+    const ana = within(detalle()).getByRole("row", { name: /Ana/ });
+    expect(ana).toHaveTextContent("Sincronizó el 22/10 a las 18:30");
+    expect(within(detalle()).getByRole("row", { name: /Bea/ })).toHaveTextContent("Sincronizó el 19/10 a las 09:00");
+  });
+
+  it("la fila cerrada no la muestra: sale al abrir y se va al cerrar", async () => {
+    render(<StockVista datos={con(conFecha("Ana", "2026-10-22T21:30:00Z", ex("l1", 3)))} />);
+    expect(screen.queryByText(/Sincronizó el/)).not.toBeInTheDocument();
+
+    await userEvent.click(fila("Libro uno"));
+    expect(screen.getByText("Sincronizó el 22/10 a las 18:30")).toBeInTheDocument();
+
+    await userEvent.click(fila("Libro uno"));
+    expect(screen.queryByText(/Sincronizó el/)).not.toBeInTheDocument();
+  });
+
+  it("un colportor que todavía no mandó nada lo dice, en vez de dejar un número sin fecha", async () => {
+    render(<StockVista datos={con(conFecha("Ana", null, ex("l1", 3)))} />);
+    await userEvent.click(fila("Libro uno"));
+
+    expect(within(detalle()).getByRole("row", { name: /Ana/ })).toHaveTextContent("Todavía no sincronizó");
+  });
+
+  it("a la medianoche de Montevideo sigue siendo el día de allá, aunque en UTC ya sea el siguiente", async () => {
+    render(<StockVista datos={con(conFecha("Ana", "2026-10-23T02:05:00Z", ex("l1", 3)))} />);
+    await userEvent.click(fila("Libro uno"));
+
+    expect(screen.getByText("Sincronizó el 22/10 a las 23:05")).toBeInTheDocument();
+  });
+
+  it("cambiar de ciudad y volver a abrir la fila sigue mostrando la fecha de cada uno", async () => {
+    const datos = chico({
+      ciudades: [{ id: "riv", nombre: "Rivera", departamento: "Rivera" }, { id: "art", nombre: "Artigas", departamento: "Artigas" }],
+      colportores: [
+        conFecha("Ana", "2026-10-22T21:30:00Z", ex("l1", 3)),
+        { ...col("Cata", "art", ex("l1", 2)), ultimoDatoAt: "2026-10-20T15:15:00Z" },
+      ],
+    });
+    render(<StockVista datos={datos} />);
+    await elegir(/^Artigas/);
+    await userEvent.click(fila("Libro uno"));
+    expect(within(detalle()).getByRole("row", { name: /Cata/ })).toHaveTextContent("Sincronizó el 20/10 a las 12:15");
+
+    await elegir(/^Rivera/);
+    expect(within(detalle()).getByRole("row", { name: /Ana/ })).toHaveTextContent("Sincronizó el 22/10 a las 18:30");
+    expect(screen.queryByText(/20\/10/)).not.toBeInTheDocument();
+  });
+
+  it("en todas las ciudades el colportor lleva su ciudad y su fecha; el sin ciudad también", async () => {
+    const datos = chico({ colportores: [conFecha("Ana", "2026-10-22T21:30:00Z", ex("l1", 3)), { ...col("Sin", null, ex("l1", 1)), ultimoDatoAt: null }] });
+    render(<StockVista datos={datos} />);
+    await userEvent.click(fila("Libro uno"));
+
+    expect(within(detalle()).getByRole("row", { name: /Ana · Rivera/ })).toHaveTextContent("Sincronizó el 22/10 a las 18:30");
+    expect(within(detalle()).getByRole("row", { name: /Sin · Sin ciudad/ })).toHaveTextContent("Todavía no sincronizó");
+  });
+
+  it("un dato del año pasado lleva el año y uno de este año no, en la misma tabla", async () => {
+    render(<StockVista datos={con(conFecha("Ana", "2025-12-31T21:30:00Z", ex("l1", 3)), conFecha("Bea", "2026-01-01T12:00:00Z", ex("l1", 1)))} />);
+    await userEvent.click(fila("Libro uno"));
+
+    expect(within(detalle()).getByRole("row", { name: /Ana/ })).toHaveTextContent("Sincronizó el 31/12/2025 a las 18:30");
+    expect(within(detalle()).getByRole("row", { name: /Bea/ })).toHaveTextContent("Sincronizó el 01/01 a las 09:00");
+  });
+
+  it("el dato de un colportor con fecha vieja (de otro año) no se esconde ni rompe la fila", async () => {
+    render(<StockVista datos={con(conFecha("Ana", "2024-01-02T03:04:00Z", ex("l1", 3)), conFecha("Bea", "basura", ex("l1", 1)))} />);
+    await userEvent.click(fila("Libro uno"));
+
+    expect(within(detalle()).getByRole("row", { name: /Ana/ })).toHaveTextContent("Sincronizó el 02/01/2024 a las 00:04");
+    expect(within(detalle()).getByRole("row", { name: /Bea/ })).toHaveTextContent("Todavía no sincronizó");
+  });
+
+  it("con un nombre larguísimo y sin espacios la fecha sigue en su propia línea y puede partirse", async () => {
+    const largo = "N".repeat(200);
+    render(<StockVista datos={con(conFecha(largo, "2026-10-22T21:30:00Z", ex("l1", 3)))} />);
+    await userEvent.click(fila("Libro uno"));
+
+    const fecha = screen.getByText("Sincronizó el 22/10 a las 18:30");
+    expect(fecha).toHaveClass("wrap-anywhere");
+    expect(fecha.previousElementSibling).toHaveTextContent(largo);
+  });
+
+  it("con 400 colportores abiertos, cada uno con su fecha", async () => {
+    const colportores = Array.from({ length: 400 }, (_, i) => conFecha(`C${i}`, `2026-10-${String(1 + (i % 28)).padStart(2, "0")}T15:00:00Z`, ex("l1", 1 + (i % 4))));
+    render(<StockVista datos={con(...colportores)} />);
+    await userEvent.click(fila("Libro uno"));
+
+    expect(screen.getAllByText(/^Sincronizó el /)).toHaveLength(400);
   });
 });

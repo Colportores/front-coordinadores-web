@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
+import type { ResultadoCierre } from "@/auth/acceso";
 import type { ResultadoCampanias, ResumenCoordinador } from "@/datos/shell/contrato";
 import { fuenteShellSimulada } from "@/datos/shell/simulado";
 import { estadoDePestana, ETIQUETA_ESTADO } from "@/dev/estado-hu";
@@ -10,6 +11,7 @@ import { CLASES_ESTADO } from "@/dev/estilos";
 import { useModoDev } from "@/dev/ProveedorModoDev";
 import { cn } from "@/lib/utils";
 import type { DefinicionPestana } from "@/shell/pestanas";
+import { MenuDeCuenta } from "@/shell/MenuDeCuenta";
 import { SelectorDeCampania } from "@/shell/SelectorDeCampania";
 import {
   esperarYSalir,
@@ -47,11 +49,17 @@ export function Topbar({
   resumen,
   pestanas,
   pedirCampanias = pedirCampaniasSimuladas,
+  cerrarSesion,
 }: {
   resumen: ResumenCoordinador;
   pestanas: DefinicionPestana[];
   /** La lista de campañas que se eligen (server action de `src/app/acciones-campanias.ts`); se pide al abrir el selector. */
   pedirCampanias?: () => Promise<ResultadoCampanias>;
+  /**
+   * «Cerrar sesión» (server action de `src/auth/acciones.ts`). Solo hay con el login prendido: sin ella (sitio de prueba, panel
+   * sin variables de Supabase) el avatar es solo la marca de la cuenta y no abre ningún menú.
+   */
+  cerrarSesion?: () => Promise<ResultadoCierre>;
 }) {
   const ruta = usePathname();
   const router = useRouter();
@@ -123,13 +131,17 @@ export function Topbar({
       </div>
       <div className="flex items-center gap-3">
         <SelectorDeCampania resumen={resumen} pedirCampanias={pedirCampanias} />
-        <div
-          role="img"
-          aria-label={`Cuenta: ${resumen.nombre}`}
-          className="grid size-8 place-items-center rounded-pastilla bg-marca-clara text-chico font-semibold text-marca"
-        >
-          {resumen.iniciales}
-        </div>
+        {cerrarSesion ? (
+          <MenuDeCuenta nombre={resumen.nombre} iniciales={resumen.iniciales} cerrarSesion={cerrarSesion} />
+        ) : (
+          <div
+            role="img"
+            aria-label={`Cuenta: ${resumen.nombre}`}
+            className="grid size-8 place-items-center rounded-pastilla bg-marca-clara text-chico font-semibold text-marca"
+          >
+            {resumen.iniciales}
+          </div>
+        )}
       </div>
     </header>
   );
