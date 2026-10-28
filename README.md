@@ -157,6 +157,22 @@ Los datos personales de clientes (`persona.nombre`, `persona.apellido`, `persona
 
 Este panel **no recibe ni muestra** datos de clientes: trabaja con agregados, estado de ubicaciones y métricas de equipo.
 
+## Artefacto con Supabase dev (pruebas de demo)
+
+Además del sitio de Pages (datos simulados, no cambia), cada push a `develop` deja un **artefacto de Actions** con el panel compilado y **conectado al Supabase de desarrollo** (proyecto `ohdsavwpasfpapbyutrv`), para probarlo o mostrarlo desde una PC propia. Es de uso interno: no se publica en Pages ni en ningún hosting y no se guarda en el repo (issue #123).
+
+- **Dónde:** pestaña *Actions* → workflow «Artefacto del panel con Supabase dev» → artefacto `panel-supabase-dev` (retención de 7 días). También con *Run workflow* (`workflow_dispatch`, solo sobre `develop`; el botón aparece cuando el workflow llega a la rama por defecto). `.github/workflows/demo-supabase-dev.yml`.
+- **No es estático:** con la conexión real el panel necesita servidor (proxy, cookie de sesión `httpOnly` y server actions), así que no se puede exportar como el de Pages. El artefacto es un servidor Node autónomo (`output: "standalone"`, solo con `NEXT_PUBLIC_DEMO_SUPABASE_DEV=1`): se descomprime y se corre `PORT=3000 HOSTNAME=127.0.0.1 node server.js` (Node 24) o con Docker; se abre en `http://localhost:3000`. El `README.md` de dentro del artefacto lo explica y lleva las cuentas demo.
+- **Qué lleva:** solo la URL pública del proyecto dev y la clave **anónima** (pública por diseño: la autoridad es la RLS), de las variables del repo `SUPABASE_URL` y `SUPABASE_ANON_KEY` (variables, no secrets). Nunca la clave de servicio, claves del BFF ni secretos.
+- **Aviso fijo** en cada pantalla (también la de acceso): «Versión de prueba conectada a Supabase dev (datos de demostración)» (`AvisoVersionDePrueba`), `noindex` (meta, cabecera `X-Robots-Tag` y `robots.txt`). Es un build como staging: modo dev apagado, Stock y Cuentas ocultas.
+- **Guardas** (`scripts/build-demo-supabase.mjs`, `scripts/lib/guardia-demo-supabase.mjs`): el build falla si la URL no es la del proyecto dev, si la clave no es anónima o publishable, si el entorno trae otras variables de credenciales o si hay archivos `.env*`; después revisa los archivos del artefacto (JWT que no sean `anon`, `sb_secret_`, URLs de otro proyecto, `SERVICE_ROLE_KEY`) y levanta el servidor armado para comprobar aviso, `noindex` y que sin sesión se pide iniciar sesión. `ci.yml` (PR) y `deploy-pages.yml` no necesitan variables de Supabase, y `build:pages` sigue rechazándolas.
+
+Reproducirlo en local, en Docker (deja `panel-supabase-dev/`, que no se versiona; las dos variables salen del entorno, sin escribirlas en ningún archivo):
+
+```sh
+docker compose -f compose.dev.yml run --rm -e NEXT_PUBLIC_SUPABASE_URL -e NEXT_PUBLIC_SUPABASE_ANON_KEY app npm run build:demo-supabase
+```
+
 ## Licencia
 
 Uso propio — todos los derechos reservados. Ver [LICENSE](./LICENSE).
