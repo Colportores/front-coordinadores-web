@@ -23,13 +23,18 @@ describe("mayorLogro", () => {
 
 describe("logroDeBeca", () => {
   it("con tipo, sale de comparar lo que lleva con las metas de la carrera", () => {
-    expect(logroDeBeca(beca({ avance: { libros: 119, monto: 0 } }), CARRERAS_SIMULADAS)).toBeNull();
-    expect(logroDeBeca(beca({ avance: { libros: 120, monto: 0 } }), CARRERAS_SIMULADAS)).toBe("media");
-    expect(logroDeBeca(beca({ avance: { libros: 240, monto: 0 } }), CARRERAS_SIMULADAS)).toBe("completa");
+    expect(logroDeBeca(beca({ avance: { libros: 0, monto: 179999 } }), CARRERAS_SIMULADAS)).toBeNull();
+    expect(logroDeBeca(beca({ avance: { libros: 0, monto: 180000 } }), CARRERAS_SIMULADAS)).toBe("media");
+    expect(logroDeBeca(beca({ avance: { libros: 0, monto: 360000 } }), CARRERAS_SIMULADAS)).toBe("completa");
+  });
+
+  it("los libros no deciden: sin la compra a la CES no hay logro, y con ella basta aunque falten libros", () => {
+    expect(logroDeBeca(beca({ avance: { libros: 500, monto: 100 } }), CARRERAS_SIMULADAS)).toBeNull();
+    expect(logroDeBeca(beca({ avance: { libros: 100, monto: 185000 } }), CARRERAS_SIMULADAS)).toBe("media");
   });
 
   it("sin tipo y sin marca del servidor no hay logro, aunque lleve más que la meta: nunca se le asignó", () => {
-    expect(logroDeBeca(beca({ apuntaA: null, meta: null, avance: { libros: 500, monto: 0 } }), CARRERAS_SIMULADAS)).toBeNull();
+    expect(logroDeBeca(beca({ apuntaA: null, meta: null, avance: { libros: 500, monto: 500000 } }), CARRERAS_SIMULADAS)).toBeNull();
   });
 
   it("sin tipo, la marca del servidor sigue valiendo (lo alcanzado no se pierde)", () => {
@@ -37,8 +42,8 @@ describe("logroDeBeca", () => {
   });
 
   it("la marca del servidor gana si es más alta que lo que se calcula, y al revés", () => {
-    expect(logroDeBeca(beca({ apuntaA: "media", alcanzada: "completa", avance: { libros: 130, monto: 0 } }), CARRERAS_SIMULADAS)).toBe("completa");
-    expect(logroDeBeca(beca({ alcanzada: "media", avance: { libros: 250, monto: 0 } }), CARRERAS_SIMULADAS)).toBe("completa");
+    expect(logroDeBeca(beca({ apuntaA: "media", alcanzada: "completa", avance: { libros: 0, monto: 190000 } }), CARRERAS_SIMULADAS)).toBe("completa");
+    expect(logroDeBeca(beca({ alcanzada: "media", avance: { libros: 0, monto: 360000 } }), CARRERAS_SIMULADAS)).toBe("completa");
   });
 
   it("sin carrera no hay logro", () => {
@@ -47,14 +52,14 @@ describe("logroDeBeca", () => {
 
   it("una carrera con la meta sin cargar no da logro por el catálogo", () => {
     const sinMeta = [{ id: "sis", nombre: "Ingeniería en Sistemas", metaMedia: null, metaCompleta: null }];
-    expect(logroDeBeca(beca({ meta: null, avance: { libros: 1000, monto: 0 } }), sinMeta)).toBeNull();
+    expect(logroDeBeca(beca({ meta: null, avance: { libros: 1000, monto: 1000000 } }), sinMeta)).toBeNull();
   });
 });
 
 describe("la fuente simulada y «Logro beca»", () => {
   const GENTE = [{ id: "emi", nombre: "Emiliano Sosa" }];
 
-  // Metas bajas: Emiliano (30 a 84 libros) ya pasó la completa de Sistemas.
+  // Metas bajas: Emiliano (compró $U 45.000 a 126.000) ya pasó la completa de Sistemas.
   const METAS_BAJAS = [{ id: "sis", nombre: "Ingeniería en Sistemas", metaMedia: { libros: 10, monto: 15000 }, metaCompleta: { libros: 20, monto: 30000 } }];
 
   it("al pasar a «Sin beca» a quien ya alcanzó la completa, la base devuelve la marca y el avance no cambia", () => {

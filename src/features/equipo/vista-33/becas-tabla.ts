@@ -8,7 +8,7 @@ import type { AmbitoResuelto, UnidadDeAvance } from "./modelo";
  * pide nada al servidor. La ciudad y el departamento se filtran con la lista de la izquierda (el ámbito), no acá.
  */
 
-/** El estado de beca de un colportor (HU-BEC-002): se mide en libros bonificables; el monto a la CES no lo cambia (S67). */
+/** El estado de beca de un colportor (HU-BEC-002): sale de la compra a la CES de productos bonificables; los libros no lo cambian (S67 cerrado, «Beca alcanz.», 28/10). */
 export type EstadoDeBeca = "sin-carrera" | "sin-beca" | "en-progreso" | "media" | "completa";
 
 export const ESTADOS: { valor: EstadoDeBeca; etiqueta: string }[] = [
@@ -25,8 +25,8 @@ export function etiquetaDeEstado(estado: EstadoDeBeca): string {
 
 /**
  * «Sin tipo asignado no hay estado de beca»: sin carrera, «Falta la carrera»; con carrera y sin tipo ni nada alcanzado, «Sin beca».
- * Con tipo, «En progreso» por debajo de la meta media, «Media alcanzada» desde ella y «Completa alcanzada» desde la completa,
- * con las metas de la carrera. Lo que ya alcanzó no se le quita: ni al apuntar a media, ni al pasar a «Sin beca» («Logro beca»,
+ * Con tipo, «En progreso» por debajo del monto de la meta media, «Media alcanzada» desde él y «Completa alcanzada» desde el de
+ * la completa, con las metas de la carrera y la compra a la CES de bonificables (no los libros: «Beca alcanz.», 28/10). Lo que ya alcanzó no se le quita: ni al apuntar a media, ni al pasar a «Sin beca» («Logro beca»,
  * Cristian 27/10): el estado sigue en lo alcanzado.
  */
 export function estadoDeBeca(beca: BecaDeColportor | undefined, carreras: readonly CarreraDelCatalogo[]): EstadoDeBeca {

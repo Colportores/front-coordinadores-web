@@ -103,7 +103,10 @@ export type TipoDeBeca = "media" | "completa";
 export interface MetaDeBeca {
   /** Libros bonificables. */
   libros: number;
-  /** Compra a la casa editora (CES), en $U enteros (la base lo guarda en centavos; la fuente real lo convierte). */
+  /**
+   * Compra a la casa editora (CES), en $U enteros (la base lo guarda en centavos; la fuente real lo convierte). En el avance
+   * suma solo los productos bonificables («Meta CES», 28/10); el estado de la beca se mide con este monto.
+   */
   monto: number;
 }
 
@@ -133,7 +136,7 @@ export interface BecaDeColportor {
   apuntaA: TipoDeBeca | null;
   /** La meta que tiene hoy (copia de la de su carrera al asignar el tipo, S50); `null` sin carrera o sin tipo. */
   meta: MetaDeBeca | null;
-  /** Lo que lleva: libros bonificables y compra a la CES. */
+  /** Lo que lleva: libros bonificables y compra a la CES (solo de productos bonificables). */
   avance: MetaDeBeca;
   /**
    * La mayor meta que ya alcanzó (HU-BEC-002), la marca que guarda el servidor: sigue aunque el tipo pase a «Sin beca»

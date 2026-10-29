@@ -389,7 +389,8 @@ function libros(cantidad: number): string {
 }
 
 /**
- * El avance de un colportor hacia su meta, en libros bonificables o en compra a la CES (`unidad`). Sin carrera o sin
+ * El avance de un colportor hacia su meta, en libros bonificables o en compra a la CES (`unidad`). «Meta alcanzada» se dice
+ * por la medida que se mira: con la compra a la CES coincide con el Estado de la fila; en libros solo si los libros llegaron. Sin carrera o sin
  * tipo no hay meta («Sin meta: falta la carrera»); una meta en 0 tampoco se puede medir, así que cuenta como sin tipo.
  */
 export function avanceDeBeca(beca: BecaDeColportor | undefined, unidad: UnidadDeAvance): AvanceDeBeca {
