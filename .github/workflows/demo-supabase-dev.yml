@@ -1,13 +1,16 @@
 name: Artefacto del panel con Supabase dev
 
 # Pruebas de demo (issue #123): el panel compilado y CONECTADO al Supabase de desarrollo, subido como artefacto de
-# Actions (7 días) para descargarlo y servirlo en una PC propia. Es de uso interno: NO se publica en GitHub Pages ni en
-# ningún hosting, y no se guarda en el repo. El sitio de prueba de Pages (datos simulados) no cambia.
+# Actions (7 días) para descargarlo y servirlo en una PC propia. Es el build de staging con variables de dev: lo llama
+# staging.yml (`workflow_call`) en cada push a `staging`, y se corre a mano desde `develop` o `staging` para una demo.
+# Es de uso interno: NO se publica en GitHub Pages ni en ningún hosting, y no se guarda en el repo. El sitio de prueba
+# de Pages (datos simulados) no cambia.
 #
 # Lleva solo la URL pública del proyecto dev y la clave ANÓNIMA (pública por diseño: la autoridad es la RLS), que salen de
-# las variables del repo (Settings → Secrets and variables → Actions → Variables) SUPABASE_URL y SUPABASE_ANON_KEY. Nunca la
-# clave de servicio, claves del BFF ni secretos: `npm run build:demo-supabase` falla si la URL no es la del proyecto dev, si
-# la clave no es anónima, si el entorno trae otras credenciales o si algún archivo del artefacto lleva otra clave.
+# las variables SUPABASE_URL y SUPABASE_ANON_KEY del environment `staging` o, si no las define, de las del repo
+# (Settings → Secrets and variables → Actions → Variables). Nunca la clave de servicio, claves del BFF ni secretos:
+# `npm run build:demo-supabase` falla si la URL no es la del proyecto dev, si la clave no es anónima, si el entorno trae
+# otras credenciales o si algún archivo del artefacto lleva otra clave.
 #
 # El panel conectado necesita servidor (proxy, cookies de sesión, server actions): el artefacto es un servidor Node
 # autónomo (`node server.js`), no un export estático. El README de dentro explica cómo servirlo y el correo de la cuenta demo (la contraseña no va: la da Cristian).
@@ -15,8 +18,10 @@ name: Artefacto del panel con Supabase dev
 on:
   push:
     branches: [develop]
-  # Corrida manual: solo sobre develop (el job lo verifica).
+  # Corrida manual: solo sobre develop o staging (el job lo verifica).
   workflow_dispatch:
+  # Desde staging.yml (push a staging).
+  workflow_call:
 
 permissions:
   contents: read
@@ -28,7 +33,8 @@ concurrency:
 jobs:
   build:
     name: Build del panel conectado a Supabase dev
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging'
+    environment: staging
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

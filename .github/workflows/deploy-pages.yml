@@ -1,20 +1,25 @@
 name: Deploy Pages
 
 # Sitio de prueba del panel (issue #42): export estático con DATOS SIMULADOS,
-# publicado en GitHub Pages SOLO desde la rama develop. Sin backend, sin claves
-# reales, sin datos de personas. No hay deploys desde feature, PR, staging ni
-# production. `npm run build:pages` (scripts/build-pages.mjs) falla si el
-# entorno trae variables de Supabase, del BFF o credenciales.
+# publicado en GitHub Pages. Sin backend, sin claves reales, sin datos de
+# personas. `npm run build:pages` (scripts/build-pages.mjs) falla si el entorno
+# trae variables de Supabase, del BFF o credenciales.
+#
+# Es parte del entorno de prueba (staging): lo llama staging.yml (`workflow_call`)
+# en cada push a `staging`. También se corre a mano sobre `develop` o `staging`
+# (`workflow_dispatch`). No hay deploys desde feature, PR ni production.
 #
 # Lo que hay que activar a mano en el repo (no lo hace este workflow): Settings →
 # Pages → Source «GitHub Actions», y el environment `github-pages` con la política
-# de despliegue limitada a la rama develop. Pasos en el README, «Sitio de prueba».
+# de despliegue limitada a las ramas develop y staging. Pasos en el README, «Sitio de prueba».
 
 on:
   push:
     branches: [develop]
-  # Corrida manual: solo sobre develop (los jobs lo verifican).
+  # Corrida manual: solo sobre develop o staging (los jobs lo verifican).
   workflow_dispatch:
+  # Desde staging.yml (push a staging).
+  workflow_call:
 
 permissions:
   contents: read
@@ -27,7 +32,7 @@ concurrency:
 jobs:
   build:
     name: Build del sitio de prueba (datos simulados)
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -63,7 +68,7 @@ jobs:
   deploy:
     name: Publicar en GitHub Pages
     needs: build
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

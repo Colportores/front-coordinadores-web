@@ -133,6 +133,18 @@ gh api -X DELETE repos/Colportores/front-coordinadores-web/environments/github-p
 
 El botón «Run workflow» (`workflow_dispatch`) aparece cuando el workflow llega a la rama por defecto del repo (`production`); el push a `develop` publica sin esperar a eso.
 
+## Despliegue (staging y production)
+
+Ramas `develop → staging → production`. Los compilados y publicaciones de despliegue no corren en el CI de los PR: salen de dos workflows que toman variables y secretos de los GitHub Environments `staging` y `production`.
+
+| Workflow | Cuándo | Qué hace |
+|---|---|---|
+| `staging.yml` | push a `staging`; a mano desde `develop` o `staging` | llama a `deploy-pages.yml` (sitio de prueba en Pages, datos simulados) y a `demo-supabase-dev.yml` (artefacto `panel-supabase-dev`, conectado al Supabase **dev**), los dos como `workflow_call` |
+| `production.yml` | push a `production` | `next build` con las variables del environment `production` y `PANEL_EXIGIR_SUPABASE=1`, y deploy a Vercel (ADR-015). Exige `APP_ENV=production`, rechaza la URL del proyecto dev y falla claro si falta algo: hoy no hay Supabase de producción (diciembre) |
+
+- Demo sin pasar por staging: `gh workflow run staging.yml --ref develop` (o `demo-supabase-dev.yml` / `deploy-pages.yml` por separado).
+- Variables del environment (`vars`): `SUPABASE_URL`, `SUPABASE_ANON_KEY` (en `staging`, si faltan, valen las del repo: proyecto dev), y en `production` además `APP_ENV`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`. Secreto de `production`: `VERCEL_TOKEN`.
+
 ## Estructura
 
 ```
