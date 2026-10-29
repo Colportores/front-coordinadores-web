@@ -14,8 +14,6 @@ name: Deploy Pages
 # de despliegue limitada a las ramas develop y staging. Pasos en el README, «Sitio de prueba».
 
 on:
-  push:
-    branches: [develop]
   # Corrida manual: solo sobre develop o staging (los jobs lo verifican).
   workflow_dispatch:
   # Desde staging.yml (push a staging).

@@ -16,8 +16,6 @@ name: Artefacto del panel con Supabase dev
 # autónomo (`node server.js`), no un export estático. El README de dentro explica cómo servirlo y el correo de la cuenta demo (la contraseña no va: la da Cristian).
 
 on:
-  push:
-    branches: [develop]
   # Corrida manual: solo sobre develop o staging (el job lo verifica).
   workflow_dispatch:
   # Desde staging.yml (push a staging).
