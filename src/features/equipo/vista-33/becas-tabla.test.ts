@@ -30,31 +30,36 @@ describe("estadoDeBeca", () => {
   });
 
   it("con carrera y sin tipo asignado no hay estado de beca: «Sin beca»", () => {
-    expect(estadoDeBeca(beca({ apuntaA: null, meta: null, avance: { libros: 500, monto: 0 } }), carreras)).toBe("sin-beca");
+    expect(estadoDeBeca(beca({ apuntaA: null, meta: null, avance: { libros: 500, monto: 500000 } }), carreras)).toBe("sin-beca");
   });
 
   it("por debajo de la media, en progreso; desde la media, media alcanzada; desde la completa, completa alcanzada", () => {
-    expect(estadoDeBeca(beca({ avance: { libros: 119, monto: 0 } }), carreras)).toBe("en-progreso");
-    expect(estadoDeBeca(beca({ avance: { libros: 120, monto: 0 } }), carreras)).toBe("media");
-    expect(estadoDeBeca(beca({ avance: { libros: 239, monto: 0 } }), carreras)).toBe("media");
-    expect(estadoDeBeca(beca({ avance: { libros: 240, monto: 0 } }), carreras)).toBe("completa");
+    expect(estadoDeBeca(beca({ avance: { libros: 0, monto: 179999 } }), carreras)).toBe("en-progreso");
+    expect(estadoDeBeca(beca({ avance: { libros: 0, monto: 180000 } }), carreras)).toBe("media");
+    expect(estadoDeBeca(beca({ avance: { libros: 0, monto: 359999 } }), carreras)).toBe("media");
+    expect(estadoDeBeca(beca({ avance: { libros: 0, monto: 360000 } }), carreras)).toBe("completa");
   });
 
   it("apuntando a completa con la media ya alcanzada, la media no se le quita", () => {
-    expect(estadoDeBeca(beca({ apuntaA: "completa", meta: { libros: 240, monto: 360000 }, avance: { libros: 130, monto: 0 } }), carreras)).toBe("media");
+    expect(estadoDeBeca(beca({ apuntaA: "completa", meta: { libros: 240, monto: 360000 }, avance: { libros: 0, monto: 190000 } }), carreras)).toBe("media");
   });
 
-  it("el monto a la CES no cambia el estado (S67): solo cuentan los libros", () => {
-    expect(estadoDeBeca(beca({ avance: { libros: 10, monto: 999999 } }), carreras)).toBe("en-progreso");
+  it("el estado sale de la compra a la CES («Beca alcanz.», 28/10): 100 de 120 libros con $U 185.000 de 180.000 es media alcanzada", () => {
+    expect(estadoDeBeca(beca({ avance: { libros: 100, monto: 185000 } }), carreras)).toBe("media");
+  });
+
+  it("los libros no alcanzan: 130 de 120 libros con poca compra a la CES sigue en progreso", () => {
+    expect(estadoDeBeca(beca({ avance: { libros: 130, monto: 150000 } }), carreras)).toBe("en-progreso");
+    expect(estadoDeBeca(beca({ avance: { libros: 500, monto: 0 } }), carreras)).toBe("en-progreso");
   });
 
   it("si la carrera no tiene la meta cargada o ya no está en el catálogo, usa la meta que se copió para su tipo", () => {
     const contador = { id: "cont", nombre: "Contador Público", elegidaEl: "2026-09-01" };
     // Contador no tiene metas en el catálogo y la copia es de media: alcanzó la media, pero no hay completa que medir.
-    expect(estadoDeBeca(beca({ carrera: contador, avance: { libros: 130, monto: 0 } }), carreras)).toBe("media");
-    expect(estadoDeBeca(beca({ carrera: contador, avance: { libros: 50, monto: 0 } }), carreras)).toBe("en-progreso");
+    expect(estadoDeBeca(beca({ carrera: contador, avance: { libros: 0, monto: 190000 } }), carreras)).toBe("media");
+    expect(estadoDeBeca(beca({ carrera: contador, avance: { libros: 0, monto: 90000 } }), carreras)).toBe("en-progreso");
     const borrada = { id: "vieja", nombre: "Carrera vieja", elegidaEl: "2026-09-01" };
-    expect(estadoDeBeca(beca({ carrera: borrada, avance: { libros: 120, monto: 0 } }), carreras)).toBe("media");
+    expect(estadoDeBeca(beca({ carrera: borrada, avance: { libros: 0, monto: 180000 } }), carreras)).toBe("media");
     // Sin ninguna meta que medir no hay con qué compararlo: en progreso.
     expect(estadoDeBeca(beca({ carrera: borrada, apuntaA: "media", meta: { libros: 0, monto: 0 } }), carreras)).toBe("en-progreso");
   });
@@ -107,8 +112,8 @@ describe("armarTablaDeBecas", () => {
   const resuelto = resolverAmbito(datos, AMBITO_TODAS);
   const porColportor: Record<string, BecaDeColportor> = {
     ...BASE,
-    // Emiliano ya pasó la media (130 de 120 libros).
-    emiliano: beca({ avance: { libros: 130, monto: 0 } }),
+    // Emiliano ya pasó la media (130 de 120 libros y $U 190.000 de $U 180.000 a la CES).
+    emiliano: beca({ avance: { libros: 130, monto: 190000 } }),
     florencia: beca({ carrera: { id: "teo", nombre: "Teología", elegidaEl: "2026-09-01" }, apuntaA: "completa", meta: { libros: 200, monto: 300000 }, avance: { libros: 40, monto: 75000 } }),
   };
 

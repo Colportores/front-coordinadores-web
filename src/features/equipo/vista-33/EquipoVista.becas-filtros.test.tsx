@@ -291,7 +291,7 @@ describe("Becas · filtros", () => {
     const muchos = datosDePrueba();
     const becas = becasDePrueba();
     const lista = Array.from({ length: 300 }, (_, i) => colportor({ id: `c${i}`, nombre: `Colportor ${String(i).padStart(3, "0")}` }));
-    for (const c of lista) becas.porColportor[c.id] = c.id.endsWith("7") ? { ...MEDIA, avance: { libros: 130, monto: 0 } } : MEDIA;
+    for (const c of lista) becas.porColportor[c.id] = c.id.endsWith("7") ? { ...MEDIA, avance: { libros: 130, monto: 190000 } } : MEDIA;
     const { usuario } = mostrar({ ...muchos, colportores: [...muchos.colportores, ...lista], becas });
     await irABecas(usuario);
 
