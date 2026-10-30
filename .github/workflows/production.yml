@@ -1,0 +1,107 @@
+name: Production
+
+# Producción del panel: build con las variables del environment `production` y deploy al hosting de producción, que
+# según ADR-015 es Vercel (el panel necesita servidor: proxy, cookies de sesión y server actions).
+#
+# Hoy NO hay producción (el Supabase de producción sale en diciembre): el workflow queda listo pero falla con un
+# mensaje claro mientras el environment no tenga sus variables y secretos. Nunca usa las variables de dev del repo:
+# exige APP_ENV=production y rechaza la URL del proyecto dev. El build lleva PANEL_EXIGIR_SUPABASE=1 (#101): sin
+# conexión a Supabase no compila.
+#
+# Environment `production` (lo crea Cristian; con revisores requeridos y solo la rama `production`):
+#   Variables: APP_ENV=production, SUPABASE_URL, SUPABASE_ANON_KEY (la anon key es pública por diseño),
+#              VERCEL_ORG_ID, VERCEL_PROJECT_ID.
+#   Secretos:  VERCEL_TOKEN.
+
+on:
+  push:
+    branches: [production]
+  workflow_dispatch:
+  # Solo para que GitHub registre el workflow cuando un PR lo toca (ver staging.yml). En un PR no corre ningún job:
+  # el job exige la rama production.
+  pull_request:
+    paths: [".github/workflows/production.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  # Proyecto Supabase de desarrollo/demo (público: figura en el README). Producción no puede apuntar acá.
+  SUPABASE_REF_DEV: ohdsavwpasfpapbyutrv
+  # CLI de Vercel, fijada por versión mayor.
+  VERCEL_CLI: vercel@65
+
+jobs:
+  deploy:
+    name: Build y deploy de producción (Vercel)
+    if: github.ref == 'refs/heads/production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    permissions:
+      contents: read
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TELEMETRY_DISABLED: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Validar variables y secretos del environment
+        env:
+          APP_ENV: ${{ vars.APP_ENV }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          HAY_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
+        run: |
+          fallas=0
+          falla() { echo "::error title=Production::$1"; fallas=$((fallas + 1)); }
+          [ "$APP_ENV" = production ] || falla "la variable APP_ENV del environment production tiene que valer «production»: sin ella se compilaría con las variables de dev del repo (gh variable set APP_ENV --env production --body production)."
+          [ -n "$SUPABASE_URL" ] || falla "falta la variable SUPABASE_URL en el environment production."
+          [ -n "$SUPABASE_ANON_KEY" ] || falla "falta la variable SUPABASE_ANON_KEY en el environment production."
+          case "$SUPABASE_URL" in ""|https://*) ;; *) falla "SUPABASE_URL tiene que empezar con https://." ;; esac
+          case "$SUPABASE_URL" in *"$SUPABASE_REF_DEV"*) falla "SUPABASE_URL apunta al proyecto de desarrollo: producción necesita su propio proyecto Supabase." ;; esac
+          [ -n "$VERCEL_ORG_ID" ] || falla "falta la variable VERCEL_ORG_ID en el environment production."
+          [ -n "$VERCEL_PROJECT_ID" ] || falla "falta la variable VERCEL_PROJECT_ID en el environment production."
+          [ "$HAY_TOKEN" = true ] || falla "falta el secreto VERCEL_TOKEN en el environment production."
+          [ "$fallas" -eq 0 ] || exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Node 24, el mismo que trae la imagen de desarrollo (dockerfile.dev).
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+      - run: npm install --global "$VERCEL_CLI"
+
+      - name: Configuración del proyecto en Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      # `vercel build` corre `npm run build` (next build) con estas variables: se incrustan en el build.
+      - name: Build de producción
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          PANEL_EXIGIR_SUPABASE: "1"
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "url=${url}" >> "$GITHUB_OUTPUT"

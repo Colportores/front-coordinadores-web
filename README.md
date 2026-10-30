@@ -97,13 +97,13 @@ Nunca un dato simulado sin aviso. `AvisoVersionDePrueba` (la franja fija de arri
 
 ## Sitio de prueba (GitHub Pages)
 
-El panel se publica para probarlo desde un navegador, **solo desde la rama `develop`** y **con datos simulados**: sin backend, sin claves, sin datos de personas.
+El panel se publica para probarlo desde un navegador, **desde la rama `staging`** (o a mano desde `develop`) y **con datos simulados**: sin backend, sin claves, sin datos de personas.
 
-- **URL:** https://colportores.github.io/front-coordinadores-web/ (cada push a `develop` lo actualiza con `.github/workflows/deploy-pages.yml`; no hay deploys desde feature, PR, staging ni production).
+- **URL:** https://colportores.github.io/front-coordinadores-web/ (cada push a `staging` lo actualiza con `.github/workflows/staging.yml`, que llama a `deploy-pages.yml`; a mano: `gh workflow run deploy-pages.yml --ref develop`; no hay deploys desde feature, PR ni production).
 - Es un sitio público, sin acceso restringido: lleva `noindex, nofollow` y un `robots.txt` que bloquea todo. El modo dev está prendido: todas las pestañas visibles y el estado de cada HU.
 - **Aviso fijo en cada pantalla** (`AvisoVersionDePrueba`, arriba del topbar, sin botón para cerrarlo): «Versión de prueba con datos simulados. Lo que hagas no se guarda: al recargar la página vuelve a los datos de ejemplo.» En este build (`NEXT_PUBLIC_DEPLOY_PAGES=1`) `build:pages` falla si alguna página no lo lleva. Fuera de Pages el mismo componente avisa cuando hay datos simulados a la vista (ver «Aviso de datos simulados» más abajo).
 - **Qué lo distingue del build normal:** export estático (`output: 'export'`) con `basePath` y `assetPrefix` `/front-coordinadores-web`, solo cuando corre `npm run build:pages` (`DEPLOY_PAGES=1`, ver `next.config.ts`). `next dev`, `npm run build` y el CI de siempre no cambian.
-- **Sin servidor no hay server actions ni proxy.** Las vistas que usan server actions (`/equipo`, `/ciudades`, `/equipo/anadir`) tienen una variante `*Local` que le habla a la fuente simulada desde el navegador, y el módulo con las server actions (`acciones-servidor.ts`, `inscribir-servidor.ts`, `buscar-servidor.ts`) se importa solo cuando no es este build. El estado de esas acciones vive en la pestaña: al recargar vuelve a los datos de ejemplo. **Una vista nueva con server actions necesita las dos variantes**: el CI corre `npm run build:pages` y falla si falta (ver [`docs/PESTANAS.md`](./docs/PESTANAS.md), sección 2).
+- **Sin servidor no hay server actions ni proxy.** Las vistas que usan server actions (`/equipo`, `/ciudades`, `/equipo/anadir`) tienen una variante `*Local` que le habla a la fuente simulada desde el navegador, y el módulo con las server actions (`acciones-servidor.ts`, `inscribir-servidor.ts`, `buscar-servidor.ts`) se importa solo cuando no es este build. El estado de esas acciones vive en la pestaña: al recargar vuelve a los datos de ejemplo. **Una vista nueva con server actions necesita las dos variantes**: `npm run build:pages` falla si falta (lo corre `staging.yml`, no el CI de los PR: correlo en local antes de abrir el PR) (ver [`docs/PESTANAS.md`](./docs/PESTANAS.md), sección 2).
 - **Nunca lleva credenciales:** `scripts/build-pages.mjs` falla si el entorno trae variables de Supabase, del BFF o credenciales (`SUPABASE_*`, `*_SECRET`, `NEXT_PUBLIC_*` ajenas al panel…), si hay archivos `.env*`, o si algún archivo de `out/` parece llevar un JWT o una URL de Supabase. Corre `next build` con un entorno limpio.
 
 Reproducirlo en local, en Docker (el sitio queda en http://localhost:3000/front-coordinadores-web/):
@@ -116,22 +116,35 @@ docker compose -f compose.dev.yml run --rm --service-ports app sh -c "npm run bu
 
 ### Configuración del repo (admin)
 
-El workflow no cambia la configuración del repo. **Ya está hecha** (02/10): Pages con la fuente «GitHub Actions» y `develop` entre las ramas permitidas del environment `github-pages`. Queda a criterio del admin sacar la política de `production` que GitHub agrega por defecto (este workflow no despliega desde ahí). Para rehacerla en otro repo, en la web: *Settings → Pages → Build and deployment → Source: GitHub Actions*, y *Settings → Environments → `github-pages` → Deployment branches and tags → Selected branches and tags → `develop`*. O con `gh`:
+El workflow no cambia la configuración del repo. **Ya está hecha** (02/10): Pages con la fuente «GitHub Actions» y `develop` entre las ramas permitidas del environment `github-pages`; falta sumar `staging` (comando 2). Queda a criterio del admin sacar la política de `production` que GitHub agrega por defecto (este workflow no despliega desde ahí). Para rehacerla en otro repo, en la web: *Settings → Pages → Build and deployment → Source: GitHub Actions*, y *Settings → Environments → `github-pages` → Deployment branches and tags → Selected branches and tags → `develop`*. O con `gh`:
 
 ```sh
 # 1. Pages con la fuente «GitHub Actions»
 gh api -X POST repos/Colportores/front-coordinadores-web/pages -f build_type=workflow
 
-# 2. El environment github-pages solo despliega desde develop
+# 2. El environment github-pages solo despliega desde develop y staging
 gh api -X PUT repos/Colportores/front-coordinadores-web/environments/github-pages --input - <<< '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
 gh api -X POST repos/Colportores/front-coordinadores-web/environments/github-pages/deployment-branch-policies -f name=develop -f type=branch
+gh api -X POST repos/Colportores/front-coordinadores-web/environments/github-pages/deployment-branch-policies -f name=staging -f type=branch
 
 # 3. Si el environment ya traía otra política (por ejemplo la de production), sacarla
 gh api repos/Colportores/front-coordinadores-web/environments/github-pages/deployment-branch-policies --jq '.branch_policies[] | "\(.id) \(.name)"'
 gh api -X DELETE repos/Colportores/front-coordinadores-web/environments/github-pages/deployment-branch-policies/<id>
 ```
 
-El botón «Run workflow» (`workflow_dispatch`) aparece cuando el workflow llega a la rama por defecto del repo (`production`); el push a `develop` publica sin esperar a eso.
+A mano: `gh workflow run deploy-pages.yml --ref develop` (el botón «Run workflow» de la web aparece cuando el workflow llega a la rama por defecto, `production`).
+
+## Despliegue (staging y production)
+
+Ramas `develop → staging → production`. Los compilados y publicaciones de despliegue no corren en el CI de los PR: salen de dos workflows que toman variables y secretos de los GitHub Environments `staging` y `production`.
+
+| Workflow | Cuándo | Qué hace |
+|---|---|---|
+| `staging.yml` | push a `staging`; a mano desde `develop` o `staging` | llama a `deploy-pages.yml` (sitio de prueba en Pages, datos simulados) y a `demo-supabase-dev.yml` (artefacto `panel-supabase-dev`, conectado al Supabase **dev**), los dos como `workflow_call` |
+| `production.yml` | push a `production` | `next build` con las variables del environment `production` y `PANEL_EXIGIR_SUPABASE=1`, y deploy a Vercel (ADR-015). Exige `APP_ENV=production`, rechaza la URL del proyecto dev y falla claro si falta algo: hoy no hay Supabase de producción (diciembre) |
+
+- Demo sin pasar por staging: `gh workflow run staging.yml --ref develop` (o `demo-supabase-dev.yml` / `deploy-pages.yml` por separado).
+- Variables del environment (`vars`): `SUPABASE_URL`, `SUPABASE_ANON_KEY` (en `staging`, si faltan, valen las del repo: proyecto dev), y en `production` además `APP_ENV`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`. Secreto de `production`: `VERCEL_TOKEN`.
 
 ## Estructura
 
@@ -159,11 +172,11 @@ Este panel **no recibe ni muestra** datos de clientes: trabaja con agregados, es
 
 ## Artefacto con Supabase dev (pruebas de demo)
 
-Además del sitio de Pages (datos simulados, no cambia), cada push a `develop` deja un **artefacto de Actions** con el panel compilado y **conectado al Supabase de desarrollo** (proyecto `ohdsavwpasfpapbyutrv`), para probarlo o mostrarlo desde una PC propia. Es de uso interno: no se publica en Pages ni en ningún hosting y no se guarda en el repo (issue #123).
+Además del sitio de Pages (datos simulados, no cambia), cada push a `staging` (`staging.yml`) deja un **artefacto de Actions** con el panel compilado y **conectado al Supabase de desarrollo** (proyecto `ohdsavwpasfpapbyutrv`), para probarlo o mostrarlo desde una PC propia. Es de uso interno: no se publica en Pages ni en ningún hosting y no se guarda en el repo (issue #123).
 
-- **Dónde:** pestaña *Actions* → workflow «Artefacto del panel con Supabase dev» → artefacto `panel-supabase-dev` (retención de 7 días). También con *Run workflow* (`workflow_dispatch`, solo sobre `develop`; el botón aparece cuando el workflow llega a la rama por defecto). `.github/workflows/demo-supabase-dev.yml`.
+- **Dónde:** pestaña *Actions* → workflow «Artefacto del panel con Supabase dev» → artefacto `panel-supabase-dev` (retención de 7 días). Para una demo desde `develop`: `gh workflow run demo-supabase-dev.yml --ref develop` (o `staging.yml`); solo corre sobre `develop` o `staging`. `.github/workflows/demo-supabase-dev.yml`.
 - **No es estático:** con la conexión real el panel necesita servidor (proxy, cookie de sesión `httpOnly` y server actions), así que no se puede exportar como el de Pages. El artefacto es un servidor Node autónomo (`output: "standalone"`, solo con `NEXT_PUBLIC_DEMO_SUPABASE_DEV=1`): se descomprime y se corre `PORT=3000 HOSTNAME=127.0.0.1 node server.js` (Node 24) o con Docker; se abre en `http://localhost:3000`. El `README.md` de dentro del artefacto lo explica y lleva el correo de la cuenta demo (la contraseña no va en el artefacto ni en el repo: el repo es público y la da Cristian).
-- **Qué lleva:** solo la URL pública del proyecto dev y la clave **anónima** (pública por diseño: la autoridad es la RLS), de las variables del repo `SUPABASE_URL` y `SUPABASE_ANON_KEY` (variables, no secrets). Nunca la clave de servicio, claves del BFF ni secretos.
+- **Qué lleva:** solo la URL pública del proyecto dev y la clave **anónima** (pública por diseño: la autoridad es la RLS), de las variables `SUPABASE_URL` y `SUPABASE_ANON_KEY` del environment `staging` o, si no las define, del repo (variables, no secrets). Nunca la clave de servicio, claves del BFF ni secretos.
 - **Aviso fijo** en cada pantalla (también la de acceso): «Versión de prueba conectada a Supabase dev (datos de demostración)» (`AvisoVersionDePrueba`), `noindex` (meta, cabecera `X-Robots-Tag` y `robots.txt`). Es un build como staging: modo dev apagado, Stock y Cuentas ocultas.
 - **Guardas** (`scripts/build-demo-supabase.mjs`, `scripts/lib/guardia-demo-supabase.mjs`): el build falla si la URL no es la del proyecto dev, si la clave no es anónima o publishable, si el entorno trae otras variables de credenciales o si hay archivos `.env*`; después revisa los archivos del artefacto (JWT que no sean `anon`, `sb_secret_`, URLs de otro proyecto, `SERVICE_ROLE_KEY`) y levanta el servidor armado para comprobar aviso, `noindex` y que sin sesión se pide iniciar sesión. `ci.yml` (PR) y `deploy-pages.yml` no necesitan variables de Supabase, y `build:pages` sigue rechazándolas.
 

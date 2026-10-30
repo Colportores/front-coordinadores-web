@@ -188,11 +188,23 @@ describe("el workflow del artefacto", () => {
   const workflow = leer(".github/workflows/demo-supabase-dev.yml");
   const ci = leer(".github/workflows/ci.yml");
   const pages = leer(".github/workflows/deploy-pages.yml");
+  const staging = leer(".github/workflows/staging.yml");
+  const produccion = leer(".github/workflows/production.yml");
 
-  it("corre solo en develop y no publica en Pages ni en ningún hosting", () => {
-    expect(workflow).toContain("branches: [develop]");
-    expect(workflow).toContain("if: github.ref == 'refs/heads/develop'");
+  it("corre solo en develop o staging, a mano o desde staging.yml, y no publica en Pages ni en ningún hosting", () => {
+    expect(workflow).toContain("workflow_dispatch:");
+    expect(workflow).toContain("workflow_call:");
+    // Ya no corre en cada push a develop: el CI de develop no compila (los builds de despliegue van por staging.yml).
+    expect(workflow).not.toMatch(/^\s*push:/m);
+    expect(workflow).toContain("if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging'");
     expect(workflow).not.toMatch(/deploy-pages|upload-pages-artifact|configure-pages|pages: write|id-token/);
+    expect(staging).toContain("uses: ./.github/workflows/demo-supabase-dev.yml");
+  });
+
+  it("producción nunca compila con el proyecto dev ni sin Supabase", () => {
+    expect(produccion).toContain("SUPABASE_REF_DEV: ohdsavwpasfpapbyutrv");
+    expect(produccion).toContain('PANEL_EXIGIR_SUPABASE: "1"');
+    expect(produccion).toContain("if: github.ref == 'refs/heads/production'");
   });
 
   it("sube el artefacto panel-supabase-dev por 7 días, con la carpeta oculta .next", () => {
