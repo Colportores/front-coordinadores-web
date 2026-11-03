@@ -8,7 +8,10 @@ Actions, por **environment**. No hay valores secretos en el repo (es público): 
   `SUPABASE_URL` y `SUPABASE_ANON_KEY` del environment `staging` o, si no las define, de las variables del repo (hoy
   apuntan al proyecto dev). Si no hay ninguna, el job avisa qué cargar y se salta el build, sin romper el resto.
 - **Production** (`production.yml`, push a `production`): usa el environment `production`. Si falta una variable o un
-  secreto el workflow **falla con un mensaje que dice cuál falta y dónde cargarla**. Nunca cae a las variables de dev.
+  secreto el workflow **falla con un mensaje que dice cuál falta y dónde cargarla**. Nunca cae a las variables de dev:
+  lee sus propios nombres `PRODUCTION_SUPABASE_*`, que no existen a nivel repositorio (las `SUPABASE_URL` /
+  `SUPABASE_ANON_KEY` del repo son las del proyecto dev, y `vars.*` mezcla environment y repo, así que con los mismos
+  nombres un olvido en el environment compilaría el panel con la clave de dev).
 - Ningún paso lee secretos en un PR ni en un fork: solo disparan por push a `staging` / `production` o a mano, y el
   evento `pull_request` de esos archivos no tiene jobs.
 
@@ -20,14 +23,16 @@ Un environment pisa a las variables del repo (Settings → Secrets and variables
 
 | Nombre | Tipo | Environment | Para qué sirve | Obligatoria | Ejemplo (sin secretos) |
 |---|---|---|---|---|---|
-| `SUPABASE_URL` | variable | staging, production | URL del proyecto Supabase al que se conecta el panel | production: sí. staging: no (valen las del repo; sin ninguna se salta el artefacto con Supabase) | `https://abcdefghijklmnop.supabase.co` |
-| `SUPABASE_ANON_KEY` | variable | staging, production | Clave anónima (pública por diseño, la autoridad es la RLS). Nunca la `service_role` | igual que la URL | `eyJ...` (la anon key del proyecto) |
+| `SUPABASE_URL` | variable | staging (y repositorio) | URL del proyecto Supabase dev al que se conecta el artefacto de staging | no (valen las del repo; sin ninguna se salta el artefacto con Supabase). Production no la lee | `https://abcdefghijklmnop.supabase.co` |
+| `SUPABASE_ANON_KEY` | variable | staging (y repositorio) | Clave anónima del proyecto dev (pública por diseño, la autoridad es la RLS). Nunca la `service_role` | igual que la URL. Production no la lee | `sb_publishable_...` |
+| `PRODUCTION_SUPABASE_URL` | variable | production | URL del proyecto Supabase de producción. Distinta de la de dev (el build falla si contiene el ref dev) | production: sí | `https://qrstuvwxyzabcdef.supabase.co` |
+| `PRODUCTION_SUPABASE_ANON_KEY` | variable | production | Clave anónima del proyecto de producción (pública por diseño). Nunca la `service_role`; el build falla si es igual a la `SUPABASE_ANON_KEY` del repo | production: sí | `sb_publishable_...` |
 | `APP_ENV` | variable | production | Marca de que el environment está configurado: tiene que valer `production` | production: sí | `production` |
-| `SUPABASE_REF_DEV` | variable | production | Ref del proyecto dev que producción no puede usar (guarda contra configurarla por descuido) | no (por defecto el de la demo) | `ohdsavwpasfpapbyutrv` |
+| `SUPABASE_REF_DEV` | variable | production | Ref adicional que producción no puede usar. Se suma al de la demo (`ohdsavwpasfpapbyutrv`), que siempre se rechaza | no | `otroproyectodev` |
 | `VERCEL_ORG_ID` | variable | production | `orgId` de la organización o cuenta de Vercel (`.vercel/project.json` al correr `vercel link`) | production: sí | `team_xxxxxxxxxxxx` |
 | `VERCEL_PROJECT_ID` | variable | production | `projectId` del proyecto de Vercel | production: sí | `prj_xxxxxxxxxxxx` |
 | `VERCEL_TOKEN` | secreto | production | Token de Vercel con acceso al proyecto | production: sí | (secreto) |
-| `PRODUCTION_DOMAIN` | variable | production | Dominio al que se asigna el deploy (`vercel alias set`); tiene que estar agregado al proyecto en Vercel → Settings → Domains | no (queda la URL de Vercel) | `panel.ejemplo.org` |
+| `PRODUCTION_DOMAIN` | variable | production | Dominio al que se asigna el deploy (`vercel alias set`), solo el host sin `https://`; tiene que estar agregado al proyecto en Vercel → Settings → Domains | no (queda la URL de Vercel) | `panel.ejemplo.org` |
 
 ## Qué cubre cada decisión pendiente (ci-despliegue p1–p5)
 

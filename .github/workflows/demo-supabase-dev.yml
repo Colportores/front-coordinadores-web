@@ -48,6 +48,8 @@ jobs:
           else
             echo "::warning title=Panel con Supabase dev::faltan SUPABASE_URL y/o SUPABASE_ANON_KEY (URL y clave anónima del proyecto dev): se cargan en Settings → Environments → staging → Variables, o con: gh variable set SUPABASE_URL --env staging. Sin ellas no se genera el artefacto panel-supabase-dev."
             echo "listas=false" >> "$GITHUB_OUTPUT"
+            echo "### Sin artefacto panel-supabase-dev" >> "$GITHUB_STEP_SUMMARY"
+            echo "Faltan \`SUPABASE_URL\` y/o \`SUPABASE_ANON_KEY\` (environment staging o variables del repo). Ver docs/ci-variables.md." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - if: steps.variables.outputs.listas == 'true'
