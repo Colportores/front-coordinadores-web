@@ -121,7 +121,7 @@ export function EncabezadoDeCuentas({
         <h2 className="font-serif text-[22px] font-semibold [overflow-wrap:anywhere]">{titulo}</h2>
         <p className="text-chico text-tinta-suave">{subtitulo}</p>
       </div>
-      <div className="flex flex-none flex-wrap items-center justify-end gap-2.5">
+      <div className={cn("flex flex-none flex-wrap justify-end gap-2.5", editando ? "items-start" : "items-center")}>
         {editando ? (
           <EditorDeAlquiler
             alquiler={alquiler}
@@ -148,7 +148,7 @@ export function EncabezadoDeCuentas({
             </button>
           </>
         )}
-        <AccionNoDisponible className="inline-flex min-h-8 items-center text-chico font-semibold whitespace-nowrap text-marca-media">
+        <AccionNoDisponible className={cn("inline-flex items-center text-chico font-semibold whitespace-nowrap text-marca-media", editando ? "min-h-[34px]" : "min-h-8")}>
           Validar tickets →
         </AccionNoDisponible>
       </div>

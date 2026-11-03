@@ -398,11 +398,15 @@ export type LecturaDeMonto = { ok: true; valor: number } | { ok: false; motivo: 
 
 const MAX_DIGITOS_DE_MONTO = 9;
 
-/** «18500» o «18.500»: pesos enteros. Rechaza decimales, signos y letras sin adivinar qué quiso decir. */
+/**
+ * «18500» o «18.500»: pesos enteros. El punto solo vale como separador de miles (grupos de 3 dígitos): «12.5», «1..0» o
+ * «1.8.5.00» se rechazan en vez de leerse como otro monto. Rechaza también decimales, signos y letras.
+ */
 export function leerMonto(texto: string): LecturaDeMonto {
-  const limpio = texto.trim().replace(/[\s.]/g, "");
-  if (limpio === "") return { ok: false, motivo: "vacio" };
-  if (!/^\d+$/.test(limpio)) return { ok: false, motivo: "formato" };
+  const sinEspacios = texto.replace(/\s/g, "");
+  if (sinEspacios === "") return { ok: false, motivo: "vacio" };
+  if (!/^\d+$/.test(sinEspacios) && !/^\d{1,3}(\.\d{3})+$/.test(sinEspacios)) return { ok: false, motivo: "formato" };
+  const limpio = sinEspacios.replace(/\./g, "");
   if (limpio.replace(/^0+(?=\d)/, "").length > MAX_DIGITOS_DE_MONTO) return { ok: false, motivo: "largo" };
   return { ok: true, valor: Number(limpio) };
 }

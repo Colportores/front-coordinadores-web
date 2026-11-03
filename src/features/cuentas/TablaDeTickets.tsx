@@ -13,7 +13,7 @@ import {
 } from "@/features/cuentas/modelo";
 import { cn } from "@/lib/utils";
 
-const PLANTILLA = "grid-cols-[minmax(0,.6fr)_minmax(0,1.3fr)_minmax(0,1.6fr)_minmax(0,.9fr)_minmax(0,.9fr)_minmax(0,1fr)_96px]";
+const PLANTILLA = "grid-cols-[minmax(112px,.7fr)_minmax(0,1.3fr)_minmax(0,1.6fr)_minmax(0,.9fr)_minmax(0,.9fr)_minmax(0,1fr)_96px]";
 const PLANTILLA_DETALLE = "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(0,1fr)]";
 
 const COLUMNAS: ColumnaDeTabla[] = [

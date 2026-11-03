@@ -77,7 +77,9 @@ export function EncabezadoDeTabla({
                 )}
               </button>
             ) : (
-              <span className="block truncate whitespace-nowrap">{columna.rotulo}</span>
+              <span className="flex min-h-6 items-center whitespace-nowrap">
+                <span className="truncate">{columna.rotulo}</span>
+              </span>
             )}
           </span>
         );

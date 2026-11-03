@@ -25,9 +25,17 @@ describe("QA · validarAlquiler, puntos de miles", () => {
     }
   });
 
-  it.skip("QA #67: un punto que no separa miles (12.5, 1.8.5.00, 1..0) se lee como 125 / 1850 / 10 en lugar de rechazarse", () => {
-    for (const texto of ["12.5", "1.8.5.00", "1..0", ".5", "0.5", "1.0"]) {
-      expect(validarAlquiler(texto).monto, texto).toBeNull();
+  it("un punto que no separa miles (12.5, 1.8.5.00, 1..0) se rechaza en lugar de leerse como otro monto", () => {
+    for (const texto of ["12.5", "1.8.5.00", "1..0", ".5", "0.5", "1.0", "1.25", "1.2500", "12.500.", ".500", "1 .8.5.00"]) {
+      const r = validarAlquiler(texto);
+      expect(r.monto, texto).toBeNull();
+      expect(r.error, texto).toMatch(/sin centavos ni signos/);
+    }
+  });
+
+  it("lee 1.250 y 1250 igual, también con espacios", () => {
+    for (const texto of ["1.250", "1250", " 1 250 ", "1 .250", "1. 250"]) {
+      expect(validarAlquiler(texto), texto).toEqual({ error: null, monto: 1250 });
     }
   });
 });
