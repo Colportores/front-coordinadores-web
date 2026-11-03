@@ -202,7 +202,7 @@ describe("el workflow del artefacto", () => {
   });
 
   it("producción nunca compila con el proyecto dev ni sin Supabase", () => {
-    expect(produccion).toContain("SUPABASE_REF_DEV: ohdsavwpasfpapbyutrv");
+    expect(produccion).toContain("SUPABASE_REF_DEV_DEFECTO: ohdsavwpasfpapbyutrv");
     expect(produccion).toContain('PANEL_EXIGIR_SUPABASE: "1"');
     expect(produccion).toContain("if: github.ref == 'refs/heads/production'");
   });
