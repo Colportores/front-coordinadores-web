@@ -82,6 +82,20 @@ describe("el Estado de la beca sale de la compra a la CES", () => {
     expect(juan.getByText("Media alcanzada")).toBeInTheDocument();
   });
 
+  it("en «Libros bonificables», Sofía (130 de 120 libros, compra sin llegar) no dice «meta alcanzada»: dice que falta la compra a la CES", async () => {
+    await abrirBecas();
+
+    const sofia = within(fila(/^Sofía Ramos/));
+    expect(sofia.getByText("En progreso")).toBeInTheDocument();
+    expect(sofia.getByText("130 de 120 libros · falta la compra a la CES · 108 %")).toBeInTheDocument();
+    expect(sofia.queryByText(/meta alcanzada/)).not.toBeInTheDocument();
+    // La barra sigue el color de «En progreso», llena pero no verde.
+    const barra = fila(/^Sofía Ramos/).querySelector<HTMLElement>("span[aria-hidden='true'] > span");
+    expect(barra).toHaveClass("bg-marca-media");
+    expect(barra).not.toHaveClass("bg-exito");
+    expect(barra).toHaveStyle({ width: "100%" });
+  });
+
   it("los libros solos no alcanzan la beca: Sofía, con 130 de 120 libros y poca compra, sigue «En progreso»", async () => {
     const usuario = await abrirBecas();
     expect(within(fila(/^Sofía Ramos/)).getByText("En progreso")).toBeInTheDocument();

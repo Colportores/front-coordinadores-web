@@ -149,8 +149,19 @@ function ElegirCarrera({
   );
 }
 
-function Avance({ colportor, estado, unidad }: { colportor: ColportorDeEquipo; estado: EstadoDeBecas; unidad: UnidadDeAvance }) {
-  const avance = avanceDeBeca(estado.porColportor[colportor.id], unidad);
+function Avance({
+  colportor,
+  estado,
+  unidad,
+  alcanzoLaBeca,
+}: {
+  colportor: ColportorDeEquipo;
+  estado: EstadoDeBecas;
+  unidad: UnidadDeAvance;
+  /** El Estado de la fila es «Media alcanzada» o «Completa alcanzada»: de ahí sale el «meta alcanzada» de los libros. */
+  alcanzoLaBeca: boolean;
+}) {
+  const avance = avanceDeBeca(estado.porColportor[colportor.id], unidad, alcanzoLaBeca);
   const guardando = estado.guardando.has(colportor.id);
   if (avance.tipo === "sin-carrera") return <span className="text-tinta-suave">Sin meta: falta la carrera</span>;
   if (avance.tipo === "lograda") {
@@ -559,7 +570,7 @@ export function TablaBecas({
                         <EstadoDeLaFila estado={fila.estado} />
                       </td>
                       <td className="py-2.5 pr-[18px] pl-2 align-middle">
-                        <Avance colportor={c} estado={estado} unidad={unidad} />
+                        <Avance colportor={c} estado={estado} unidad={unidad} alcanzoLaBeca={fila.estado === "media" || fila.estado === "completa"} />
                       </td>
                     </tr>
                     {abierto && (

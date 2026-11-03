@@ -390,10 +390,12 @@ function libros(cantidad: number): string {
 
 /**
  * El avance de un colportor hacia su meta, en libros bonificables o en compra a la CES (`unidad`). «Meta alcanzada» se dice
- * por la medida que se mira: con la compra a la CES coincide con el Estado de la fila; en libros solo si los libros llegaron. Sin carrera o sin
+ * por la medida que se mira: con la compra a la CES coincide con el Estado de la fila; en libros, solo si los libros llegaron Y el Estado es
+ * alcanzada (`alcanzoLaBeca`): si los libros llegaron pero la compra a la CES no, dice «falta la compra a la CES» y la barra sigue como «En
+ * progreso» («Beca alcanz.», decisión del 29/10; un texto que dice «alcanzada» junto a «En progreso» miente). Sin carrera o sin
  * tipo no hay meta («Sin meta: falta la carrera»); una meta en 0 tampoco se puede medir, así que cuenta como sin tipo.
  */
-export function avanceDeBeca(beca: BecaDeColportor | undefined, unidad: UnidadDeAvance): AvanceDeBeca {
+export function avanceDeBeca(beca: BecaDeColportor | undefined, unidad: UnidadDeAvance, alcanzoLaBeca: boolean): AvanceDeBeca {
   if (!beca || !beca.carrera) return { tipo: "sin-carrera" };
   const meta = beca.meta;
   if (!meta || beca.apuntaA === null || enMedida(meta, unidad) <= 0) {
@@ -406,8 +408,10 @@ export function avanceDeBeca(beca: BecaDeColportor | undefined, unidad: UnidadDe
   const logrado = enMedida(beca.avance, unidad);
   const objetivo = enMedida(meta, unidad);
   const falta = Math.max(0, objetivo - logrado);
-  const alcanzada = falta === 0;
-  const cola = alcanzada ? "meta alcanzada" : `${falta === 1 ? "le falta" : "le faltan"} ${unidad === "libros" ? falta : formatMonto(falta)}`;
+  const llegoLaMeta = falta === 0;
+  // En libros, llegar a la meta no alcanza la beca: sin el Estado alcanzada falta la compra a la CES.
+  const alcanzada = llegoLaMeta && (unidad !== "libros" || alcanzoLaBeca);
+  const cola = alcanzada ? "meta alcanzada" : llegoLaMeta ? "falta la compra a la CES" : `${falta === 1 ? "le falta" : "le faltan"} ${unidad === "libros" ? falta : formatMonto(falta)}`;
   // El mismo redondeo y sin tope que el filtro y el orden por avance (`porcentajeDeAvance`): lo que se lee es lo que se filtra.
   const porcentajeReal = Math.round((logrado / objetivo) * 100);
   const texto =

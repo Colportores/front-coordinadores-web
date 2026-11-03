@@ -39,16 +39,16 @@ describe("«Logro beca»: lo alcanzado se ve aunque pase a «Sin beca»", () => 
 
   it("la fila de lo vendido dice cuánto y qué alcanzó, en las dos medidas", () => {
     const diego = beca({ alcanzada: "completa" });
-    expect(avanceDeBeca(diego, "libros")).toEqual({ tipo: "lograda", texto: "130 libros vendidos · alcanzó la beca completa" });
-    expect(avanceDeBeca(diego, "ces")).toEqual({ tipo: "lograda", texto: "$U 195.000 de compra a la CES · alcanzó la beca completa" });
-    expect(avanceDeBeca(beca({ alcanzada: "media", avance: { libros: 1, monto: 0 } }), "libros")).toEqual({
+    expect(avanceDeBeca(diego, "libros", false)).toEqual({ tipo: "lograda", texto: "130 libros vendidos · alcanzó la beca completa" });
+    expect(avanceDeBeca(diego, "ces", false)).toEqual({ tipo: "lograda", texto: "$U 195.000 de compra a la CES · alcanzó la beca completa" });
+    expect(avanceDeBeca(beca({ alcanzada: "media", avance: { libros: 1, monto: 0 } }), "libros", false)).toEqual({
       tipo: "lograda",
       texto: "1 libro vendido · alcanzó la media beca",
     });
   });
 
   it("sin tipo ni logro, el avance sigue diciendo que no hay meta", () => {
-    expect(avanceDeBeca(beca({}), "libros")).toEqual({ tipo: "sin-tipo" });
+    expect(avanceDeBeca(beca({}), "libros", false)).toEqual({ tipo: "sin-tipo" });
   });
 
   it("el aviso de «Sin beca» cuenta que conserva lo alcanzado, y si no, el de siempre", () => {

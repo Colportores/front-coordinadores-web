@@ -5,6 +5,7 @@ import { crearEquipoSimulado } from "@/datos/equipo/equipo-simulado";
 import { diaYMes } from "@/lib/dias";
 
 import canvas from "./canvas-33-becas.json";
+import { estadoDeBeca } from "./becas-tabla";
 import { avanceDeBeca, avisoDeBecaAsignada, ETIQUETA_DE_TIPO, resolverAmbito, type UnidadDeAvance } from "./modelo";
 
 const sistemas = { id: "sis", nombre: "Ingeniería en Sistemas", elegidaEl: "2026-09-01" };
@@ -21,11 +22,11 @@ function beca(cambios: Partial<BecaDeColportor> = {}): BecaDeColportor {
 
 describe("avanceDeBeca", () => {
   it("en libros: «64 de 120 libros · le faltan 56 · 53 %» y la barra al 53 %", () => {
-    expect(avanceDeBeca(beca(), "libros")).toEqual({ tipo: "con-meta", texto: "64 de 120 libros · le faltan 56 · 53 %", porcentaje: 53, alcanzada: false });
+    expect(avanceDeBeca(beca(), "libros", false)).toEqual({ tipo: "con-meta", texto: "64 de 120 libros · le faltan 56 · 53 %", porcentaje: 53, alcanzada: false });
   });
 
   it("en compra a la CES: la misma meta en $U", () => {
-    expect(avanceDeBeca(beca(), "ces")).toEqual({
+    expect(avanceDeBeca(beca(), "ces", false)).toEqual({
       tipo: "con-meta",
       texto: "$U 90.000 de $U 180.000 · le faltan $U 90.000 · 50 %",
       porcentaje: 50,
@@ -34,40 +35,62 @@ describe("avanceDeBeca", () => {
   });
 
   it("sin carrera, o sin colportor en las becas, no hay meta: «falta la carrera»", () => {
-    expect(avanceDeBeca(beca({ carrera: null, apuntaA: null, meta: null }), "libros")).toEqual({ tipo: "sin-carrera" });
-    expect(avanceDeBeca(undefined, "ces")).toEqual({ tipo: "sin-carrera" });
+    expect(avanceDeBeca(beca({ carrera: null, apuntaA: null, meta: null }), "libros", false)).toEqual({ tipo: "sin-carrera" });
+    expect(avanceDeBeca(undefined, "ces", false)).toEqual({ tipo: "sin-carrera" });
   });
 
   it("con carrera pero sin tipo, o con la meta en 0, no se puede medir: «no apunta a ninguna beca»", () => {
-    expect(avanceDeBeca(beca({ apuntaA: null, meta: null }), "libros")).toEqual({ tipo: "sin-tipo" });
-    expect(avanceDeBeca(beca({ meta: { libros: 0, monto: 0 } }), "libros")).toEqual({ tipo: "sin-tipo" });
+    expect(avanceDeBeca(beca({ apuntaA: null, meta: null }), "libros", false)).toEqual({ tipo: "sin-tipo" });
+    expect(avanceDeBeca(beca({ meta: { libros: 0, monto: 0 } }), "libros", false)).toEqual({ tipo: "sin-tipo" });
     // Una medida en 0 no frena a la otra.
-    expect(avanceDeBeca(beca({ meta: { libros: 0, monto: 180000 } }), "ces").tipo).toBe("con-meta");
+    expect(avanceDeBeca(beca({ meta: { libros: 0, monto: 180000 } }), "ces", false).tipo).toBe("con-meta");
   });
 
-  it("con la meta cumplida o superada dice «meta alcanzada» y la barra no pasa de 100 %", () => {
-    expect(avanceDeBeca(beca({ avance: { libros: 120, monto: 0 } }), "libros")).toEqual({
+  it("con la meta cumplida o superada y el Estado alcanzada dice «meta alcanzada» y la barra no pasa de 100 %", () => {
+    expect(avanceDeBeca(beca({ avance: { libros: 120, monto: 0 } }), "libros", true)).toEqual({
       tipo: "con-meta",
       texto: "120 de 120 libros · meta alcanzada · 100 %",
       porcentaje: 100,
       alcanzada: true,
     });
-    expect(avanceDeBeca(beca({ avance: { libros: 500, monto: 900000 } }), "libros")).toMatchObject({ porcentaje: 100, alcanzada: true });
+    expect(avanceDeBeca(beca({ avance: { libros: 500, monto: 900000 } }), "libros", true)).toMatchObject({ porcentaje: 100, alcanzada: true });
+  });
+
+  it("en libros, con la meta cumplida pero el Estado sin alcanzar, dice que falta la compra a la CES y la barra queda como «En progreso»", () => {
+    // Sofía: 130 de 120 libros bonificables, pero la compra a la CES no llegó (Estado «En progreso»).
+    expect(avanceDeBeca(beca({ avance: { libros: 130, monto: 150000 } }), "libros", false)).toEqual({
+      tipo: "con-meta",
+      texto: "130 de 120 libros · falta la compra a la CES · 108 %",
+      porcentaje: 100,
+      alcanzada: false,
+    });
+    // Justo en la meta: 120 de 120.
+    expect(avanceDeBeca(beca({ avance: { libros: 120, monto: 0 } }), "libros", false)).toMatchObject({
+      texto: "120 de 120 libros · falta la compra a la CES · 100 %",
+      alcanzada: false,
+    });
+  });
+
+  it("en compra a la CES, «meta alcanzada» sigue saliendo de la compra aunque no se pase el Estado", () => {
+    expect(avanceDeBeca(beca({ avance: { libros: 0, monto: 185000 } }), "ces", false)).toMatchObject({
+      texto: "$U 185.000 de $U 180.000 · meta alcanzada · 103 %",
+      alcanzada: true,
+    });
   });
 
   it("singular: «le falta 1» y «1 libro»", () => {
-    expect(avanceDeBeca(beca({ avance: { libros: 119, monto: 0 } }), "libros")).toMatchObject({ texto: "119 de 120 libros · le falta 1 · 99 %" });
-    expect(avanceDeBeca(beca({ meta: { libros: 1, monto: 1000 }, avance: { libros: 0, monto: 0 } }), "libros")).toMatchObject({
+    expect(avanceDeBeca(beca({ avance: { libros: 119, monto: 0 } }), "libros", false)).toMatchObject({ texto: "119 de 120 libros · le falta 1 · 99 %" });
+    expect(avanceDeBeca(beca({ meta: { libros: 1, monto: 1000 }, avance: { libros: 0, monto: 0 } }), "libros", false)).toMatchObject({
       texto: "0 de 1 libro · le falta 1 · 0 %",
     });
   });
 
   it("el % del texto es el real, sin tope, y el de la barra no pasa de 100", () => {
-    expect(avanceDeBeca(beca({ avance: { libros: 180, monto: 0 } }), "libros")).toMatchObject({ texto: "180 de 120 libros · meta alcanzada · 150 %", porcentaje: 100 });
+    expect(avanceDeBeca(beca({ avance: { libros: 180, monto: 0 } }), "libros", true)).toMatchObject({ texto: "180 de 120 libros · meta alcanzada · 150 %", porcentaje: 100 });
   });
 
   it("un avance sin vender nada es 0 %", () => {
-    expect(avanceDeBeca(beca({ avance: { libros: 0, monto: 0 } }), "libros")).toMatchObject({ texto: "0 de 120 libros · le faltan 120 · 0 %", porcentaje: 0 });
+    expect(avanceDeBeca(beca({ avance: { libros: 0, monto: 0 } }), "libros", false)).toMatchObject({ texto: "0 de 120 libros · le faltan 120 · 0 %", porcentaje: 0 });
   });
 });
 
@@ -95,7 +118,8 @@ async function filasDeLaTabla(unidad: UnidadDeAvance) {
   const porNombre = new Map<string, FilaCanvas>();
   for (const c of resuelto.colportores) {
     const b = datos.becas?.porColportor[c.id];
-    const avance = avanceDeBeca(b, unidad);
+    const estado = estadoDeBeca(b, datos.becas?.carreras ?? []);
+    const avance = avanceDeBeca(b, unidad, estado === "media" || estado === "completa");
     porNombre.set(c.nombre, {
       colportor: c.nombre,
       carrera: b?.carrera?.nombre ?? null,
