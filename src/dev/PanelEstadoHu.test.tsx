@@ -31,11 +31,11 @@ describe("PanelEstadoHu", () => {
       expect(boton).toHaveAttribute("aria-expanded", "true");
       const panel = screen.getByRole("region", { name: "Estado de HU" });
       const contadores = within(panel).getByRole("list", { name: "Historias por estado" });
-      expect(within(contadores).getByText("Bloqueada").previousSibling).toHaveTextContent("8");
+      expect(within(contadores).getByText("Bloqueada").previousSibling).toHaveTextContent("9");
       expect(within(contadores).getByText("Mockeada").previousSibling).toHaveTextContent("8");
       const stock = within(panel).getByRole("region", { name: "HU de Stock" });
       expect(within(stock).getByText("HU-STK-001")).toBeInTheDocument();
-      expect(within(stock).getAllByText(/Stock y cuenta \(V2\)/).length).toBe(4);
+      expect(within(stock).getAllByText(/Stock y cuenta \(V2\)/).length).toBe(5);
     });
 
     it("Escape cierra el panel y devuelve el foco al botón", async () => {

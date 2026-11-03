@@ -718,7 +718,7 @@ describe("ZonasCampania", () => {
       expect(nombres).toContain("SaltoSalto");
       expect(nombres).toContain("PaysandúPaysandú");
       expect(nombres.join("|")).not.toMatch(/Montevideo|Las Piedras|Canelones/);
-      expect(within(buscador).getByRole("searchbox", { name: /BUSCAR POR NOMBRE O PROVINCIA/ })).toHaveFocus();
+      expect(within(buscador).getByRole("searchbox", { name: /BUSCAR POR NOMBRE O DEPARTAMENTO/ })).toHaveFocus();
     });
 
     it("mientras busca dice «Buscando ciudades…»", async () => {
@@ -728,12 +728,12 @@ describe("ZonasCampania", () => {
 
       expect(await within(buscador).findByText("Buscando ciudades…")).toBeInTheDocument();
 
-      await act(async () => liberar([{ id: "cat-salto", nombre: "Salto", provincia: "Salto" }]));
+      await act(async () => liberar([{ id: "cat-salto", nombre: "Salto", departamento: "Salto" }]));
       expect(within(buscador).queryByText("Buscando ciudades…")).not.toBeInTheDocument();
       expect(within(buscador).getByRole("button", { name: "Agregar Salto, Salto" })).toBeInTheDocument();
     });
 
-    it("filtra al escribir por nombre o provincia y dice cuando no hay coincidencias", async () => {
+    it("filtra al escribir por nombre o departamento y dice cuando no hay coincidencias", async () => {
       const acc = montar();
       const buscador = await abrirBuscador();
       await within(buscador).findByRole("list", { name: "Ciudades del catálogo" });
@@ -879,7 +879,7 @@ describe("ZonasCampania", () => {
       const muchas = Array.from({ length: 200 }, (_, i) => ({
         id: `cat-${i}`,
         nombre: `Ciudad ${i} ${"de nombre larguísimo ".repeat(6)}`.trim(),
-        provincia: `Provincia ${i}`,
+        departamento: `Departamento ${i}`,
       }));
       montar({ buscarCiudades: vi.fn(async () => muchas) });
       const buscador = await abrirBuscador();

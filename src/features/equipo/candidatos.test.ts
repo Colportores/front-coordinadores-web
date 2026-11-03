@@ -36,8 +36,21 @@ describe("candidatos", () => {
       expect(ayudaBloqueo(porId("usr-rodrigo-silva"))).toBe("Pedile al coordinador de Otoño Norte que lo libere.");
     });
 
+    it("una cuenta en una campaña en curso no se bloquea si la base la deja añadir a esta (destino por empezar, 0058)", () => {
+      const repite = { ...porId("usr-rodrigo-silva"), enOtraCampania: false };
+      expect(repite.campaniaActual).toBe("Otoño Norte");
+      expect(motivoBloqueo(repite)).toBeNull();
+      expect(ayudaBloqueo(repite)).toBeNull();
+    });
+
+    it("bloqueada por otra campaña del mismo momento que la base no nombra: no inventa un nombre", () => {
+      const sinNombre = { ...porId("usr-rodrigo-silva"), campaniaActual: null, enOtraCampania: true };
+      expect(motivoBloqueo(sinNombre)).toBe("Está en otra campaña. Reasignar primero.");
+      expect(ayudaBloqueo(sinNombre)).toBe("Pedile al coordinador de la otra campaña que lo libere.");
+    });
+
     it("la suspensión gana sobre la otra campaña, como en el servidor (`motivo_rechazo_inscripcion()`)", () => {
-      const ambas = { ...porId("usr-mariana-olivera"), campaniaActual: "Otoño Norte" };
+      const ambas = { ...porId("usr-mariana-olivera"), campaniaActual: "Otoño Norte", enOtraCampania: true };
       expect(motivoBloqueo(ambas)).toBe("Cuenta suspendida. Pedí a un administrador que la reactive para añadirla.");
     });
   });

@@ -106,8 +106,8 @@ function acciones(sobre: Partial<AccionesZonas> = {}): AccionesZonas {
     quitarZona: vi.fn(async () => ({ ok: true as const })),
     eliminarZona: vi.fn(async () => ({ ok: true as const, colportoresSinZona: 1 })),
     buscarCiudades: vi.fn(async () => [
-      { id: "cat-salto", nombre: "Salto" },
-      { id: "cat-mercedes", nombre: "Mercedes", provincia: "Soriano" },
+      { id: "cat-salto", nombre: "Salto", departamento: null },
+      { id: "cat-mercedes", nombre: "Mercedes", departamento: "Soriano" },
     ]),
     agregarCiudad: vi.fn(async () => ({ ok: false as const, mensaje: "no" })),
     ...sobre,
@@ -347,8 +347,8 @@ describe("ZonasCampania con lo que devuelve la fuente de las RPC", () => {
     });
   });
 
-  describe("«+ Agregar ciudad»: el catálogo de la base no trae provincia", () => {
-    it("una ciudad sin provincia se ofrece solo con su nombre; la que la trae, con ella", async () => {
+  describe("«+ Agregar ciudad»: una ciudad vieja del catálogo puede no tener departamento", () => {
+    it("una ciudad sin departamento se ofrece solo con su nombre; la que lo tiene, con él", async () => {
       montar();
       await userEvent.click(screen.getByRole("button", { name: "+ Agregar ciudad" }));
       const buscador = screen.getByRole("region", { name: "Agregar ciudad" });

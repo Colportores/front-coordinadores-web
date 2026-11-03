@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "next start",
     "build:pages": "node scripts/build-pages.mjs",
+    "build:demo-supabase": "node scripts/build-demo-supabase.mjs",
     "servir:pages": "node scripts/servir-pages.mjs",
     "lint": "eslint --max-warnings=0",
     "typecheck": "next typegen && tsc --noEmit",
@@ -18,6 +19,7 @@
     "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verificar:pestanas-ocultas"
   },
   "dependencies": {
+    "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.118.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

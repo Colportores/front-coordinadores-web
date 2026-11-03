@@ -7,8 +7,11 @@ import { crearFetchDeAuth } from "@/datos/supabase/fetch-auth";
 /** Lo mismo que `Storage` del navegador, pero también admite uno asíncrono (cookies, IndexedDB). */
 type AlmacenDeSesion = NonNullable<NonNullable<SupabaseClientOptions<"public">["auth"]>["storage"]>;
 
-/** Dónde quedó guardada la sesión de cada cliente, para poder borrarla aunque el SDK no llegue a hacerlo. */
-const sesionesGuardadas = new WeakMap<SupabaseClient, { almacen: AlmacenDeSesion; clave: string }>();
+/**
+ * Cómo borrar la sesión guardada de cada cliente aunque el SDK no llegue a hacerlo: el almacén y la clave del navegador, o
+ * la función que da quien lo creó (el cliente de servidor, que guarda la sesión en cookies: `src/auth/supabase-cookies.ts`).
+ */
+const sesionesGuardadas = new WeakMap<SupabaseClient, { almacen: AlmacenDeSesion; clave: string } | { borrar: () => void | Promise<void> }>();
 
 function almacenEnMemoria(): AlmacenDeSesion {
   const datos = new Map<string, string>();
@@ -30,7 +33,7 @@ function almacenPorDefecto(): AlmacenDeSesion {
 }
 
 /** La clave con la que `supabase-js` guarda la sesión si nadie le da otra: `sb-<proyecto>-auth-token`. */
-function claveDeAlmacenamiento(urlDelProyecto: string): string {
+export function claveDeAlmacenamiento(urlDelProyecto: string): string {
   return `sb-${new URL(urlDelProyecto).hostname.split(".")[0]}-auth-token`;
 }
 
@@ -77,6 +80,14 @@ export function crearSupabase(config: ConfigPublicaSupabase, opciones: SupabaseC
 export async function borrarSesionGuardada(supabase: SupabaseClient): Promise<void> {
   const guardada = sesionesGuardadas.get(supabase);
   if (!guardada) return;
+  if ("borrar" in guardada) {
+    try {
+      await guardada.borrar();
+    } catch {
+      // Igual que abajo: si no se puede borrar, no hay nada más que hacer desde acá.
+    }
+    return;
+  }
   for (const clave of [guardada.clave, `${guardada.clave}-code-verifier`]) {
     try {
       await guardada.almacen.removeItem(clave);
@@ -84,6 +95,11 @@ export async function borrarSesionGuardada(supabase: SupabaseClient): Promise<vo
       // Un almacén que falla al borrar no deja nada más por hacer desde acá.
     }
   }
+}
+
+/** Para un cliente que no guarda la sesión en un almacén del navegador: dice cómo borrarla (`borrarSesionGuardada`). */
+export function registrarBorradoDeSesion(supabase: SupabaseClient, borrar: () => void | Promise<void>): void {
+  sesionesGuardadas.set(supabase, { borrar });
 }
 
 /**

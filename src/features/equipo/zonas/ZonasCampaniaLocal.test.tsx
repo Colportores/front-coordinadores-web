@@ -34,7 +34,7 @@ describe("ZonasCampaniaLocal (vista 24 en el sitio de prueba)", () => {
     render(<ZonasCampaniaLocal datos={DATOS_ZONAS_SIMULADO} />);
 
     await userEvent.click(screen.getByRole("button", { name: /\+ Agregar ciudad/ }));
-    await userEvent.type(screen.getByRole("searchbox", { name: /BUSCAR POR NOMBRE O PROVINCIA/ }), "salto");
+    await userEvent.type(screen.getByRole("searchbox", { name: /BUSCAR POR NOMBRE O DEPARTAMENTO/ }), "salto");
     await userEvent.click(await screen.findByRole("button", { name: /^Agregar Salto/ }));
 
     const ciudades = screen.getByRole("navigation", { name: "Ciudades de la campaña" });

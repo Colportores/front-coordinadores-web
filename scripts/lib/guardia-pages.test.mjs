@@ -65,9 +65,14 @@ describe("guardia del build de Pages", () => {
         NEXT_PUBLIC_MODO_DEV: "0",
         NEXT_PUBLIC_PESTANA_STOCK: "0",
         DEPLOY_PAGES: "0",
+        // El build de Pages nunca exige Supabase (#101): el arma del build de producción no pasa y el modo simulado lo fija él.
+        PANEL_EXIGIR_SUPABASE: "1",
+        PANEL_DATOS_SIMULADOS: "0",
       });
       expect(entorno).toEqual({ PATH: "/usr/bin", HOME: "/root", ...VARIABLES_DEL_BUILD });
       expect(entorno.DEPLOY_PAGES).toBe("1");
+      expect(entorno.PANEL_DATOS_SIMULADOS).toBe("1");
+      expect(entorno).not.toHaveProperty("PANEL_EXIGIR_SUPABASE");
       expect(entorno.NEXT_PUBLIC_MODO_DEV).toBe("1");
       expect(entorno).not.toHaveProperty("GITHUB_TOKEN");
       expect(entorno).not.toHaveProperty("NEXT_PUBLIC_PESTANA_STOCK");

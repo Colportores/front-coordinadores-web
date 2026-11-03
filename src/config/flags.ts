@@ -36,6 +36,16 @@ export function sitioDePruebaActivo(): boolean {
   return leerBandera(process.env.NEXT_PUBLIC_DEPLOY_PAGES) ?? false;
 }
 
+/**
+ * `true` solo en el artefacto de pruebas de demo (`npm run build:demo-supabase`, `.github/workflows/demo-supabase-dev.yml`):
+ * el panel compilado y conectado al Supabase de desarrollo, de uso interno. Con él el panel lleva el aviso «Versión de prueba
+ * conectada a Supabase dev (datos de demostración)» en cada pantalla (también la de acceso), `noindex` y se compila como
+ * servidor autónomo (`output: "standalone"`, ver `next.config.ts`). Ningún otro build lo define. Ver README.
+ */
+export function demoSupabaseDevActivo(): boolean {
+  return leerBandera(process.env.NEXT_PUBLIC_DEMO_SUPABASE_DEV) ?? false;
+}
+
 export type Pestana ="inicio" | "equipo" | "ciudades" | "stock" | "cuentas" | "reportes";
 
 /** Pestañas con flag propio. Las demás están siempre visibles. */

@@ -253,18 +253,18 @@ interface CiudadDeCatalogoSimulada extends CiudadDelCatalogo {
 
 /** Catálogo global inventado: las de la campaña salen de la búsqueda. */
 const CATALOGO: CiudadDeCatalogoSimulada[] = [
-  { id: "cat-montevideo", nombre: "Montevideo", provincia: "Montevideo", centro: CENTRO_MONTEVIDEO },
-  { id: "cat-las-piedras", nombre: "Las Piedras", provincia: "Canelones", centro: CENTRO_LAS_PIEDRAS },
-  { id: "cat-canelones", nombre: "Canelones", provincia: "Canelones", centro: CENTRO_CANELONES },
-  { id: "cat-salto", nombre: "Salto", provincia: "Salto", centro: { lon: -57.96, lat: -31.39 } },
-  { id: "cat-paysandu", nombre: "Paysandú", provincia: "Paysandú", centro: { lon: -58.08, lat: -32.32 } },
-  { id: "cat-rivera", nombre: "Rivera", provincia: "Rivera", centro: { lon: -55.54, lat: -30.9 } },
-  { id: "cat-maldonado", nombre: "Maldonado", provincia: "Maldonado", centro: { lon: -54.96, lat: -34.9 } },
-  { id: "cat-colonia", nombre: "Colonia del Sacramento", provincia: "Colonia", centro: { lon: -57.84, lat: -34.47 } },
-  { id: "cat-mercedes", nombre: "Mercedes", provincia: "Soriano", centro: { lon: -58.07, lat: -33.25 } },
-  { id: "cat-melo", nombre: "Melo", provincia: "Cerro Largo", centro: { lon: -54.18, lat: -32.37 } },
-  { id: "cat-tacuarembo", nombre: "Tacuarembó", provincia: "Tacuarembó", centro: { lon: -55.98, lat: -31.72 } },
-  { id: "cat-durazno", nombre: "Durazno", provincia: "Durazno", centro: { lon: -56.52, lat: -33.38 } },
+  { id: "cat-montevideo", nombre: "Montevideo", departamento: "Montevideo", centro: CENTRO_MONTEVIDEO },
+  { id: "cat-las-piedras", nombre: "Las Piedras", departamento: "Canelones", centro: CENTRO_LAS_PIEDRAS },
+  { id: "cat-canelones", nombre: "Canelones", departamento: "Canelones", centro: CENTRO_CANELONES },
+  { id: "cat-salto", nombre: "Salto", departamento: "Salto", centro: { lon: -57.96, lat: -31.39 } },
+  { id: "cat-paysandu", nombre: "Paysandú", departamento: "Paysandú", centro: { lon: -58.08, lat: -32.32 } },
+  { id: "cat-rivera", nombre: "Rivera", departamento: "Rivera", centro: { lon: -55.54, lat: -30.9 } },
+  { id: "cat-maldonado", nombre: "Maldonado", departamento: "Maldonado", centro: { lon: -54.96, lat: -34.9 } },
+  { id: "cat-colonia", nombre: "Colonia del Sacramento", departamento: "Colonia", centro: { lon: -57.84, lat: -34.47 } },
+  { id: "cat-mercedes", nombre: "Mercedes", departamento: "Soriano", centro: { lon: -58.07, lat: -33.25 } },
+  { id: "cat-melo", nombre: "Melo", departamento: "Cerro Largo", centro: { lon: -54.18, lat: -32.37 } },
+  { id: "cat-tacuarembo", nombre: "Tacuarembó", departamento: "Tacuarembó", centro: { lon: -55.98, lat: -31.72 } },
+  { id: "cat-durazno", nombre: "Durazno", departamento: "Durazno", centro: { lon: -56.52, lat: -33.38 } },
 ];
 
 const sinTildes = (t: string) => t.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
@@ -440,8 +440,8 @@ export const fuenteZonasSimulada: FuenteSimulada = {
     const enCampania = new Set(DATOS_ZONAS_SIMULADO.ciudades.map((c) => c.catalogoId));
     const buscado = sinTildes(texto.trim());
     return CATALOGO.filter(
-      (c) => !enCampania.has(c.id) && (buscado === "" || sinTildes(`${c.nombre} ${c.provincia}`).includes(buscado)),
-    ).map(({ id, nombre, provincia }) => ({ id, nombre, provincia }));
+      (c) => !enCampania.has(c.id) && (buscado === "" || sinTildes(`${c.nombre} ${c.departamento}`).includes(buscado)),
+    ).map(({ id, nombre, departamento }) => ({ id, nombre, departamento }));
   },
 
   async agregarCiudad(_campaniaId, catalogoId) {

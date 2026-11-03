@@ -28,6 +28,7 @@ const ana: CandidatoColportor = {
   email: "ana.martinez@example.com",
   estadoCuenta: "pendiente_asignacion",
   campaniaActual: null,
+  enOtraCampania: false,
   cuentaCreada: "2026-09-22",
 };
 const gonzalo: CandidatoColportor = {
@@ -36,6 +37,7 @@ const gonzalo: CandidatoColportor = {
   email: "gonzalo.sosa@example.com",
   estadoCuenta: "pendiente_asignacion",
   campaniaActual: null,
+  enOtraCampania: false,
   cuentaCreada: "2026-09-21",
 };
 const pedro: CandidatoColportor = {
@@ -44,6 +46,7 @@ const pedro: CandidatoColportor = {
   email: "pedro.lopez@example.com",
   estadoCuenta: "pendiente_asignacion",
   campaniaActual: null,
+  enOtraCampania: false,
   cuentaCreada: "2026-09-20",
 };
 
@@ -139,8 +142,27 @@ describe("la marca de «otra campaña» (CI007) y las búsquedas nuevas", () => 
     expect(fila("Ana Martínez")).toHaveTextContent("Campaña actual: sin campaña");
   });
 
+  it("quien sigue en una campaña en curso pero la base lo deja añadir a esta (por empezar) no sale bloqueado y se añade", async () => {
+    const { inscribir } = montar(async () => ({
+      ok: true,
+      candidatos: [{ ...ana, campaniaActual: "Otoño Norte", enOtraCampania: false }],
+      hayMas: false,
+    }));
+    await escribir("ana");
+
+    expect(anadirEnFila("Ana Martínez")).toBeEnabled();
+    expect(fila("Ana Martínez")).toHaveTextContent("Campaña actual: Otoño Norte");
+    expect(fila("Ana Martínez")).not.toHaveTextContent("Reasignar primero");
+
+    await act(async () => {
+      fireEvent.click(anadirEnFila("Ana Martínez"));
+      await vi.advanceTimersByTimeAsync(8000);
+    });
+    expect(inscribir).toHaveBeenCalledExactlyOnceWith(ana.id);
+  });
+
   it("una búsqueda nueva que todavía la trae en otra campaña la mantiene bloqueada, con la campaña que dice el servidor", async () => {
-    montar(async () => ({ ok: true, candidatos: [{ ...ana, campaniaActual: "Invierno Sur" }], hayMas: false }));
+    montar(async () => ({ ok: true, candidatos: [{ ...ana, campaniaActual: "Invierno Sur", enOtraCampania: true }], hayMas: false }));
     await anadirYQuedarRechazada("Ana Martínez");
 
     await escribir("ana");

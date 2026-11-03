@@ -1,0 +1,3503 @@
+{
+  "escenarios": [
+    {
+      "sel": "all",
+      "tab": "ALL",
+      "title": "Todas las ciudades",
+      "sub": "5 por autorizar · 12 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "10"
+        ],
+        [
+          "Por autorizar",
+          "4"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "2"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#231",
+          "who": "Emiliano Sosa",
+          "what": "3 productos · 48 unidades",
+          "amount": "$U 36.040",
+          "tag": "△ Supera el límite"
+        },
+        {
+          "num": "#230",
+          "who": "Lucía Fernández",
+          "what": "2 productos · 7 unidades",
+          "amount": "$U 16.550",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "#229",
+          "who": "Sofía Cabral",
+          "what": "3 productos · 58 unidades",
+          "amount": "$U 21.300",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "#228",
+          "who": "Rodrigo Cardozo",
+          "what": "1 producto · 25 unidades",
+          "amount": "$U 19.800",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "#224",
+          "who": "Valentina Silva",
+          "what": "1 producto · 12 unidades",
+          "amount": "$U 17.400",
+          "tag": "Autorizado"
+        },
+        {
+          "num": "#219",
+          "who": "Natalia Vidal",
+          "what": "2 productos · 55 unidades",
+          "amount": "$U 37.300",
+          "tag": "Despachado"
+        },
+        {
+          "num": "#216",
+          "who": "Matías Rivero",
+          "what": "1 producto · 10 unidades",
+          "amount": "$U 16.500",
+          "tag": "Despachado"
+        },
+        {
+          "num": "#214",
+          "who": "Julieta Moreira",
+          "what": "1 producto · 6 unidades",
+          "amount": "$U 17.400",
+          "tag": "Recibido"
+        },
+        {
+          "num": "#210",
+          "who": "Martín Olivera",
+          "what": "1 producto · 10 unidades",
+          "amount": "$U 19.800",
+          "tag": "Recibido"
+        },
+        {
+          "num": "#205",
+          "who": "Gonzalo Méndez",
+          "what": "1 producto · 30 unidades",
+          "amount": "$U 23.760",
+          "tag": "Rechazado"
+        }
+      ]
+    },
+    {
+      "sel": "all",
+      "tab": "PEND",
+      "title": "Todas las ciudades",
+      "sub": "5 por autorizar · 12 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "10"
+        ],
+        [
+          "Por autorizar",
+          "4"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "2"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#231",
+          "who": "Emiliano Sosa",
+          "what": "3 productos · 48 unidades",
+          "amount": "$U 36.040",
+          "tag": "△ Supera el límite"
+        },
+        {
+          "num": "#230",
+          "who": "Lucía Fernández",
+          "what": "2 productos · 7 unidades",
+          "amount": "$U 16.550",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "#229",
+          "who": "Sofía Cabral",
+          "what": "3 productos · 58 unidades",
+          "amount": "$U 21.300",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "#228",
+          "who": "Rodrigo Cardozo",
+          "what": "1 producto · 25 unidades",
+          "amount": "$U 19.800",
+          "tag": "Por autorizar"
+        }
+      ]
+    },
+    {
+      "sel": "all",
+      "tab": "AUT",
+      "title": "Todas las ciudades",
+      "sub": "5 por autorizar · 12 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "10"
+        ],
+        [
+          "Por autorizar",
+          "4"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "2"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#224",
+          "who": "Valentina Silva",
+          "what": "1 producto · 12 unidades",
+          "amount": "$U 17.400",
+          "tag": "Autorizado"
+        }
+      ]
+    },
+    {
+      "sel": "all",
+      "tab": "DES",
+      "title": "Todas las ciudades",
+      "sub": "5 por autorizar · 12 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "10"
+        ],
+        [
+          "Por autorizar",
+          "4"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "2"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#219",
+          "who": "Natalia Vidal",
+          "what": "2 productos · 55 unidades",
+          "amount": "$U 37.300",
+          "tag": "Despachado"
+        },
+        {
+          "num": "#216",
+          "who": "Matías Rivero",
+          "what": "1 producto · 10 unidades",
+          "amount": "$U 16.500",
+          "tag": "Despachado"
+        }
+      ]
+    },
+    {
+      "sel": "all",
+      "tab": "REC",
+      "title": "Todas las ciudades",
+      "sub": "5 por autorizar · 12 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "10"
+        ],
+        [
+          "Por autorizar",
+          "4"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "2"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#214",
+          "who": "Julieta Moreira",
+          "what": "1 producto · 6 unidades",
+          "amount": "$U 17.400",
+          "tag": "Recibido"
+        },
+        {
+          "num": "#210",
+          "who": "Martín Olivera",
+          "what": "1 producto · 10 unidades",
+          "amount": "$U 19.800",
+          "tag": "Recibido"
+        }
+      ]
+    },
+    {
+      "sel": "all",
+      "tab": "RECH",
+      "title": "Todas las ciudades",
+      "sub": "5 por autorizar · 12 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "10"
+        ],
+        [
+          "Por autorizar",
+          "4"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "2"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#205",
+          "who": "Gonzalo Méndez",
+          "what": "1 producto · 30 unidades",
+          "amount": "$U 23.760",
+          "tag": "Rechazado"
+        }
+      ]
+    },
+    {
+      "sel": "all",
+      "tab": "TRF",
+      "title": "Todas las ciudades",
+      "sub": "5 por autorizar · 12 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "10"
+        ],
+        [
+          "Por autorizar",
+          "4"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "2"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "T-18",
+          "who": "Valentina Silva → Lucía Fernández",
+          "what": "2 × La Gran Esperanza",
+          "amount": "$U 2.900",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "T-17",
+          "who": "Micaela Rodríguez → Joaquín Duarte",
+          "what": "10 × Revista Vida Feliz",
+          "amount": "$U 1.900",
+          "tag": "Autorizada"
+        }
+      ]
+    },
+    {
+      "sel": "riv",
+      "tab": "ALL",
+      "title": "Rivera",
+      "sub": "3 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "4"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "0"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#231",
+          "who": "Emiliano Sosa",
+          "what": "3 productos · 48 unidades",
+          "amount": "$U 36.040",
+          "tag": "△ Supera el límite"
+        },
+        {
+          "num": "#230",
+          "who": "Lucía Fernández",
+          "what": "2 productos · 7 unidades",
+          "amount": "$U 16.550",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "#224",
+          "who": "Valentina Silva",
+          "what": "1 producto · 12 unidades",
+          "amount": "$U 17.400",
+          "tag": "Autorizado"
+        },
+        {
+          "num": "#210",
+          "who": "Martín Olivera",
+          "what": "1 producto · 10 unidades",
+          "amount": "$U 19.800",
+          "tag": "Recibido"
+        }
+      ]
+    },
+    {
+      "sel": "riv",
+      "tab": "PEND",
+      "title": "Rivera",
+      "sub": "3 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "4"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "0"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#231",
+          "who": "Emiliano Sosa",
+          "what": "3 productos · 48 unidades",
+          "amount": "$U 36.040",
+          "tag": "△ Supera el límite"
+        },
+        {
+          "num": "#230",
+          "who": "Lucía Fernández",
+          "what": "2 productos · 7 unidades",
+          "amount": "$U 16.550",
+          "tag": "Por autorizar"
+        }
+      ]
+    },
+    {
+      "sel": "riv",
+      "tab": "AUT",
+      "title": "Rivera",
+      "sub": "3 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "4"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "0"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#224",
+          "who": "Valentina Silva",
+          "what": "1 producto · 12 unidades",
+          "amount": "$U 17.400",
+          "tag": "Autorizado"
+        }
+      ]
+    },
+    {
+      "sel": "riv",
+      "tab": "DES",
+      "title": "Rivera",
+      "sub": "3 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "4"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "0"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": []
+    },
+    {
+      "sel": "riv",
+      "tab": "REC",
+      "title": "Rivera",
+      "sub": "3 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "4"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "0"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#210",
+          "who": "Martín Olivera",
+          "what": "1 producto · 10 unidades",
+          "amount": "$U 19.800",
+          "tag": "Recibido"
+        }
+      ]
+    },
+    {
+      "sel": "riv",
+      "tab": "RECH",
+      "title": "Rivera",
+      "sub": "3 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "4"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "0"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": []
+    },
+    {
+      "sel": "riv",
+      "tab": "TRF",
+      "title": "Rivera",
+      "sub": "3 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "4"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "0"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "T-18",
+          "who": "Valentina Silva → Lucía Fernández",
+          "what": "2 × La Gran Esperanza",
+          "amount": "$U 2.900",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "T-17",
+          "who": "Micaela Rodríguez → Joaquín Duarte",
+          "what": "10 × Revista Vida Feliz",
+          "amount": "$U 1.900",
+          "tag": "Autorizada"
+        }
+      ]
+    },
+    {
+      "sel": "dept-art",
+      "tab": "ALL",
+      "title": "Departamento Artigas",
+      "sub": "2 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "6"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#229",
+          "who": "Sofía Cabral",
+          "what": "3 productos · 58 unidades",
+          "amount": "$U 21.300",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "#228",
+          "who": "Rodrigo Cardozo",
+          "what": "1 producto · 25 unidades",
+          "amount": "$U 19.800",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "#219",
+          "who": "Natalia Vidal",
+          "what": "2 productos · 55 unidades",
+          "amount": "$U 37.300",
+          "tag": "Despachado"
+        },
+        {
+          "num": "#216",
+          "who": "Matías Rivero",
+          "what": "1 producto · 10 unidades",
+          "amount": "$U 16.500",
+          "tag": "Despachado"
+        },
+        {
+          "num": "#214",
+          "who": "Julieta Moreira",
+          "what": "1 producto · 6 unidades",
+          "amount": "$U 17.400",
+          "tag": "Recibido"
+        },
+        {
+          "num": "#205",
+          "who": "Gonzalo Méndez",
+          "what": "1 producto · 30 unidades",
+          "amount": "$U 23.760",
+          "tag": "Rechazado"
+        }
+      ]
+    },
+    {
+      "sel": "dept-art",
+      "tab": "PEND",
+      "title": "Departamento Artigas",
+      "sub": "2 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "6"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#229",
+          "who": "Sofía Cabral",
+          "what": "3 productos · 58 unidades",
+          "amount": "$U 21.300",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "#228",
+          "who": "Rodrigo Cardozo",
+          "what": "1 producto · 25 unidades",
+          "amount": "$U 19.800",
+          "tag": "Por autorizar"
+        }
+      ]
+    },
+    {
+      "sel": "dept-art",
+      "tab": "AUT",
+      "title": "Departamento Artigas",
+      "sub": "2 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "6"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": []
+    },
+    {
+      "sel": "dept-art",
+      "tab": "DES",
+      "title": "Departamento Artigas",
+      "sub": "2 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "6"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#219",
+          "who": "Natalia Vidal",
+          "what": "2 productos · 55 unidades",
+          "amount": "$U 37.300",
+          "tag": "Despachado"
+        },
+        {
+          "num": "#216",
+          "who": "Matías Rivero",
+          "what": "1 producto · 10 unidades",
+          "amount": "$U 16.500",
+          "tag": "Despachado"
+        }
+      ]
+    },
+    {
+      "sel": "dept-art",
+      "tab": "REC",
+      "title": "Departamento Artigas",
+      "sub": "2 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "6"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#214",
+          "who": "Julieta Moreira",
+          "what": "1 producto · 6 unidades",
+          "amount": "$U 17.400",
+          "tag": "Recibido"
+        }
+      ]
+    },
+    {
+      "sel": "dept-art",
+      "tab": "RECH",
+      "title": "Departamento Artigas",
+      "sub": "2 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "6"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#205",
+          "who": "Gonzalo Méndez",
+          "what": "1 producto · 30 unidades",
+          "amount": "$U 23.760",
+          "tag": "Rechazado"
+        }
+      ]
+    },
+    {
+      "sel": "dept-art",
+      "tab": "TRF",
+      "title": "Departamento Artigas",
+      "sub": "2 por autorizar · 6 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "6"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": []
+    },
+    {
+      "sel": "art",
+      "tab": "ALL",
+      "title": "Artigas",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#229",
+          "who": "Sofía Cabral",
+          "what": "3 productos · 58 unidades",
+          "amount": "$U 21.300",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "#219",
+          "who": "Natalia Vidal",
+          "what": "2 productos · 55 unidades",
+          "amount": "$U 37.300",
+          "tag": "Despachado"
+        },
+        {
+          "num": "#214",
+          "who": "Julieta Moreira",
+          "what": "1 producto · 6 unidades",
+          "amount": "$U 17.400",
+          "tag": "Recibido"
+        }
+      ]
+    },
+    {
+      "sel": "art",
+      "tab": "PEND",
+      "title": "Artigas",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#229",
+          "who": "Sofía Cabral",
+          "what": "3 productos · 58 unidades",
+          "amount": "$U 21.300",
+          "tag": "Por autorizar"
+        }
+      ]
+    },
+    {
+      "sel": "art",
+      "tab": "AUT",
+      "title": "Artigas",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": []
+    },
+    {
+      "sel": "art",
+      "tab": "DES",
+      "title": "Artigas",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#219",
+          "who": "Natalia Vidal",
+          "what": "2 productos · 55 unidades",
+          "amount": "$U 37.300",
+          "tag": "Despachado"
+        }
+      ]
+    },
+    {
+      "sel": "art",
+      "tab": "REC",
+      "title": "Artigas",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#214",
+          "who": "Julieta Moreira",
+          "what": "1 producto · 6 unidades",
+          "amount": "$U 17.400",
+          "tag": "Recibido"
+        }
+      ]
+    },
+    {
+      "sel": "art",
+      "tab": "RECH",
+      "title": "Artigas",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": []
+    },
+    {
+      "sel": "art",
+      "tab": "TRF",
+      "title": "Artigas",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": []
+    },
+    {
+      "sel": "bu",
+      "tab": "ALL",
+      "title": "Bella Unión",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "0"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#228",
+          "who": "Rodrigo Cardozo",
+          "what": "1 producto · 25 unidades",
+          "amount": "$U 19.800",
+          "tag": "Por autorizar"
+        },
+        {
+          "num": "#216",
+          "who": "Matías Rivero",
+          "what": "1 producto · 10 unidades",
+          "amount": "$U 16.500",
+          "tag": "Despachado"
+        },
+        {
+          "num": "#205",
+          "who": "Gonzalo Méndez",
+          "what": "1 producto · 30 unidades",
+          "amount": "$U 23.760",
+          "tag": "Rechazado"
+        }
+      ]
+    },
+    {
+      "sel": "bu",
+      "tab": "PEND",
+      "title": "Bella Unión",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "0"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#228",
+          "who": "Rodrigo Cardozo",
+          "what": "1 producto · 25 unidades",
+          "amount": "$U 19.800",
+          "tag": "Por autorizar"
+        }
+      ]
+    },
+    {
+      "sel": "bu",
+      "tab": "AUT",
+      "title": "Bella Unión",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "0"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": []
+    },
+    {
+      "sel": "bu",
+      "tab": "DES",
+      "title": "Bella Unión",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "0"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#216",
+          "who": "Matías Rivero",
+          "what": "1 producto · 10 unidades",
+          "amount": "$U 16.500",
+          "tag": "Despachado"
+        }
+      ]
+    },
+    {
+      "sel": "bu",
+      "tab": "REC",
+      "title": "Bella Unión",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "0"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": []
+    },
+    {
+      "sel": "bu",
+      "tab": "RECH",
+      "title": "Bella Unión",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "0"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": [
+        {
+          "num": "#205",
+          "who": "Gonzalo Méndez",
+          "what": "1 producto · 30 unidades",
+          "amount": "$U 23.760",
+          "tag": "Rechazado"
+        }
+      ]
+    },
+    {
+      "sel": "bu",
+      "tab": "TRF",
+      "title": "Bella Unión",
+      "sub": "1 por autorizar · 3 en la campaña",
+      "lista": [
+        [
+          "Todas las ciudades",
+          "5 por autorizar"
+        ],
+        [
+          "Rivera",
+          "3 por autorizar"
+        ],
+        [
+          "Todo el departamento",
+          "2 por autorizar"
+        ],
+        [
+          "Artigas",
+          "1 por autorizar"
+        ],
+        [
+          "Bella Unión",
+          "1 por autorizar"
+        ]
+      ],
+      "tabs": [
+        [
+          "Todos",
+          "3"
+        ],
+        [
+          "Por autorizar",
+          "1"
+        ],
+        [
+          "Autorizados",
+          "0"
+        ],
+        [
+          "Despachados",
+          "1"
+        ],
+        [
+          "Recibidos",
+          "0"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "0"
+        ]
+      ],
+      "filas": []
+    }
+  ],
+  "detalles": {
+    "#231": {
+      "title": "Pedido #231",
+      "tag": "△ Supera el límite",
+      "steps": [
+        [
+          "Por autorizar",
+          ""
+        ],
+        [
+          "Autorizado",
+          ""
+        ],
+        [
+          "Despachado",
+          ""
+        ],
+        [
+          "Recibido",
+          ""
+        ]
+      ],
+      "warn": "Con este pedido la deuda queda en $U 58.140 y supera el límite de $U 50.000 por $U 8.140. Podés autorizarlo igual.",
+      "itemsTitle": "LO QUE PIDE",
+      "items": [
+        [
+          "La Gran Esperanza",
+          "10",
+          "$U 1.450 c/u",
+          "$U 14.500"
+        ],
+        [
+          "El Deseado de Todas las Gentes",
+          "8",
+          "$U 1.980 c/u",
+          "$U 15.840"
+        ],
+        [
+          "Revista Vida Feliz",
+          "30",
+          "$U 190 c/u",
+          "$U 5.700"
+        ]
+      ],
+      "totL": "Total del pedido",
+      "totT": "$U 36.040",
+      "ctxTitle": "CUENTA DE EMILIANO",
+      "ctx": [
+        [
+          "Deuda actual",
+          "$U 22.100",
+          null,
+          "400"
+        ],
+        [
+          "Deuda con este pedido",
+          "$U 58.140",
+          "límite $U 50.000",
+          "600"
+        ],
+        [
+          "Por cobrar",
+          "$U 12.600",
+          null,
+          "400"
+        ],
+        [
+          "Libros por entregar",
+          "4",
+          null,
+          "400"
+        ],
+        [
+          "Último depósito",
+          "10/10 · $U 9.000",
+          null,
+          "400"
+        ],
+        [
+          "Stock de estos productos",
+          "",
+          "La Gran Esperanza 0 · El Deseado 2 · revistas 6",
+          "400"
+        ]
+      ],
+      "canAct": true,
+      "actNote": "Al autorizar se suma $U 36.040 a la deuda de Emiliano.",
+      "noteBox": null
+    },
+    "#230": {
+      "title": "Pedido #230",
+      "tag": "Por autorizar",
+      "steps": [
+        [
+          "Por autorizar",
+          ""
+        ],
+        [
+          "Autorizado",
+          ""
+        ],
+        [
+          "Despachado",
+          ""
+        ],
+        [
+          "Recibido",
+          ""
+        ]
+      ],
+      "warn": null,
+      "itemsTitle": "LO QUE PIDE",
+      "items": [
+        [
+          "Vida Sana · 3 tomos",
+          "4",
+          "$U 2.900 c/u",
+          "$U 11.600"
+        ],
+        [
+          "Historias para Niños",
+          "3",
+          "$U 1.650 c/u",
+          "$U 4.950"
+        ]
+      ],
+      "totL": "Total del pedido",
+      "totT": "$U 16.550",
+      "ctxTitle": "CUENTA DE LUCÍA",
+      "ctx": [
+        [
+          "Deuda actual",
+          "$U 14.300",
+          null,
+          "400"
+        ],
+        [
+          "Deuda con este pedido",
+          "$U 30.850",
+          "límite $U 50.000",
+          "600"
+        ],
+        [
+          "Por cobrar",
+          "$U 8.200",
+          null,
+          "400"
+        ],
+        [
+          "Libros por entregar",
+          "2",
+          null,
+          "400"
+        ],
+        [
+          "Último depósito",
+          "17/10 · $U 12.000",
+          null,
+          "400"
+        ],
+        [
+          "Stock de estos productos",
+          "",
+          "Vida Sana 1 · Historias para Niños 0",
+          "400"
+        ]
+      ],
+      "canAct": true,
+      "actNote": "Al autorizar se suma $U 16.550 a la deuda de Lucía.",
+      "noteBox": null
+    },
+    "#229": {
+      "title": "Pedido #229",
+      "tag": "Por autorizar",
+      "steps": [
+        [
+          "Por autorizar",
+          ""
+        ],
+        [
+          "Autorizado",
+          ""
+        ],
+        [
+          "Despachado",
+          ""
+        ],
+        [
+          "Recibido",
+          ""
+        ]
+      ],
+      "warn": null,
+      "itemsTitle": "LO QUE PIDE",
+      "items": [
+        [
+          "Jugos que curan",
+          "10",
+          "$U 890 c/u",
+          "$U 8.900"
+        ],
+        [
+          "Alimentos saludables",
+          "8",
+          "$U 950 c/u",
+          "$U 7.600"
+        ],
+        [
+          "Pamplona",
+          "40",
+          "$U 120 c/u",
+          "$U 4.800"
+        ]
+      ],
+      "totL": "Total del pedido",
+      "totT": "$U 21.300",
+      "ctxTitle": "CUENTA DE SOFÍA",
+      "ctx": [
+        [
+          "Deuda actual",
+          "$U 18.200",
+          null,
+          "400"
+        ],
+        [
+          "Deuda con este pedido",
+          "$U 39.500",
+          "límite $U 50.000",
+          "600"
+        ],
+        [
+          "Por cobrar",
+          "$U 6.400",
+          null,
+          "400"
+        ],
+        [
+          "Libros por entregar",
+          "2",
+          null,
+          "400"
+        ],
+        [
+          "Último depósito",
+          "14/10 · $U 18.500",
+          null,
+          "400"
+        ],
+        [
+          "Stock de estos productos",
+          "",
+          "Jugos 1 · Alimentos 0 · misioneros 0",
+          "400"
+        ]
+      ],
+      "canAct": true,
+      "actNote": "Al autorizar se suma $U 21.300 a la deuda de Sofía.",
+      "noteBox": null
+    },
+    "#228": {
+      "title": "Pedido #228",
+      "tag": "Por autorizar",
+      "steps": [
+        [
+          "Por autorizar",
+          ""
+        ],
+        [
+          "Autorizado",
+          ""
+        ],
+        [
+          "Despachado",
+          ""
+        ],
+        [
+          "Recibido",
+          ""
+        ]
+      ],
+      "warn": null,
+      "itemsTitle": "LO QUE PIDE",
+      "items": [
+        [
+          "La Gran Esperanza",
+          "25",
+          "$U 792 c/u",
+          "$U 19.800"
+        ]
+      ],
+      "totL": "Total del pedido",
+      "totT": "$U 19.800",
+      "ctxTitle": "CUENTA DE RODRIGO",
+      "ctx": [
+        [
+          "Deuda actual",
+          "$U 26.000",
+          null,
+          "400"
+        ],
+        [
+          "Deuda con este pedido",
+          "$U 45.800",
+          "límite $U 50.000",
+          "600"
+        ],
+        [
+          "Por cobrar",
+          "$U 9.100",
+          null,
+          "400"
+        ],
+        [
+          "Libros por entregar",
+          "3",
+          null,
+          "400"
+        ],
+        [
+          "Último depósito",
+          "13/10 · $U 15.000",
+          null,
+          "400"
+        ],
+        [
+          "Stock de estos productos",
+          "",
+          "La Gran Esperanza 2",
+          "400"
+        ]
+      ],
+      "canAct": true,
+      "actNote": "Al autorizar se suma $U 19.800 a la deuda de Rodrigo.",
+      "noteBox": null
+    },
+    "#224": {
+      "title": "Pedido #224",
+      "tag": "Autorizado",
+      "steps": [
+        [
+          "Por autorizar",
+          "✓"
+        ],
+        [
+          "Autorizado",
+          ""
+        ],
+        [
+          "Despachado",
+          ""
+        ],
+        [
+          "Recibido",
+          ""
+        ]
+      ],
+      "warn": null,
+      "itemsTitle": "LO QUE PIDE",
+      "items": [
+        [
+          "La Gran Esperanza",
+          "12",
+          "$U 1.450 c/u",
+          "$U 17.400"
+        ]
+      ],
+      "totL": "Total del pedido",
+      "totT": "$U 17.400",
+      "ctxTitle": "CUENTA DE VALENTINA",
+      "ctx": [
+        [
+          "Deuda actual",
+          "$U 31.000",
+          null,
+          "400"
+        ],
+        [
+          "Deuda con este pedido",
+          "$U 48.400",
+          "límite $U 50.000",
+          "600"
+        ],
+        [
+          "Por cobrar",
+          "$U 7.300",
+          null,
+          "400"
+        ],
+        [
+          "Libros por entregar",
+          "0",
+          null,
+          "400"
+        ],
+        [
+          "Último depósito",
+          "16/10 · $U 10.000",
+          null,
+          "400"
+        ],
+        [
+          "Stock de estos productos",
+          "",
+          "La Gran Esperanza 3",
+          "400"
+        ]
+      ],
+      "canAct": false,
+      "actNote": null,
+      "noteBox": null
+    },
+    "#219": {
+      "title": "Pedido #219",
+      "tag": "Despachado",
+      "steps": [
+        [
+          "Por autorizar",
+          "✓"
+        ],
+        [
+          "Autorizado",
+          "✓"
+        ],
+        [
+          "Despachado",
+          ""
+        ],
+        [
+          "Recibido",
+          ""
+        ]
+      ],
+      "warn": null,
+      "itemsTitle": "LO QUE PIDE",
+      "items": [
+        [
+          "El Deseado de Todas las Gentes",
+          "15",
+          "$U 1.980 c/u",
+          "$U 29.700"
+        ],
+        [
+          "Revista Salud y Hogar",
+          "40",
+          "$U 190 c/u",
+          "$U 7.600"
+        ]
+      ],
+      "totL": "Total del pedido",
+      "totT": "$U 37.300",
+      "ctxTitle": "CUENTA DE NATALIA",
+      "ctx": [
+        [
+          "Deuda actual",
+          "$U 29.400",
+          null,
+          "400"
+        ],
+        [
+          "Deuda con este pedido",
+          "$U 66.700",
+          "límite $U 50.000",
+          "600"
+        ],
+        [
+          "Por cobrar",
+          "$U 5.200",
+          null,
+          "400"
+        ],
+        [
+          "Libros por entregar",
+          "1",
+          null,
+          "400"
+        ],
+        [
+          "Último depósito",
+          "18/10 · $U 20.000",
+          null,
+          "400"
+        ],
+        [
+          "Stock de estos productos",
+          "",
+          "El Deseado 4 · revistas 12",
+          "400"
+        ]
+      ],
+      "canAct": false,
+      "actNote": null,
+      "noteBox": "La casa editora lo despachó el 12/10. Natalia lo marca como recibido desde el celular cuando le llegan los libros."
+    },
+    "#216": {
+      "title": "Pedido #216",
+      "tag": "Despachado",
+      "steps": [
+        [
+          "Por autorizar",
+          "✓"
+        ],
+        [
+          "Autorizado",
+          "✓"
+        ],
+        [
+          "Despachado",
+          ""
+        ],
+        [
+          "Recibido",
+          ""
+        ]
+      ],
+      "warn": null,
+      "itemsTitle": "LO QUE PIDE",
+      "items": [
+        [
+          "Historias para Niños",
+          "10",
+          "$U 1.650 c/u",
+          "$U 16.500"
+        ]
+      ],
+      "totL": "Total del pedido",
+      "totT": "$U 16.500",
+      "ctxTitle": "CUENTA DE MATÍAS",
+      "ctx": [
+        [
+          "Deuda actual",
+          "$U 21.000",
+          null,
+          "400"
+        ],
+        [
+          "Deuda con este pedido",
+          "$U 37.500",
+          "límite $U 50.000",
+          "600"
+        ],
+        [
+          "Por cobrar",
+          "$U 4.300",
+          null,
+          "400"
+        ],
+        [
+          "Libros por entregar",
+          "0",
+          null,
+          "400"
+        ],
+        [
+          "Último depósito",
+          "15/10 · $U 8.000",
+          null,
+          "400"
+        ],
+        [
+          "Stock de estos productos",
+          "",
+          "Historias para Niños 1",
+          "400"
+        ]
+      ],
+      "canAct": false,
+      "actNote": null,
+      "noteBox": "La casa editora lo despachó el 11/10."
+    },
+    "#214": {
+      "title": "Pedido #214",
+      "tag": "Recibido",
+      "steps": [
+        [
+          "Por autorizar",
+          "✓"
+        ],
+        [
+          "Autorizado",
+          "✓"
+        ],
+        [
+          "Despachado",
+          "✓"
+        ],
+        [
+          "Recibido",
+          "✓"
+        ]
+      ],
+      "warn": null,
+      "itemsTitle": "LO QUE PIDE",
+      "items": [
+        [
+          "Vida Sana · 3 tomos",
+          "6",
+          "$U 2.900 c/u",
+          "$U 17.400"
+        ]
+      ],
+      "totL": "Total del pedido",
+      "totT": "$U 17.400",
+      "ctxTitle": "CUENTA DE JULIETA",
+      "ctx": [
+        [
+          "Deuda actual",
+          "$U 19.800",
+          null,
+          "400"
+        ],
+        [
+          "Deuda con este pedido",
+          "$U 37.200",
+          "límite $U 50.000",
+          "600"
+        ],
+        [
+          "Por cobrar",
+          "$U 6.100",
+          null,
+          "400"
+        ],
+        [
+          "Libros por entregar",
+          "0",
+          null,
+          "400"
+        ],
+        [
+          "Último depósito",
+          "19/10 · $U 14.000",
+          null,
+          "400"
+        ],
+        [
+          "Stock de estos productos",
+          "",
+          "Vida Sana 3",
+          "400"
+        ]
+      ],
+      "canAct": false,
+      "actNote": null,
+      "noteBox": "Julieta lo recibió el 10/10."
+    },
+    "#210": {
+      "title": "Pedido #210",
+      "tag": "Recibido",
+      "steps": [
+        [
+          "Por autorizar",
+          "✓"
+        ],
+        [
+          "Autorizado",
+          "✓"
+        ],
+        [
+          "Despachado",
+          "✓"
+        ],
+        [
+          "Recibido",
+          "✓"
+        ]
+      ],
+      "warn": null,
+      "itemsTitle": "LO QUE PIDE",
+      "items": [
+        [
+          "El Deseado de Todas las Gentes",
+          "10",
+          "$U 1.980 c/u",
+          "$U 19.800"
+        ]
+      ],
+      "totL": "Total del pedido",
+      "totT": "$U 19.800",
+      "ctxTitle": "CUENTA DE MARTÍN",
+      "ctx": [
+        [
+          "Deuda actual",
+          "$U 16.900",
+          null,
+          "400"
+        ],
+        [
+          "Deuda con este pedido",
+          "$U 36.700",
+          "límite $U 50.000",
+          "600"
+        ],
+        [
+          "Por cobrar",
+          "$U 5.800",
+          null,
+          "400"
+        ],
+        [
+          "Libros por entregar",
+          "0",
+          null,
+          "400"
+        ],
+        [
+          "Último depósito",
+          "12/10 · $U 9.500",
+          null,
+          "400"
+        ],
+        [
+          "Stock de estos productos",
+          "",
+          "El Deseado 5",
+          "400"
+        ]
+      ],
+      "canAct": false,
+      "actNote": null,
+      "noteBox": "Martín lo recibió el 05/10."
+    },
+    "#205": {
+      "title": "Pedido #205",
+      "tag": "Rechazado",
+      "steps": [
+        [
+          "Por autorizar",
+          "✓"
+        ],
+        [
+          "Rechazado",
+          "✓"
+        ]
+      ],
+      "warn": null,
+      "itemsTitle": "LO QUE PIDE",
+      "items": [
+        [
+          "La Gran Esperanza",
+          "30",
+          "$U 792 c/u",
+          "$U 23.760"
+        ]
+      ],
+      "totL": "Total del pedido",
+      "totT": "$U 23.760",
+      "ctxTitle": "CUENTA DE GONZALO",
+      "ctx": [
+        [
+          "Deuda actual",
+          "$U 41.200",
+          null,
+          "400"
+        ],
+        [
+          "Deuda con este pedido",
+          "$U 64.960",
+          "límite $U 50.000",
+          "600"
+        ],
+        [
+          "Por cobrar",
+          "$U 15.300",
+          null,
+          "400"
+        ],
+        [
+          "Libros por entregar",
+          "0",
+          null,
+          "400"
+        ],
+        [
+          "Último depósito",
+          "22/09 · $U 6.000",
+          null,
+          "400"
+        ],
+        [
+          "Stock de estos productos",
+          "",
+          "La Gran Esperanza 8",
+          "400"
+        ]
+      ],
+      "canAct": false,
+      "actNote": null,
+      "noteBox": "Rechazado el 30/09. Motivo: “Tenía un depósito pendiente de validar; volvé a pedirlo cuando se acredite.”"
+    },
+    "T-18": {
+      "title": "Transferencia T-18",
+      "tag": "Por autorizar",
+      "steps": [
+        [
+          "Por autorizar",
+          ""
+        ],
+        [
+          "Autorizada",
+          ""
+        ]
+      ],
+      "warn": null,
+      "itemsTitle": "LO QUE SE TRANSFIERE",
+      "items": [
+        [
+          "La Gran Esperanza",
+          "2",
+          "$U 1.450 c/u",
+          "$U 2.900"
+        ]
+      ],
+      "totL": "Deuda que se transfiere",
+      "totT": "$U 2.900",
+      "ctxTitle": "STOCK DE LOS DOS",
+      "ctx": [
+        [
+          "Valentina tiene",
+          "3",
+          "le quedan 1",
+          "400"
+        ],
+        [
+          "Lucía debe entregar",
+          "2",
+          "tiene 0",
+          "400"
+        ],
+        [
+          "Deuda que pasa a Lucía",
+          "$U 2.900",
+          null,
+          "600"
+        ]
+      ],
+      "canAct": true,
+      "actNote": "Al autorizar, la deuda de $U 2.900 pasa de Valentina a Lucía.",
+      "noteBox": null
+    },
+    "T-17": {
+      "title": "Transferencia T-17",
+      "tag": "Autorizada",
+      "steps": [
+        [
+          "Por autorizar",
+          "✓"
+        ],
+        [
+          "Autorizada",
+          "✓"
+        ]
+      ],
+      "warn": null,
+      "itemsTitle": "LO QUE SE TRANSFIERE",
+      "items": [
+        [
+          "Revista Vida Feliz",
+          "10",
+          "$U 190 c/u",
+          "$U 1.900"
+        ]
+      ],
+      "totL": "Deuda que se transfiere",
+      "totT": "$U 1.900",
+      "ctxTitle": "STOCK DE LOS DOS",
+      "ctx": [
+        [
+          "Micaela tiene",
+          "14",
+          "le quedan 4",
+          "400"
+        ],
+        [
+          "Joaquín debe entregar",
+          "0",
+          "tiene 2",
+          "400"
+        ],
+        [
+          "Deuda que pasa a Joaquín",
+          "$U 1.900",
+          null,
+          "600"
+        ]
+      ],
+      "canAct": false,
+      "actNote": null,
+      "noteBox": "Autorizada el 14/10."
+    }
+  },
+  "artboards": [
+    {
+      "label": "A · 01 · POR AUTORIZAR · PEDIDO QUE SUPERA EL LÍMITE",
+      "screen": "35A · 01 POR AUTORIZAR · PEDIDO QUE SUPERA EL LÍMITE",
+      "title": "Todas las ciudades",
+      "sub": "5 por autorizar · 12 en la campaña",
+      "tabs": [
+        [
+          "Todos",
+          "10"
+        ],
+        [
+          "Por autorizar",
+          "4"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "2"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        "#231",
+        "#230",
+        "#229",
+        "#228"
+      ],
+      "detalle": "Pedido #231"
+    },
+    {
+      "label": "A · 02 · RIVERA · TRANSFERENCIA POR AUTORIZAR",
+      "screen": "35A · 02 RIVERA · TRANSFERENCIA POR AUTORIZAR",
+      "title": "Rivera",
+      "sub": "3 por autorizar · 6 en la campaña",
+      "tabs": [
+        [
+          "Todos",
+          "4"
+        ],
+        [
+          "Por autorizar",
+          "2"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "0"
+        ],
+        [
+          "Recibidos",
+          "1"
+        ],
+        [
+          "Rechazados",
+          "0"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        "T-18",
+        "T-17"
+      ],
+      "detalle": "Transferencia T-18"
+    },
+    {
+      "label": "A · 03 · DESPACHADOS · SEGUIMIENTO",
+      "screen": "35A · 03 DESPACHADOS · SEGUIMIENTO",
+      "title": "Todas las ciudades",
+      "sub": "5 por autorizar · 12 en la campaña",
+      "tabs": [
+        [
+          "Todos",
+          "10"
+        ],
+        [
+          "Por autorizar",
+          "4"
+        ],
+        [
+          "Autorizados",
+          "1"
+        ],
+        [
+          "Despachados",
+          "2"
+        ],
+        [
+          "Recibidos",
+          "2"
+        ],
+        [
+          "Rechazados",
+          "1"
+        ],
+        [
+          "Transferencias",
+          "2"
+        ]
+      ],
+      "filas": [
+        "#219",
+        "#216"
+      ],
+      "detalle": "Pedido #219"
+    }
+  ]
+}

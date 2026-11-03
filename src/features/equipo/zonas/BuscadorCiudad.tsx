@@ -22,7 +22,7 @@ interface Props {
   onCerrar: () => void;
 }
 
-/** «+ Agregar ciudad»: buscador del catálogo por nombre o provincia, sin las ciudades que ya están en la campaña. */
+/** «+ Agregar ciudad»: buscador del catálogo por nombre o departamento, sin las ciudades que ya están en la campaña. */
 export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, onCerrar }: Props) {
   const [texto, setTexto] = useState("");
   const [resultados, setResultados] = useState<CiudadDelCatalogo[] | null>(null);
@@ -31,6 +31,15 @@ export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, on
   // Cada búsqueda nueva invalida a la anterior: una respuesta vieja no pisa a la de lo último que se escribió.
   const version = useRef(0);
   const textoBuscado = useRef("");
+  const campo = useRef<HTMLInputElement>(null);
+  const estabaOcupado = useRef(false);
+
+  // Mientras agrega, el campo y los botones se deshabilitan y el foco se pierde en el <body>: si la ciudad no se pudo
+  // agregar, el foco vuelve al campo (si se agregó, el buscador se cierra y el foco lo toma la pestaña nueva).
+  useEffect(() => {
+    if (estabaOcupado.current && !ocupado) campo.current?.focus();
+    estabaOcupado.current = ocupado;
+  }, [ocupado]);
 
   useEffect(() => {
     const esta = ++version.current;
@@ -74,8 +83,9 @@ export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, on
         </button>
       </div>
       <label className="flex flex-col gap-1.5">
-        <span className="text-etiqueta font-semibold tracking-etiqueta text-tinta-suave">BUSCAR POR NOMBRE O PROVINCIA</span>
+        <span className="text-etiqueta font-semibold tracking-etiqueta text-tinta-suave">BUSCAR POR NOMBRE O DEPARTAMENTO</span>
         <input
+          ref={campo}
           type="search"
           value={texto}
           autoFocus
@@ -88,7 +98,17 @@ export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, on
       {fallo ? (
         <div role="alert" className="flex items-center justify-between gap-2 rounded-control bg-peligro-fondo px-3 py-2 text-cuerpo font-medium text-peligro">
           <span>{MENSAJE_BUSQUEDA_SIN_CONEXION}</span>
-          <Button type="button" variant="outline" size="sm" onClick={() => setIntento((n) => n + 1)} className="text-chico font-semibold text-tinta-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // «Reintentar» se desmonta al volver a pedir: el foco pasa al campo en vez de caer al <body>.
+              campo.current?.focus();
+              setIntento((n) => n + 1);
+            }}
+            className="text-chico font-semibold text-tinta-2"
+          >
             Reintentar
           </Button>
         </div>
@@ -97,7 +117,7 @@ export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, on
           Buscando ciudades…
         </p>
       ) : ofrecidas.length === 0 ? (
-        <p role="status" className="text-cuerpo text-tinta-suave">
+        <p role="status" className="text-cuerpo break-words wrap-anywhere text-tinta-suave">
           {texto.trim() === ""
             ? "Ya están todas las ciudades del catálogo en la campaña."
             : `No hay ciudades que coincidan con «${texto.trim()}».`}
@@ -110,11 +130,11 @@ export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, on
                 type="button"
                 disabled={ocupado}
                 onClick={() => onElegir(c)}
-                aria-label={c.provincia ? `Agregar ${c.nombre}, ${c.provincia}` : `Agregar ${c.nombre}`}
+                aria-label={c.departamento ? `Agregar ${c.nombre}, ${c.departamento}` : `Agregar ${c.nombre}`}
                 className="flex w-full cursor-pointer items-baseline justify-between gap-3 px-3 py-2 text-left hover:bg-fondo focus-visible:bg-fondo focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <span className="min-w-0 text-nav font-semibold break-words text-tinta">{c.nombre}</span>
-                {c.provincia ? <span className="flex-none text-chico text-tinta-suave">{c.provincia}</span> : null}
+                {c.departamento ? <span className="flex-none text-chico text-tinta-suave">{c.departamento}</span> : null}
               </button>
             </li>
           ))}

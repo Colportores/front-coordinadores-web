@@ -1,0 +1,138 @@
+[
+  {
+    "tablero": "32C · 01 TODAS LAS CIUDADES · SEMANAS",
+    "titulo": "Todas las ciudades",
+    "subtitulo": "25 colportores · S7 contra S6",
+    "tarjetas": [
+      {"etiqueta":"HORAS","valor":"668","tendencia":"▲ 1%","nota":"S7 · contra S6","campania":"Campaña: 4.799"},
+      {"etiqueta":"PRESENTACIONES","valor":"653","tendencia":"= 0%","nota":"S7 · contra S6","campania":"Campaña: 4.688"},
+      {"etiqueta":"VENTAS","valor":"209","tendencia":"▲ 3%","nota":"S7 · contra S6","campania":"Campaña: 1.462 · $U 3.633.950"},
+      {"etiqueta":"% POR COBRAR","valor":"38%","tendencia":"▲ 18 pts","nota":"S7 · contra S6","campania":"Campaña: 17%"}
+    ],
+    "primeraColumna": "COLPORTOR · S7",
+    "filas": [
+      {"grupo":"Rivera","detalle":"10 colportores"},
+      {"nombre":"Lucía Fernández","nota":null,"celdas":["29,5|▲ 8%","29|▲ 12%","10|▲ 43%","$U 21.700|▲ 31%","37%|▲ 20 pts"]},
+      {"nombre":"Bruno Techera","nota":null,"celdas":["24,5|▼ 3%","23|▼ 4%","7|= 0%","$U 17.550|▼ 7%","39%|▲ 19 pts"]},
+      {"nombre":"Valentina Silva","nota":null,"celdas":["24,5|▼ 8%","24|= 0%","7|= 0%","$U 17.150|▲ 2%","41%|▲ 19 pts"]},
+      {"nombre":"Joaquín Duarte","nota":null,"celdas":["31,5|▼ 5%","28|▼ 10%","6|▼ 50%","$U 14.750|▼ 47%","38%|▲ 20 pts"]},
+      {"nombre":"Martín Olivera","nota":null,"celdas":["32,6|▲ 11%","34|▲ 21%","11|▲ 38%","$U 28.500|▲ 57%","37%|▲ 17 pts"]},
+      {"nombre":"Florencia Pintos","nota":null,"celdas":["30,1|▲ 11%","32|▲ 10%","11|▲ 22%","$U 24.550|▲ 12%","37%|▲ 19 pts"]},
+      {"nombre":"Camila Núñez","nota":null,"celdas":["23,3|▼ 1%","22|▼ 4%","6|▼ 14%","$U 13.750|▼ 13%","38%|▲ 20 pts"]},
+      {"nombre":"Santiago Pereira","nota":null,"celdas":["23,8|▼ 16%","24|▼ 11%","8|▲ 33%","$U 20.150|▲ 29%","33%|▲ 12 pts"]},
+      {"nombre":"Micaela Rodríguez","nota":null,"celdas":["28,3|▲ 8%","28|▲ 4%","8|▼ 11%","$U 21.350|▼ 14%","38%|▲ 18 pts"]},
+      {"nombre":"Emiliano Sosa","nota":null,"celdas":["13,1|▼ 9%","13|▲ 8%","6|▲ 20%","$U 14.250|▲ 21%","37%|▲ 20 pts"]},
+      {"grupo":"Artigas","detalle":"8 colportores"},
+      {"nombre":"Sofía Cabral","nota":null,"celdas":["32,1|▼ 1%","31|▼ 6%","10|▼ 9%","$U 23.200|▼ 18%","38%|▲ 16 pts"]},
+      {"nombre":"Agustina Rey","nota":null,"celdas":["26,4|▲ 6%","28|▲ 8%","10|▲ 43%","$U 24.400|▲ 30%","35%|▲ 17 pts"]},
+      {"nombre":"Julieta Moreira","nota":null,"celdas":["27,7|▲ 4%","27|= 0%","8|▼ 20%","$U 19.750|▼ 28%","35%|▲ 14 pts"]},
+      {"nombre":"Carolina Píriz","nota":null,"celdas":["28,1|▲ 9%","28|▲ 8%","10|▲ 43%","$U 26.100|▲ 44%","37%|▲ 16 pts"]},
+      {"nombre":"Martina Correa","nota":null,"celdas":["25,2|▼ 7%","24|▼ 8%","7|▼ 22%","$U 17.850|▼ 24%","36%|▲ 18 pts"]},
+      {"nombre":"Paula Ferreira","nota":null,"celdas":["29,3|▲ 12%","29|▲ 4%","9|▲ 13%","$U 23.250|▲ 17%","40%|▲ 20 pts"]},
+      {"nombre":"Natalia Vidal","nota":null,"celdas":["32,7|▲ 13%","30|▲ 3%","10|= 0%","$U 23.100|▼ 11%","37%|▲ 18 pts"]},
+      {"nombre":"Lorena Acuña","nota":null,"celdas":["26,3|▲ 10%","25|= 0%","7|▼ 12%","$U 16.150|▼ 17%","37%|▲ 16 pts"]},
+      {"grupo":"Bella Unión","detalle":"7 colportores"},
+      {"nombre":"Gonzalo Méndez","nota":null,"celdas":["29,8|▼ 3%","28|▲ 4%","9|▲ 13%","$U 25.150|▲ 13%","40%|▲ 21 pts"]},
+      {"nombre":"Federico Da Rosa","nota":null,"celdas":["24,0|▼ 5%","22|▼ 19%","7|▼ 30%","$U 15.000|▼ 42%","36%|▲ 16 pts"]},
+      {"nombre":"Ignacio Bentancor","nota":null,"celdas":["25,6|▲ 6%","25|▲ 4%","8|= 0%","$U 20.200|▲ 7%","37%|▲ 14 pts"]},
+      {"nombre":"Rodrigo Cardozo","nota":null,"celdas":["24,8|▼ 5%","26|▲ 4%","9|▲ 13%","$U 21.800|▲ 15%","39%|▲ 20 pts"]},
+      {"nombre":"Matías Rivero","nota":null,"celdas":["23,1|▲ 7%","21|= 0%","6|▼ 14%","$U 14.050|▼ 16%","39%|▲ 18 pts"]},
+      {"nombre":"Diego Machado","nota":null,"celdas":["27,5|▼ 4%","29|▲ 12%","11|▲ 57%","$U 25.550|▲ 56%","39%|▲ 19 pts"]},
+      {"nombre":"Nicolás Viera","nota":null,"celdas":["23,9|▼ 12%","23|▼ 23%","8|▲ 14%","$U 19.400|▲ 5%","38%|▲ 16 pts"]}
+    ]
+  },
+  {
+    "tablero": "32C · 02 RIVERA · SEMANAS",
+    "titulo": "Rivera",
+    "subtitulo": "Departamento Rivera · 10 colportores · S7 contra S6",
+    "tarjetas": [
+      {"etiqueta":"HORAS","valor":"261","tendencia":"= 0%","nota":"S7 · contra S6","campania":"Campaña: 1.923"},
+      {"etiqueta":"PRESENTACIONES","valor":"257","tendencia":"▲ 2%","nota":"S7 · contra S6","campania":"Campaña: 1.864"},
+      {"etiqueta":"VENTAS","valor":"80","tendencia":"▲ 4%","nota":"S7 · contra S6","campania":"Campaña: 587 · $U 1.456.350"},
+      {"etiqueta":"% POR COBRAR","valor":"38%","tendencia":"▲ 19 pts","nota":"S7 · contra S6","campania":"Campaña: 17%"}
+    ],
+    "primeraColumna": "COLPORTOR · S7",
+    "filas": [
+      {"nombre":"Lucía Fernández","nota":null,"celdas":["29,5|▲ 8%","29|▲ 12%","10|▲ 43%","$U 21.700|▲ 31%","37%|▲ 20 pts"]},
+      {"nombre":"Bruno Techera","nota":null,"celdas":["24,5|▼ 3%","23|▼ 4%","7|= 0%","$U 17.550|▼ 7%","39%|▲ 19 pts"]},
+      {"nombre":"Valentina Silva","nota":null,"celdas":["24,5|▼ 8%","24|= 0%","7|= 0%","$U 17.150|▲ 2%","41%|▲ 19 pts"]},
+      {"nombre":"Joaquín Duarte","nota":null,"celdas":["31,5|▼ 5%","28|▼ 10%","6|▼ 50%","$U 14.750|▼ 47%","38%|▲ 20 pts"]},
+      {"nombre":"Martín Olivera","nota":null,"celdas":["32,6|▲ 11%","34|▲ 21%","11|▲ 38%","$U 28.500|▲ 57%","37%|▲ 17 pts"]},
+      {"nombre":"Florencia Pintos","nota":null,"celdas":["30,1|▲ 11%","32|▲ 10%","11|▲ 22%","$U 24.550|▲ 12%","37%|▲ 19 pts"]},
+      {"nombre":"Camila Núñez","nota":null,"celdas":["23,3|▼ 1%","22|▼ 4%","6|▼ 14%","$U 13.750|▼ 13%","38%|▲ 20 pts"]},
+      {"nombre":"Santiago Pereira","nota":null,"celdas":["23,8|▼ 16%","24|▼ 11%","8|▲ 33%","$U 20.150|▲ 29%","33%|▲ 12 pts"]},
+      {"nombre":"Micaela Rodríguez","nota":null,"celdas":["28,3|▲ 8%","28|▲ 4%","8|▼ 11%","$U 21.350|▼ 14%","38%|▲ 18 pts"]},
+      {"nombre":"Emiliano Sosa","nota":null,"celdas":["13,1|▼ 9%","13|▲ 8%","6|▲ 20%","$U 14.250|▲ 21%","37%|▲ 20 pts"]}
+    ]
+  },
+  {
+    "tablero": "32C · 03 RIVERA · DÍAS",
+    "titulo": "Rivera",
+    "subtitulo": "Departamento Rivera · 10 colportores · ayer contra el día anterior",
+    "tarjetas": [
+      {"etiqueta":"HORAS","valor":"37","tendencia":"▼ 8%","nota":"ayer · contra el día anterior","campania":"Campaña: 1.923"},
+      {"etiqueta":"PRESENTACIONES","valor":"35","tendencia":"▼ 3%","nota":"ayer · contra el día anterior","campania":"Campaña: 1.864"},
+      {"etiqueta":"VENTAS","valor":"11","tendencia":"▼ 8%","nota":"ayer · contra el día anterior","campania":"Campaña: 587 · $U 1.456.350"},
+      {"etiqueta":"% POR COBRAR","valor":"59%","tendencia":"▲ 2 pts","nota":"ayer · contra el día anterior","campania":"Campaña: 17%"}
+    ],
+    "primeraColumna": "COLPORTOR · AYER",
+    "filas": [
+      {"nombre":"Lucía Fernández","nota":null,"celdas":["4,6|▲ 18%","4|▲ 33%","1|= 0%","$U 2.200|▼ 21%","53%|▼ 10 pts"]},
+      {"nombre":"Bruno Techera","nota":"sin datos desde el 17/10","celdas":["—|","—|","—|","—|","—|"]},
+      {"nombre":"Valentina Silva","nota":null,"celdas":["3,4|▼ 29%","4|= 0%","1|▼ 50%","$U 3.050|▼ 36%","52%|▼ 4 pts"]},
+      {"nombre":"Joaquín Duarte","nota":null,"celdas":["5,5|▼ 2%","5|= 0%","2|▲ 100%","$U 4.600|▲ 136%","52%|▼ 12 pts"]},
+      {"nombre":"Martín Olivera","nota":null,"celdas":["4,1|▼ 33%","3|▼ 50%","1|▼ 50%","$U 2.900|▼ 51%","65%|▲ 10 pts"]},
+      {"nombre":"Florencia Pintos","nota":null,"celdas":["5,5|▲ 15%","4|= 0%","1|= 0%","$U 3.000|▲ 33%","64%|▲ 12 pts"]},
+      {"nombre":"Camila Núñez","nota":null,"celdas":["4,4|▲ 5%","4|▲ 33%","1|= 0%","$U 2.600|▼ 15%","62%|▲ 3 pts"]},
+      {"nombre":"Santiago Pereira","nota":null,"celdas":["3,5|▼ 35%","4|▼ 20%","1|▼ 50%","$U 2.100|▼ 60%","58%|▲ 3 pts"]},
+      {"nombre":"Micaela Rodríguez","nota":null,"celdas":["4,4|▲ 19%","5|▲ 25%","2|▲ 100%","$U 4.300|▲ 115%","64%|▲ 14 pts"]},
+      {"nombre":"Emiliano Sosa","nota":null,"celdas":["1,9|= 0%","2|= 0%","1|= 0%","$U 2.000|▼ 22%","60%|▲ 2 pts"]}
+    ]
+  },
+  {
+    "tablero": "32C · 04 RIVERA · MESES",
+    "titulo": "Rivera",
+    "subtitulo": "Departamento Rivera · 10 colportores · oct. a la fecha contra sep. a la misma fecha",
+    "tarjetas": [
+      {"etiqueta":"HORAS","valor":"760","tendencia":"▼ 5%","nota":"oct. a la fecha · contra sep. a la misma fecha","campania":"Campaña: 1.923"},
+      {"etiqueta":"PRESENTACIONES","valor":"735","tendencia":"▼ 5%","nota":"oct. a la fecha · contra sep. a la misma fecha","campania":"Campaña: 1.864"},
+      {"etiqueta":"VENTAS","valor":"232","tendencia":"▼ 6%","nota":"oct. a la fecha · contra sep. a la misma fecha","campania":"Campaña: 587 · $U 1.456.350"},
+      {"etiqueta":"% POR COBRAR","valor":"31%","tendencia":"▲ 25 pts","nota":"oct. a la fecha · contra sep. a la misma fecha","campania":"Campaña: 17%"}
+    ],
+    "primeraColumna": "COLPORTOR · OCT. A LA FECHA",
+    "filas": [
+      {"nombre":"Lucía Fernández","nota":null,"celdas":["85,0|▲ 3%","81|▼ 1%","25|▼ 4%","$U 58.800|▼ 9%","31%|▲ 26 pts"]},
+      {"nombre":"Bruno Techera","nota":null,"celdas":["63,7|▼ 26%","61|▼ 27%","18|▼ 38%","$U 45.600|▼ 37%","27%|▲ 22 pts"]},
+      {"nombre":"Valentina Silva","nota":null,"celdas":["74,0|▲ 8%","70|▲ 6%","21|▼ 5%","$U 52.100|▼ 4%","36%|▲ 30 pts"]},
+      {"nombre":"Joaquín Duarte","nota":null,"celdas":["96,0|▲ 8%","88|▲ 2%","27|▼ 13%","$U 64.300|▼ 19%","29%|▲ 23 pts"]},
+      {"nombre":"Martín Olivera","nota":null,"celdas":["91,2|= 0%","89|▲ 5%","28|▲ 4%","$U 71.950|▲ 9%","33%|▲ 28 pts"]},
+      {"nombre":"Florencia Pintos","nota":null,"celdas":["84,6|▼ 1%","86|▲ 7%","28|▲ 22%","$U 65.050|▲ 8%","30%|▲ 24 pts"]},
+      {"nombre":"Camila Núñez","nota":null,"celdas":["69,7|▼ 4%","65|▼ 7%","19|▼ 10%","$U 45.450|▼ 17%","33%|▲ 29 pts"]},
+      {"nombre":"Santiago Pereira","nota":null,"celdas":["74,9|▼ 4%","74|▼ 3%","22|▼ 8%","$U 55.900|▼ 8%","32%|▲ 26 pts"]},
+      {"nombre":"Micaela Rodríguez","nota":null,"celdas":["79,1|▼ 3%","82|▲ 1%","27|▲ 13%","$U 69.700|▲ 17%","30%|▲ 24 pts"]},
+      {"nombre":"Emiliano Sosa","nota":null,"celdas":["41,7|▼ 33%","39|▼ 36%","17|▼ 11%","$U 40.300|▼ 15%","30%|▲ 23 pts"]}
+    ]
+  },
+  {
+    "tablero": "32C · 05 COLPORTOR ELEGIDO · BRUNO TECHERA · SEMANAS",
+    "titulo": "Bruno Techera",
+    "subtitulo": "Rivera · Departamento Rivera · S7 contra S6",
+    "tarjetas": [
+      {"etiqueta":"HORAS","valor":"24,5","tendencia":"▼ 3%","nota":"S7 · contra S6","campania":"Campaña: 189"},
+      {"etiqueta":"PRESENTACIONES","valor":"23","tendencia":"▼ 4%","nota":"S7 · contra S6","campania":"Campaña: 184"},
+      {"etiqueta":"VENTAS","valor":"7","tendencia":"= 0%","nota":"S7 · contra S6","campania":"Campaña: 61 · $U 152.800"},
+      {"etiqueta":"% POR COBRAR","valor":"39%","tendencia":"▲ 19 pts","nota":"S7 · contra S6","campania":"Campaña: 14%"}
+    ],
+    "primeraColumna": "SEMANA",
+    "filas": [
+      {"nombre":"S1 · 31/08","nota":null,"celdas":["25,0|","23|","9|","$U 24.400|","4%|"]},
+      {"nombre":"S2 · 07/09","nota":null,"celdas":["29,6|▲ 18%","30|▲ 30%","9|= 0%","$U 22.100|▼ 9%","5%|▲ 1 pts"]},
+      {"nombre":"S3 · 14/09","nota":null,"celdas":["27,5|▼ 7%","27|▼ 10%","9|= 0%","$U 21.200|▼ 4%","6%|▲ 1 pts"]},
+      {"nombre":"S4 · 21/09","nota":null,"celdas":["28,0|▲ 2%","27|= 0%","9|= 0%","$U 23.200|▲ 9%","6%|= 0 pts"]},
+      {"nombre":"S5 · 28/09","nota":null,"celdas":["29,6|▲ 6%","30|▲ 11%","11|▲ 22%","$U 25.450|▲ 10%","20%|▲ 14 pts"]},
+      {"nombre":"S6 · 05/10","nota":null,"celdas":["25,2|▼ 15%","24|▼ 20%","7|▼ 36%","$U 18.900|▼ 26%","20%|= 0 pts"]},
+      {"nombre":"S7 · 12/10","nota":null,"celdas":["24,5|▼ 3%","23|▼ 4%","7|= 0%","$U 17.550|▼ 7%","39%|▲ 19 pts"]},
+      {"nombre":"S8 · 19/10","nota":"sin datos · últimos datos el 17/10","celdas":["—|","—|","—|","—|","—|"]}
+    ]
+  }
+]

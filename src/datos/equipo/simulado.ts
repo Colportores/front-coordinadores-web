@@ -2,130 +2,10 @@ import { paginaDeBusqueda, sugeridosDe } from "@/datos/equipo/busqueda";
 import type {
   CandidatoColportor,
   DatosAnadirColportor,
-  DatosEquipo,
   FuenteDatosEquipo,
   MiembroEquipo,
 } from "@/datos/equipo/contrato";
-
-/** Datos de ejemplo del diseño ("Panel Coordinador", sección Equipo). */
-export const DATOS_EQUIPO_SIMULADO: DatosEquipo = {
-  region: "Montevideo Oeste",
-  colportores: [
-    {
-      id: "col-1",
-      nombre: "Diego Rocha",
-      ciudadId: "montevideo",
-      ciudadNombre: "Montevideo",
-      zonas: ["Cerro Norte"],
-      horasSemana: "28,4 h",
-      ventas: "$U 84K",
-      porcentajeCobrado: 78,
-      estadoCobro: "bien",
-      ultimaSync: "hace 20 min",
-      sincronizacionVieja: false,
-    },
-    {
-      id: "col-2",
-      nombre: "Melina Vázquez",
-      ciudadId: "montevideo",
-      ciudadNombre: "Montevideo",
-      zonas: ["La Teja"],
-      horasSemana: "31,0 h",
-      ventas: "$U 92K",
-      porcentajeCobrado: 74,
-      estadoCobro: "bien",
-      ultimaSync: "hace 1 h",
-      sincronizacionVieja: false,
-    },
-    {
-      id: "col-3",
-      nombre: "Laura Suárez",
-      ciudadId: "las-piedras",
-      ciudadNombre: "Las Piedras",
-      zonas: [],
-      horasSemana: "26,2 h",
-      ventas: "$U 67K",
-      porcentajeCobrado: 81,
-      estadoCobro: "bien",
-      ultimaSync: "hace 3 h",
-      sincronizacionVieja: false,
-    },
-    {
-      id: "col-4",
-      nombre: "Joel Cabrera",
-      ciudadId: "montevideo",
-      ciudadNombre: "Montevideo",
-      zonas: ["Cerro Norte"],
-      horasSemana: "19,8 h",
-      ventas: "$U 27K",
-      porcentajeCobrado: 52,
-      estadoCobro: "atencion",
-      ultimaSync: "hace 40 min",
-      sincronizacionVieja: false,
-    },
-    {
-      id: "col-5",
-      nombre: "Pablo Ferreira",
-      ciudadId: "montevideo",
-      ciudadNombre: "Montevideo",
-      zonas: ["Belvedere"],
-      horasSemana: "11,5 h",
-      ventas: "$U 14K",
-      porcentajeCobrado: 39,
-      estadoCobro: "critico",
-      ultimaSync: "hace 4 días",
-      sincronizacionVieja: true,
-    },
-    {
-      id: "col-6",
-      nombre: "Noelia Acosta",
-      ciudadId: "montevideo",
-      ciudadNombre: "Montevideo",
-      zonas: ["La Teja", "Paso de la Arena"],
-      horasSemana: "24,6 h",
-      ventas: "$U 58K",
-      porcentajeCobrado: 69,
-      estadoCobro: "bien",
-      ultimaSync: "hace 2 h",
-      sincronizacionVieja: false,
-    },
-  ],
-  sinZonaAsignada: [{ id: "sz-1", nombre: "Ana Martínez", nota: "nueva colportora en tu región" }],
-  preciosPorCiudad: [
-    {
-      ciudadId: "montevideo",
-      ciudadNombre: "Montevideo",
-      productos: [
-        { id: "prod-1", producto: "El Deseado de Todas…", precioBase: "$U 1.450", precioCiudad: "$U 1.500" },
-        { id: "prod-2", producto: "Vida Sana · 3 tomos", precioBase: "$U 2.900", precioCiudad: "$U 3.100" },
-        { id: "prod-3", producto: "Historias para Niños", precioBase: "$U 1.980", precioCiudad: "$U 2.050" },
-      ],
-    },
-    {
-      ciudadId: "las-piedras",
-      ciudadNombre: "Las Piedras",
-      productos: [
-        { id: "prod-1", producto: "El Deseado de Todas…", precioBase: "$U 1.450", precioCiudad: "$U 1.450" },
-        { id: "prod-2", producto: "Vida Sana · 3 tomos", precioBase: "$U 2.900", precioCiudad: "$U 2.950" },
-      ],
-    },
-  ],
-  acompanamiento: {
-    ultimosAcompanamientos: [
-      { id: "aco-1", colportor: "Melina Vázquez", dia: "ayer", acompaniante: "Coordinador de ejemplo" },
-      { id: "aco-2", colportor: "Diego Rocha", dia: "lun 28/09", acompaniante: "Coordinador de ejemplo" },
-      { id: "aco-3", colportor: "Noelia Acosta", dia: "vie 25/09", acompaniante: "Coordinador de ejemplo" },
-    ],
-    jornadasRecientes: [
-      { id: "jor-1", colportor: "Joel Cabrera", dia: "ayer", detalle: "3,4 h · Cerro Norte" },
-      { id: "jor-2", colportor: "Laura Suárez", dia: "ayer", detalle: "5,0 h · Las Piedras" },
-      { id: "jor-3", colportor: "Pablo Ferreira", dia: "lun 28/09", detalle: "2,1 h · Belvedere" },
-    ],
-    acompaniante: "Coordinador de ejemplo",
-    jornadasAcompanadas: 6,
-    jornadasTotales: 28,
-  },
-};
+import { crearEquipoSimulado } from "@/datos/equipo/equipo-simulado";
 
 /**
  * Las cuentas de ejemplo de la vista 23 (diseño "23 Anadir Colportor"). Las fechas de creación que el diseño no
@@ -138,6 +18,7 @@ export const CANDIDATOS_SIMULADOS: CandidatoColportor[] = [
     email: "ana.martinez@example.com",
     estadoCuenta: "pendiente_asignacion",
     campaniaActual: null,
+    enOtraCampania: false,
     cuentaCreada: "2026-09-22",
   },
   {
@@ -146,6 +27,7 @@ export const CANDIDATOS_SIMULADOS: CandidatoColportor[] = [
     email: "gonza.sosa@example.com",
     estadoCuenta: "pendiente_asignacion",
     campaniaActual: null,
+    enOtraCampania: false,
     cuentaCreada: "2026-09-24",
   },
   {
@@ -154,6 +36,7 @@ export const CANDIDATOS_SIMULADOS: CandidatoColportor[] = [
     email: "vbentancor@example.com",
     estadoCuenta: "pendiente_asignacion",
     campaniaActual: null,
+    enOtraCampania: false,
     cuentaCreada: "2026-09-26",
   },
   {
@@ -162,6 +45,7 @@ export const CANDIDATOS_SIMULADOS: CandidatoColportor[] = [
     email: "rodrigo.silva@example.com",
     estadoCuenta: "activa",
     campaniaActual: "Otoño Norte",
+    enOtraCampania: true,
     cuentaCreada: "2026-03-03",
   },
   {
@@ -170,6 +54,7 @@ export const CANDIDATOS_SIMULADOS: CandidatoColportor[] = [
     email: "rbarrios@example.com",
     estadoCuenta: "pendiente_asignacion",
     campaniaActual: null,
+    enOtraCampania: false,
     cuentaCreada: "2026-09-27",
   },
   {
@@ -178,6 +63,7 @@ export const CANDIDATOS_SIMULADOS: CandidatoColportor[] = [
     email: "anabel.p@example.com",
     estadoCuenta: "activa",
     campaniaActual: null,
+    enOtraCampania: false,
     cuentaCreada: "2026-05-14",
   },
   {
@@ -186,6 +72,7 @@ export const CANDIDATOS_SIMULADOS: CandidatoColportor[] = [
     email: "mariana.olivera@example.com",
     estadoCuenta: "suspendida",
     campaniaActual: null,
+    enOtraCampania: false,
     cuentaCreada: "2026-04-02",
   },
 ];
@@ -208,9 +95,7 @@ export const DATOS_ANADIR_COLPORTOR_SIMULADO: DatosAnadirColportor = {
 };
 
 export const fuenteEquipoSimulada: FuenteDatosEquipo = {
-  async obtenerEquipo() {
-    return DATOS_EQUIPO_SIMULADO;
-  },
+  ...crearEquipoSimulado(),
   async obtenerAnadirColportor() {
     return DATOS_ANADIR_COLPORTOR_SIMULADO;
   },

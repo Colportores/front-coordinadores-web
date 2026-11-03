@@ -43,7 +43,7 @@ describe("AnadirColportorPagina", () => {
     render(<ProveedorModoDev activo={false}>{await AnadirColportorPagina()}</ProveedorModoDev>);
 
     expect(screen.getByRole("heading", { level: 1, name: "Añadir colportor" })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso a la que añadir colportores.");
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso ni por empezar a la que añadir colportores.");
     expect(screen.getByRole("link", { name: "‹ Equipo" })).toHaveAttribute("href", "/equipo");
     expect(screen.queryByRole("textbox", { name: "Buscar por email o nombre" })).not.toBeInTheDocument();
   });

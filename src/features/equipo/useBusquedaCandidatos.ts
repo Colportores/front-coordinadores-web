@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CandidatoColportor, ResultadoBusqueda } from "@/datos/equipo/contrato";
+import { mensajeDeRechazo, motivoDelRechazo, type MotivoDeRechazo } from "@/auth/sesion-vencida";
 import { mensajeSinConexion } from "@/lib/mensajes";
 
 /** Cuánto se espera después de la última tecla antes de buscar en el servidor. */
@@ -21,6 +22,8 @@ interface Respuesta {
   fallaMas: string | null;
   /** El cursor de esa página ya no sirve: reintentar es buscar de nuevo desde el principio. */
   reiniciarMas: boolean;
+  /** La falla (la de la primera página o la de una siguiente) es que el panel ya no la deja pasar: «Reintentar» no sirve, hay que entrar de nuevo. */
+  acceso: MotivoDeRechazo | null;
 }
 
 function sinRepetir(previos: CandidatoColportor[], nuevos: CandidatoColportor[]): CandidatoColportor[] {
@@ -57,15 +60,27 @@ export function useBusquedaCandidatos(buscar: BuscarCandidatos, sugeridos: Candi
     if (texto === "") return;
     let vigente = true;
     const temporizador = setTimeout(async () => {
-      const base = { texto, candidatos: [], hayMas: false, falla: null, cargandoMas: false, fallaMas: null, reiniciarMas: false };
+      const base = {
+        texto,
+        candidatos: [],
+        hayMas: false,
+        falla: null,
+        cargandoMas: false,
+        fallaMas: null,
+        reiniciarMas: false,
+        acceso: null,
+      };
       let nueva: Respuesta;
       try {
         const pagina = await buscarRef.current(texto, null);
         nueva = pagina.ok
           ? { ...base, candidatos: pagina.candidatos, hayMas: pagina.hayMas }
-          : { ...base, falla: pagina.mensaje };
-      } catch {
-        nueva = { ...base, falla: mensajeSinConexion("buscar cuentas") };
+          : { ...base, falla: pagina.mensaje, acceso: pagina.sesionVencida ? "vencida" : null };
+      } catch (error) {
+        const motivo = motivoDelRechazo(error);
+        nueva = motivo
+          ? { ...base, falla: mensajeDeRechazo(motivo, "buscar cuentas"), acceso: motivo }
+          : { ...base, falla: mensajeSinConexion("buscar cuentas") };
       }
       if (vigente) {
         setRespuesta(nueva);
@@ -92,9 +107,18 @@ export function useBusquedaCandidatos(buscar: BuscarCandidatos, sugeridos: Candi
       const pagina = await buscarRef.current(delTexto, ultimo.id);
       cambio = pagina.ok
         ? (p) => ({ ...p, candidatos: sinRepetir(p.candidatos, pagina.candidatos), hayMas: pagina.hayMas, cargandoMas: false })
-        : (p) => ({ ...p, cargandoMas: false, fallaMas: pagina.mensaje, reiniciarMas: pagina.reiniciar === true });
-    } catch {
-      cambio = (p) => ({ ...p, cargandoMas: false, fallaMas: mensajeSinConexion("cargar más cuentas"), reiniciarMas: false });
+        : (p) => ({
+            ...p,
+            cargandoMas: false,
+            fallaMas: pagina.mensaje,
+            reiniciarMas: pagina.reiniciar === true,
+            acceso: pagina.sesionVencida ? ("vencida" as const) : null,
+          });
+    } catch (error) {
+      const motivo = motivoDelRechazo(error);
+      cambio = motivo
+        ? (p) => ({ ...p, cargandoMas: false, fallaMas: mensajeDeRechazo(motivo, "cargar más cuentas"), reiniciarMas: false, acceso: motivo })
+        : (p) => ({ ...p, cargandoMas: false, fallaMas: mensajeSinConexion("cargar más cuentas"), reiniciarMas: false, acceso: null });
     }
     if (masEn.current === delTexto) masEn.current = null;
     setRespuesta((p) => (p && p.texto === delTexto ? cambio(p) : p));
@@ -130,6 +154,8 @@ export function useBusquedaCandidatos(buscar: BuscarCandidatos, sugeridos: Candi
     cargandoMas: actual?.cargandoMas ?? false,
     falla: actual?.falla ?? null,
     fallaMas: actual?.fallaMas ?? null,
+    /** Por qué el panel ya no la deja pasar, si es eso lo que falló: en vez de «Reintentar», hay que entrar de nuevo. */
+    acceso: actual?.acceso ?? null,
     cargarMas,
     reintentar,
     reintentarMas,

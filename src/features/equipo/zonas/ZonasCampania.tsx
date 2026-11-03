@@ -559,6 +559,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
       abandonarDibujo();
       setCiudadId(nueva.id);
       setPanel({ tipo: "lista", asignandoA: null });
+      // El buscador se desmonta: el foco pasa a la pestaña de la ciudad nueva en vez de caer al <body>.
+      focoPendiente.current = '[data-foco="ciudad-elegida"]';
       setBuscador(null);
       setAviso(`«${nueva.nombre}» se agregó a la campaña.`);
     } catch {
@@ -579,6 +581,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
               key={c.id}
               type="button"
               aria-current={c.id === ciudad.id ? "true" : undefined}
+              data-foco={c.id === ciudad.id ? "ciudad-elegida" : undefined}
               disabled={guardando || agregando}
               onClick={() => elegirCiudad(c.id)}
               className={cn(

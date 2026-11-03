@@ -19,6 +19,9 @@ import {
   motivoBloqueo,
   recortarConPuntos,
 } from "@/features/equipo/candidatos";
+import { mensajeDeRechazo, type MotivoDeRechazo } from "@/auth/sesion-vencida";
+import { EnlaceEntrarDeNuevo } from "@/features/equipo/EnlaceEntrarDeNuevo";
+import { tieneFocoVisible } from "@/features/equipo/foco-visible";
 import { useBusquedaCandidatos } from "@/features/equipo/useBusquedaCandidatos";
 import {
   mensajeAnadirRechazado,
@@ -88,17 +91,24 @@ function AvisoBloqueo({ texto }: { texto: string }) {
 
 const idTextoAviso = (id: string) => `aviso-anadido-${id}`;
 
-/** Aviso con «Deshacer»: cada añadido tiene el suyo y su propio plazo de 8 s (lo cuenta `useInscripcionesDiferidas`). */
+/**
+ * Aviso con «Deshacer»: cada añadido tiene el suyo y su propio plazo de 8 s (lo cuenta `useInscripcionesDiferidas`).
+ * Mientras el foco de teclado o de lector está en su «Deshacer», el plazo no corre (decisión de Cristian, 21/10).
+ */
 function AvisoAnadido({
   id,
   nombre,
   campania,
   onDeshacer,
+  onPausa,
+  onReanudar,
 }: {
   id: string;
   nombre: string;
   campania: string;
   onDeshacer: (id: string) => void;
+  onPausa: (id: string) => void;
+  onReanudar: (id: string) => void;
 }) {
   return (
     <div
@@ -112,6 +122,10 @@ function AvisoAnadido({
       <button
         type="button"
         onClick={() => onDeshacer(id)}
+        onFocus={(e) => {
+          if (tieneFocoVisible(e.currentTarget)) onPausa(id);
+        }}
+        onBlur={() => onReanudar(id)}
         // El foco llega acá solo al aparecer el aviso (decisión del 16/10): el lector lee el texto del aviso y después «Deshacer».
         aria-describedby={idTextoAviso(id)}
         // Con Enter sostenido en «Añadir», el foco ya pasó a este botón: las repeticiones de la tecla no lo aprietan.
@@ -288,7 +302,7 @@ export function AnadirColportor({
   const [elegidoId, setElegidoId] = useState<string | null>(null);
   const [indiceActivo, setIndiceActivo] = useState(-1);
   /** Inscripciones que no prosperaron, una por cuenta: no se pisan entre sí ni se borran al escribir. */
-  const [fallos, setFallos] = useState<{ id: string; mensaje: string }[]>([]);
+  const [fallos, setFallos] = useState<{ id: string; mensaje: string; acceso?: MotivoDeRechazo }[]>([]);
 
   /**
    * Cuentas que la base rechazó por estar en otra campaña (`CI007`) y la campaña que dijo: la fila pasa a mostrarse
@@ -315,6 +329,7 @@ export function AnadirColportor({
     cargandoMas,
     falla,
     fallaMas,
+    acceso,
     cargarMas,
     reintentar,
     reintentarMas,
@@ -343,6 +358,12 @@ export function AnadirColportor({
 
   // Una cuenta tiene a lo sumo un envío, y volver a añadirla borra su aviso: no hay dos avisos de la misma.
   const registrarFallo = useCallback((cuenta: Anadido, causa: CausaFallo) => {
+    if (causa.tipo === "acceso") {
+      // Siempre nombra a la cuenta: puede haber varias en la misma situación y ninguna se pierde sin que se sepa.
+      const mensaje = mensajeAnadirRechazado(cuenta.nombre, mensajeDeRechazo(causa.motivo));
+      setFallos((previos) => [...previos, { id: cuenta.id, mensaje, acceso: causa.motivo }]);
+      return;
+    }
     const mensaje =
       causa.tipo === "sin-conexion"
         ? mensajeAnadirSinConexion(cuenta.nombre)
@@ -367,7 +388,7 @@ export function AnadirColportor({
     [enfocarFila],
   );
 
-  const { anadidos, avisos, enviando, programar, deshacer, confirmarTodas } = useInscripcionesDiferidas({
+  const { anadidos, avisos, enviando, programar, deshacer, pausar, reanudar, confirmarTodas } = useInscripcionesDiferidas({
     inscribir,
     alFallar: registrarFallo,
     alVencerPlazo,
@@ -380,7 +401,7 @@ export function AnadirColportor({
         : encontrados.map((c) => {
             const marca = enOtraCampania.get(c.id);
             const vigente = marca !== undefined && (!hayConsulta || marca.recibidas === recibidas);
-            return vigente ? { ...c, campaniaActual: marca.campania } : c;
+            return vigente ? { ...c, campaniaActual: marca.campania, enOtraCampania: true } : c;
           }),
     [encontrados, enOtraCampania, recibidas, hayConsulta],
   );
@@ -594,9 +615,13 @@ export function AnadirColportor({
             ) : falla !== null ? (
               <div role="alert" className="flex flex-col items-start gap-2 px-3.5 py-4 text-cuerpo font-medium text-peligro">
                 <p>{falla}</p>
-                <Button type="button" variant="outline" onClick={reintentar} className="text-nav font-semibold">
-                  Reintentar
-                </Button>
+                {acceso ? (
+                  <EnlaceEntrarDeNuevo motivo={acceso} />
+                ) : (
+                  <Button type="button" variant="outline" onClick={reintentar} className="text-nav font-semibold">
+                    Reintentar
+                  </Button>
+                )}
               </div>
             ) : resultados.length === 0 ? (
               <p className="px-3.5 py-4 text-cuerpo text-tinta-suave">
@@ -631,9 +656,13 @@ export function AnadirColportor({
                 {fallaMas !== null ? (
                   <div role="alert" className="flex flex-col items-start gap-2 px-3.5 py-3 text-cuerpo font-medium text-peligro">
                     <p>{fallaMas}</p>
-                    <Button type="button" variant="outline" onClick={reintentarMas} className="text-nav font-semibold">
-                      Reintentar
-                    </Button>
+                    {acceso ? (
+                      <EnlaceEntrarDeNuevo motivo={acceso} />
+                    ) : (
+                      <Button type="button" variant="outline" onClick={reintentarMas} className="text-nav font-semibold">
+                        Reintentar
+                      </Button>
+                    )}
                   </div>
                 ) : null}
               </>
@@ -643,13 +672,14 @@ export function AnadirColportor({
 
         <div className="flex flex-col gap-4">
           {fallos.map((f) => (
-            <p
+            <div
               key={f.id}
               role="alert"
-              className="rounded-tarjeta bg-peligro-fondo px-4 py-3 text-nav font-medium text-peligro"
+              className="flex flex-col items-start gap-2 rounded-tarjeta bg-peligro-fondo px-4 py-3 text-nav font-medium text-peligro"
             >
-              {f.mensaje}
-            </p>
+              <p>{f.mensaje}</p>
+              {f.acceso ? <EnlaceEntrarDeNuevo motivo={f.acceso} /> : null}
+            </div>
           ))}
           {elegido ? (
             <DetalleCuenta
@@ -690,7 +720,7 @@ export function AnadirColportor({
       {avisos.length > 0 ? (
         <div className="fixed bottom-6 left-1/2 z-20 flex -translate-x-1/2 flex-col items-stretch gap-2">
           {avisos.map((a) => (
-            <AvisoAnadido key={a.id} id={a.id} nombre={a.nombre} campania={datos.campania} onDeshacer={alDeshacer} />
+            <AvisoAnadido key={a.id} id={a.id} nombre={a.nombre} campania={datos.campania} onDeshacer={alDeshacer} onPausa={pausar} onReanudar={reanudar} />
           ))}
         </div>
       ) : null}

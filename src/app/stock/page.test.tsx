@@ -1,26 +1,54 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import PestanaStock from "@/app/stock/page";
-import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
+import { fuenteStock } from "@/datos/stock";
+import type * as ModuloStock from "@/datos/stock";
+import { crearDatosDeStockSimulados } from "@/datos/stock/simulado";
+import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
+
+vi.mock("@/datos/stock", async (importOriginal) => {
+  const original = await importOriginal<typeof ModuloStock>();
+  return { ...original, fuenteStock: { obtenerStock: vi.fn() } };
+});
+
+const obtenerStock = vi.mocked(fuenteStock.obtenerStock);
 
 describe("PestanaStock", () => {
-  it("marca como no disponibles todas las acciones sin formulario diseñado de la pestaña", async () => {
-    render(await PestanaStock());
+  it("arma la vista 34 con el stock de la fuente", async () => {
+    obtenerStock.mockResolvedValue(crearDatosDeStockSimulados());
 
-    expect(screen.getByRole("heading", { name: "Stock" })).toBeInTheDocument();
+    render(<ProveedorModoDev activo={false}>{await PestanaStock()}</ProveedorModoDev>);
 
-    const pedido = screen.getByRole("button", { name: "+ Pedido a casa editora" });
-    const autorizar = screen.getAllByRole("button", { name: "Autorizar" });
-    const ver = screen.getAllByRole("button", { name: "Ver" });
-    const rechazar = screen.getByRole("button", { name: "Rechazar" });
+    expect(screen.getByRole("heading", { level: 1, name: "Stock" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Todas las ciudades" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Stock por producto en Todas las ciudades" })).toBeInTheDocument();
+    expect(screen.queryByText(/casa editora/i)).not.toBeInTheDocument();
+  });
 
-    expect(autorizar).toHaveLength(2);
-    expect(ver).toHaveLength(2);
+  it("sin campaña dice por qué no hay nada que mirar", async () => {
+    obtenerStock.mockResolvedValue(null);
 
-    for (const boton of [pedido, ...autorizar, ...ver, rechazar]) {
-      expect(boton).toHaveAttribute("aria-disabled", "true");
-      expect(boton).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
-    }
+    render(<ProveedorModoDev activo={false}>{await PestanaStock()}</ProveedorModoDev>);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "No tenés una campaña en curso ni por empezar. Cuando tengas una, vas a ver acá el stock de cada ciudad.",
+    );
+    expect(screen.queryByRole("navigation", { name: "Ciudades" })).not.toBeInTheDocument();
+  });
+
+  it("si la fuente falla, la página falla y Next muestra error.tsx (no se pinta una vista vacía)", async () => {
+    obtenerStock.mockRejectedValue(new Error("sin red"));
+
+    await expect(PestanaStock()).rejects.toThrow("sin red");
+  });
+
+  it("al elegir otra campaña la vista se reinicia: la clave es la campaña", async () => {
+    obtenerStock.mockResolvedValue({ ...crearDatosDeStockSimulados(), campaniaId: "otra" });
+
+    const jsx = await PestanaStock();
+    const vista = JSON.stringify(jsx, (clave, valor) => (clave === "_owner" || clave === "_store" ? undefined : valor));
+
+    expect(vista).toContain('"key":"otra"');
   });
 });

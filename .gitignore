@@ -21,3 +21,6 @@ npm-debug.log*
 
 # Worker de MapLibre copiado por scripts/copiar-worker-maplibre.mjs
 /public/maplibre/
+
+# Artefacto de pruebas de demo (scripts/build-demo-supabase.mjs)
+/panel-supabase-dev/
