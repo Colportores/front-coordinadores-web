@@ -53,37 +53,7 @@ describe("armarCuentasSimuladas", () => {
 });
 
 describe("crearAccionesSimuladas", () => {
-  const acciones = crearAccionesSimuladas(() => AHORA);
-
-  it("el retiro vuelve ya validado, sin foto, con el instante del día elegido", async () => {
-    const r = await acciones.registrarRetiro({ colportorId: "sofia-cabral", monto: 5000, dia: "2026-10-20", destino: "alquiler" });
-    expect(r).toMatchObject({
-      ok: true,
-      valor: { colportorId: "sofia-cabral", monto: 5000, medio: "retiro-coordinador", estado: "VALIDADO", destino: "alquiler", tieneFoto: false },
-    });
-  });
-
-  it("cada retiro tiene su id", async () => {
-    const a = await acciones.registrarRetiro({ colportorId: "sofia-cabral", monto: 100, dia: "2026-10-22", destino: "casa-editora" });
-    const b = await acciones.registrarRetiro({ colportorId: "sofia-cabral", monto: 100, dia: "2026-10-22", destino: "casa-editora" });
-    expect(a.ok && b.ok && a.valor.id !== b.valor.id).toBe(true);
-  });
-
-  it("rechaza un monto que no es entero mayor que cero y un día futuro", async () => {
-    for (const monto of [0, -5, 10.5, Number.NaN]) {
-      expect(await acciones.registrarRetiro({ colportorId: "x", monto, dia: "2026-10-22", destino: "alquiler" })).toMatchObject({
-        ok: false,
-        causa: "rechazado",
-      });
-    }
-    expect(await acciones.registrarRetiro({ colportorId: "x", monto: 100, dia: "2026-10-23", destino: "alquiler" })).toMatchObject({
-      ok: false,
-      causa: "rechazado",
-    });
-    expect(await acciones.registrarRetiro({ colportorId: "x", monto: 100, dia: "2026-02-31", destino: "alquiler" })).toMatchObject({
-      ok: false,
-    });
-  });
+  const acciones = crearAccionesSimuladas();
 
   it("editarAlquiler acepta 0 y rechaza negativos y decimales", async () => {
     expect(await acciones.editarAlquiler(0)).toEqual({ ok: true, valor: 0 });

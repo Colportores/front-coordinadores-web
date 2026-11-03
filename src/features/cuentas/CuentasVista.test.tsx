@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -7,7 +7,6 @@ import type { AccionesCuentas, DatosDeCuentas, ResultadoDeAccion, TicketDeCuenta
 import { armarCuentasSimuladas, crearAccionesSimuladas } from "@/datos/cuentas/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 import { CuentasVista } from "@/features/cuentas/CuentasVista";
-import { formatMonto } from "@/features/cuentas/formato";
 import { hayTrabajoPendiente } from "@/shell/trabajo-pendiente";
 
 const AHORA = new Date("2026-10-22T15:00:00.000Z");
@@ -24,12 +23,11 @@ function diferida<T>() {
 }
 
 function montar(opciones: { datos?: DatosDeCuentas; acciones?: Partial<AccionesCuentas> } = {}) {
-  const base = crearAccionesSimuladas(() => AHORA);
+  const base = crearAccionesSimuladas();
   const acciones = {
-    registrarRetiro: vi.fn(base.registrarRetiro),
     editarAlquiler: vi.fn(base.editarAlquiler),
     ...opciones.acciones,
-  } as AccionesCuentas & { registrarRetiro: ReturnType<typeof vi.fn>; editarAlquiler: ReturnType<typeof vi.fn> };
+  } as AccionesCuentas & { editarAlquiler: ReturnType<typeof vi.fn> };
   const usuario = userEvent.setup();
   const datos = opciones.datos ?? datosBase();
   const vista = (
@@ -48,21 +46,6 @@ const cifra = (rotulo: string) => screen.getByText(rotulo, { selector: "dt" });
 async function irATickets(usuario: ReturnType<typeof userEvent.setup>, ciudadNombre: RegExp) {
   await usuario.click(ciudad(ciudadNombre));
   await usuario.click(pestana(/Tickets/));
-}
-
-function formularioDeRetiro() {
-  return within(screen.getByRole("form", { name: "Registrar retiro" }));
-}
-
-async function llenarRetiro(
-  usuario: ReturnType<typeof userEvent.setup>,
-  { colportor = "sofia-cabral", monto = "5000", destino = "Casa editora", dia }: { colportor?: string; monto?: string; destino?: string; dia?: string } = {},
-) {
-  const f = formularioDeRetiro();
-  await usuario.selectOptions(f.getByLabelText("Colportor"), colportor);
-  await usuario.type(f.getByLabelText(/Monto retirado/), monto);
-  if (dia) fireEvent.change(f.getByLabelText("Día del retiro"), { target: { value: dia } });
-  await usuario.click(f.getByRole("radio", { name: destino }));
 }
 
 function filaDe(nombre: RegExp) {
@@ -305,7 +288,7 @@ describe("A04 · Tickets · filtrado por Sofía Cabral", () => {
     await irATickets(usuario, /^Artigas/);
     await usuario.selectOptions(screen.getByLabelText("Colportor", { selector: "select" }), "sofia-cabral");
     expect(screen.getByText("0 tickets de Sofía Cabral")).toBeInTheDocument();
-    expect(screen.getByText(/Sofía Cabral todavía no tiene tickets\. Aparecen cuando sube uno o cuando registrás un retiro\./)).toBeInTheDocument();
+    expect(screen.getByText(/Sofía Cabral todavía no tiene tickets\. Aparecen cuando sube uno\./)).toBeInTheDocument();
   });
 
   it("un solo ticket dice «1 ticket», no «1 tickets»", async () => {
@@ -315,6 +298,45 @@ describe("A04 · Tickets · filtrado por Sofía Cabral", () => {
     await irATickets(usuario, /^Artigas/);
     await usuario.selectOptions(screen.getByLabelText("Colportor", { selector: "select" }), "sofia-cabral");
     expect(screen.getByText("1 ticket de Sofía Cabral")).toBeInTheDocument();
+  });
+});
+
+describe("Tickets sin «Registrar retiro»", () => {
+  it("el retiro lo carga el colportor: ni en Artigas ni en Bella Unión hay botón ni formulario para registrarlo", async () => {
+    const { usuario } = montar();
+    await irATickets(usuario, /^Artigas/);
+    expect(screen.queryByRole("button", { name: "Registrar retiro" })).not.toBeInTheDocument();
+    await usuario.click(ciudad(/^Bella Unión/));
+    expect(screen.queryByRole("button", { name: "Registrar retiro" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Registrar retiro" })).not.toBeInTheDocument();
+  });
+
+  it("los retiros que cargó el colportor siguen en el historial y en el resumen", async () => {
+    const { usuario } = montar();
+    await irATickets(usuario, /^Artigas/);
+    expect(screen.getByText("RETIROS DEL COORDINADOR", { selector: "dt" })).toBeInTheDocument();
+    expect(screen.getAllByText("Retiro por el coordinador").length).toBeGreaterThan(0);
+  });
+});
+
+describe("saldo a favor", () => {
+  it("Casa editora: lo pagado de más se ve «a favor» en lugar de $U 0", () => {
+    const datos = datosBase();
+    const colportores = datos.colportores.map((c) => (c.id === "sofia-cabral" ? { ...c, deuda: 0, aFavor: 3000 } : c));
+    montar({ datos: { ...datos, colportores } });
+    expect(filaDe(/Sofía Cabral/)).toHaveTextContent("a favor $U 3.000");
+  });
+
+  it("Casa editora: con deuda no se muestra «a favor»", () => {
+    montar();
+    expect(filaDe(/Sofía Cabral/)).not.toHaveTextContent("a favor");
+  });
+
+  it("Alquiler: si lo pagado supera el alquiler, la columna DEBE dice «a favor»", async () => {
+    const datos = datosBase();
+    const { usuario } = montar({ datos: { ...datos, alquilerPorColportor: 1000 } });
+    await usuario.click(pestana(/Alquiler/));
+    expect(within(screen.getByRole("table", { name: "Alquiler" })).getAllByText(/^a favor \$U/).length).toBeGreaterThan(0);
   });
 });
 
@@ -391,274 +413,6 @@ describe("pestañas", () => {
     expect(pestana(/Alquiler/)).toHaveAttribute("tabindex", "-1");
     await usuario.click(pestana(/Alquiler/));
     expect(screen.getByRole("tabpanel")).toHaveAccessibleName("Alquiler");
-  });
-});
-
-describe("Registrar retiro", () => {
-  it("solo aparece en Tickets y solo donde no hay banco", async () => {
-    const { usuario } = montar();
-    expect(screen.queryByRole("button", { name: "Registrar retiro" })).not.toBeInTheDocument();
-    await usuario.click(ciudad(/^Rivera/));
-    await usuario.click(pestana(/Tickets/));
-    expect(screen.queryByRole("button", { name: "Registrar retiro" })).not.toBeInTheDocument();
-    await usuario.click(ciudad(/^Bella Unión/));
-    expect(screen.getByRole("button", { name: "Registrar retiro" })).toBeInTheDocument();
-    await usuario.click(ciudad(/^Todas las ciudades/));
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    const opciones = formularioDeRetiro().getAllByRole("option").map((o) => o.textContent);
-    expect(opciones).toContain("Sofía Cabral · Artigas");
-    expect(opciones).toContain("Gonzalo Méndez · Bella Unión");
-    expect(opciones.some((o) => o?.includes("Lucía Fernández"))).toBe(false);
-  });
-
-  it("registra el retiro: acredita, baja la deuda, suma al historial y avisa", async () => {
-    const { usuario, acciones, datos } = montar();
-    const sofia = datos.colportores.find((c) => c.id === "sofia-cabral")!;
-    await irATickets(usuario, /^Artigas/);
-    const antes = Number(/(\d+)$/.exec(pestana(/Tickets/).textContent ?? "")?.[1]);
-
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    expect(formularioDeRetiro().getByLabelText("Día del retiro")).toHaveValue("2026-10-22");
-    await llenarRetiro(usuario, { monto: "5.000", destino: "Casa editora" });
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-
-    expect(acciones.registrarRetiro).toHaveBeenCalledTimes(1);
-    expect(acciones.registrarRetiro).toHaveBeenCalledWith({ colportorId: "sofia-cabral", monto: 5000, dia: "2026-10-22", destino: "casa-editora" });
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Retiro de $U 5.000 de Sofía Cabral guardado y validado: bajó lo que debe a la casa editora.",
-    );
-    expect(screen.queryByRole("form", { name: "Registrar retiro" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Registrar retiro" })).toHaveFocus();
-    expect(pestana(/Tickets/)).toHaveTextContent(String(antes + 1));
-    const nuevo = screen.getAllByRole("row").find((f) => f.textContent?.includes("Retiro por el coordinador") && f.textContent.includes("$U 5.000") && f.textContent.includes("hoy"));
-    expect(nuevo).toBeDefined();
-    expect(nuevo).toHaveTextContent("✓ Validado");
-
-    await usuario.click(pestana(/Casa editora/));
-    const fila = filaDe(/Sofía Cabral/);
-    expect(fila).toHaveTextContent(formatMonto(sofia.deuda - 5000));
-    expect(fila).toHaveTextContent(formatMonto(sofia.depositado + 5000));
-  });
-
-  it("un retiro de alquiler baja el alquiler y no la deuda de la casa editora", async () => {
-    const { usuario, datos } = montar();
-    const sofia = datos.colportores.find((c) => c.id === "sofia-cabral")!;
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario, { monto: "1000", destino: "Alquiler" });
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("bajó lo que debe al alquiler.");
-
-    await usuario.click(pestana(/Casa editora/));
-    expect(filaDe(/Sofía Cabral/)).toHaveTextContent(formatMonto(sofia.deuda));
-  });
-
-  it("un retiro de un día anterior queda con esa fecha", async () => {
-    const { usuario } = montar();
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario, { monto: "700", destino: "Casa editora", dia: "2026-10-20" });
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-    await screen.findByRole("status");
-    expect(screen.getAllByRole("row").some((f) => f.textContent?.includes("20/10") && f.textContent.includes("$U 700"))).toBe(true);
-  });
-
-  it("sin llenar nada dice qué falta en cada campo, lleva el foco al primero y no manda nada", async () => {
-    const { usuario, acciones } = montar();
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-
-    const f = formularioDeRetiro();
-    expect(f.getByText("Elegí el colportor al que le retiraste el efectivo.")).toBeInTheDocument();
-    expect(f.getByText("Escribí el monto retirado.")).toBeInTheDocument();
-    expect(f.getByText("Elegí si el dinero es de la casa editora o del alquiler.")).toBeInTheDocument();
-    expect(f.getByLabelText("Colportor")).toHaveFocus();
-    expect(f.getByLabelText("Colportor")).toHaveAttribute("aria-invalid", "true");
-    expect(f.getByLabelText(/Monto retirado/)).toHaveAccessibleDescription("Escribí el monto retirado.");
-    expect(acciones.registrarRetiro).not.toHaveBeenCalled();
-  });
-
-  it("corregir un campo le saca su error; un monto con decimales o en cero se rechaza", async () => {
-    const { usuario, acciones } = montar();
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario, { monto: "12,5", destino: "Alquiler" });
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-    expect(formularioDeRetiro().getByText(/número entero de pesos/)).toBeInTheDocument();
-    expect(formularioDeRetiro().getByLabelText(/Monto retirado/)).toHaveFocus();
-
-    await usuario.clear(formularioDeRetiro().getByLabelText(/Monto retirado/));
-    expect(formularioDeRetiro().queryByText(/número entero de pesos/)).not.toBeInTheDocument();
-    await usuario.type(formularioDeRetiro().getByLabelText(/Monto retirado/), "0");
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-    expect(formularioDeRetiro().getByText("El monto tiene que ser mayor que cero.")).toBeInTheDocument();
-    expect(acciones.registrarRetiro).not.toHaveBeenCalled();
-  });
-
-  it("un día futuro se rechaza y el calendario no deja elegirlo", async () => {
-    const { usuario, acciones } = montar();
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    expect(formularioDeRetiro().getByLabelText("Día del retiro")).toHaveAttribute("max", "2026-10-22");
-    await llenarRetiro(usuario, { monto: "100", destino: "Alquiler", dia: "2026-10-30" });
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-    expect(formularioDeRetiro().getByText(/no puede ser futuro/)).toBeInTheDocument();
-    expect(acciones.registrarRetiro).not.toHaveBeenCalled();
-  });
-
-  it("el doble toque en Guardar manda un solo retiro", async () => {
-    const respuesta = diferida<ResultadoDeAccion<TicketDeCuentas>>();
-    const registrarRetiro = vi.fn(() => respuesta.promesa);
-    const { usuario, datos } = montar({ acciones: { registrarRetiro } });
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario, { monto: "5000" });
-    const guardar = formularioDeRetiro().getByRole("button", { name: "Guardar retiro" });
-    await usuario.dblClick(guardar);
-
-    expect(registrarRetiro).toHaveBeenCalledTimes(1);
-    expect(formularioDeRetiro().getByRole("button", { name: "Guardando…" })).toHaveAttribute("aria-disabled", "true");
-    expect(hayTrabajoPendiente()).toBe(true);
-
-    const ticket = await crearAccionesSimuladas(() => AHORA).registrarRetiro({ colportorId: "sofia-cabral", monto: 5000, dia: "2026-10-22", destino: "casa-editora" });
-    await act(async () => respuesta.resolver(ticket));
-    expect(await screen.findByRole("status")).toBeInTheDocument();
-    expect(hayTrabajoPendiente()).toBe(false);
-    const sofia = datos.colportores.find((c) => c.id === "sofia-cabral")!;
-    await usuario.click(pestana(/Casa editora/));
-    expect(filaDe(/Sofía Cabral/)).toHaveTextContent(formatMonto(sofia.deuda - 5000));
-  });
-
-  it("si falla a mitad, avisa qué pasó, conserva lo cargado y el botón vuelve a habilitarse; reintentar sale", async () => {
-    const real = crearAccionesSimuladas(() => AHORA);
-    const registrarRetiro = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: false, causa: "sin-conexion" })
-      .mockImplementation(real.registrarRetiro);
-    const { usuario } = montar({ acciones: { registrarRetiro } });
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario, { monto: "5000", destino: "Alquiler" });
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-
-    expect(await formularioDeRetiro().findByRole("alert")).toHaveTextContent("Necesitás conexión para guardar el retiro. Revisá la conexión y probá de nuevo.");
-    const guardar = formularioDeRetiro().getByRole("button", { name: "Guardar retiro" });
-    expect(guardar).not.toHaveAttribute("aria-disabled", "true");
-    expect(formularioDeRetiro().getByLabelText(/Monto retirado/)).toHaveValue("5000");
-    expect(formularioDeRetiro().getByRole("radio", { name: "Alquiler" })).toBeChecked();
-    expect(hayTrabajoPendiente()).toBe(false);
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-
-    await usuario.click(guardar);
-    expect(await screen.findByRole("status")).toHaveTextContent("Retiro de $U 5.000 de Sofía Cabral guardado y validado");
-    expect(registrarRetiro).toHaveBeenCalledTimes(2);
-  });
-
-  it("si la acción revienta (excepción) se trata como sin conexión y no queda trabada", async () => {
-    const registrarRetiro = vi.fn().mockRejectedValueOnce(new Error("TypeError: Failed to fetch"));
-    const { usuario } = montar({ acciones: { registrarRetiro } });
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario);
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-    expect(await formularioDeRetiro().findByRole("alert")).toHaveTextContent("Necesitás conexión");
-    expect(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" })).not.toHaveAttribute("aria-disabled", "true");
-    expect(hayTrabajoPendiente()).toBe(false);
-  });
-
-  it("si el servidor lo rechaza muestra su mensaje", async () => {
-    const registrarRetiro = vi.fn().mockResolvedValue({ ok: false, causa: "rechazado", mensaje: "El colportor no pertenece a tu campaña." });
-    const { usuario } = montar({ acciones: { registrarRetiro } });
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario);
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-    expect(await formularioDeRetiro().findByRole("alert")).toHaveTextContent("El colportor no pertenece a tu campaña.");
-  });
-
-  it("un rechazo sin mensaje dice qué hacer", async () => {
-    const registrarRetiro = vi.fn().mockResolvedValue({ ok: false, causa: "rechazado" });
-    const { usuario } = montar({ acciones: { registrarRetiro } });
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario);
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-    expect(await formularioDeRetiro().findByRole("alert")).toHaveTextContent("No se pudo guardar el retiro. Probá de nuevo; si sigue igual, avisá al equipo.");
-  });
-
-  it("mientras se guarda el retiro, Editar el alquiler y Cancelar no hacen nada", async () => {
-    const respuesta = diferida<ResultadoDeAccion<TicketDeCuentas>>();
-    const { usuario, acciones } = montar({ acciones: { registrarRetiro: vi.fn(() => respuesta.promesa) } });
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario);
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-
-    await usuario.click(screen.getByRole("button", { name: "Editar" }));
-    expect(screen.queryByRole("form", { name: "Editar el alquiler de la campaña" })).not.toBeInTheDocument();
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Cancelar" }));
-    expect(screen.getByRole("form", { name: "Registrar retiro" })).toBeInTheDocument();
-    expect(acciones.editarAlquiler).not.toHaveBeenCalled();
-
-    await act(async () => respuesta.resolver({ ok: false, causa: "sin-conexion" }));
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Cancelar" }));
-    expect(screen.queryByRole("form", { name: "Registrar retiro" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Registrar retiro" })).toHaveFocus();
-  });
-
-  it("Cancelar cierra el formulario sin mandar nada y vuelve el foco al botón", async () => {
-    const { usuario, acciones } = montar();
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Cancelar" }));
-    expect(screen.queryByRole("form", { name: "Registrar retiro" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Registrar retiro" })).toHaveFocus();
-    expect(acciones.registrarRetiro).not.toHaveBeenCalled();
-  });
-
-  it("si se filtró un colportor, el formulario lo trae elegido", async () => {
-    const { usuario } = montar();
-    await irATickets(usuario, /^Artigas/);
-    await usuario.selectOptions(screen.getByLabelText("Colportor", { selector: "select" }), "agustina-rey");
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    expect(formularioDeRetiro().getByLabelText("Colportor")).toHaveValue("agustina-rey");
-  });
-
-  it("si se elige otra ciudad, el formulario se cierra (era de la selección anterior)", async () => {
-    const { usuario } = montar();
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await usuario.click(ciudad(/^Bella Unión/));
-    expect(screen.queryByRole("form", { name: "Registrar retiro" })).not.toBeInTheDocument();
-    await usuario.click(ciudad(/^Rivera/));
-    expect(screen.queryByRole("button", { name: "Registrar retiro" })).not.toBeInTheDocument();
-  });
-
-  it("dos retiros seguidos se acumulan sin pisarse", async () => {
-    const { usuario, datos } = montar();
-    const sofia = datos.colportores.find((c) => c.id === "sofia-cabral")!;
-    await irATickets(usuario, /^Artigas/);
-    for (const monto of ["1000", "2000"]) {
-      await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-      await llenarRetiro(usuario, { monto });
-      await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-      await screen.findByRole("status");
-    }
-    await usuario.click(pestana(/Casa editora/));
-    expect(filaDe(/Sofía Cabral/)).toHaveTextContent(formatMonto(sofia.deuda - 3000));
-    expect(filaDe(/Sofía Cabral/)).toHaveTextContent(formatMonto(sofia.depositado + 3000));
-  });
-
-  it("el aviso de éxito se cierra con su botón", async () => {
-    const { usuario } = montar();
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario);
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-    await screen.findByRole("status");
-    await usuario.click(screen.getByRole("button", { name: "Cerrar el aviso" }));
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });
 
@@ -766,49 +520,48 @@ describe("Editar el alquiler", () => {
     expect(otra.getByLabelText(/Alquiler por colportor/)).toHaveValue("18500");
   });
 
-  it("editar el alquiler y registrar un retiro, uno tras otro, se aplican los dos", async () => {
+  it("dos ediciones del alquiler, una tras otra, se aplican las dos", async () => {
     const { usuario } = montar();
-    const editor = await abrirEditor(usuario);
-    await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
-    await usuario.type(editor.getByLabelText(/Alquiler por colportor/), "10000");
-    await usuario.click(editor.getByRole("button", { name: "Guardar" }));
-    await screen.findByText(/para todos los inscriptos/);
-
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario, { monto: "10000", destino: "Alquiler" });
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-    await screen.findByText(/Retiro de \$U 10\.000/);
-
+    for (const monto of ["10000", "12000"]) {
+      const editor = await abrirEditor(usuario);
+      await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
+      await usuario.type(editor.getByLabelText(/Alquiler por colportor/), monto);
+      await usuario.click(editor.getByRole("button", { name: "Guardar" }));
+      await screen.findByText(/para todos los inscriptos/);
+    }
+    expect(screen.getByRole("status")).toHaveTextContent("$U 12.000");
     await usuario.click(pestana(/Alquiler/));
-    const fila = filaDe(/Sofía Cabral/);
-    expect(fila).toHaveTextContent("✓ Pagado");
+    expect(screen.getByRole("heading", { level: 2, name: "Todas las ciudades" })).toBeInTheDocument();
   });
 
   it("el último aviso reemplaza al anterior", async () => {
     const { usuario } = montar();
-    const editor = await abrirEditor(usuario);
-    await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
-    await usuario.type(editor.getByLabelText(/Alquiler por colportor/), "10000");
-    await usuario.click(editor.getByRole("button", { name: "Guardar" }));
-    await screen.findByText(/para todos los inscriptos/);
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario);
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
-    await screen.findByText(/Retiro de/);
+    for (const monto of ["10000", "11000"]) {
+      const editor = await abrirEditor(usuario);
+      await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
+      await usuario.type(editor.getByLabelText(/Alquiler por colportor/), monto);
+      await usuario.click(editor.getByRole("button", { name: "Guardar" }));
+      await screen.findByText(/para todos los inscriptos/);
+    }
     expect(screen.getAllByRole("status")).toHaveLength(1);
+    expect(screen.getByRole("status")).toHaveTextContent("$U 11.000");
   });
 });
 
 describe("volver atrás y reentrar", () => {
+  async function guardarAlquilerSinContestar(usuario: ReturnType<typeof userEvent.setup>) {
+    await usuario.click(screen.getByRole("button", { name: "Editar" }));
+    const editor = within(screen.getByRole("form", { name: "Editar el alquiler de la campaña" }));
+    await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
+    await usuario.type(editor.getByLabelText(/Alquiler por colportor/), "21000");
+    await usuario.click(editor.getByRole("button", { name: "Guardar" }));
+  }
+
   it("al reentrar la vista arranca limpia: Casa editora, todas las ciudades y sin nada trabado", async () => {
-    const respuesta = diferida<ResultadoDeAccion<TicketDeCuentas>>();
-    const primera = montar({ acciones: { registrarRetiro: vi.fn(() => respuesta.promesa) } });
-    await irATickets(primera.usuario, /^Artigas/);
-    await primera.usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(primera.usuario);
-    await primera.usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
+    const respuesta = diferida<ResultadoDeAccion<number>>();
+    const primera = montar({ acciones: { editarAlquiler: vi.fn(() => respuesta.promesa) } });
+    await primera.usuario.click(ciudad(/^Artigas/));
+    await guardarAlquilerSinContestar(primera.usuario);
     primera.unmount();
     expect(hayTrabajoPendiente()).toBe(true);
 
@@ -822,13 +575,10 @@ describe("volver atrás y reentrar", () => {
     expect(screen.queryByRole("form")).not.toBeInTheDocument();
   });
 
-  it("un retiro en camino cuenta como trabajo sin contestar aunque la vista se vaya", async () => {
-    const respuesta = diferida<ResultadoDeAccion<TicketDeCuentas>>();
-    const { usuario, unmount } = montar({ acciones: { registrarRetiro: vi.fn(() => respuesta.promesa) } });
-    await irATickets(usuario, /^Artigas/);
-    await usuario.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await llenarRetiro(usuario);
-    await usuario.click(formularioDeRetiro().getByRole("button", { name: "Guardar retiro" }));
+  it("un guardado en camino cuenta como trabajo sin contestar aunque la vista se vaya", async () => {
+    const respuesta = diferida<ResultadoDeAccion<number>>();
+    const { usuario, unmount } = montar({ acciones: { editarAlquiler: vi.fn(() => respuesta.promesa) } });
+    await guardarAlquilerSinContestar(usuario);
     expect(hayTrabajoPendiente()).toBe(true);
     unmount();
     expect(hayTrabajoPendiente()).toBe(true);
@@ -861,7 +611,7 @@ describe("datos límite", () => {
     await irATickets(usuario, /^Bella Unión/);
     expect(screen.getByText(/Todavía no hay tickets en Bella Unión/)).toBeInTheDocument();
     expect(screen.getByText("0 tickets en Bella Unión")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Registrar retiro" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Registrar retiro" })).not.toBeInTheDocument();
   });
 
   it("una lista larga de colportores y tickets se arma sin problemas", async () => {

@@ -5,11 +5,10 @@ import type {
   DatosDeCuentas,
   FuenteDatosCuentas,
   MedioDeTicket,
-  NuevoRetiro,
   ResultadoDeAccion,
   TicketDeCuentas,
 } from "@/datos/cuentas/contrato";
-import { diaEnMontevideo, esDiaValido, instanteDeRetiro, instanteHaceDias } from "@/datos/cuentas/fechas";
+import { instanteHaceDias } from "@/datos/cuentas/fechas";
 
 /**
  * Datos de ejemplo de la vista 36 («36 Cuentas.dc.html»): tres ciudades en dos departamentos (Rivera tiene banco;
@@ -225,33 +224,8 @@ export const fuenteCuentasSimulada: FuenteDatosCuentas = {
  * Las escrituras de la vista contra la fuente simulada: se resuelven en el navegador y no se guardan (al recargar vuelven
  * los datos de ejemplo). Cuando se conecten las RPC, lo reemplazan las server actions con el mismo contrato.
  */
-export function crearAccionesSimuladas(ahora: () => Date = () => new Date()): AccionesCuentas {
-  let contador = 0;
+export function crearAccionesSimuladas(): AccionesCuentas {
   return {
-    async registrarRetiro(retiro: NuevoRetiro): Promise<ResultadoDeAccion<TicketDeCuentas>> {
-      const instante = ahora().toISOString();
-      if (!Number.isInteger(retiro.monto) || retiro.monto <= 0) {
-        return { ok: false, causa: "rechazado", mensaje: "El monto tiene que ser mayor que cero." };
-      }
-      const hoy = diaEnMontevideo(instante);
-      if (!esDiaValido(retiro.dia) || (hoy !== null && retiro.dia > hoy)) {
-        return { ok: false, causa: "rechazado", mensaje: "La fecha del retiro no puede ser futura." };
-      }
-      contador += 1;
-      return {
-        ok: true,
-        valor: {
-          id: `retiro-${retiro.colportorId}-${contador}`,
-          colportorId: retiro.colportorId,
-          fecha: instanteDeRetiro(retiro.dia, instante),
-          monto: retiro.monto,
-          medio: "retiro-coordinador",
-          destino: retiro.destino,
-          estado: "VALIDADO",
-          tieneFoto: false,
-        },
-      };
-    },
     async editarAlquiler(monto: number): Promise<ResultadoDeAccion<number>> {
       if (!Number.isInteger(monto) || monto < 0) {
         return { ok: false, causa: "rechazado", mensaje: "El alquiler tiene que ser un monto entero, sin negativos." };

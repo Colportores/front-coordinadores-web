@@ -37,20 +37,17 @@ describe("PestanaCuentas en el build del sitio de prueba (export estático, sin 
     expect(screen.getByRole("table", { name: "Casa editora" })).toBeInTheDocument();
   });
 
-  it("registra un retiro contra la simulada desde el navegador", async () => {
+  it("edita el alquiler contra la simulada desde el navegador", async () => {
     vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "1");
     render(<ProveedorModoDev activo={false}>{await PestanaCuentas()}</ProveedorModoDev>);
     await screen.findByRole("heading", { level: 2, name: "Todas las ciudades" });
 
-    await userEvent.click(screen.getByRole("button", { name: /^Artigas/ }));
-    await userEvent.click(screen.getByRole("tab", { name: /Tickets/ }));
-    await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await userEvent.selectOptions(screen.getByLabelText("Colportor", { selector: "#retiro-colportor" }), "sofia-cabral");
-    await userEvent.type(screen.getByLabelText(/Monto retirado/), "2500");
-    await userEvent.click(screen.getByRole("radio", { name: "Casa editora" }));
-    await userEvent.click(screen.getByRole("button", { name: "Guardar retiro" }));
+    await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+    await userEvent.clear(screen.getByLabelText(/Alquiler por colportor/));
+    await userEvent.type(screen.getByLabelText(/Alquiler por colportor/), "21000");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Retiro de $U 2.500 de Sofía Cabral guardado y validado");
+    expect(await screen.findByRole("status")).toHaveTextContent("Alquiler de la campaña: $U 21.000 por colportor");
   });
 
   it("si no se pueden cargar los datos simulados, avisa qué hacer", async () => {

@@ -16,7 +16,6 @@ export type {
   EstadoDeTicket,
   FuenteDatosCuentas,
   MedioDeTicket,
-  NuevoRetiro,
   ResultadoDeAccion,
   TicketDeCuentas,
 } from "@/datos/cuentas/contrato";

@@ -30,6 +30,8 @@ export interface ColportorDeCuentas {
   ciudadId: string;
   /** Deuda con la casa editora. La del alquiler se calcula aparte (alquiler de la campaña menos lo pagado). */
   deuda: number;
+  /** Lo pagado de más a la casa editora: no se pierde, queda a favor y se descuenta de la próxima deuda. Lo calcula el servidor. */
+  aFavor?: number;
   depositado: number;
   /** Lo cobrado y no depositado, sin descontar gastos del día: una referencia. */
   enMano: number;
@@ -71,16 +73,6 @@ export interface FuenteDatosCuentas {
   obtenerCuentas(): Promise<DatosDeCuentas>;
 }
 
-/** Lo que el coordinador carga al registrar el retiro de un efectivo. */
-export interface NuevoRetiro {
-  colportorId: string;
-  /** Entero mayor que cero. */
-  monto: number;
-  /** Día del retiro, AAAA-MM-DD en hora de Montevideo; no puede ser futuro. */
-  dia: string;
-  destino: DestinoDeTicket;
-}
-
 /** Por qué no se pudo guardar: sin conexión (se reintenta igual) o rechazado por el servidor (trae su texto). */
 export type CausaDeFalla = "sin-conexion" | "rechazado";
 
@@ -88,8 +80,6 @@ export type ResultadoDeAccion<T> = { ok: true; valor: T } | { ok: false; causa: 
 
 /** Escrituras de la vista. La fuente simulada las resuelve en el navegador; la real serán server actions. */
 export interface AccionesCuentas {
-  /** El retiro entra ya VALIDADO (lo carga el mismo coordinador): acredita y baja la deuda del destino. */
-  registrarRetiro(retiro: NuevoRetiro): Promise<ResultadoDeAccion<TicketDeCuentas>>;
   /** Cambia el alquiler de todos los inscriptos de la campaña. */
   editarAlquiler(monto: number): Promise<ResultadoDeAccion<number>>;
 }

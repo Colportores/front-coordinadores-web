@@ -3,18 +3,15 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { AccionNoDisponible } from "@/components/AccionNoDisponible";
-import type { AccionesCuentas, DatosDeCuentas, NuevoRetiro, ResultadoDeAccion } from "@/datos/cuentas";
-import { diaEnMontevideo } from "@/datos/cuentas/fechas";
+import type { AccionesCuentas, DatosDeCuentas, ResultadoDeAccion } from "@/datos/cuentas";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { ColumnaDeCiudades } from "@/features/cuentas/ColumnaDeCiudades";
 import { EncabezadoDeCuentas } from "@/features/cuentas/EncabezadoDeCuentas";
-import { FormularioDeRetiro } from "@/features/cuentas/FormularioDeRetiro";
 import { Pastilla, TablaDeFilas, type ColumnaDeTabla } from "@/features/cuentas/TablaDeFilas";
 import { TablaDeTickets } from "@/features/cuentas/TablaDeTickets";
 import { formatMonto } from "@/features/cuentas/formato";
 import {
   aplicarAlquiler,
-  aplicarTicket,
   avisoDePendientes,
   ciudadesDe,
   colportoresDe,
@@ -32,6 +29,7 @@ import {
   seleccionVigente,
   siguienteOrden,
   subtituloDeSeleccion,
+  textoDeSaldo,
   ticketsDe,
   tituloDeSeleccion,
   TODAS,
@@ -99,7 +97,7 @@ function mensajeDeFalla<T>(resultado: Extract<ResultadoDeAccion<T>, { ok: false 
 
 /**
  * La vista 36: Cuentas. Una tabla por tema (Casa editora, Alquiler, Tickets) con la lista de ciudades como filtro. Los datos
- * llegan por props y las escrituras (editar el alquiler, registrar un retiro) por `acciones`, de a una por vez: mientras una
+ * llegan por props y las escrituras (editar el alquiler) por `acciones`, de a una por vez: mientras una
  * está en camino, la otra y el doble toque se ignoran, y si falla todo vuelve a poder usarse.
  */
 export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuentas; acciones: AccionesCuentas }) {
@@ -110,7 +108,6 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
   const [colportorFiltrado, setColportorFiltrado] = useState("");
   const [abiertos, setAbiertos] = useState<ReadonlySet<string>>(new Set());
   const [ordenes, setOrdenes] = useState<Partial<Record<Pestana, Orden | null>>>({});
-  const [retiroAbierto, setRetiroAbierto] = useState(false);
   const [editandoAlquiler, setEditandoAlquiler] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [errorDeAlquiler, setErrorDeAlquiler] = useState<string | null>(null);
@@ -140,13 +137,7 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
 
   const orden = ordenes[pestana] ?? null;
   const filasOrdenadas = ordenarFilas(filas, orden);
-  const hoy = diaEnMontevideo(datos.ahora) ?? "";
   const alquiler = datos.alquilerPorColportor;
-
-  const sinBanco = new Set(ciudades.filter((c) => !c.hayBanco).map((c) => c.id));
-  const elegiblesParaRetiro = colportores
-    .filter((c) => sinBanco.has(c.ciudadId))
-    .map((c) => ({ id: c.id, nombre: c.nombre, ciudad: ciudades.find((x) => x.id === c.ciudadId)?.nombre ?? "" }));
 
   /** Una escritura por vez: la segunda mientras la primera está en camino se ignora. Cuenta como trabajo sin contestar. */
   async function escribir<T>(hacer: () => Promise<ResultadoDeAccion<T>>): Promise<ResultadoDeAccion<T> | null> {
@@ -167,20 +158,6 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
       ocupado.current = false;
       setGuardando(false);
     }
-  }
-
-  async function guardarRetiro(retiro: NuevoRetiro): Promise<string | null> {
-    const resultado = await escribir(() => acciones.registrarRetiro(retiro));
-    if (!resultado) return null;
-    if (!resultado.ok) return mensajeDeFalla(resultado, "guardar el retiro");
-    const ticket = resultado.valor;
-    setDatos((previos) => aplicarTicket(previos, ticket));
-    const nombre = datos.colportores.find((c) => c.id === ticket.colportorId)?.nombre ?? "el colportor";
-    const destino = ticket.destino === "alquiler" ? "al alquiler" : "a la casa editora";
-    setAviso({ tipo: "exito", texto: `Retiro de ${formatMonto(ticket.monto)} de ${nombre} guardado y validado: bajó lo que debe ${destino}.` });
-    setRetiroAbierto(false);
-    focoPendiente.current = "registrar-retiro";
-    return null;
   }
 
   async function guardarAlquiler(monto: number) {
@@ -206,8 +183,6 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
   function elegirSeleccion(nueva: Seleccion) {
     setSeleccionada(nueva);
     setColportorFiltrado("");
-    // El formulario de retiro es de la selección anterior: sus colportores pueden no estar.
-    setRetiroAbierto(false);
   }
 
   function moverPestana(evento: KeyboardEvent, indice: number) {
@@ -223,7 +198,6 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
   const alertaDePendientes = pestana === "tickets" ? null : avisoDePendientes(pendientes, datos.ahora);
   const kpis =
     pestana === "casa-editora" ? kpisDeCasaEditora(filas) : pestana === "alquiler" ? kpisDeAlquiler(filas, alquiler) : kpisDeTickets(tickets);
-  const puedeRegistrarRetiro = pestana === "tickets" && elegiblesParaRetiro.length > 0;
 
   return (
     <div className={cn("grid min-h-0 flex-1", contraida ? "grid-cols-[68px_minmax(0,1fr)]" : "grid-cols-[320px_minmax(0,1fr)]")}>
@@ -345,35 +319,7 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
                   ? `${plural(tickets.length, "ticket", "tickets")} de ${filtrado.nombre}`
                   : `${plural(tickets.length, "ticket", "tickets")} en ${titulo}`}
               </span>
-              {puedeRegistrarRetiro && !retiroAbierto && (
-                <button
-                  type="button"
-                  data-foco="registrar-retiro"
-                  aria-disabled={guardando}
-                  onClick={() => {
-                    if (!guardando) setRetiroAbierto(true);
-                  }}
-                  className="ml-auto inline-flex min-h-8 cursor-pointer items-center rounded-control border border-borde bg-superficie px-3.5 text-chico font-semibold text-tinta-2 focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
-                >
-                  Registrar retiro
-                </button>
-              )}
             </div>
-          )}
-
-          {pestana === "tickets" && retiroAbierto && puedeRegistrarRetiro && (
-            <FormularioDeRetiro
-              elegibles={elegiblesParaRetiro}
-              conCiudades={conCiudades}
-              colportorInicial={filtro}
-              hoy={hoy}
-              guardando={guardando}
-              alGuardar={guardarRetiro}
-              alCancelar={() => {
-                setRetiroAbierto(false);
-                focoPendiente.current = "registrar-retiro";
-              }}
-            />
           )}
 
           {pestana === "casa-editora" && (
@@ -390,7 +336,7 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
                 const cobrado = porcentajeCobrado(f.colportor);
                 return [
                   <b key="n" className="font-semibold">{f.colportor.nombre}</b>,
-                  <span key="d" className="font-mono font-semibold">{formatMonto(f.colportor.deuda)}</span>,
+                  <span key="d" className="font-mono font-semibold">{textoDeSaldo(f.colportor.deuda, f.colportor.aFavor ?? 0)}</span>,
                   <span key="p" className="font-mono">{formatMonto(f.colportor.depositado)}</span>,
                   <span key="m" className="font-mono">{formatMonto(f.colportor.enMano)}</span>,
                   <span key="c" className="font-mono">{formatMonto(f.colportor.porCobrar)}</span>,
@@ -417,7 +363,7 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
                   <b key="n" className="font-semibold">{f.colportor.nombre}</b>,
                   <span key="a" className="font-mono text-tinta-suave">{formatMonto(alquiler)}</span>,
                   <span key="p" className="font-mono">{formatMonto(f.pagadoAlquiler)}</span>,
-                  <span key="d" className="font-mono font-semibold">{formatMonto(f.debeAlquiler)}</span>,
+                  <span key="d" className="font-mono font-semibold">{textoDeSaldo(f.debeAlquiler, f.aFavorAlquiler)}</span>,
                   <span key="u" className={cn("font-mono", !f.ultimoPagoAlquiler && "text-tinta-tenue")}>
                     {f.ultimoPagoAlquiler ? fechaDeCuenta(f.ultimoPagoAlquiler, datos.ahora) : "—"}
                   </span>,
@@ -449,8 +395,8 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
               }
               textoVacio={
                 filtrado
-                  ? `${filtrado.nombre} todavía no tiene tickets. Aparecen cuando sube uno o cuando registrás un retiro.`
-                  : `Todavía no hay tickets en ${titulo}. Aparecen cuando un colportor sube uno o cuando registrás un retiro.`
+                  ? `${filtrado.nombre} todavía no tiene tickets. Aparecen cuando sube uno.`
+                  : `Todavía no hay tickets en ${titulo}. Aparecen cuando un colportor sube uno.`
               }
             />
             </SeccionHu>

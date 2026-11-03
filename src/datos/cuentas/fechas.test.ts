@@ -4,7 +4,6 @@ import {
   diaAnterior,
   diaEnMontevideo,
   esDiaValido,
-  instanteDeRetiro,
   instanteHaceDias,
   textoFechaDeTicket,
 } from "@/datos/cuentas/fechas";
@@ -53,11 +52,6 @@ describe("días", () => {
     expect(esDiaValido("")).toBe(false);
   });
 
-  it("instanteDeRetiro usa ahora si es hoy y el mediodía si es otro día", () => {
-    expect(instanteDeRetiro("2026-10-22", AHORA)).toBe(AHORA);
-    expect(instanteDeRetiro("2026-10-20", AHORA)).toBe("2026-10-20T12:00:00-03:00");
-    expect(textoFechaDeTicket(instanteDeRetiro("2026-10-20", AHORA), AHORA)).toBe("20/10");
-  });
 
   it("instanteHaceDias cuenta días de Montevideo hacia atrás", () => {
     expect(instanteHaceDias(AHORA, 0, 9, 15)).toBe("2026-10-22T09:15:00-03:00");

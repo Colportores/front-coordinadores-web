@@ -62,15 +62,6 @@ export function textoFechaDeTicket(iso: string, ahoraIso: string): string {
   return `${dos(p.dia)}/${dos(p.mes)}`;
 }
 
-/**
- * El instante de un retiro cargado para un día: si es hoy, ahora; si no, el mediodía de ese día (el retiro no lleva hora, y
- * así cae en el día correcto en cualquier zona).
- */
-export function instanteDeRetiro(dia: string, ahoraIso: string): string {
-  if (diaEnMontevideo(ahoraIso) === dia) return ahoraIso;
-  return `${dia}T12:00:00-03:00`;
-}
-
 /** Un instante `diasAtras` días antes del día de `ahoraIso`, a la hora indicada (hora de Montevideo). */
 export function instanteHaceDias(ahoraIso: string, diasAtras: number, hora: number, minuto: number): string {
   let dia = diaEnMontevideo(ahoraIso) ?? "1970-01-01";

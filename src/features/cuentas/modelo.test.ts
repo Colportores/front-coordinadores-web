@@ -25,11 +25,11 @@ import {
   textoDeEstado,
   textoDeMedio,
   textoDeNumero,
+  textoDeSaldo,
   ticketsDe,
   tituloDeSeleccion,
   TODAS,
   validarAlquiler,
-  validarRetiro,
   type Seleccion,
 } from "@/features/cuentas/modelo";
 
@@ -298,33 +298,6 @@ describe("leerMonto", () => {
   });
 });
 
-describe("validarRetiro", () => {
-  const elegibles = new Set(["sofia-cabral"]);
-  const bueno = { colportorId: "sofia-cabral", monto: "5.000", dia: "2026-10-22", destino: "alquiler" as const };
-
-  it("un retiro completo da el pedido listo, con el monto en entero", () => {
-    expect(validarRetiro(bueno, "2026-10-22", elegibles)).toEqual({
-      errores: {},
-      retiro: { colportorId: "sofia-cabral", monto: 5000, dia: "2026-10-22", destino: "alquiler" },
-    });
-  });
-
-  it("dice qué falta en cada campo", () => {
-    const { errores, retiro } = validarRetiro({ colportorId: "", monto: "", dia: "", destino: "" }, "2026-10-22", elegibles);
-    expect(retiro).toBeNull();
-    expect(Object.keys(errores)).toEqual(["colportorId", "monto", "dia", "destino"]);
-  });
-
-  it("rechaza monto cero, decimales, día futuro, día ilegible y un colportor que no es de la lista", () => {
-    expect(validarRetiro({ ...bueno, monto: "0" }, "2026-10-22", elegibles).errores.monto).toMatch(/mayor que cero/);
-    expect(validarRetiro({ ...bueno, monto: "12,5" }, "2026-10-22", elegibles).errores.monto).toMatch(/entero/);
-    expect(validarRetiro({ ...bueno, monto: "99999999999" }, "2026-10-22", elegibles).errores.monto).toMatch(/demasiado grande/);
-    expect(validarRetiro({ ...bueno, dia: "2026-10-23" }, "2026-10-22", elegibles).errores.dia).toMatch(/futuro/);
-    expect(validarRetiro({ ...bueno, dia: "ayer" }, "2026-10-22", elegibles).errores.dia).toMatch(/no es válido/);
-    expect(validarRetiro({ ...bueno, colportorId: "rodrigo" }, "2026-10-22", elegibles).errores.colportorId).toBeDefined();
-  });
-});
-
 describe("validarAlquiler", () => {
   it("acepta 0 y enteros; rechaza vacío, decimales y negativos", () => {
     expect(validarAlquiler("0")).toEqual({ error: null, monto: 0 });
@@ -361,6 +334,32 @@ describe("escrituras sobre una copia", () => {
     const despues = deSofia(aplicarTicket(datos, retiro(sofia.deuda + 5000, "casa-editora")));
     expect(despues.deuda).toBe(0);
     expect(despues.depositado).toBe(sofia.depositado + sofia.deuda + 5000);
+    expect(despues.aFavor).toBe(5000);
+  });
+
+  it("lo que ya estaba a favor se suma al siguiente pago de más; un pago que no pasa la deuda no suma", () => {
+    const una = aplicarTicket(datos, retiro(sofia.deuda + 5000, "casa-editora"));
+    const otro = { ...retiro(2000, "casa-editora"), id: "otro-retiro" };
+    expect(deSofia(aplicarTicket(una, otro)).aFavor).toBe(7000);
+    expect(deSofia(aplicarTicket(datos, retiro(1000, "casa-editora"))).aFavor).toBe(0);
+  });
+
+  it("un pago de alquiler no toca el saldo a favor de la casa editora", () => {
+    expect(deSofia(aplicarTicket(datos, retiro(1000, "alquiler"))).aFavor).toBe(sofia.aFavor);
+  });
+
+  it("el alquiler pagado de más queda a favor y la deuda de alquiler en 0", () => {
+    const pagado = aplicarTicket(datos, retiro(1000, "alquiler"));
+    const fila = filasDe(aplicarAlquiler(pagado, 400), ARTIGAS).find((f) => f.colportor.id === "sofia-cabral")!;
+    expect(fila.debeAlquiler).toBe(0);
+    expect(fila.aFavorAlquiler).toBe(fila.pagadoAlquiler - 400);
+    expect(fila.aFavorAlquiler).toBeGreaterThan(0);
+  });
+
+  it("textoDeSaldo dice «a favor» solo cuando no se debe nada y hay saldo", () => {
+    expect(textoDeSaldo(0, 3000)).toBe("a favor $U 3.000");
+    expect(textoDeSaldo(0, 0)).toBe("$U 0");
+    expect(textoDeSaldo(500, 3000)).toBe("$U 500");
   });
 
   it("un depósito de alquiler no toca la deuda de casa editora y sí el alquiler pagado", () => {

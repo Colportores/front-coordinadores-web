@@ -3,7 +3,6 @@ import type {
   ColportorDeCuentas,
   DatosDeCuentas,
   DestinoDeTicket,
-  NuevoRetiro,
   TicketDeCuentas,
 } from "@/datos/cuentas";
 import { textoFechaDeTicket } from "@/datos/cuentas/fechas";
@@ -11,7 +10,7 @@ import { formatMonto } from "@/features/cuentas/formato";
 
 /**
  * Lo que la vista 36 calcula con los datos: qué ciudades y colportores abarca la selección, las filas de cada tabla, las
- * cifras de arriba, los textos de los tickets y las dos escrituras (retiro y alquiler) aplicadas a una copia de los datos.
+ * cifras de arriba, los textos de los tickets y las escrituras (alquiler y tickets) aplicadas a una copia de los datos.
  * Todo puro: sin React ni fechas del reloj (la hora llega en `datos.ahora`).
  */
 
@@ -189,6 +188,8 @@ export interface FilaDeCuenta {
   pagadoAlquiler: number;
   /** Lo que falta de alquiler (nunca negativo). */
   debeAlquiler: number;
+  /** Lo pagado de más de alquiler: queda a favor (Cristian, 25/10). */
+  aFavorAlquiler: number;
   /** Instante del último depósito validado, de cualquier destino. */
   ultimoDeposito: string | null;
   /** Instante del último pago de alquiler validado. */
@@ -222,6 +223,7 @@ export function filasDe(datos: DatosDeCuentas, seleccion: Seleccion): FilaDeCuen
           ciudad,
           pagadoAlquiler,
           debeAlquiler: Math.max(0, datos.alquilerPorColportor - pagadoAlquiler),
+          aFavorAlquiler: Math.max(0, pagadoAlquiler - datos.alquilerPorColportor),
           ultimoDeposito: ultimo.get(colportor.id) ?? null,
           ultimoPagoAlquiler: ultimoAlquiler.get(colportor.id) ?? null,
         },
@@ -405,50 +407,6 @@ export function leerMonto(texto: string): LecturaDeMonto {
   return { ok: true, valor: Number(limpio) };
 }
 
-export interface BorradorDeRetiro {
-  colportorId: string;
-  monto: string;
-  dia: string;
-  destino: DestinoDeTicket | "";
-}
-
-export type CampoDeRetiro = keyof BorradorDeRetiro;
-export type ErroresDeRetiro = Partial<Record<CampoDeRetiro, string>>;
-
-export const ORDEN_DE_CAMPOS: CampoDeRetiro[] = ["colportorId", "monto", "dia", "destino"];
-
-export function validarRetiro(
-  borrador: BorradorDeRetiro,
-  hoy: string,
-  elegibles: ReadonlySet<string>,
-): { errores: ErroresDeRetiro; retiro: NuevoRetiro | null } {
-  const errores: ErroresDeRetiro = {};
-  if (!borrador.colportorId || !elegibles.has(borrador.colportorId)) {
-    errores.colportorId = "Elegí el colportor al que le retiraste el efectivo.";
-  }
-  const monto = leerMonto(borrador.monto);
-  if (!monto.ok) {
-    errores.monto =
-      monto.motivo === "vacio"
-        ? "Escribí el monto retirado."
-        : monto.motivo === "largo"
-          ? "El monto es demasiado grande: revisá que no sobren dígitos."
-          : "El monto tiene que ser un número entero de pesos, sin centavos ni signos.";
-  } else if (monto.valor <= 0) {
-    errores.monto = "El monto tiene que ser mayor que cero.";
-  }
-  if (!borrador.dia) {
-    errores.dia = "Elegí el día del retiro.";
-  } else if (!/^\d{4}-\d{2}-\d{2}$/.test(borrador.dia)) {
-    errores.dia = "El día no es válido: elegilo del calendario.";
-  } else if (borrador.dia > hoy) {
-    errores.dia = "El día no puede ser futuro: elegí hoy o uno anterior.";
-  }
-  if (!borrador.destino) errores.destino = "Elegí si el dinero es de la casa editora o del alquiler.";
-  if (Object.keys(errores).length > 0 || !monto.ok || borrador.destino === "") return { errores, retiro: null };
-  return { errores, retiro: { colportorId: borrador.colportorId, monto: monto.valor, dia: borrador.dia, destino: borrador.destino } };
-}
-
 export function validarAlquiler(texto: string): { error: string | null; monto: number | null } {
   const monto = leerMonto(texto);
   if (monto.ok) return { error: null, monto: monto.valor };
@@ -463,7 +421,10 @@ export function validarAlquiler(texto: string): { error: string | null; monto: n
 
 // ─── Escrituras sobre una copia de los datos ──────────────────────────────
 
-/** Suma un ticket. Si es `VALIDADO`, acredita: sube «Depositado» y, si es de casa editora, baja la deuda (sin pasar de 0). */
+/**
+ * Suma un ticket. Si es `VALIDADO`, acredita: sube «Depositado» y, si es de casa editora, baja la deuda (sin pasar de 0: lo que
+ * sobra queda «a favor»).
+ */
 export function aplicarTicket(datos: DatosDeCuentas, ticket: TicketDeCuentas): DatosDeCuentas {
   if (datos.tickets.some((t) => t.id === ticket.id)) return datos;
   const acredita = ticket.estado === "VALIDADO";
@@ -478,6 +439,8 @@ export function aplicarTicket(datos: DatosDeCuentas, ticket: TicketDeCuentas): D
                 ...c,
                 depositado: c.depositado + ticket.monto,
                 deuda: ticket.destino === "casa-editora" ? Math.max(0, c.deuda - ticket.monto) : c.deuda,
+                aFavor:
+                  ticket.destino === "casa-editora" ? (c.aFavor ?? 0) + Math.max(0, ticket.monto - c.deuda) : c.aFavor,
               },
         )
       : datos.colportores,
@@ -486,6 +449,11 @@ export function aplicarTicket(datos: DatosDeCuentas, ticket: TicketDeCuentas): D
 
 export function aplicarAlquiler(datos: DatosDeCuentas, monto: number): DatosDeCuentas {
   return { ...datos, alquilerPorColportor: monto };
+}
+
+/** Lo que dice la celda de lo que se debe: el monto, o «a favor $U X» cuando se pagó de más y ya no se debe nada. */
+export function textoDeSaldo(debe: number, aFavor: number): string {
+  return debe === 0 && aFavor > 0 ? `a favor ${formatMonto(aFavor)}` : formatMonto(debe);
 }
 
 /** La fecha de un depósito o pago tal como la muestra la tabla: «hoy 09:15», «ayer 18:30» o «09/10». */

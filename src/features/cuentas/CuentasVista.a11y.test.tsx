@@ -19,7 +19,7 @@ async function violaciones(raiz: Element) {
 const AHORA = new Date("2026-10-22T15:00:00.000Z");
 
 function montar() {
-  const acciones = crearAccionesSimuladas(() => AHORA);
+  const acciones = crearAccionesSimuladas();
   return render(
     <ProveedorModoDev activo={false}>
       <CuentasVista datos={armarCuentasSimuladas(AHORA)} acciones={acciones} />
@@ -40,18 +40,12 @@ describe("CuentasVista · accesibilidad (axe A/AA, sin contraste)", () => {
     expect(await violaciones(container)).toEqual([]);
   });
 
-  it("con un ticket abierto, con el formulario de retiro (vacío y con errores) y con el editor del alquiler", async () => {
+  it("con un ticket abierto, y con el editor del alquiler", async () => {
     const { container } = montar();
     await userEvent.click(screen.getByRole("button", { name: /^Artigas/ }));
     await userEvent.click(screen.getByRole("tab", { name: /Tickets/ }));
     await userEvent.click(screen.getAllByRole("button", { name: /Sofía Cabral/ })[0]);
     expect(await violaciones(container)).toEqual([]);
-
-    await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    expect(await violaciones(container)).toEqual([]);
-    await userEvent.click(screen.getByRole("button", { name: "Guardar retiro" }));
-    expect(await violaciones(container)).toEqual([]);
-    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
     await userEvent.click(screen.getByRole("button", { name: "Editar" }));
     await userEvent.clear(screen.getByLabelText(/Alquiler por colportor/));
@@ -65,12 +59,10 @@ describe("CuentasVista · accesibilidad (axe A/AA, sin contraste)", () => {
     expect(await violaciones(container)).toEqual([]);
     await userEvent.click(screen.getByRole("button", { name: "Expandir ciudades" }));
     await userEvent.click(screen.getByRole("button", { name: /^Artigas/ }));
-    await userEvent.click(screen.getByRole("tab", { name: /Tickets/ }));
-    await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await userEvent.selectOptions(screen.getByLabelText("Colportor", { selector: "#retiro-colportor" }), "sofia-cabral");
-    await userEvent.type(screen.getByLabelText(/Monto retirado/), "1000");
-    await userEvent.click(screen.getByRole("radio", { name: "Alquiler" }));
-    await userEvent.click(screen.getByRole("button", { name: "Guardar retiro" }));
+    await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+    await userEvent.clear(screen.getByLabelText(/Alquiler por colportor/));
+    await userEvent.type(screen.getByLabelText(/Alquiler por colportor/), "1000");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar" }));
     await screen.findByRole("status");
     expect(await violaciones(container)).toEqual([]);
   });
