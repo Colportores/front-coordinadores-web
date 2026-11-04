@@ -28,6 +28,8 @@ import {
 } from "./modelo";
 import { usePrecios } from "./usePrecios";
 
+/** 27G·07: sin precios cargados el subtítulo se queda en la primera frase. */
+export const SUBTITULO_GENERAL_VACIO = "El precio de todo el país.";
 export const TEXTO_SIN_PRECIOS_GENERALES = "Todavía no hay precios generales";
 export const DETALLE_SIN_PRECIOS_GENERALES =
   "Mientras no haya precio general ni excepción, los colportores no ven productos para vender. Los carga el administrador.";
@@ -115,7 +117,8 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
     if (destino === null) return;
     evento.preventDefault();
     e.elegirPestana(pestanas[destino].id);
-    requestAnimationFrame(() => document.getElementById(`pestana-precios-${pestanas[destino].id}`)?.focus());
+    // Las pestañas están siempre en el DOM: se puede enfocar la nueva sin esperar al próximo pintado.
+    document.getElementById(`pestana-precios-${pestanas[destino].id}`)?.focus();
   }
 
   return (
@@ -125,7 +128,7 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="font-serif text-[22px] font-semibold text-tinta">Precios de venta</h2>
-          <p className="text-cuerpo text-tinta-2">{esGeneral ? SUBTITULO_GENERAL : subtituloDeCiudad(ciudad.nombre)}</p>
+          <p className="text-cuerpo text-tinta-2">{esGeneral ? (sinCatalogo ? SUBTITULO_GENERAL_VACIO : SUBTITULO_GENERAL) : subtituloDeCiudad(ciudad.nombre)}</p>
         </div>
         {!esGeneral && (
           <p className="text-chico text-tinta-suave">Tab pasa al siguiente precio · Esc descarta el valor de la celda</p>

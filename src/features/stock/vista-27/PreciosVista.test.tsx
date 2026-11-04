@@ -542,6 +542,7 @@ describe("estados vacíos y datos límite", () => {
     datos.items = datos.items.map((i) => ({ ...i, precioGeneral: null }));
     montar(datos);
     expect(screen.getByText(TEXTO_SIN_PRECIOS_GENERALES)).toBeInTheDocument();
+    expect(screen.getByText("El precio de todo el país.")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
