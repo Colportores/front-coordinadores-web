@@ -140,7 +140,7 @@ ${AVISO_DEMO_TEXTO}. Uso interno de Cristian: no es un sitio público, no se ind
 - Commit: ${commit}
 - Generado: ${fecha}
 - Conexión: proyecto Supabase de desarrollo (URL pública + clave anónima; la autoridad es la RLS). Sin clave de servicio ni secretos.
-- Caduca a los 7 días (retención del artefacto de Actions).
+- Caduca a los 3 días (retención del artefacto de Actions).
 
 ## Cómo servirlo
 
