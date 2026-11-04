@@ -166,6 +166,7 @@ ${texto}
       expect(readme).toContain(CUENTA_DEMO.correo);
       expect(readme).toContain("La contraseña de la cuenta demo te la da Cristian");
       expect(readme).toContain("abc123");
+      expect(readme).toContain("Caduca a los 3 días");
     });
 
     it("no lleva claves, ni la URL de otro proyecto, ni ninguna contraseña", () => {
@@ -207,9 +208,9 @@ describe("el workflow del artefacto", () => {
     expect(produccion).toContain("if: github.ref == 'refs/heads/production'");
   });
 
-  it("sube el artefacto panel-supabase-dev por 7 días, con la carpeta oculta .next", () => {
+  it("sube el artefacto panel-supabase-dev por 3 días, con la carpeta oculta .next", () => {
     expect(workflow).toContain("name: panel-supabase-dev");
-    expect(workflow).toContain("retention-days: 7");
+    expect(workflow).toContain("retention-days: 3");
     expect(workflow).toContain("include-hidden-files: true");
   });
 

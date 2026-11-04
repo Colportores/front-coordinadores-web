@@ -1,5 +1,5 @@
 // Artefacto de pruebas de demo (issue #123): el panel compilado y conectado al Supabase de DESARROLLO, de uso interno. Lo corre
-// .github/workflows/demo-supabase-dev.yml en develop y sube `panel-supabase-dev/` como artefacto de Actions (7 días). También
+// .github/workflows/demo-supabase-dev.yml en develop y sube `panel-supabase-dev/` como artefacto de Actions (3 días). También
 // corre igual en Docker:
 //
 //   docker compose -f compose.dev.yml run --rm -e NEXT_PUBLIC_SUPABASE_URL -e NEXT_PUBLIC_SUPABASE_ANON_KEY app npm run build:demo-supabase
