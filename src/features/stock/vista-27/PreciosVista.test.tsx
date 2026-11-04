@@ -8,6 +8,7 @@ import { CIUDADES_SIMULADAS, crearDatosDePreciosSimulados, ITEMS_SIMULADOS } fro
 import { hayTrabajoPendiente, reiniciarTrabajoPendiente } from "@/shell/trabajo-pendiente";
 
 import { TEXTO_SALIR_CON_CAMBIOS } from "./BarraDeCambios";
+import { textoDeComponentesDeBaja } from "./NombreDeItem";
 import { PreciosVista, TEXTO_SIN_CIUDADES, TEXTO_SIN_PRECIOS_GENERALES } from "./PreciosVista";
 
 const navegacion = vi.hoisted(() => ({ push: vi.fn() }));
@@ -601,6 +602,7 @@ describe("estados vacíos y datos límite", () => {
     const datos = crearDatosDePreciosSimulados();
     datos.items = datos.items.map((i) => (i.clave === COL1.clave ? { ...i, componentesDeBaja: 2 } : i));
     montar(datos);
-    expect(screen.getByText("2 componentes están dados de baja: el combo no se ofrece hasta corregirlos.")).toBeInTheDocument();
+    expect(screen.getByText("2 componentes están dados de baja: el combo no se ofrece hasta que Administración lo corrija.")).toBeInTheDocument();
+    expect(textoDeComponentesDeBaja(1)).toBe("1 componente está dado de baja: el combo no se ofrece hasta que Administración lo corrija.");
   });
 });

@@ -10,11 +10,11 @@ const CLASES_DE_ETIQUETA: Record<TonoDeEtiqueta, string> = {
   coleccion: "bg-marca text-superficie",
 };
 
-/** Cuántos componentes de baja dejan al combo sin ofrecerse hasta corregirlo (HU-CAT-009). Sin artboard: texto del mapa §2. */
+/** Cuántos componentes de baja dejan al combo sin ofrecerse hasta corregirlo (HU-CAT-009). Sin artboard: texto decidido en el mapa §2 (04/11). */
 export function textoDeComponentesDeBaja(n: number): string {
   return n === 1
-    ? "1 componente está dado de baja: el combo no se ofrece hasta corregirlo."
-    : `${n} componentes están dados de baja: el combo no se ofrece hasta corregirlos.`;
+    ? "1 componente está dado de baja: el combo no se ofrece hasta que Administración lo corrija."
+    : `${n} componentes están dados de baja: el combo no se ofrece hasta que Administración lo corrija.`;
 }
 
 /** La primera celda de cada fila: el nombre, sus insignias y, en una colección, lo que lleva. */

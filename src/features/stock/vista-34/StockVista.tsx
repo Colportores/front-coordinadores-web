@@ -116,12 +116,20 @@ export function StockVista({ datos }: { datos: DatosDeStock }) {
             <h2 className="font-serif text-[22px] font-semibold wrap-anywhere text-tinta">{resuelto.titulo}</h2>
             <p className="text-chico text-tinta-suave">{resuelto.subtitulo}</p>
           </div>
-          <Link
-            href="/stock/pedidos"
-            className="inline-flex min-h-8 flex-none items-center text-chico font-semibold whitespace-nowrap text-marca-media hover:text-marca focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
-          >
-            Pedidos y transferencias →
-          </Link>
+          <nav aria-label="Otras vistas de stock" className="flex flex-none flex-wrap items-center gap-x-4">
+            <Link
+              href="/stock/precios"
+              className="inline-flex min-h-8 flex-none items-center text-chico font-semibold whitespace-nowrap text-marca-media hover:text-marca focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
+            >
+              Precios de venta →
+            </Link>
+            <Link
+              href="/stock/pedidos"
+              className="inline-flex min-h-8 flex-none items-center text-chico font-semibold whitespace-nowrap text-marca-media hover:text-marca focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
+            >
+              Pedidos y transferencias →
+            </Link>
+          </nav>
         </div>
 
         {vacio ? (
