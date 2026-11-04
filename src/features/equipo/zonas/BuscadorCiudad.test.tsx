@@ -174,4 +174,17 @@ describe("BuscadorCiudad · estados y casos límite", () => {
     await usuario.keyboard("{Escape}");
     expect(onCerrar).toHaveBeenCalledTimes(1);
   });
+
+  it("el Esc que cierra el buscador no sigue hacia el documento (no cierra además la tarjeta de una casa del mapa)", async () => {
+    const { usuario, onCerrar } = montar();
+    await screen.findByRole("list", { name: "Ciudades del catálogo" });
+    const alDocumento = vi.fn();
+    document.addEventListener("keydown", alDocumento);
+
+    await usuario.keyboard("{Escape}");
+
+    document.removeEventListener("keydown", alDocumento);
+    expect(onCerrar).toHaveBeenCalledTimes(1);
+    expect(alDocumento).not.toHaveBeenCalled();
+  });
 });

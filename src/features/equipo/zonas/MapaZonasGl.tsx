@@ -4,11 +4,13 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import type { Feature, FeatureCollection, LineString, Polygon } from "geojson";
 import { setWorkerUrl, type StyleSpecification } from "maplibre-gl";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import Map, { Layer, Marker, NavigationControl, Source, type MapMouseEvent } from "react-map-gl/maplibre";
 
 import type { Punto, ZonaDeCiudad } from "@/datos/equipo/zonas";
 import { distanciaM, puntoADistancia, vertices } from "@/datos/equipo/zonas/geometria";
+import { CAPA_DE_GRUPOS, CapaDeCasas } from "@/features/equipo/zonas/casas/CapaDeCasas";
+import { useCasasEnMapa } from "@/features/equipo/zonas/casas/useCasasEnMapa";
 import type { PropsMapaZonas } from "@/features/equipo/zonas/tipos";
 
 // Bajo Turbopack MapLibre no deduce la URL de su worker: se sirve desde public/maplibre (scripts/copiar-worker-maplibre.mjs).
@@ -43,6 +45,9 @@ function centroide(zona: ZonaDeCiudad): Punto {
 
 const punto = (e: MapMouseEvent): Punto => ({ lon: e.lngLat.lng, lat: e.lngLat.lat });
 
+/** Lo que se cierra solo con Esc: si el foco está adentro, ese Esc no es de la tarjeta de la casa. */
+const DE_OTRA_COSA = '[role="dialog"], [role="alertdialog"], [role="listbox"], [role="menu"], [aria-modal="true"], [aria-expanded="true"]';
+
 /**
  * Mapa de la vista 24. Con `dibujo` dibuja la forma en curso; sin él, el clic elige zonas.
  * Base: fondo liso con las calles de los datos simulados. De dónde salen los tiles
@@ -53,6 +58,7 @@ export function MapaZonasGl({
   zonas,
   zonaElegidaId,
   dibujo,
+  casas,
   onZonaClick,
   onMapaClick,
   onMapaMove,
@@ -109,10 +115,32 @@ export function MapaZonasGl({
     [tramoConflicto],
   );
 
+  const casasEnMapa = useCasasEnMapa(casas?.casas, casas?.onAgrupadas);
+  const casaElegida = casas?.elegidaId ?? null;
+  const cerrarTarjeta = casas?.onElegir;
+  // Esc cierra la tarjeta de la casa elegida, salvo que ese Esc sea de otra cosa (un diálogo, un menú o una lista abierta).
+  useEffect(() => {
+    if (casaElegida === null || !cerrarTarjeta) return;
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (e.target instanceof Element && e.target.closest(DE_OTRA_COSA)) return;
+      cerrarTarjeta(null);
+    };
+    document.addEventListener("keydown", alTeclear);
+    return () => document.removeEventListener("keydown", alTeclear);
+  }, [casaElegida, cerrarTarjeta]);
+
   function alHacerClic(e: MapMouseEvent) {
     if (!dibujo) {
-      const id = e.features?.[0]?.properties?.id;
+      const elegida = e.features?.[0];
+      // Una burbuja del agrupado: acercar es la forma de ver el estado de cada casa.
+      if (elegida?.layer?.id === CAPA_DE_GRUPOS) {
+        e.target.easeTo({ center: e.lngLat, zoom: e.target.getZoom() + 2 });
+        return;
+      }
+      const id = elegida?.properties?.id;
       if (typeof id === "string") onZonaClick(id);
+      else cerrarTarjeta?.(null);
       return;
     }
     onMapaClick(punto(e));
@@ -127,9 +155,12 @@ export function MapaZonasGl({
       mapStyle={estilo}
       style={{ width: "100%", height: "100%" }}
       attributionControl={false}
-      interactiveLayerIds={dibujo ? [] : ["zonas-relleno"]}
+      interactiveLayerIds={dibujo ? [] : casasEnMapa.agrupar ? [CAPA_DE_GRUPOS, "zonas-relleno"] : ["zonas-relleno"]}
       cursor={dibujo ? "crosshair" : undefined}
       onClick={alHacerClic}
+      onLoad={casas ? casasEnMapa.leerCaja : undefined}
+      onMoveEnd={casas ? casasEnMapa.leerCaja : undefined}
+      onIdle={casas ? casasEnMapa.leerGrupos : undefined}
       onMouseMove={(e) => dibujo && onMapaMove(punto(e))}
       doubleClickZoom={!dibujo}
     >
@@ -151,6 +182,8 @@ export function MapaZonasGl({
           paint={{ "line-color": ["get", "color"], "line-width": ["case", ["get", "elegida"], 3, 2] }}
         />
       </Source>
+
+      {casas ? <CapaDeCasas casas={casas} zonas={zonas} tocables={!dibujo} estado={casasEnMapa} /> : null}
 
       <Source id="dibujo-poligono" type="geojson" data={poligonoGeojson}>
         <Layer id="dibujo-relleno" type="fill" paint={{ "fill-color": colores.trazoDibujo, "fill-opacity": 0.18 }} />

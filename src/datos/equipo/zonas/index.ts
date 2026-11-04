@@ -21,11 +21,13 @@ import { fuenteDeSesion } from "@/datos/supabase/fuente-de-sesion";
 
 export type {
   CalleMapa,
+  CasaDeCiudad,
   CiudadDelCatalogo,
   CiudadDeCampania,
   ColportorDeCiudad,
   ColportorEnZona,
   DatosZonas,
+  EstadoDeCasa,
   Esquina,
   FormaZona,
   FuenteDatosZonas,
@@ -36,6 +38,7 @@ export type {
   ResultadoAsignacion,
   ResultadoEliminarZona,
   ResultadoGuardarZona,
+  TipoDeCasa,
   TipoForma,
   VistaPreviaEntrada,
   VistaPreviaRechazada,

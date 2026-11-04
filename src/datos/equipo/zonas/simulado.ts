@@ -1,8 +1,10 @@
 import type {
   CalleMapa,
+  CasaDeCiudad,
   CiudadDeCampania,
   CiudadDelCatalogo,
   DatosZonas,
+  EstadoDeCasa,
   Esquina,
   FormaZona,
   FuenteDatosZonas,
@@ -367,6 +369,54 @@ function vistaPrevia(entrada: VistaPreviaEntrada): VistaPreviaZona {
   };
 }
 
+/** Reparto de estados del canvas 24P (pesos de `weights`): casi la mitad sin visita y el resto repartido en los siete colores. */
+const ESTADOS_SIMULADOS: [EstadoDeCasa, number][] = [
+  ["SIN_VISITA", 30],
+  ["SIN_CONTESTAR", 10],
+  ["ENTREVISTA_PROGRAMADA", 6],
+  ["ENTREVISTA_SIN_VENTA", 8],
+  ["RECHAZO", 7],
+  ["COBRANZA_PENDIENTE", 9],
+  ["ENTREGA_Y_COBRANZA_PENDIENTE", 4],
+  ["VENTA_COMPLETA", 8],
+];
+const PESO_TOTAL_DE_ESTADOS = ESTADOS_SIMULADOS.reduce((suma, [, peso]) => suma + peso, 0);
+/** Cuántas casas simuladas como máximo por zona: alcanza para ver el agrupado sin cargar al navegador. */
+const MAX_CASAS_SIMULADAS_POR_ZONA = 260;
+
+/** Generador pseudoaleatorio del canvas (el mismo de `renderVals`), sembrado con el id de la zona: la misma zona da las mismas casas. */
+function generadorDe(semilla: string): () => number {
+  let estado = 7;
+  for (const letra of semilla) estado = (estado * 31 + letra.charCodeAt(0)) % 233280;
+  return () => (estado = (estado * 9301 + 49297) % 233280) / 233280;
+}
+
+/** Casas inventadas dentro de la forma de una zona: tantas como `ubicacionesRegistradas` (hasta el tope), con estados repartidos. */
+function casasSimuladas(zona: ZonaDeCiudad): CasaDeCiudad[] {
+  const aleatorio = generadorDe(zona.id);
+  const vs = vertices(zona.poligonoGeojson);
+  const lons = vs.map((v) => v.lon);
+  const lats = vs.map((v) => v.lat);
+  const [oeste, este, sur, norte] = [Math.min(...lons), Math.max(...lons), Math.min(...lats), Math.max(...lats)];
+  const cantidad = Math.min(zona.ubicacionesRegistradas, MAX_CASAS_SIMULADAS_POR_ZONA);
+  const casas: CasaDeCiudad[] = [];
+  for (let intento = 0; casas.length < cantidad && intento < cantidad * 60; intento++) {
+    const punto = { lon: oeste + aleatorio() * (este - oeste), lat: sur + aleatorio() * (norte - sur) };
+    if (!contiene(zona.poligonoGeojson, punto)) continue;
+    let sorteo = aleatorio() * PESO_TOTAL_DE_ESTADOS;
+    const estado = (ESTADOS_SIMULADOS.find(([, peso]) => (sorteo -= peso) < 0) ?? ESTADOS_SIMULADOS[0])[0];
+    const tipo = aleatorio();
+    casas.push({
+      id: `casa-${zona.id}-${casas.length + 1}`,
+      ...punto,
+      tipo: tipo < 0.84 ? "CASA" : tipo < 0.94 ? "NEGOCIO" : "EDIFICIO",
+      estado,
+      zonaIds: [zona.id],
+    });
+  }
+  return casas;
+}
+
 /** La simulada siempre tiene campaña y nunca rechaza una vista previa: los tipos lo dicen para quien la usa directo. */
 type FuenteSimulada = Omit<FuenteDatosZonas, "obtenerZonas" | "vistaPreviaZona"> & {
   obtenerZonas(): Promise<DatosZonas>;
@@ -434,6 +484,11 @@ export const fuenteZonasSimulada: FuenteSimulada = {
   async eliminarZona(_campaniaId, zonaId) {
     const zona = DATOS_ZONAS_SIMULADO.ciudades.flatMap((c) => c.zonas).find((z) => z.id === zonaId);
     return { ok: true, colportoresSinZona: zona?.colportores.length ?? 0 };
+  },
+
+  async casasDeZonas(_campaniaId, zonaIds) {
+    const pedidas = new Set(zonaIds);
+    return DATOS_ZONAS_SIMULADO.ciudades.flatMap((c) => c.zonas.filter((z) => pedidas.has(z.id)).flatMap(casasSimuladas));
   },
 
   async buscarCiudades(_campaniaId, texto) {
