@@ -286,7 +286,7 @@ describe("QA #64 · el error de guardado se ve donde está «Reintentar»", () =
 });
 
 describe("QA #64 · el aviso de error de guardado no sobrevive a lo que describe", () => {
-  it.skip("QA #64: tras un error, revertir a mano la única edición deja el aviso «Siguen marcados» sin nada marcado", async () => {
+  it("tras un error, revertir a mano la única edición no deja el aviso «Siguen marcados» sin nada marcado", async () => {
     montar(
       undefined,
       acciones(() => ({ ok: false, causa: "rechazado" })),
