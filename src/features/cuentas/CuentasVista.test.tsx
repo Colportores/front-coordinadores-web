@@ -332,11 +332,85 @@ describe("saldo a favor", () => {
     expect(filaDe(/Sofía Cabral/)).not.toHaveTextContent("a favor");
   });
 
-  it("Alquiler: si lo pagado supera el alquiler, la columna DEBE dice «a favor»", async () => {
-    const datos = datosBase();
-    const { usuario } = montar({ datos: { ...datos, alquilerPorColportor: 1000 } });
+  it("Alquiler: lo pagado de más no queda «a favor» del alquiler: el pagado se topa y no debe nada", async () => {
+    const { usuario } = montar({ datos: sobrepagoDeLucia() });
     await usuario.click(pestana(/Alquiler/));
-    expect(within(screen.getByRole("table", { name: "Alquiler" })).getAllByText(/^a favor \$U/).length).toBeGreaterThan(0);
+    const fila = within(screen.getByRole("table", { name: "Alquiler" })).getByRole("row", { name: /Lucía Fernández/ });
+    const celdas = within(fila).getAllByRole("cell");
+    expect(celdas[1]).toHaveTextContent("$U 2.500");
+    expect(celdas[2]).toHaveTextContent("$U 2.500");
+    expect(celdas[3]).toHaveTextContent("$U 0");
+    expect(within(fila).getByText("✓ Pagado")).toBeInTheDocument();
+    expect(within(screen.getByRole("table", { name: "Alquiler" })).queryByText(/a favor/)).not.toBeInTheDocument();
+  });
+});
+
+function sobrepagoDeLucia(): DatosDeCuentas {
+  const datos = datosBase();
+  const ticket: TicketDeCuentas = {
+    id: "lucia-alquiler-de-mas",
+    colportorId: "lucia-fernandez",
+    fecha: datos.ahora,
+    monto: 3000,
+    medio: "deposito-banco",
+    entidad: "BROU",
+    numero: "0001",
+    destino: "alquiler",
+    estado: "VALIDADO",
+    tieneFoto: true,
+  };
+  return {
+    ...datos,
+    alquilerPorColportor: 2500,
+    tickets: [...datos.tickets.filter((t) => t.destino !== "alquiler"), ticket],
+  };
+}
+
+describe("alquiler pagado de más en la casa editora", () => {
+  const TEXTO = "Descuento por alquiler pagado de más: $U 500";
+
+  it("la fila de la casa editora dice cuánto le bajó la deuda; las demás filas no dicen nada", () => {
+    montar({ datos: sobrepagoDeLucia() });
+    expect(filaDe(/Lucía Fernández/)).toHaveTextContent(TEXTO);
+    expect(screen.getAllByText(/Descuento por alquiler pagado de más/)).toHaveLength(1);
+    expect(filaDe(/Sofía Cabral/)).not.toHaveTextContent("Descuento");
+  });
+
+  it("sin nada pagado de más no aparece la línea", () => {
+    montar();
+    expect(screen.queryByText(/Descuento por alquiler pagado de más/)).not.toBeInTheDocument();
+  });
+
+  it("con una campaña sin alquiler no aparece ningún descuento", () => {
+    montar({ datos: { ...sobrepagoDeLucia(), alquilerPorColportor: 0 } });
+    expect(screen.queryByText(/Descuento por alquiler pagado de más/)).not.toBeInTheDocument();
+  });
+
+  it("el texto se parte en renglones en vez de cortarse con puntos suspensivos (textos largos, escala grande)", () => {
+    montar({ datos: sobrepagoDeLucia() });
+    const linea = screen.getByText(TEXTO);
+    expect(linea.className).toContain("whitespace-normal");
+    expect(linea.className).toContain("overflow-wrap:anywhere");
+  });
+
+  it("editar el alquiler a la baja suma el descuento y subirlo otra vez lo saca (dos cambios seguidos)", async () => {
+    const { usuario } = montar();
+    const guardar = async (monto: string) => {
+      await usuario.click(screen.getByRole("button", { name: "Editar" }));
+      const editor = within(screen.getByRole("form", { name: "Editar el alquiler de la campaña" }));
+      await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
+      await usuario.type(editor.getByLabelText(/Alquiler por colportor/), monto);
+      await usuario.click(editor.getByRole("button", { name: "Guardar" }));
+      await screen.findByText(new RegExp(`Alquiler de la campaña: \\$U ${monto.replace(".", "\\.")} por colportor`));
+    };
+    await guardar("10.000");
+    // Quien tenía pagados 18.500 ahora pagó 8.500 de más.
+    expect(screen.getAllByText("Descuento por alquiler pagado de más: $U 8.500").length).toBeGreaterThan(0);
+    await usuario.click(pestana(/Alquiler/));
+    expect(within(screen.getByRole("table", { name: "Alquiler" })).queryByText(/a favor/)).not.toBeInTheDocument();
+    await guardar("30.000");
+    await usuario.click(pestana(/Casa editora/));
+    expect(screen.queryByText(/Descuento por alquiler pagado de más/)).not.toBeInTheDocument();
   });
 });
 

@@ -30,6 +30,7 @@ import {
   siguienteOrden,
   subtituloDeSeleccion,
   textoDeSaldo,
+  textoDeTraslado,
   ticketsDe,
   tituloDeSeleccion,
   TODAS,
@@ -335,7 +336,14 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
               celdas={(f) => {
                 const cobrado = porcentajeCobrado(f.colportor);
                 return [
-                  <b key="n" className="font-semibold">{f.colportor.nombre}</b>,
+                  <span key="n" className="block">
+                    <b className="font-semibold">{f.colportor.nombre}</b>
+                    {f.trasladadoAlquiler > 0 && (
+                      <span className="block py-0.5 text-mini whitespace-normal text-tinta-suave [overflow-wrap:anywhere]">
+                        {textoDeTraslado(f.trasladadoAlquiler)}
+                      </span>
+                    )}
+                  </span>,
                   <span key="d" className="font-mono font-semibold">{textoDeSaldo(f.colportor.deuda, f.colportor.aFavor ?? 0)}</span>,
                   <span key="p" className="font-mono">{formatMonto(f.colportor.depositado)}</span>,
                   <span key="m" className="font-mono">{formatMonto(f.colportor.enMano)}</span>,
@@ -363,7 +371,7 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
                   <b key="n" className="font-semibold">{f.colportor.nombre}</b>,
                   <span key="a" className="font-mono text-tinta-suave">{formatMonto(alquiler)}</span>,
                   <span key="p" className="font-mono">{formatMonto(f.pagadoAlquiler)}</span>,
-                  <span key="d" className="font-mono font-semibold">{textoDeSaldo(f.debeAlquiler, f.aFavorAlquiler)}</span>,
+                  <span key="d" className="font-mono font-semibold">{formatMonto(f.debeAlquiler)}</span>,
                   <span key="u" className={cn("font-mono", !f.ultimoPagoAlquiler && "text-tinta-tenue")}>
                     {f.ultimoPagoAlquiler ? fechaDeCuenta(f.ultimoPagoAlquiler, datos.ahora) : "—"}
                   </span>,

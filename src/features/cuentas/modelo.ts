@@ -184,12 +184,16 @@ export const fechaDeTicket = (t: TicketDeCuentas, ahoraIso: string) => textoFech
 export interface FilaDeCuenta {
   colportor: ColportorDeCuentas;
   ciudad: CiudadDeCuentas;
-  /** Lo pagado de alquiler: depósitos validados con ese destino. */
+  /** Lo pagado de alquiler: depósitos validados con ese destino, sin pasar del alquiler (lo de más se traslada). */
   pagadoAlquiler: number;
   /** Lo que falta de alquiler (nunca negativo). */
   debeAlquiler: number;
-  /** Lo pagado de más de alquiler: queda a favor (Cristian, 25/10). */
-  aFavorAlquiler: number;
+  /**
+   * Lo pagado de más de alquiler: no queda «a favor» del alquiler sino que baja la deuda con la casa editora («Alquiler fav»,
+   * Cristian 28/10; el servidor lo llama `alquiler_trasladado`). Con una campaña sin alquiler (monto 0) es 0: qué pasa con
+   * lo pagado ahí lo decide el coordinador (front-coordinadores-web#132).
+   */
+  trasladadoAlquiler: number;
   /** Instante del último depósito validado, de cualquier destino. */
   ultimoDeposito: string | null;
   /** Instante del último pago de alquiler validado. */
@@ -198,32 +202,42 @@ export interface FilaDeCuenta {
 
 const masReciente = (actual: string | null, otro: string) => (actual === null || Date.parse(otro) > Date.parse(actual) ? otro : actual);
 
+/** Lo pagado de alquiler por colportor: depósitos validados con ese destino (todo, sin topar en el alquiler). */
+function pagosDeAlquiler(datos: DatosDeCuentas): Map<string, number> {
+  const pagado = new Map<string, number>();
+  for (const t of datos.tickets) {
+    if (t.estado === "VALIDADO" && t.destino === "alquiler") pagado.set(t.colportorId, (pagado.get(t.colportorId) ?? 0) + t.monto);
+  }
+  return pagado;
+}
+
+/** Lo pagado que pasa del alquiler y se traslada a la deuda con la casa editora. Sin alquiler en la campaña no se traslada nada. */
+const trasladoDe = (pagado: number, alquiler: number) => (alquiler > 0 ? Math.max(0, pagado - alquiler) : 0);
+
 export function filasDe(datos: DatosDeCuentas, seleccion: Seleccion): FilaDeCuenta[] {
   const { ciudades } = indices(datos);
-  const pagado = new Map<string, number>();
+  const pagado = pagosDeAlquiler(datos);
   const ultimo = new Map<string, string | null>();
   const ultimoAlquiler = new Map<string, string | null>();
   for (const t of datos.tickets) {
     if (t.estado !== "VALIDADO") continue;
     ultimo.set(t.colportorId, masReciente(ultimo.get(t.colportorId) ?? null, t.fecha));
-    if (t.destino === "alquiler") {
-      pagado.set(t.colportorId, (pagado.get(t.colportorId) ?? 0) + t.monto);
-      ultimoAlquiler.set(t.colportorId, masReciente(ultimoAlquiler.get(t.colportorId) ?? null, t.fecha));
-    }
+    if (t.destino === "alquiler") ultimoAlquiler.set(t.colportorId, masReciente(ultimoAlquiler.get(t.colportorId) ?? null, t.fecha));
   }
+  const alquiler = datos.alquilerPorColportor;
   const orden = new Map(datos.ciudades.map((c, i) => [c.id, i]));
   return colportoresDe(datos, seleccion)
     .flatMap((colportor) => {
       const ciudad = ciudades.get(colportor.ciudadId);
       if (!ciudad) return [];
-      const pagadoAlquiler = pagado.get(colportor.id) ?? 0;
+      const todoLoPagado = pagado.get(colportor.id) ?? 0;
       return [
         {
           colportor,
           ciudad,
-          pagadoAlquiler,
-          debeAlquiler: Math.max(0, datos.alquilerPorColportor - pagadoAlquiler),
-          aFavorAlquiler: Math.max(0, pagadoAlquiler - datos.alquilerPorColportor),
+          pagadoAlquiler: alquiler > 0 ? Math.min(todoLoPagado, alquiler) : todoLoPagado,
+          debeAlquiler: Math.max(0, alquiler - todoLoPagado),
+          trasladadoAlquiler: trasladoDe(todoLoPagado, alquiler),
           ultimoDeposito: ultimo.get(colportor.id) ?? null,
           ultimoPagoAlquiler: ultimoAlquiler.get(colportor.id) ?? null,
         },
@@ -426,13 +440,41 @@ export function validarAlquiler(texto: string): { error: string | null; monto: n
 // ─── Escrituras sobre una copia de los datos ──────────────────────────────
 
 /**
+ * El servidor mueve a la deuda con la casa editora lo que cambió de «trasladado» (lo pagado de más del alquiler) en la misma
+ * transacción que el depósito o el cambio del alquiler. Acá se hace igual sobre la copia: lo que se traslada baja la deuda
+ * (lo que sobra queda «a favor») y, si el traslado se deshace, vuelve primero de lo que estaba a favor y después a la deuda.
+ */
+/** El saldo a favor nuevo; sin saldo y sin nada que guardar, el campo sigue ausente. */
+const conFavor = (c: ColportorDeCuentas, aFavor: number) => (aFavor === 0 && c.aFavor === undefined ? {} : { aFavor });
+
+function moverTraslados(antes: DatosDeCuentas, despues: DatosDeCuentas): DatosDeCuentas {
+  const pagadoAntes = pagosDeAlquiler(antes);
+  const pagadoDespues = pagosDeAlquiler(despues);
+  let cambio = false;
+  const colportores = despues.colportores.map((c) => {
+    const delta =
+      trasladoDe(pagadoDespues.get(c.id) ?? 0, despues.alquilerPorColportor) - trasladoDe(pagadoAntes.get(c.id) ?? 0, antes.alquilerPorColportor);
+    if (delta === 0) return c;
+    cambio = true;
+    const aFavor = c.aFavor ?? 0;
+    if (delta > 0) {
+      const alaDeuda = Math.min(c.deuda, delta);
+      return { ...c, deuda: c.deuda - alaDeuda, ...conFavor(c, aFavor + delta - alaDeuda) };
+    }
+    const delFavor = Math.min(aFavor, -delta);
+    return { ...c, deuda: c.deuda - delta - delFavor, ...conFavor(c, aFavor - delFavor) };
+  });
+  return cambio ? { ...despues, colportores } : despues;
+}
+
+/**
  * Suma un ticket. Si es `VALIDADO`, acredita: sube «Depositado» y, si es de casa editora, baja la deuda (sin pasar de 0: lo que
- * sobra queda «a favor»).
+ * sobra queda «a favor»). Un pago de alquiler que pasa del alquiler baja la deuda con la casa editora por lo de más.
  */
 export function aplicarTicket(datos: DatosDeCuentas, ticket: TicketDeCuentas): DatosDeCuentas {
   if (datos.tickets.some((t) => t.id === ticket.id)) return datos;
   const acredita = ticket.estado === "VALIDADO";
-  return {
+  const conTicket: DatosDeCuentas = {
     ...datos,
     tickets: [...datos.tickets, ticket],
     colportores: acredita
@@ -449,16 +491,21 @@ export function aplicarTicket(datos: DatosDeCuentas, ticket: TicketDeCuentas): D
         )
       : datos.colportores,
   };
+  return acredita && ticket.destino === "alquiler" ? moverTraslados(datos, conTicket) : conTicket;
 }
 
+/** Cambia el alquiler de todos: lo pagado que pasa del nuevo monto se traslada a la deuda, y lo que ya no pasa vuelve a ella. */
 export function aplicarAlquiler(datos: DatosDeCuentas, monto: number): DatosDeCuentas {
-  return { ...datos, alquilerPorColportor: monto };
+  return moverTraslados(datos, { ...datos, alquilerPorColportor: monto });
 }
 
 /** Lo que dice la celda de lo que se debe: el monto, o «a favor $U X» cuando se pagó de más y ya no se debe nada. */
 export function textoDeSaldo(debe: number, aFavor: number): string {
   return debe === 0 && aFavor > 0 ? `a favor ${formatMonto(aFavor)}` : formatMonto(debe);
 }
+
+/** La línea de la fila de la casa editora cuando el alquiler pagado de más le bajó la deuda: «Descuento por alquiler pagado de más: $U 500». */
+export const textoDeTraslado = (monto: number) => `Descuento por alquiler pagado de más: ${formatMonto(monto)}`;
 
 /** La fecha de un depósito o pago tal como la muestra la tabla: «hoy 09:15», «ayer 18:30» o «09/10». */
 export const fechaDeCuenta = (iso: string, ahoraIso: string) => textoFechaDeTicket(iso, ahoraIso);

@@ -26,6 +26,7 @@ import {
   textoDeMedio,
   textoDeNumero,
   textoDeSaldo,
+  textoDeTraslado,
   ticketsDe,
   tituloDeSeleccion,
   TODAS,
@@ -164,12 +165,14 @@ describe("tickets", () => {
 describe("filas por colportor", () => {
   const filas = filasDe(datos, TODAS);
 
-  it("el alquiler pagado y lo que debe salen de los tickets validados, sin pasar de cero", () => {
+  it("el alquiler pagado y lo que debe salen de los tickets validados: suman el alquiler y ninguno pasa de él ni baja de cero", () => {
     for (const f of filas) {
-      expect(f.pagadoAlquiler + f.debeAlquiler).toBe(Math.max(datos.alquilerPorColportor, f.pagadoAlquiler));
+      expect(f.pagadoAlquiler + f.debeAlquiler).toBe(datos.alquilerPorColportor);
+      expect(f.trasladadoAlquiler).toBe(0);
     }
-    const sobrepago = aplicarAlquiler(datos, 1000);
-    expect(filasDe(sobrepago, TODAS).every((f) => f.debeAlquiler >= 0)).toBe(true);
+    const sobrepago = filasDe(aplicarAlquiler(datos, 1000), TODAS);
+    expect(sobrepago.every((f) => f.debeAlquiler >= 0 && f.pagadoAlquiler <= 1000)).toBe(true);
+    expect(sobrepago.every((f) => f.pagadoAlquiler + f.debeAlquiler === 1000)).toBe(true);
   });
 
   it("un ticket por validar o rechazado no acredita nada", () => {
@@ -309,6 +312,11 @@ describe("validarAlquiler", () => {
   });
 });
 
+const sinPagosDeAlquilerDeSofia = (d: DatosDeCuentas): DatosDeCuentas => ({
+  ...d,
+  tickets: d.tickets.filter((t) => !(t.colportorId === "sofia-cabral" && t.destino === "alquiler")),
+});
+
 describe("escrituras sobre una copia", () => {
   const sofia = datos.colportores.find((c) => c.id === "sofia-cabral")!;
   const retiro = (monto: number, destino: TicketDeCuentas["destino"], estado: TicketDeCuentas["estado"] = "VALIDADO"): TicketDeCuentas => ({
@@ -345,15 +353,101 @@ describe("escrituras sobre una copia", () => {
   });
 
   it("un pago de alquiler no toca el saldo a favor de la casa editora", () => {
-    expect(deSofia(aplicarTicket(datos, retiro(1000, "alquiler"))).aFavor).toBe(sofia.aFavor);
+    expect(deSofia(aplicarTicket(sinPagosDeAlquilerDeSofia(datos), retiro(1000, "alquiler"))).aFavor).toBe(sofia.aFavor);
   });
 
-  it("el alquiler pagado de más queda a favor y la deuda de alquiler en 0", () => {
-    const pagado = aplicarTicket(datos, retiro(1000, "alquiler"));
-    const fila = filasDe(aplicarAlquiler(pagado, 400), ARTIGAS).find((f) => f.colportor.id === "sofia-cabral")!;
-    expect(fila.debeAlquiler).toBe(0);
-    expect(fila.aFavorAlquiler).toBe(fila.pagadoAlquiler - 400);
-    expect(fila.aFavorAlquiler).toBeGreaterThan(0);
+  describe("alquiler pagado de más: se traslada a la deuda con la casa editora", () => {
+    // Sofía sin pagos de alquiler: cada caso parte de un alquiler y de un pago que se eligen acá.
+    const sinPagos = sinPagosDeAlquilerDeSofia(datos);
+    const filaDeSofia = (d: DatosDeCuentas) => filasDe(d, ARTIGAS).find((f) => f.colportor.id === "sofia-cabral")!;
+    const conDeuda = (d: DatosDeCuentas, deuda: number): DatosDeCuentas => ({
+      ...d,
+      colportores: d.colportores.map((c) => (c.id === "sofia-cabral" ? { ...c, deuda, aFavor: undefined } : c)),
+    });
+
+    it("Lucía paga 3.000 de un alquiler de 2.500: el alquiler queda pagado, no debe nada y 500 bajan la deuda", () => {
+      const base = conDeuda(aplicarAlquiler(sinPagos, 2500), 10000);
+      const despues = aplicarTicket(base, retiro(3000, "alquiler"));
+      const fila = filaDeSofia(despues);
+      expect(fila.pagadoAlquiler).toBe(2500);
+      expect(fila.debeAlquiler).toBe(0);
+      expect(fila.trasladadoAlquiler).toBe(500);
+      expect(estadoDeAlquiler(fila, 2500)).toBe("pagado");
+      expect(deSofia(despues).deuda).toBe(9500);
+      expect(deSofia(despues).aFavor).toBeUndefined();
+      expect(textoDeTraslado(fila.trasladadoAlquiler)).toBe("Descuento por alquiler pagado de más: $U 500");
+    });
+
+    it("pagar justo el alquiler o menos no traslada nada ni toca la deuda", () => {
+      const base = conDeuda(aplicarAlquiler(sinPagos, 2500), 10000);
+      for (const monto of [1000, 2500]) {
+        const despues = aplicarTicket(base, retiro(monto, "alquiler"));
+        expect(filaDeSofia(despues).trasladadoAlquiler).toBe(0);
+        expect(deSofia(despues).deuda).toBe(10000);
+      }
+    });
+
+    it("varios pagos que juntos pasan del alquiler trasladan solo lo que pasa, una vez", () => {
+      const base = conDeuda(aplicarAlquiler(sinPagos, 2500), 10000);
+      const dos = aplicarTicket(aplicarTicket(base, retiro(2000, "alquiler")), retiro(1000, "alquiler"));
+      expect(filaDeSofia(dos).trasladadoAlquiler).toBe(500);
+      expect(deSofia(dos).deuda).toBe(9500);
+      const tres = aplicarTicket(dos, retiro(700, "alquiler"));
+      expect(filaDeSofia(tres).trasladadoAlquiler).toBe(1200);
+      expect(deSofia(tres).deuda).toBe(8800);
+    });
+
+    it("un pago por validar o rechazado no traslada", () => {
+      const base = conDeuda(aplicarAlquiler(sinPagos, 2500), 10000);
+      for (const estado of ["PENDIENTE", "RECHAZADO"] as const) {
+        const despues = aplicarTicket(base, retiro(3000, "alquiler", estado));
+        expect(filaDeSofia(despues).trasladadoAlquiler).toBe(0);
+        expect(deSofia(despues).deuda).toBe(10000);
+      }
+    });
+
+    it("si lo trasladado pasa de la deuda, la deuda queda en 0 y el resto queda a favor de la casa editora", () => {
+      const base = conDeuda(aplicarAlquiler(sinPagos, 2500), 300);
+      const despues = aplicarTicket(base, retiro(3000, "alquiler"));
+      expect(deSofia(despues).deuda).toBe(0);
+      expect(deSofia(despues).aFavor).toBe(200);
+      expect(filaDeSofia(despues).trasladadoAlquiler).toBe(500);
+    });
+
+    it("subir el alquiler deshace el traslado: vuelve primero de lo que estaba a favor y después a la deuda", () => {
+      const pagado = aplicarTicket(conDeuda(aplicarAlquiler(sinPagos, 2500), 300), retiro(3000, "alquiler"));
+      const subido = aplicarAlquiler(pagado, 2800);
+      expect(filaDeSofia(subido).trasladadoAlquiler).toBe(200);
+      expect(deSofia(subido).aFavor).toBe(0);
+      expect(deSofia(subido).deuda).toBe(100);
+      const todo = aplicarAlquiler(pagado, 4000);
+      expect(filaDeSofia(todo).trasladadoAlquiler).toBe(0);
+      expect(filaDeSofia(todo).debeAlquiler).toBe(1000);
+      expect(deSofia(todo).aFavor).toBe(0);
+      expect(deSofia(todo).deuda).toBe(300);
+    });
+
+    it("bajar el alquiler traslada lo que ya estaba pagado", () => {
+      const pagado = aplicarTicket(conDeuda(aplicarAlquiler(sinPagos, 4000), 10000), retiro(3000, "alquiler"));
+      expect(filaDeSofia(pagado).trasladadoAlquiler).toBe(0);
+      const bajado = aplicarAlquiler(pagado, 2500);
+      expect(filaDeSofia(bajado).trasladadoAlquiler).toBe(500);
+      expect(deSofia(bajado).deuda).toBe(9500);
+    });
+
+    it("con una campaña sin alquiler (0) no se traslada nada: lo pagado queda como está", () => {
+      const pagado = aplicarTicket(conDeuda(aplicarAlquiler(sinPagos, 2500), 10000), retiro(3000, "alquiler"));
+      const sin = aplicarAlquiler(pagado, 0);
+      expect(filaDeSofia(sin).trasladadoAlquiler).toBe(0);
+      expect(filaDeSofia(sin).pagadoAlquiler).toBe(3000);
+      expect(filaDeSofia(sin).debeAlquiler).toBe(0);
+      expect(deSofia(sin).deuda).toBe(10000);
+    });
+
+    it("el pago a la casa editora no se confunde con el alquiler", () => {
+      const base = conDeuda(aplicarAlquiler(sinPagos, 2500), 10000);
+      expect(filaDeSofia(aplicarTicket(base, retiro(3000, "casa-editora"))).trasladadoAlquiler).toBe(0);
+    });
   });
 
   it("textoDeSaldo dice «a favor» solo cuando no se debe nada y hay saldo", () => {
@@ -362,11 +456,11 @@ describe("escrituras sobre una copia", () => {
     expect(textoDeSaldo(500, 3000)).toBe("$U 500");
   });
 
-  it("un depósito de alquiler no toca la deuda de casa editora y sí el alquiler pagado", () => {
-    const antes = filasDe(datos, ARTIGAS).find((f) => f.colportor.id === "sofia-cabral")!;
-    const despues = filasDe(aplicarTicket(datos, retiro(1000, "alquiler")), ARTIGAS).find((f) => f.colportor.id === "sofia-cabral")!;
+  it("un depósito de alquiler dentro del alquiler no toca la deuda de casa editora y sí el alquiler pagado", () => {
+    const sinPagos = sinPagosDeAlquilerDeSofia(datos);
+    const despues = filasDe(aplicarTicket(sinPagos, retiro(1000, "alquiler")), ARTIGAS).find((f) => f.colportor.id === "sofia-cabral")!;
     expect(despues.colportor.deuda).toBe(sofia.deuda);
-    expect(despues.pagadoAlquiler).toBe(antes.pagadoAlquiler + 1000);
+    expect(despues.pagadoAlquiler).toBe(1000);
   });
 
   it("un ticket que no está validado se suma al historial pero no acredita", () => {
