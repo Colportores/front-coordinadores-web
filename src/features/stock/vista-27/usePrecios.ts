@@ -43,6 +43,11 @@ export interface ConfirmacionDeCambiosGrandes {
   grandes: CambioGrande[];
 }
 
+/** Una huella de los cambios de una ciudad, para saber si siguen siendo los mismos que se mandaron. */
+function firmaDe(cambios: CambioDePrecio[]): string {
+  return JSON.stringify(cambios.map((c) => [c.tipo, c.id, c.precio]));
+}
+
 /**
  * El estado de la vista 27: los datos que se muestran (se actualizan al guardar), los borradores de cada ciudad, la pestaña
  * abierta y el guardado. Reglas que sostiene:
@@ -51,7 +56,8 @@ export interface ConfirmacionDeCambiosGrandes {
  * - **Lo tocado mientras se guarda no se pierde**: al volver, solo se saca del borrador lo que se mandó y sigue igual.
  * - **Salir con cambios sin guardar no se pierde nada en silencio**: la vista se anota en el shell (`registrarFuente`), así el
  *   menú, atrás/adelante y «‹ Stock» no se van, y cerrar la pestaña pide confirmación.
- * - **Sin conexión**: un guardado que falló por falta de conexión se reintenta solo cuando vuelve internet.
+ * - **Sin conexión**: un guardado que falló por falta de conexión se reintenta solo cuando vuelve internet, y solo si los cambios
+ *   siguen siendo exactamente los que se mandaron y confirmaron; si se tocó algo, se guarda a mano (con su confirmación).
  */
 export function usePrecios(inicial: DatosDePrecios, acciones: AccionesPrecios) {
   const [datos, setDatos] = useState(inicial);
@@ -68,7 +74,10 @@ export function usePrecios(inicial: DatosDePrecios, acciones: AccionesPrecios) {
   const guardando = useRef(false);
   const reintentoAlVolver = useRef<string | null>(null);
   const [enCola, setEnCola] = useState<string | null>(null);
-  const ponerEnCola = useCallback((ciudadId: string | null) => {
+  /** Lo que se mandó (y el usuario ya confirmó) la última vez que falló por falta de conexión: lo único que se reintenta solo. */
+  const firmaEnCola = useRef<string | null>(null);
+  const ponerEnCola = useCallback((ciudadId: string | null, cambios?: CambioDePrecio[]) => {
+    firmaEnCola.current = ciudadId !== null && cambios ? firmaDe(cambios) : null;
     reintentoAlVolver.current = ciudadId;
     setEnCola(ciudadId);
   }, []);
@@ -147,7 +156,7 @@ export function usePrecios(inicial: DatosDePrecios, acciones: AccionesPrecios) {
         const ciudad = vistos.ciudades.find((c) => c.id === ciudadId)?.nombre ?? "la ciudad";
         setAviso({ ciudadId, texto: textoDeGuardado(cambios, ciudad) });
       } else if (resultado.causa === "sin-conexion") {
-        ponerEnCola(ciudadId);
+        ponerEnCola(ciudadId, cambios);
         setFalla({ ciudadId, tipo: "sin-conexion" });
       } else {
         setFalla({ ciudadId, tipo: "error", mensaje: resultado.mensaje ?? null });
@@ -157,7 +166,7 @@ export function usePrecios(inicial: DatosDePrecios, acciones: AccionesPrecios) {
       if (motivo) {
         setFalla({ ciudadId, tipo: "sesion", motivo });
       } else if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        ponerEnCola(ciudadId);
+        ponerEnCola(ciudadId, cambios);
         setFalla({ ciudadId, tipo: "sin-conexion" });
       } else {
         setFalla({ ciudadId, tipo: "error", mensaje: null });
@@ -193,8 +202,17 @@ export function usePrecios(inicial: DatosDePrecios, acciones: AccionesPrecios) {
     const alVolver = () => {
       setEnLinea(true);
       const pendiente = reintentoAlVolver.current;
-      if (pendiente) void enviar(pendiente);
-      else setFalla((f) => (f?.tipo === "sin-conexion" ? null : f));
+      if (pendiente) {
+        // Solo se reintenta solo lo que ya se mandó y se confirmó. Si después se tocó algo, el valor nuevo no pasó por la
+        // confirmación de cambios grandes (ni se sabe si está terminado de tipear): queda marcado para guardarlo a mano.
+        const { datos: vistos, borradores: actuales } = ultimo.current;
+        if (firmaDe(cambiosParaGuardar(vistos, pendiente, actuales[pendiente] ?? {})) === firmaEnCola.current) {
+          void enviar(pendiente);
+        } else {
+          ponerEnCola(null);
+          setFalla((f) => (f?.tipo === "sin-conexion" ? null : f));
+        }
+      } else setFalla((f) => (f?.tipo === "sin-conexion" ? null : f));
     };
     const alIrse = () => setEnLinea(false);
     window.addEventListener("online", alVolver);
@@ -203,7 +221,7 @@ export function usePrecios(inicial: DatosDePrecios, acciones: AccionesPrecios) {
       window.removeEventListener("online", alVolver);
       window.removeEventListener("offline", alIrse);
     };
-  }, [enviar]);
+  }, [enviar, ponerEnCola]);
 
   // --- Acciones de cada fila ---------------------------------------------------------------------------------------
 

@@ -423,6 +423,95 @@ describe("casos límite del guardado", () => {
     expect(screen.queryByText(/Sin conexión/)).not.toBeInTheDocument();
   });
 
+  it("sin conexión: lo que se edita después de la falla NO sale solo al volver internet; se guarda a mano y un cambio grande pide su confirmación", async () => {
+    let intento = 0;
+    const { acciones: a } = montar(
+      undefined,
+      acciones(() => (++intento === 1 ? { ok: false, causa: "sin-conexion" } : ok)),
+    );
+    await abrir(/^Montevideo/);
+    escribir("Salud y Hogar", "2700");
+    await userEvent.click(guardar());
+    await screen.findByText(/se guardan cuando vuelva internet/);
+
+    // Mientras no hay internet se cambia a un valor que pasa del 20 %.
+    escribir("Salud y Hogar", "3600");
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+    expect(a.guardarPrecios).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/Sin conexión/)).not.toBeInTheDocument();
+    expect(campo("Salud y Hogar")).toHaveValue("3600");
+    expect(screen.getByText("1 cambio sin guardar")).toBeInTheDocument();
+
+    // A mano: pasa por la confirmación del cambio grande, y recién ahí se manda.
+    await userEvent.click(guardar());
+    expect(screen.getByRole("dialog", { name: "Revisá los cambios grandes" })).toBeInTheDocument();
+    expect(a.guardarPrecios).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole("button", { name: "Guardar igual" }));
+    expect(a.guardarPrecios).toHaveBeenCalledTimes(2);
+    expect(a.guardarPrecios.mock.calls[1][1]).toEqual([{ tipo: "PRODUCTO", id: SH.id, precio: 3600 }]);
+  });
+
+  it("sin conexión: un valor a medio tipear después de la falla tampoco sale solo", async () => {
+    let intento = 0;
+    const { acciones: a } = montar(
+      undefined,
+      acciones(() => (++intento === 1 ? { ok: false, causa: "sin-conexion" } : ok)),
+    );
+    await abrir(/^Montevideo/);
+    escribir("Salud y Hogar", "2700");
+    await userEvent.click(guardar());
+    await screen.findByText(/se guardan cuando vuelva internet/);
+
+    escribir("Salud y Hogar", "27");
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+    expect(a.guardarPrecios).toHaveBeenCalledTimes(1);
+    expect(campo("Salud y Hogar")).toHaveValue("27");
+  });
+
+  it("sin conexión: un cambio grande ya confirmado se reintenta solo, sin pedir otra confirmación, y manda lo mismo", async () => {
+    let intento = 0;
+    const { acciones: a } = montar(
+      undefined,
+      acciones(() => (++intento === 1 ? { ok: false, causa: "sin-conexion" } : ok)),
+    );
+    await abrir(/^Montevideo/);
+    escribir("Salud y Hogar", "3600");
+    await userEvent.click(guardar());
+    await userEvent.click(screen.getByRole("button", { name: "Guardar igual" }));
+    await screen.findByText(/se guardan cuando vuelva internet/);
+
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+    await waitFor(() => expect(a.guardarPrecios).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(a.guardarPrecios.mock.calls[1][1]).toEqual(a.guardarPrecios.mock.calls[0][1]);
+    expect(await screen.findByText(/Guardamos 1 precio/)).toBeInTheDocument();
+  });
+
+  it("sin conexión: si se vuelve al valor mandado antes de que vuelva internet, se reintenta solo", async () => {
+    let intento = 0;
+    const { acciones: a } = montar(
+      undefined,
+      acciones(() => (++intento === 1 ? { ok: false, causa: "sin-conexion" } : ok)),
+    );
+    await abrir(/^Montevideo/);
+    escribir("Salud y Hogar", "2700");
+    await userEvent.click(guardar());
+    await screen.findByText(/se guardan cuando vuelva internet/);
+
+    escribir("Salud y Hogar", "2800");
+    escribir("Salud y Hogar", "2700");
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+    await waitFor(() => expect(a.guardarPrecios).toHaveBeenCalledTimes(2));
+  });
+
   it("sin conexión desde antes: el botón se frena y el aviso lo explica; al volver, se puede guardar", async () => {
     const { acciones: a } = montar();
     await abrir(/^Montevideo/);
