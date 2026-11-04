@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type {
+  CasaDeCiudad,
   CiudadDeCampania,
   CiudadDelCatalogo,
   DatosZonas,
+  EstadoDeCasa,
   Esquina,
   FormaZona,
   FuenteDatosZonas,
@@ -20,6 +22,10 @@ import type {
 } from "@/datos/equipo/zonas";
 import { colorParaZonaNueva } from "@/datos/equipo/zonas/paleta";
 import { BuscadorCiudad } from "@/features/equipo/zonas/BuscadorCiudad";
+import { AvisoDeCasas, type AvisoDelMapa } from "@/features/equipo/zonas/casas/AvisoDeCasas";
+import { horaEnMontevideo, sinOcultas } from "@/features/equipo/zonas/casas/estados";
+import { LeyendaDeCasas } from "@/features/equipo/zonas/casas/LeyendaDeCasas";
+import { useCasasDeCiudad } from "@/features/equipo/zonas/casas/useCasasDeCiudad";
 import { MapaZonas } from "@/features/equipo/zonas/MapaZonas";
 import { PanelDetalleZona } from "@/features/equipo/zonas/PanelDetalleZona";
 import { formaCompleta, PanelFormularioZona, RADIO_INICIAL_M, textoColportoresSinZona } from "@/features/equipo/zonas/PanelFormularioZona";
@@ -39,6 +45,8 @@ export interface AccionesZonas {
   eliminarZona: (zonaId: string) => Promise<ResultadoEliminarZona>;
   buscarCiudades: (texto: string) => Promise<CiudadDelCatalogo[]>;
   agregarCiudad: (catalogoId: string) => Promise<ResultadoAgregarCiudad>;
+  /** Las casas de esas zonas con su estado, para los puntos del mapa (`casas_de_zona()`). */
+  casasDeZonas: (zonaIds: string[]) => Promise<CasaDeCiudad[]>;
 }
 
 interface EstadoDibujo {
@@ -132,6 +140,12 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const [aviso, setAviso] = useState<string | null>(null);
   const [hover, setHover] = useState<Esquina | null>(null);
   const [buscador, setBuscador] = useState<{ ocupado: boolean; error: string | null } | null>(null);
+  // Los puntos de las casas (diseño 24P): los estados que se destildaron en la leyenda, la casa con la tarjeta abierta, si el mapa
+  // las agrupó, y un contador que vuelve a pedirlas cuando una zona se guardó o se eliminó (cambia qué casas incluye cada una).
+  const [ocultos, setOcultos] = useState<ReadonlySet<EstadoDeCasa>>(() => new Set());
+  const [casaElegidaId, setCasaElegidaId] = useState<string | null>(null);
+  const [agrupadas, setAgrupadas] = useState(false);
+  const [recargaCasas, setRecargaCasas] = useState(0);
   const agregandoAhora = useRef(false);
   const versionHover = useRef(0);
   const temporizadorHover = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -158,6 +172,14 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const agregando = buscador?.ocupado === true;
   const forma = panel.tipo === "dibujo" ? panel.forma : null;
   const zonaEnEdicionId = panel.tipo === "dibujo" ? panel.zonaId : undefined;
+
+  const casasDeLaCiudad = useCasasDeCiudad({
+    ciudadId: ciudad?.id ?? "",
+    zonaIds: ciudad?.zonas.map((z) => z.id) ?? [],
+    pedir: acciones.casasDeZonas,
+    recarga: recargaCasas,
+  });
+  const casasQueSeVen = useMemo(() => sinOcultas(casasDeLaCiudad.casas, ocultos), [casasDeLaCiudad.casas, ocultos]);
 
   const cambiarDibujo = useCallback((cambio: (d: EstadoDibujo) => Partial<EstadoDibujo>) => {
     setPanel((p) => (p.tipo === "dibujo" ? { ...p, ...cambio(p) } : p));
@@ -270,6 +292,28 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const zonaEnEdicion = zonaEnEdicionId ? zonas.find((z) => z.id === zonaEnEdicionId) : undefined;
   const zonaElegidaId = zonaDetalle?.id ?? zonaEnEdicionId ?? null;
 
+  /** El aviso de arriba del mapa (24P·04 a 24P·08): el más urgente primero, uno solo. */
+  const avisoDelMapa: AvisoDelMapa | null =
+    casasDeLaCiudad.fase === "error"
+      ? { tipo: "error", onReintentar: casasDeLaCiudad.reintentar }
+      : casasDeLaCiudad.sinConexion && casasDeLaCiudad.actualizadoA
+        ? { tipo: "sin-conexion", hora: horaEnMontevideo(casasDeLaCiudad.actualizadoA) }
+        : casasDeLaCiudad.fase === "cargando"
+          ? { tipo: "cargando", ciudad: ciudad.nombre }
+          : zonas.length > 0 && casasDeLaCiudad.casas.length === 0
+            ? { tipo: "vacio", ciudad: ciudad.nombre }
+            : agrupadas && casasQueSeVen.length > 0
+              ? { tipo: "agrupadas" }
+              : null;
+
+  function alternarEstadoDeCasa(estado: EstadoDeCasa) {
+    setOcultos((antes) => {
+      const despues = new Set(antes);
+      if (!despues.delete(estado)) despues.add(estado);
+      return despues;
+    });
+  }
+
   /** «Reintentar» del aviso de la vista previa caída: la vuelve a pedir con la misma forma. */
   function reintentarVistaPrevia() {
     cambiarDibujo(() => ({ error: null, fallaVistaPrevia: null }));
@@ -297,6 +341,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   function elegirCiudad(id: string) {
     if (id === ciudadId || guardandoAhora.current || agregandoAhora.current) return;
     abandonarDibujo();
+    setCasaElegidaId(null);
     setCiudadId(id);
     setPanel({ tipo: "lista", asignandoA: null });
     setAviso(null);
@@ -444,6 +489,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
         }),
       );
       abandonarDibujo();
+      setRecargaCasas((n) => n + 1);
       focoPendiente.current = '[data-foco="titulo-zona"]';
       setPanel({ tipo: "detalle", zonaId: guardada.id, colportorId: null, ocupado: false, error: null });
       setAviso(`Zona «${guardada.nombre}» guardada.`);
@@ -529,6 +575,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
         })),
       );
       abandonarDibujo();
+      setRecargaCasas((n) => n + 1);
       volverFoco.current = '[data-foco="nueva-zona"]';
       setPanel({ tipo: "lista", asignandoA: null });
       setAviso(
@@ -632,7 +679,16 @@ export function ZonasCampania({ datos, acciones }: Props) {
       ) : null}
 
       <div className="grid grid-cols-[360px_minmax(0,1fr)] items-start gap-4">
-        <div className="max-h-[calc(100vh-var(--spacing-topbar)-var(--alto-aviso,0px)-230px)] min-h-[520px] overflow-auto">
+        <div className="flex max-h-[calc(100vh-var(--spacing-topbar)-var(--alto-aviso,0px)-230px)] min-h-[520px] flex-col gap-4 overflow-auto">
+          {panel.tipo === "lista" ? (
+            <LeyendaDeCasas
+              fase={casasDeLaCiudad.fase}
+              casas={casasDeLaCiudad.casas}
+              mostradas={casasQueSeVen.length}
+              ocultos={ocultos}
+              onAlternar={alternarEstadoDeCasa}
+            />
+          ) : null}
           {panel.tipo === "dibujo" ? (
             <PanelFormularioZona
               editando={panel.zonaId !== undefined}
@@ -702,11 +758,13 @@ export function ZonasCampania({ datos, acciones }: Props) {
             zonas={zonas}
             zonaElegidaId={zonaElegidaId}
             dibujo={dibujo}
+            casas={{ casas: casasQueSeVen, elegidaId: casaElegidaId, onElegir: setCasaElegidaId, onAgrupadas: setAgrupadas }}
             onZonaClick={elegirZona}
             onMapaClick={alHacerClicEnMapa}
             onMapaMove={alMoverEnMapa}
             onRadio={(radioM) => forma && actualizarForma({ ...forma, radioM })}
           />
+          {avisoDelMapa ? <AvisoDeCasas aviso={avisoDelMapa} /> : null}
         </div>
       </div>
     </div>

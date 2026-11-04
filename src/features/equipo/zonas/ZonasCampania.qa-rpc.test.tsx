@@ -103,6 +103,7 @@ function accionesDe(fuente: ReturnType<typeof crearFuenteZonasRpc>): AccionesZon
     eliminarZona: (z) => fuente.eliminarZona(CAMPANIA, z),
     buscarCiudades: (t) => fuente.buscarCiudades(CAMPANIA, t),
     agregarCiudad: (c) => fuente.agregarCiudad(CAMPANIA, c),
+    casasDeZonas: vi.fn(async () => []),
   };
 }
 
@@ -141,6 +142,7 @@ function accionesSueltas(sobre: Partial<AccionesZonas> = {}): AccionesZonas {
     eliminarZona: vi.fn(async () => ({ ok: true as const, colportoresSinZona: 0 })),
     buscarCiudades: vi.fn(async () => []),
     agregarCiudad: vi.fn(async () => ({ ok: false as const, mensaje: "no" })),
+    casasDeZonas: vi.fn(async () => []),
     ...sobre,
   };
 }

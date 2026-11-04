@@ -174,6 +174,37 @@ export interface CiudadDelCatalogo {
   departamento: string | null;
 }
 
+/**
+ * Estado de una casa en el mapa: los siete `color` de `house_status` (ADR-003, prioridad 1 a 7; decisión de Cristian
+ * «Cobro panel», 06/10) más `SIN_VISITA` para la que no tiene estado todavía (`estado` nulo en `casas_de_zona()`;
+ * decisión del 04/11, regla R7 del diseño 24P·01: «Sin visita», como en la vista 06 del celular). Nunca lleva montos
+ * ni personas: el color dice que falta cobrar o está pagado, no a quién ni cuánto.
+ */
+export type EstadoDeCasa =
+  | "SIN_VISITA"
+  | "SIN_CONTESTAR"
+  | "ENTREVISTA_PROGRAMADA"
+  | "ENTREVISTA_SIN_VENTA"
+  | "RECHAZO"
+  | "COBRANZA_PENDIENTE"
+  | "ENTREGA_Y_COBRANZA_PENDIENTE"
+  | "VENTA_COMPLETA";
+
+export type TipoDeCasa = "CASA" | "NEGOCIO" | "EDIFICIO";
+
+/**
+ * Un punto del mapa de la vista 24 (HU-CAM-006, `casas_de_zona()`, backend-supabase#72). `zonaIds` son las zonas de
+ * la ciudad que lo incluyen: las zonas se pueden superponer, así que una casa puede estar en más de una.
+ */
+export interface CasaDeCiudad {
+  id: string;
+  lon: number;
+  lat: number;
+  tipo: TipoDeCasa;
+  estado: EstadoDeCasa;
+  zonaIds: string[];
+}
+
 export interface FuenteDatosZonas {
   /** `null` si el coordinador no tiene una campaña que no haya terminado: no hay zonas que mostrar. */
   obtenerZonas(): Promise<DatosZonas | null>;
@@ -193,4 +224,9 @@ export interface FuenteDatosZonas {
   buscarCiudades(campaniaId: string, texto: string): Promise<CiudadDelCatalogo[]>;
   /** `agregar_ciudad_a_campania`. */
   agregarCiudad(campaniaId: string, catalogoId: string): Promise<ResultadoAgregarCiudad>;
+  /**
+   * Las casas de esas zonas con su estado, sin repetir las que caen en dos (`casas_de_zona()` pide de a una zona y de a
+   * páginas: la fuente junta todas). Una falla es una excepción: nunca se toma por «no hay casas».
+   */
+  casasDeZonas(campaniaId: string, zonaIds: string[]): Promise<CasaDeCiudad[]>;
 }

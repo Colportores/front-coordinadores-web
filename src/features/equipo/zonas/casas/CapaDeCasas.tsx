@@ -1,0 +1,112 @@
+"use client";
+
+import type { ExpressionSpecification } from "maplibre-gl";
+import { Layer, Marker, Source } from "react-map-gl/maplibre";
+
+import type { CasaDeCiudad, ZonaDeCiudad } from "@/datos/equipo/zonas";
+import { ESTADOS_VISUALES, estadoVisual, textoDeTipo } from "@/features/equipo/zonas/casas/estados";
+import { PuntoDeCasa } from "@/features/equipo/zonas/casas/PuntoDeCasa";
+import { FUENTE_AGRUPADA, type useCasasEnMapa } from "@/features/equipo/zonas/casas/useCasasEnMapa";
+import type { CasasEnMapa } from "@/features/equipo/zonas/tipos";
+
+export const CAPA_DE_GRUPOS = "casas-agrupadas-grupo";
+
+const porEstado = (valor: (e: (typeof ESTADOS_VISUALES)[number]) => string): ExpressionSpecification =>
+  ["match", ["get", "estado"], ...ESTADOS_VISUALES.flatMap((e) => [e.clave, valor(e)]), "#6B7688"] as unknown as ExpressionSpecification;
+
+/** Con las casas agrupadas, las que quedan sueltas van como puntos de su color (sin glifo: ya no caben); al acercar, vuelven los símbolos. */
+const COLOR_DE_PUNTO = porEstado((e) => (e.borde ? "#FFFFFF" : e.color));
+const BORDE_DE_PUNTO = porEstado((e) => (e.borde ? e.color : "#FFFFFF"));
+
+function zonasDe(casa: CasaDeCiudad, zonas: readonly ZonaDeCiudad[]): string {
+  const nombres = casa.zonaIds.map((id) => zonas.find((z) => z.id === id)?.nombre).filter((n): n is string => n !== undefined);
+  if (nombres.length === 0) return "";
+  return ` · ${nombres.length > 1 ? "Zonas" : "Zona"} ${nombres.join(" y ")}`;
+}
+
+interface Props {
+  casas: CasasEnMapa;
+  zonas: readonly ZonaDeCiudad[];
+  /** Mientras se dibuja una zona los puntos se ven pero no se tocan: el clic del mapa es de la forma. */
+  tocables: boolean;
+  estado: Pick<ReturnType<typeof useCasasEnMapa>, "agrupar" | "visibles" | "geojson" | "grupos">;
+}
+
+/**
+ * Las casas dentro del mapa de la vista 24 (diseño 24P): cada una un punto con su símbolo y su nombre de estado, la tarjeta de
+ * la elegida (estado, tipo y zona; sin montos ni personas) y, con más de 200 a la vista, el cluster de MapLibre con la cantidad
+ * de cada burbuja.
+ */
+export function CapaDeCasas({ casas, zonas, tocables, estado }: Props) {
+  const { agrupar, visibles, geojson, grupos } = estado;
+  const elegida = agrupar ? undefined : visibles.find((c) => c.id === casas.elegidaId);
+  return (
+    <>
+      <Source id={FUENTE_AGRUPADA} type="geojson" data={geojson} cluster clusterRadius={44} clusterMaxZoom={17}>
+        <Layer
+          id={CAPA_DE_GRUPOS}
+          type="circle"
+          filter={["has", "point_count"]}
+          paint={{
+            "circle-color": "#0E1A2B",
+            "circle-radius": ["step", ["get", "point_count"], 16, 10, 18, 50, 22],
+            "circle-stroke-color": "#FFFFFF",
+            "circle-stroke-width": 2,
+          }}
+        />
+        <Layer
+          id="casas-agrupadas-suelta"
+          type="circle"
+          filter={["!", ["has", "point_count"]]}
+          paint={{ "circle-color": COLOR_DE_PUNTO, "circle-radius": 6, "circle-stroke-color": BORDE_DE_PUNTO, "circle-stroke-width": 1.5 }}
+        />
+      </Source>
+
+      {agrupar
+        ? grupos.map((g) => (
+            <Marker key={g.id} longitude={g.lon} latitude={g.lat} anchor="center" style={{ pointerEvents: "none" }}>
+              <span role="img" aria-label={`${g.cantidad} casas`} className="grid size-9 place-items-center text-nav font-bold text-superficie">
+                {g.cantidad}
+              </span>
+            </Marker>
+          ))
+        : visibles.map((c) => (
+            <Marker key={c.id} longitude={c.lon} latitude={c.lat} anchor="center">
+              <button
+                type="button"
+                tabIndex={-1}
+                disabled={!tocables}
+                aria-label={estadoVisual(c.estado).nombre}
+                aria-pressed={c.id === casas.elegidaId}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  casas.onElegir(c.id === casas.elegidaId ? null : c.id);
+                }}
+                className="block cursor-pointer rounded-full p-0 disabled:cursor-default"
+              >
+                <PuntoDeCasa estado={c.estado} lado={16} sombra />
+              </button>
+            </Marker>
+          ))}
+
+      {elegida ? (
+        <Marker longitude={elegida.lon} latitude={elegida.lat} anchor="bottom-left" offset={[10, -10]} style={{ zIndex: 5 }}>
+          <div
+            role="group"
+            aria-label="Casa elegida"
+            className="flex w-[250px] flex-col gap-1.5 rounded-lg border border-grafico-neutro bg-superficie px-3.5 py-3 shadow-lg"
+          >
+            <div className="flex items-center gap-2">
+              <PuntoDeCasa estado={elegida.estado} lado={18} />
+              <span className="text-nav font-semibold text-tinta">{estadoVisual(elegida.estado).nombre}</span>
+            </div>
+            <span className="text-cuerpo wrap-anywhere text-tinta-2">
+              {textoDeTipo(elegida.tipo)}
+              {zonasDe(elegida, zonas)}
+            </span>
+          </div>
+        </Marker>
+      ) : null}
+    </>
+  );
+}

@@ -47,5 +47,9 @@ export function crearAccionesServidor(campaniaId: string): AccionesZonas {
       "use server";
       return fuenteZonas.agregarCiudad(campaniaId, catalogoId);
     },
+    async casasDeZonas(zonaIds) {
+      "use server";
+      return fuenteZonas.casasDeZonas(campaniaId, zonaIds);
+    },
   };
 }
