@@ -45,14 +45,14 @@ function centroide(zona: ZonaDeCiudad): Punto {
 
 const punto = (e: MapMouseEvent): Punto => ({ lon: e.lngLat.lng, lat: e.lngLat.lat });
 
+/** Lo que se cierra solo con Esc: si el foco está adentro, ese Esc no es de la tarjeta de la casa. */
+const DE_OTRA_COSA = '[role="dialog"], [role="alertdialog"], [role="listbox"], [role="menu"], [aria-modal="true"], [aria-expanded="true"]';
+
 /**
  * Mapa de la vista 24. Con `dibujo` dibuja la forma en curso; sin él, el clic elige zonas.
  * Base: fondo liso con las calles de los datos simulados. De dónde salen los tiles
  * (PMTiles de OSM, ADR-011) todavía no está decidido, así que no hay capa de tiles.
  */
-/** Lo que se cierra solo con Esc: si el foco está adentro, ese Esc no es de la tarjeta de la casa. */
-const DE_OTRA_COSA = '[role="dialog"], [role="alertdialog"], [role="listbox"], [role="menu"], [aria-modal="true"], [aria-expanded="true"]';
-
 export function MapaZonasGl({
   ciudad,
   zonas,
