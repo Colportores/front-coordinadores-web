@@ -217,7 +217,7 @@ describe("QA #64 · validación de lo que se tipea en el precio", () => {
 });
 
 describe("QA #64 · reintento automático al volver internet", () => {
-  it.skip("QA #64: un cambio grande tipeado mientras el guardado está en cola sale sin la confirmación de 27A·03", async () => {
+  it("un cambio grande tipeado mientras el guardado está en cola no sale sin la confirmación de 27A·03", async () => {
     let intento = 0;
     const a = montar(
       undefined,
