@@ -680,7 +680,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
 
       <div className="grid grid-cols-[360px_minmax(0,1fr)] items-start gap-4">
         <div className="flex max-h-[calc(100vh-var(--spacing-topbar)-var(--alto-aviso,0px)-230px)] min-h-[520px] flex-col gap-4 overflow-auto">
-          {panel.tipo === "lista" ? (
+          {/* Sin zonas no hay casas que contar: la leyenda diría «0 casas» y la lista ya dice que no hay zonas. */}
+          {panel.tipo === "lista" && zonas.length > 0 ? (
             <LeyendaDeCasas
               fase={casasDeLaCiudad.fase}
               casas={casasDeLaCiudad.casas}

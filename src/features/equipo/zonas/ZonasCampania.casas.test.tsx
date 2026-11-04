@@ -243,6 +243,10 @@ describe("24P·06 · sin casas registradas", () => {
 
     expect(acc.casasDeZonas).not.toHaveBeenCalled();
     expect(chip()).toBeNull();
+    // Sin zonas no hay qué contar: la leyenda no afirma «0 casas» y el panel dice que todavía no hay zonas.
+    expect(screen.queryByRole("region", { name: "Casas por estado" })).toBeNull();
+    expect(screen.queryByText("0 casas")).toBeNull();
+    expect(screen.getByText(/Todavía no hay zonas en Canelones/)).toBeInTheDocument();
     expect(mapa.props?.casas?.casas).toEqual([]);
   });
 });

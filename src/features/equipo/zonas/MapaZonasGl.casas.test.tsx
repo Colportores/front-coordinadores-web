@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -63,6 +64,21 @@ const casa = (n: number, estado: EstadoDeCasa = "SIN_VISITA", sobre: Partial<Cas
 });
 const muchas = (cantidad: number) => Array.from({ length: cantidad }, (_, i) => casa(i));
 
+function propsDe(casas: CasaDeCiudad[], sobre: Partial<PropsMapaZonas> = {}): PropsMapaZonas {
+  return {
+    ciudad: CIUDAD,
+    zonas: ZONAS,
+    zonaElegidaId: null,
+    dibujo: null,
+    casas: { casas, elegidaId: null, onElegir: vi.fn(), onAgrupadas: vi.fn() },
+    onZonaClick: vi.fn(),
+    onMapaClick: vi.fn(),
+    onMapaMove: vi.fn(),
+    onRadio: vi.fn(),
+    ...sobre,
+  };
+}
+
 function montar(casas: Partial<CasasEnMapa> & { casas: CasaDeCiudad[] }, sobre: Partial<PropsMapaZonas> = {}) {
   const enMapa: CasasEnMapa = { elegidaId: null, onElegir: vi.fn(), onAgrupadas: vi.fn(), ...casas };
   const props: PropsMapaZonas = {
@@ -103,7 +119,7 @@ describe("24P·01 · los puntos de a uno (hasta 200 a la vista)", () => {
     const { enMapa } = montar({ casas: [casa(1, "RECHAZO"), casa(2, "ENTREGA_Y_COBRANZA_PENDIENTE"), casa(3)] });
 
     const puntos = within(screen.getByTestId("fuente-casas-agrupadas").parentElement as HTMLElement).getAllByRole("button");
-    expect(puntos.map((p) => p.getAttribute("aria-label"))).toEqual(["Rechazó", "Entrega y pago", "Sin visita"]);
+    expect(puntos.map((p) => p.getAttribute("aria-label"))).toEqual(["Rechazó, casa", "Entrega y pago, casa", "Sin visita, casa"]);
     expect((doble.fuentes["casas-agrupadas"].data as { features: unknown[] }).features).toEqual([]);
     expect(enMapa.onAgrupadas).toHaveBeenLastCalledWith(false);
   });
@@ -135,11 +151,11 @@ describe("24P·03 · la casa elegida", () => {
   it("tocar un punto lo elige y tocarlo de nuevo cierra la tarjeta", () => {
     const { enMapa } = montar({ casas: [casa(1, "RECHAZO"), casa(2)] });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rechazó" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rechazó, casa" }));
     expect(enMapa.onElegir).toHaveBeenLastCalledWith("c1");
 
     const { enMapa: otro } = montar({ casas: [casa(1, "RECHAZO")], elegidaId: "c1" });
-    fireEvent.click(screen.getAllByRole("button", { name: "Rechazó" })[1]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Rechazó, casa" })[1]);
     expect(otro.onElegir).toHaveBeenLastCalledWith(null);
   });
 
@@ -188,10 +204,132 @@ describe("24P·03 · la casa elegida", () => {
   it("mientras se dibuja una zona los puntos se ven pero no se tocan: el clic es de la forma", () => {
     const { enMapa } = montar({ casas: [casa(1)] }, { dibujo: SIN_DIBUJO });
 
-    const punto = screen.getByRole("button", { name: "Sin visita" });
+    const punto = screen.getByRole("button", { name: "Sin visita, casa" });
     expect(punto).toBeDisabled();
     fireEvent.click(punto);
     expect(enMapa.onElegir).not.toHaveBeenCalled();
+  });
+});
+
+describe("24P·03 · los puntos con teclado (una parada de tabulación, flechas, Enter y Esc)", () => {
+  // Tres casas: dos al norte (lat -34.86, oeste y este) y una al sur; el orden de lectura es norte→sur y oeste→este.
+  const tres = () => [
+    casa(1, "RECHAZO", { lat: -34.88, lon: -56.26 }),
+    casa(2, "VENTA_COMPLETA", { lat: -34.86, lon: -56.25, tipo: "NEGOCIO" }),
+    casa(3, "SIN_VISITA", { lat: -34.86, lon: -56.27, tipo: "EDIFICIO" }),
+  ];
+  const nombres = () => screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"));
+
+  it("cada punto dice su estado y su tipo, y están en orden de lectura", () => {
+    montar({ casas: tres() });
+
+    expect(nombres()).toEqual(["Sin visita, edificio", "Venta completa, negocio", "Rechazó, casa"]);
+  });
+
+  it("solo un punto está en el orden de tabulación (el primero) y los demás quedan en -1", () => {
+    montar({ casas: tres() });
+
+    expect(screen.getAllByRole("button").map((b) => b.tabIndex)).toEqual([0, -1, -1]);
+  });
+
+  it("con una casa elegida, la parada de tabulación es esa casa", () => {
+    montar({ casas: tres(), elegidaId: "c1" });
+
+    expect(screen.getAllByRole("button").map((b) => b.tabIndex)).toEqual([-1, -1, 0]);
+  });
+
+  it("las flechas pasan al punto siguiente y anterior, mueven el 0 y no pasan de los extremos", async () => {
+    const user = userEvent.setup();
+    montar({ casas: tres() });
+    const [primero, segundo, tercero] = screen.getAllByRole("button");
+
+    await user.tab();
+    expect(primero).toHaveFocus();
+    await user.keyboard("{ArrowRight}");
+    expect(segundo).toHaveFocus();
+    expect([primero, segundo, tercero].map((b) => b.tabIndex)).toEqual([-1, 0, -1]);
+    await user.keyboard("{ArrowDown}");
+    expect(tercero).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(tercero).toHaveFocus();
+    await user.keyboard("{ArrowUp}");
+    expect(segundo).toHaveFocus();
+    await user.keyboard("{ArrowLeft}");
+    expect(primero).toHaveFocus();
+    await user.keyboard("{ArrowLeft}");
+    expect(primero).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(tercero).toHaveFocus();
+    await user.keyboard("{Home}");
+    expect(primero).toHaveFocus();
+  });
+
+  it("al volver con Tab cae en el último punto en el que se estuvo, no en el primero", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <button type="button">antes</button>
+        <MapaZonasGl {...propsDe(tres())} />
+        <button type="button">después</button>
+      </>,
+    );
+
+    await user.tab();
+    await user.tab();
+    await user.keyboard("{ArrowRight}");
+    await user.tab();
+    expect(screen.getByRole("button", { name: "después" })).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole("button", { name: "Venta completa, negocio" })).toHaveFocus();
+  });
+
+  it("Enter y Espacio abren la tarjeta de la casa enfocada, y las flechas no desplazan el mapa", async () => {
+    const user = userEvent.setup();
+    const { enMapa } = montar({ casas: tres() });
+    const teclasQueLlegaron: string[] = [];
+    const alMapa = (e: KeyboardEvent) => teclasQueLlegaron.push(e.key);
+    document.addEventListener("keydown", alMapa);
+
+    await user.tab();
+    await user.keyboard("{ArrowRight}");
+    expect(teclasQueLlegaron).toEqual(["Tab"]);
+    await user.keyboard("{Enter}");
+    expect(enMapa.onElegir).toHaveBeenLastCalledWith("c2");
+    await user.keyboard(" ");
+    expect(enMapa.onElegir).toHaveBeenCalledTimes(2);
+    document.removeEventListener("keydown", alMapa);
+  });
+
+  it("Esc cierra la tarjeta y el foco sigue en el mismo punto", async () => {
+    const user = userEvent.setup();
+    const { enMapa } = montar({ casas: tres(), elegidaId: "c1" });
+    const punto = screen.getByRole("button", { name: "Rechazó, casa" });
+
+    punto.focus();
+    await user.keyboard("{Escape}");
+
+    expect(enMapa.onElegir).toHaveBeenCalledWith(null);
+    expect(punto).toHaveFocus();
+  });
+
+  it("si el punto activo sale de la vista, la parada vuelve al primero que queda", async () => {
+    const user = userEvent.setup();
+    const { rerender, props } = montar({ casas: tres() });
+    await user.tab();
+    await user.keyboard("{ArrowRight}");
+
+    rerender(<MapaZonasGl {...props} casas={{ ...(props.casas as CasasEnMapa), casas: tres().filter((c) => c.id !== "c2") }} />);
+
+    expect(screen.getAllByRole("button").map((b) => b.tabIndex)).toEqual([0, -1]);
+  });
+
+  it("mientras se dibuja una zona los puntos no entran en el orden de tabulación", async () => {
+    const user = userEvent.setup();
+    montar({ casas: tres() }, { dibujo: SIN_DIBUJO });
+
+    await user.tab();
+
+    expect(screen.getAllByRole("button").some((b) => b === document.activeElement)).toBe(false);
   });
 });
 

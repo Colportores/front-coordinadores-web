@@ -1,6 +1,7 @@
 "use client";
 
 import type { ExpressionSpecification } from "maplibre-gl";
+import { type KeyboardEvent, useMemo, useRef, useState } from "react";
 import { Layer, Marker, Source } from "react-map-gl/maplibre";
 
 import type { CasaDeCiudad, ZonaDeCiudad } from "@/datos/equipo/zonas";
@@ -24,6 +25,11 @@ function zonasDe(casa: CasaDeCiudad, zonas: readonly ZonaDeCiudad[]): string {
   return ` · ${nombres.length > 1 ? "Zonas" : "Zona"} ${nombres.join(" y ")}`;
 }
 
+/** Orden fijo para recorrer los puntos con el teclado: de norte a sur y, a igual latitud, de oeste a este. */
+function enOrdenDeLectura(casas: readonly CasaDeCiudad[]): CasaDeCiudad[] {
+  return [...casas].sort((a, b) => b.lat - a.lat || a.lon - b.lon);
+}
+
 interface Props {
   casas: CasasEnMapa;
   zonas: readonly ZonaDeCiudad[];
@@ -35,11 +41,38 @@ interface Props {
 /**
  * Las casas dentro del mapa de la vista 24 (diseño 24P): cada una un punto con su símbolo y su nombre de estado, la tarjeta de
  * la elegida (estado, tipo y zona; sin montos ni personas) y, con más de 200 a la vista, el cluster de MapLibre con la cantidad
- * de cada burbuja.
+ * de cada burbuja. Con teclado, los puntos son una sola parada de tabulación (tabindex móvil): flechas para recorrerlos en orden
+ * de lectura, Enter o Espacio para abrir la tarjeta y Esc para cerrarla, con el foco en el mismo punto.
  */
 export function CapaDeCasas({ casas, zonas, tocables, estado }: Props) {
   const { agrupar, visibles, geojson, grupos } = estado;
   const elegida = agrupar ? undefined : visibles.find((c) => c.id === casas.elegidaId);
+  const ordenados = useMemo(() => enOrdenDeLectura(visibles), [visibles]);
+  const botones = useRef(new Map<string, HTMLButtonElement>());
+  const [activoElegido, setActivoElegido] = useState<string | null>(null);
+  // El punto que recibe el Tab: el último en el que se estuvo si sigue a la vista; si no, la casa elegida o el primero.
+  const activoId = [activoElegido, elegida?.id].find((id) => id !== undefined && id !== null && ordenados.some((c) => c.id === id)) ?? ordenados[0]?.id;
+
+  function alTeclear(e: KeyboardEvent<HTMLButtonElement>, id: string) {
+    const aqui = ordenados.findIndex((c) => c.id === id);
+    const destino =
+      e.key === "ArrowRight" || e.key === "ArrowDown"
+        ? aqui + 1
+        : e.key === "ArrowLeft" || e.key === "ArrowUp"
+          ? aqui - 1
+          : e.key === "Home"
+            ? 0
+            : e.key === "End"
+              ? ordenados.length - 1
+              : null;
+    if (destino === null) return;
+    // Las flechas son de los puntos: sin esto el mapa también se desplazaría.
+    e.preventDefault();
+    e.stopPropagation();
+    const siguiente = ordenados[Math.min(Math.max(destino, 0), ordenados.length - 1)];
+    setActivoElegido(siguiente.id);
+    botones.current.get(siguiente.id)?.focus();
+  }
   return (
     <>
       <Source id={FUENTE_AGRUPADA} type="geojson" data={geojson} cluster clusterRadius={44} clusterMaxZoom={17}>
@@ -70,14 +103,20 @@ export function CapaDeCasas({ casas, zonas, tocables, estado }: Props) {
               </span>
             </Marker>
           ))
-        : visibles.map((c) => (
+        : ordenados.map((c) => (
             <Marker key={c.id} longitude={c.lon} latitude={c.lat} anchor="center">
               <button
                 type="button"
-                tabIndex={-1}
+                ref={(el) => {
+                  if (el) botones.current.set(c.id, el);
+                  else botones.current.delete(c.id);
+                }}
+                tabIndex={c.id === activoId ? 0 : -1}
                 disabled={!tocables}
-                aria-label={estadoVisual(c.estado).nombre}
+                aria-label={`${estadoVisual(c.estado).nombre}, ${textoDeTipo(c.tipo).toLowerCase()}`}
                 aria-pressed={c.id === casas.elegidaId}
+                onFocus={() => setActivoElegido(c.id)}
+                onKeyDown={(e) => alTeclear(e, c.id)}
                 onClick={(e) => {
                   e.stopPropagation();
                   casas.onElegir(c.id === casas.elegidaId ? null : c.id);
