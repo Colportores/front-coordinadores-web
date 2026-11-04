@@ -201,14 +201,57 @@ describe("24P·03 · la casa elegida", () => {
     expect(screen.queryByRole("group", { name: "Casa elegida" })).toBeNull();
   });
 
-  it("mientras se dibuja una zona los puntos se ven pero no se tocan: el clic es de la forma", () => {
+  it("mientras se dibuja una zona los puntos no capturan el puntero (el clic cae en el mapa, no en un botón desactivado) ni el teclado", async () => {
+    const user = userEvent.setup();
     const { enMapa } = montar({ casas: [casa(1)] }, { dibujo: SIN_DIBUJO });
 
     const punto = screen.getByRole("button", { name: "Sin visita, casa" });
-    expect(punto).toBeDisabled();
+    // Un `disabled` no emite mousedown ni click y el mapa no se enteraría: tiene que seguir habilitado y transparente al puntero.
+    expect(punto).toBeEnabled();
+    expect(punto).toHaveClass("pointer-events-none");
+    expect(punto).toHaveAttribute("aria-disabled", "true");
+    expect(punto.tabIndex).toBe(-1);
     fireEvent.click(punto);
+    punto.focus();
+    await user.keyboard("{Enter}{ArrowRight}");
     expect(enMapa.onElegir).not.toHaveBeenCalled();
   });
+
+  it("fuera del dibujo el punto es tocable: sin pointer-events-none ni aria-disabled", () => {
+    montar({ casas: [casa(1)] });
+
+    const punto = screen.getByRole("button", { name: "Sin visita, casa" });
+    expect(punto).not.toHaveClass("pointer-events-none");
+    expect(punto).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("un clic en la tarjeta no llega al mapa (no la cierra ni elige la zona de abajo)", () => {
+    montar({ casas: [casa(1)], elegidaId: "c1" });
+    const alMapa = vi.fn();
+    // React escucha en la raíz: lo que no se frena ahí llega al documento (y al mapa de MapLibre, que escucha más arriba).
+    document.addEventListener("click", alMapa);
+
+    fireEvent.click(screen.getByRole("group", { name: "Casa elegida" }));
+
+    document.removeEventListener("click", alMapa);
+    expect(alMapa).not.toHaveBeenCalled();
+  });
+
+  it("el Esc que cierra un diálogo, un menú o una lista abierta no cierra además la tarjeta", () => {
+    const { enMapa } = montar({ casas: [casa(1)], elegidaId: "c1" });
+    render(
+      <div role="dialog" aria-label="Agregar ciudad">
+        <input aria-label="Ciudad" />
+      </div>,
+    );
+
+    fireEvent.keyDown(screen.getByLabelText("Ciudad"), { key: "Escape" });
+    expect(enMapa.onElegir).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(enMapa.onElegir).toHaveBeenCalledWith(null);
+  });
+
 });
 
 describe("24P·03 · los puntos con teclado (una parada de tabulación, flechas, Enter y Esc)", () => {

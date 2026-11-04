@@ -50,6 +50,9 @@ const punto = (e: MapMouseEvent): Punto => ({ lon: e.lngLat.lng, lat: e.lngLat.l
  * Base: fondo liso con las calles de los datos simulados. De dónde salen los tiles
  * (PMTiles de OSM, ADR-011) todavía no está decidido, así que no hay capa de tiles.
  */
+/** Lo que se cierra solo con Esc: si el foco está adentro, ese Esc no es de la tarjeta de la casa. */
+const DE_OTRA_COSA = '[role="dialog"], [role="alertdialog"], [role="listbox"], [role="menu"], [aria-modal="true"], [aria-expanded="true"]';
+
 export function MapaZonasGl({
   ciudad,
   zonas,
@@ -115,11 +118,13 @@ export function MapaZonasGl({
   const casasEnMapa = useCasasEnMapa(casas?.casas, casas?.onAgrupadas);
   const casaElegida = casas?.elegidaId ?? null;
   const cerrarTarjeta = casas?.onElegir;
-  // Esc cierra la tarjeta de la casa elegida.
+  // Esc cierra la tarjeta de la casa elegida, salvo que ese Esc sea de otra cosa (un diálogo, un menú o una lista abierta).
   useEffect(() => {
     if (casaElegida === null || !cerrarTarjeta) return;
     const alTeclear = (e: KeyboardEvent) => {
-      if (e.key === "Escape") cerrarTarjeta(null);
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (e.target instanceof Element && e.target.closest(DE_OTRA_COSA)) return;
+      cerrarTarjeta(null);
     };
     document.addEventListener("keydown", alTeclear);
     return () => document.removeEventListener("keydown", alTeclear);

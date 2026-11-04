@@ -6,6 +6,7 @@ import { Layer, Marker, Source } from "react-map-gl/maplibre";
 
 import type { CasaDeCiudad, ZonaDeCiudad } from "@/datos/equipo/zonas";
 import { ESTADOS_VISUALES, estadoVisual, textoDeTipo } from "@/features/equipo/zonas/casas/estados";
+import { cn } from "@/lib/utils";
 import { PuntoDeCasa } from "@/features/equipo/zonas/casas/PuntoDeCasa";
 import { FUENTE_AGRUPADA, type useCasasEnMapa } from "@/features/equipo/zonas/casas/useCasasEnMapa";
 import type { CasasEnMapa } from "@/features/equipo/zonas/tipos";
@@ -111,17 +112,21 @@ export function CapaDeCasas({ casas, zonas, tocables, estado }: Props) {
                   if (el) botones.current.set(c.id, el);
                   else botones.current.delete(c.id);
                 }}
-                tabIndex={c.id === activoId ? 0 : -1}
-                disabled={!tocables}
+                // Al dibujar, el punto no es un botón desactivado (no dejaría pasar el clic al mapa): es transparente al puntero y
+                // sale del orden de tabulación; el clic cae en el mapa y pone el vértice o el centro encima de la casa.
+                tabIndex={tocables && c.id === activoId ? 0 : -1}
+                aria-disabled={!tocables || undefined}
+                data-punto-de-casa=""
                 aria-label={`${estadoVisual(c.estado).nombre}, ${textoDeTipo(c.tipo).toLowerCase()}`}
                 aria-pressed={c.id === casas.elegidaId}
                 onFocus={() => setActivoElegido(c.id)}
-                onKeyDown={(e) => alTeclear(e, c.id)}
+                onKeyDown={(e) => tocables && alTeclear(e, c.id)}
                 onClick={(e) => {
+                  if (!tocables) return;
                   e.stopPropagation();
                   casas.onElegir(c.id === casas.elegidaId ? null : c.id);
                 }}
-                className="block cursor-pointer rounded-full p-0 disabled:cursor-default"
+                className={cn("block rounded-full p-0", tocables ? "cursor-pointer" : "pointer-events-none")}
               >
                 <PuntoDeCasa estado={c.estado} lado={16} sombra />
               </button>
@@ -133,6 +138,8 @@ export function CapaDeCasas({ casas, zonas, tocables, estado }: Props) {
           <div
             role="group"
             aria-label="Casa elegida"
+            // Un clic en la tarjeta no es un clic en el mapa: no la cierra ni elige la zona que queda debajo.
+            onClick={(e) => e.stopPropagation()}
             className="flex w-[250px] flex-col gap-1.5 rounded-lg border border-grafico-neutro bg-superficie px-3.5 py-3 shadow-lg"
           >
             <div className="flex items-center gap-2">
