@@ -55,6 +55,8 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
   const ciudad = datos.ciudades.find((c) => c.id === e.activa) ?? null;
   const esGeneral = ciudad === null;
   const pestanas = armarPestanas(datos, e.borradores);
+  const borrador = ciudad ? (e.borradores[ciudad.id] ?? {}) : {};
+  const resumen = ciudad ? resumirBorrador(datos, ciudad.id, borrador) : { cambios: [], invalidos: 0 };
 
   // Al cerrar el diálogo de cambios grandes, el foco vuelve al botón que lo abrió.
   const habiaDialogo = useRef(false);
@@ -65,6 +67,16 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
       botonDeGuardar.current?.focus();
     }
   }, [e.confirmacion]);
+
+  // Si la barra se va con el foco adentro (guardó, descartó), el foco no puede caer al <body>: pasa a la pestaña abierta.
+  const hayAcciones = ciudad !== null && (resumen.cambios.length > 0 || e.guardandoEn === ciudad.id);
+  const habiaAcciones = useRef(false);
+  useEffect(() => {
+    if (habiaAcciones.current && !hayAcciones && (document.activeElement === document.body || document.activeElement === null)) {
+      document.getElementById(`pestana-precios-${e.activa}`)?.focus();
+    }
+    habiaAcciones.current = hayAcciones;
+  }, [hayAcciones, e.activa]);
 
   function alVolverAStock(evento: MouseEvent<HTMLAnchorElement>) {
     // Un clic con modificador abre otra pestaña y esta se queda como está.
@@ -96,8 +108,6 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
     );
   }
 
-  const borrador = ciudad ? (e.borradores[ciudad.id] ?? {}) : {};
-  const resumen = ciudad ? resumirBorrador(datos, ciudad.id, borrador) : { cambios: [], invalidos: 0 };
   const guardandoAca = ciudad !== null && e.guardandoEn === ciudad.id;
   const falla = ciudad && e.falla?.ciudadId === ciudad.id ? e.falla : null;
   const sinConexion = ciudad !== null && (!e.enLinea || falla?.tipo === "sin-conexion") && (resumen.cambios.length > 0 || falla !== null);
@@ -105,6 +115,30 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
 
   const sinCatalogo = datos.items.length === 0 || (esGeneral && datos.items.every((i) => i.precioGeneral === null));
   const alertaSinGeneral = esGeneral && !sinCatalogo ? textoDeAlertaSinPrecioGeneral(bonificablesSinPrecioGeneral(datos)) : null;
+
+  // Los avisos de un guardado (falla, sesión, sin conexión) van en la barra fija de abajo: con la tabla larga y la fila editada
+  // al final, arriba de la tabla quedarían fuera de la pantalla justo donde está «Reintentar» (QA #64).
+  const avisosDeGuardado = (
+    <>
+        {falla?.tipo === "error" && (
+          <AvisoDePrecios tono="peligro" rol="alert">
+            {falla.mensaje ?? TEXTO_ERROR_AL_GUARDAR}
+          </AvisoDePrecios>
+        )}
+        {falla?.tipo === "sesion" && (
+          <AvisoDePrecios tono="peligro" rol="alert" accion={<EnlaceEntrarDeNuevo motivo={falla.motivo} />}>
+            {mensajeDeRechazo(falla.motivo, "guardar los precios")}
+          </AvisoDePrecios>
+        )}
+        {sinConexion && (
+          <AvisoDePrecios tono="sin-conexion" rol="status">
+            {enCola ? TEXTO_SIN_CONEXION_EN_COLA : TEXTO_SIN_CONEXION}
+          </AvisoDePrecios>
+        )}
+
+    </>
+  );
+  const hayAvisosDeGuardado = falla !== null || sinConexion;
 
   function moverPestana(evento: KeyboardEvent<HTMLButtonElement>, indice: number) {
     const ultimo = pestanas.length - 1;
@@ -177,22 +211,6 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
             {alertaSinGeneral}
           </AvisoDePrecios>
         )}
-        {falla?.tipo === "error" && (
-          <AvisoDePrecios tono="peligro" rol="alert">
-            {falla.mensaje ?? TEXTO_ERROR_AL_GUARDAR}
-          </AvisoDePrecios>
-        )}
-        {falla?.tipo === "sesion" && (
-          <AvisoDePrecios tono="peligro" rol="alert" accion={<EnlaceEntrarDeNuevo motivo={falla.motivo} />}>
-            {mensajeDeRechazo(falla.motivo, "guardar los precios")}
-          </AvisoDePrecios>
-        )}
-        {sinConexion && (
-          <AvisoDePrecios tono="sin-conexion" rol="status">
-            {enCola ? TEXTO_SIN_CONEXION_EN_COLA : TEXTO_SIN_CONEXION}
-          </AvisoDePrecios>
-        )}
-
         {sinCatalogo ? (
           <div className="flex flex-col items-center gap-1.5 rounded-tarjeta border border-borde bg-superficie px-[18px] py-10 text-center">
             <p role="status" className="font-serif text-titulo font-semibold text-tinta">
@@ -232,6 +250,7 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
           errorAlGuardar={falla?.tipo === "error"}
           intentoDeSalir={e.intentoDeSalir}
           aviso={e.aviso?.ciudadId === ciudad.id ? e.aviso.texto : null}
+          avisos={hayAvisosDeGuardado ? avisosDeGuardado : null}
           botonDeGuardar={botonDeGuardar}
           alGuardar={() => e.guardar(ciudad.id)}
           alDescartar={() => e.descartar(ciudad.id)}

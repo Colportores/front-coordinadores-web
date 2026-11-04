@@ -77,7 +77,7 @@ afterEach(() => {
 });
 
 describe("QA #64 · el foco no se pierde al terminar de guardar o descartar", () => {
-  it.skip("QA #64: «Descartar» saca la barra con el botón que tenía el foco y el foco cae al <body>", async () => {
+  it("QA #64: «Descartar» saca la barra con el botón que tenía el foco y el foco cae al <body>", async () => {
     montar();
     await abrir(/^Montevideo/);
     escribir("Salud y Hogar", "2700");
@@ -88,7 +88,7 @@ describe("QA #64 · el foco no se pierde al terminar de guardar o descartar", ()
     expect(document.activeElement).not.toBe(document.body);
   });
 
-  it.skip("QA #64: guardar con éxito saca la barra (con el botón que tenía el foco) y el foco cae al <body>", async () => {
+  it("QA #64: guardar con éxito saca la barra (con el botón que tenía el foco) y el foco cae al <body>", async () => {
     montar();
     await abrir(/^Montevideo/);
     escribir("Salud y Hogar", "2700");
@@ -97,7 +97,7 @@ describe("QA #64 · el foco no se pierde al terminar de guardar o descartar", ()
     expect(document.activeElement).not.toBe(document.body);
   });
 
-  it.skip("QA #64: «Guardar igual» del diálogo de cambios grandes: al terminar el foco cae al <body>", async () => {
+  it("QA #64: «Guardar igual» del diálogo de cambios grandes: al terminar el foco cae al <body>", async () => {
     montar();
     await abrir(/^Montevideo/);
     escribir("Salud y Hogar", "5000");
@@ -270,7 +270,7 @@ describe("QA #64 · un guardado en camino mientras la persona cambia de pestaña
 });
 
 describe("QA #64 · el error de guardado se ve donde está «Reintentar»", () => {
-  it.skip("QA #64: el aviso de error vive arriba de la tabla; con la tabla scrolleada la barra fija solo dice «Reintentar» (Chromium 1280×520: aviso a -178 px)", async () => {
+  it("QA #64: el aviso de error vive arriba de la tabla; con la tabla scrolleada la barra fija solo dice «Reintentar» (Chromium 1280×520: aviso a -178 px)", async () => {
     montar(
       undefined,
       acciones(() => ({ ok: false, causa: "rechazado" })),

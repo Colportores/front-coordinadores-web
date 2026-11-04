@@ -1,6 +1,6 @@
 "use client";
 
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ export function BarraDeCambios({
   errorAlGuardar,
   intentoDeSalir,
   aviso,
+  avisos,
   botonDeGuardar,
   alGuardar,
   alDescartar,
@@ -38,6 +39,8 @@ export function BarraDeCambios({
   intentoDeSalir: boolean;
   /** «Guardamos 2 precios de Montevideo. Valen para las ventas nuevas.» después de guardar. */
   aviso: string | null;
+  /** Los avisos de un guardado que no salió (falla, sesión, sin conexión): acá, donde está «Reintentar», y no arriba de la tabla. */
+  avisos?: ReactNode;
   botonDeGuardar: RefObject<HTMLButtonElement | null>;
   alGuardar: () => void;
   alDescartar: () => void;
@@ -53,6 +56,7 @@ export function BarraDeCambios({
 
   return (
     <div className="sticky bottom-0 z-10 -mx-[22px] -mb-5 flex flex-col gap-2 px-[22px] pb-4">
+      {avisos}
       {aviso && (
         <div
           role="status"
