@@ -282,6 +282,14 @@ describe("StockVista", () => {
       expect(screen.getByRole("link", { name: "Pedidos y transferencias →" })).toHaveAttribute("href", "/stock/pedidos");
     });
 
+    it("«Precios de venta →» lleva a la vista 27, junto al de pedidos", () => {
+      render(<StockVista datos={simulados()} />);
+
+      const otras = screen.getByRole("navigation", { name: "Otras vistas de stock" });
+      expect(within(otras).getByRole("link", { name: "Precios de venta →" })).toHaveAttribute("href", "/stock/precios");
+      expect(within(otras).getByRole("link", { name: "Pedidos y transferencias →" })).toHaveAttribute("href", "/stock/pedidos");
+    });
+
     it("sin avisos no hay franja", async () => {
       render(<StockVista datos={simulados()} />);
       await elegir(/^Bella Unión/);
