@@ -28,7 +28,11 @@ export interface ColportorDeCuentas {
   id: string;
   nombre: string;
   ciudadId: string;
-  /** Deuda con la casa editora. La del alquiler se calcula aparte (alquiler de la campaña menos lo pagado). */
+  /**
+   * Deuda con la casa editora, ya sin lo que el alquiler pagado de más le descontó («Alquiler fav»: el servidor lo traslada a
+   * esta deuda y lo lee como `alquiler_trasladado`; el panel lo calcula de los tickets validados y el alquiler, igual que
+   * `alquiler_calculado()`, y lo muestra en la fila). La deuda del alquiler se calcula aparte (alquiler de la campaña menos lo pagado).
+   */
   deuda: number;
   /** Lo pagado de más a la casa editora: no se pierde, queda a favor y se descuenta de la próxima deuda. Lo calcula el servidor. */
   aFavor?: number;
