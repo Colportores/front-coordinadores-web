@@ -111,7 +111,7 @@ export function revisarVariantesLocal(archivos) {
 
   const entradas = Object.keys(archivos)
     .filter((ruta) => /^src\/app\/(?:.+\/)?(?:page|layout)\.tsx$/.test(ruta))
-    .sort();
+    .sort((a, b) => (a < b ? -1 : Number(a > b))); // orden por unidades de código, como el .sort() previo
 
   for (const ruta of entradas) {
     const texto = archivos[ruta];
