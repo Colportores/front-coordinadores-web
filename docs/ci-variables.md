@@ -33,6 +33,12 @@ Un environment pisa a las variables del repo (Settings → Secrets and variables
 | `VERCEL_PROJECT_ID` | variable | production | `projectId` del proyecto de Vercel | production: sí | `prj_xxxxxxxxxxxx` |
 | `VERCEL_TOKEN` | secreto | production | Token de Vercel con acceso al proyecto | production: sí | (secreto) |
 | `PRODUCTION_DOMAIN` | variable | production | Dominio al que se asigna el deploy (`vercel alias set`), solo el host sin `https://`; tiene que estar agregado al proyecto en Vercel → Settings → Domains | no (queda la URL de Vercel) | `panel.ejemplo.org` |
+| `CLOUDFLARE_API_TOKEN` | secreto | staging, production | Token de API de Cloudflare con el mínimo de permisos. Guía en `docs/ci-cloudflare.md` (despliegue a Cloudflare pendiente de decisión, no reemplaza a Vercel) | solo si se despliega a Cloudflare | (secreto) |
+| `CLOUDFLARE_ACCOUNT_ID` | variable | staging, production | Id de la cuenta de Cloudflare | ídem | `0123456789abcdef0123456789abcdef` |
+| `CLOUDFLARE_PROJECT_NAME` | variable | staging, production | Nombre del Worker o del proyecto de Pages | ídem | `panel-coordinadores-staging` |
+| `SONAR_TOKEN` | secreto | repositorio | Token de SonarQube Cloud. Sin él el análisis se salta. Guía en `docs/ci-sonarqube.md` | no | (secreto) |
+| `SONAR_ORGANIZATION` | variable | repositorio | Clave de la organización en SonarQube Cloud | no | `colportores` |
+| `SONAR_PROJECT_KEY` | variable | repositorio | Clave del proyecto en SonarQube Cloud | no | `Colportores_front-coordinadores-web` |
 
 ## Qué cubre cada decisión pendiente (ci-despliegue p1–p5)
 
