@@ -176,3 +176,35 @@ carpeta `coverage/` está en `.gitignore`. `--maxWorkers=2` evita que el contene
 | Deploy Cloudflare: error de autenticación (código 10000) | Token vencido o sin el permiso `Cloudflare Pages: Edit` |
 | Deploy Cloudflare: «Project not found» | El proyecto de Pages no existe o el nombre no coincide con `CLOUDFLARE_PROJECT_NAME` |
 | CI rojo solo en tests con «Timeout waiting for worker» | El runner o el contenedor se quedó sin recursos: se re-corre el job |
+
+## 7. Ejemplos reales de corridas fallidas (para mostrar cómo funciona el CI)
+
+Todas son corridas **reales** del workflow CI de este repo. Cada enlace lleva al log: abrí el job «lint + typecheck +
+tests + build (Docker)» y el paso rojo «Check (lint, typecheck, tests, build)». El paso corre `npm run check`, que
+encadena lint → typecheck → tests → build y **se corta en el primero que falla**, por eso cada ejemplo muestra un solo
+tipo de error.
+
+| Tipo de falla | PR / corrida | Qué falló | Por qué falló |
+|---|---|---|---|
+| **Lint** (ESLint) | [#141](https://github.com/Colportores/front-coordinadores-web/pull/141) · [corrida](https://github.com/Colportores/front-coordinadores-web/actions/runs/41978248551) | `'ESPERA_DEL_MAPA_MS' is defined but never used` | Dos constantes sin usar. El lint corre con `--max-warnings=0`: un *warning* ya cuenta como error |
+| **Test de guarda del CI** | [#130](https://github.com/Colportores/front-coordinadores-web/pull/130) · [corrida](https://github.com/Colportores/front-coordinadores-web/actions/runs/41724909139) | `expected … to contain 'SUPABASE_REF_DEV: ohdsavwpasfpapbyutrv'` | Un test lee `production.yml` y exige que lleve esa línea; el PR cambió el workflow y el test quedó desactualizado |
+| **Test de guarda del CI** | [#126](https://github.com/Colportores/front-coordinadores-web/pull/126) · [corrida](https://github.com/Colportores/front-coordinadores-web/actions/runs/40965092816) | `expected … to contain 'branches: [develop]'` | Otro test del workflow de la demo: el PR movió la rama a `staging` y el test seguía esperando `develop` |
+| **Test de comportamiento (QA de vista)** | [#112](https://github.com/Colportores/front-coordinadores-web/pull/112) · [corrida](https://github.com/Colportores/front-coordinadores-web/actions/runs/40512310067) | `expect(element).toHaveTextContent()` en «sin acceso al buscar» | El texto o el enlace que mostraba la pantalla no coincidía con el que pedía la prueba |
+| **Test con datos simulados** | [#75](https://github.com/Colportores/front-coordinadores-web/pull/75) · [corrida](https://github.com/Colportores/front-coordinadores-web/actions/runs/39975027927) | `expected { id: 'zona-art-0', … } to match object { nombre: 'Rampla', … }` | Las zonas simuladas no coincidían con las del diseño que verifica el test |
+| **Test que usa una API de Next fuera de lugar** | [#76](https://github.com/Colportores/front-coordinadores-web/pull/76) · [corrida](https://github.com/Colportores/front-coordinadores-web/actions/runs/39982192891) | `cookies was called outside a request scope` | El código leyó las cookies de la sesión, algo que Next solo permite dentro de una petición; en el test no la había |
+| **Test demasiado lento** | [#74](https://github.com/Colportores/front-coordinadores-web/pull/74) · [corrida](https://github.com/Colportores/front-coordinadores-web/actions/runs/39691200008) | `Test timed out in 5000ms` (exportar 500 colportores) | La prueba tardó más de 5 s en el runner de GitHub, que es más lento que una PC local. Es un fallo de rendimiento, no de lógica |
+| **Mock desactualizado** (fallo heredado de otro PR) | [develop](https://github.com/Colportores/front-coordinadores-web/actions/runs/41982466652) y [#145](https://github.com/Colportores/front-coordinadores-web/actions/runs/42075558218) | `No "addProtocol" export is defined on the "maplibre-gl" mock` | Un PR agregó código que llama a `addProtocol` y el doble de otro test no lo definía. Quedó rojo `develop`, y todos los PRs que partían de ahí heredaron el rojo. Se arregló en el #149 |
+| **Build** (Next/Turbopack) | [develop, 23/09](https://github.com/Colportores/front-coordinadores-web/actions/runs/35897790491) | `Module not found: Can't resolve '@vercel/turbopack-next/internal/font/google/font'` | La compilación no pudo resolver la fuente de Google del layout. No fallaron los tests: falló el paso `build` |
+| **Infraestructura del CI** (propio de la cobertura) | [#149](https://github.com/Colportores/front-coordinadores-web/actions/runs/42097672700) | `EBUSY: resource busy or locked, rmdir '/app/coverage'` | Vitest intentó borrar `coverage/`, que en el CI es una carpeta montada desde el runner (volumen de Docker). Se arregló con `clean: false` |
+
+### Qué muestran estos ejemplos
+
+1. **El CI corta en el primer paso rojo:** lint, luego tipos, luego tests, luego build. Un error de lint ni llega a correr los tests.
+2. **Casi todos los rojos son tests**, y de tres clases: la prueba está bien y el código no (#112, #75), el código cambió y la prueba quedó vieja (#130, #126, develop), o el entorno del test no se parece al real (#76, #74).
+3. **Un rojo en `develop` se hereda:** cualquier PR que parte de ahí falla igual hasta que alguien lo arregle.
+4. **Cada falla es corta de explicar:** el log trae el nombre del test, lo esperado y lo recibido.
+
+### Qué no hay (todavía) en el historial
+
+- **Typecheck:** no hay ninguna corrida fallida por tipos (`tsc`) en las últimas.
+- **SonarQube:** el análisis es nuevo y nunca falló un quality gate. Para mostrarlo en vivo se puede abrir un PR de prueba (no se mergea) con un cambio que falle a propósito: un *warning* de lint, un error de tipos o un bloque de código nuevo sin tests (esto último hace fallar el gate de cobertura en Sonar). Pedilo y se arma.
