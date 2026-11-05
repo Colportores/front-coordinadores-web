@@ -21,7 +21,7 @@ import { CAPA_DE_GRUPOS, CapaDeCasas } from "@/features/equipo/zonas/casas/CapaD
 import { useCasasEnMapa } from "@/features/equipo/zonas/casas/useCasasEnMapa";
 import { AvisoDelMapaBase, type AvisoBase } from "@/features/equipo/zonas/mapa-base/AvisoDelMapaBase";
 import { FUENTE_DE_TILES } from "@/features/equipo/zonas/mapa-base/catalogo";
-import { registrarPmtiles } from "@/features/equipo/zonas/mapa-base/pmtiles";
+import { olvidarArchivosPmtiles, registrarPmtiles } from "@/features/equipo/zonas/mapa-base/pmtiles";
 import { useMapaBase } from "@/features/equipo/zonas/mapa-base/useMapaBase";
 import type { PropsMapaZonas } from "@/features/equipo/zonas/tipos";
 
@@ -171,6 +171,8 @@ export function MapaZonasGl({
   }
 
   function reintentarMapa() {
+    // El protocolo de PMTiles guarda también los pedidos que fallaron: sin esto, el reintento no vuelve a pedir el archivo.
+    olvidarArchivosPmtiles();
     setReinicio((n) => n + 1);
     reintentar();
   }

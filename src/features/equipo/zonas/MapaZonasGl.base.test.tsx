@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { removeProtocol } from "maplibre-gl";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,7 +19,7 @@ const doble = vi.hoisted(() => ({
   fuentes: {} as Record<string, unknown>,
 }));
 
-vi.mock("maplibre-gl", () => ({ setWorkerUrl: vi.fn(), addProtocol: vi.fn() }));
+vi.mock("maplibre-gl", () => ({ setWorkerUrl: vi.fn(), addProtocol: vi.fn(), removeProtocol: vi.fn() }));
 vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 // Cuenta los `Map` que se crean (cambiar la `key` desmonta el anterior y monta otro): un ref estable solo corre al montar.
 const contarMontaje = (el: HTMLDivElement | null) => {
@@ -262,7 +263,10 @@ describe("cuando el mapa no se puede dibujar", () => {
     expect((doble.fuentes.zonas as { features: unknown[] }).features).toHaveLength(CIUDAD.zonas.length);
     expect(screen.getByRole("alert")).toHaveTextContent("No pudimos traer las calles del mapa");
 
+    // El protocolo recuerda los pedidos que fallaron: «Reintentar» lo reinicia para que el archivo se pida de nuevo.
+    vi.mocked(removeProtocol).mockClear();
     fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    expect(removeProtocol).toHaveBeenCalledWith("pmtiles");
     await vi.waitFor(() => expect(doble.montajes).toBeGreaterThan(montajes));
     await vi.waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
     expect(pedidos.filter((p) => p.endsWith("catalogo.json"))).toHaveLength(1);

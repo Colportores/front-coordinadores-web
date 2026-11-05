@@ -15,7 +15,7 @@ const doble = vi.hoisted(() => ({
   capas: {} as Record<string, Record<string, unknown>>,
 }));
 
-vi.mock("maplibre-gl", () => ({ setWorkerUrl: vi.fn(), addProtocol: vi.fn() }));
+vi.mock("maplibre-gl", () => ({ setWorkerUrl: vi.fn(), addProtocol: vi.fn(), removeProtocol: vi.fn() }));
 vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 vi.mock("react-map-gl/maplibre", () => ({
   default: (props: Record<string, unknown> & { children: ReactNode }) => {
