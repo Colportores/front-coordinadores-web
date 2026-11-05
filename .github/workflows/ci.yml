@@ -37,9 +37,11 @@ jobs:
           docker run --rm -e NEXT_PUBLIC_MODO_DEV=0 -e COVERAGE=1 -v "$PWD/coverage:/app/coverage" panel-coordinadores-dev npm run check
 
       # SonarQube Cloud (issue #147, docs/ci-sonarqube.md): solo informe, no frena el merge (continue-on-error y sin
-      # esperar el quality gate). Se salta sin SONAR_TOKEN (forks) o sin la organización y la clave del proyecto.
+      # esperar el quality gate). Corre SOLO en el push a `staging` (la rama principal del proyecto en Sonar): el plan
+      # Free analiza una sola rama y el cupo se gasta rápido si cada PR y cada push lo usan. Se salta además sin
+      # SONAR_TOKEN o sin la organización y la clave del proyecto.
       - name: SonarQube Cloud (cobertura de vitest)
-        if: ${{ env.SONAR_TOKEN != '' && vars.SONAR_ORGANIZATION != '' && vars.SONAR_PROJECT_KEY != '' && hashFiles('coverage/lcov.info') != '' }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/staging' && env.SONAR_TOKEN != '' && vars.SONAR_ORGANIZATION != '' && vars.SONAR_PROJECT_KEY != '' && hashFiles('coverage/lcov.info') != '' }}
         continue-on-error: true
         uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         with:
