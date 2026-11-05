@@ -4,8 +4,10 @@ Guía paso a paso para conectar el repo con SonarQube Cloud (issue #147). **Acá
 directo en GitHub y no se escribe en archivos, commits, PRs ni capturas (el repo es público).
 
 El análisis corre dentro del job de tests de `ci.yml`, con la cobertura de vitest (`coverage/lcov.info`). Al principio
-es **solo informe**: el quality gate se muestra pero no frena el merge. Si el secreto `SONAR_TOKEN` no existe (PRs de
-forks, o antes de terminar esta guía), el paso se salta y el CI pasa igual.
+es **solo informe**: el quality gate se muestra pero no frena el merge. Corre **solo en el push a `staging`**, que tiene
+que ser la **rama principal** del proyecto en Sonar (*Administration → Branches and Pull Requests → Main branch*): el
+plan Free analiza una sola rama y su cupo se gasta rápido si lo usa cada PR. Si el secreto `SONAR_TOKEN` no existe, el
+paso se salta y el CI pasa igual.
 
 ## Qué se carga y dónde
 

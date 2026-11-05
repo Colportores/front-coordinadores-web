@@ -11,7 +11,7 @@ Todo vive en `.github/workflows/`. En GitHub se ve en la pestaña **Actions** de
 
 | Workflow (nombre en Actions) | Archivo | Cuándo corre | Qué hace |
 |---|---|---|---|
-| **CI** | `ci.yml` | En cada PR y en cada push a `develop`, `staging`, `production` | Lint, typecheck, tests **con cobertura**, build, build del sitio de prueba y **análisis de SonarQube Cloud** |
+| **CI** | `ci.yml` | En cada PR y en cada push a `develop`, `staging`, `production` | Lint, typecheck, tests **con cobertura**, build, build del sitio de prueba y, solo en el push a `staging`, **análisis de SonarQube Cloud** |
 | **Deploy Pages** | `deploy-pages.yml` | Lo llama `staging.yml` (push a `staging`) o se corre a mano sobre `develop`/`staging` | Publica el sitio de prueba (datos simulados) en GitHub Pages |
 | **Staging** | `staging.yml` | Push a `staging` o a mano | Llama a Deploy Pages y al artefacto de demo con Supabase dev |
 | **Deploy Cloudflare (staging)** | `deploy-cloudflare.yml` | Push a `staging` o a mano (sobre `develop` o `staging`) | Publica el mismo sitio de prueba en **Cloudflare Pages** |
@@ -27,7 +27,7 @@ las guías.
 2. **El detalle de una corrida:** hacé clic en la fila → se ven los *jobs* → clic en el job → se ven los pasos
    (*steps*) con su log. Para CI, el job se llama «lint + typecheck + tests + build (Docker)».
 3. **En un PR:** abajo de la conversación está el recuadro de **checks**. «CI» tiene que estar en verde. El enlace
-   *Details* lleva al log. Si Sonar está configurado, también aparece su comentario/chequeo del análisis.
+   *Details* lleva al log. Sonar no analiza los PRs (ver sección 5.2), así que no aparece su chequeo.
 4. **Los secrets y variables:** a nivel organización en
    `https://github.com/organizations/Colportores/settings/secrets/actions` (y `…/variables/actions`), con acceso por
    repo. Ahí se ven solo nombres y fechas, nunca valores. A nivel repo: **Settings → Secrets and variables → Actions**.
@@ -46,15 +46,14 @@ las guías.
 3. Dentro del contenedor corre `npm run check`: lint, typecheck, tests, build y verificación de pestañas ocultas. Los
    tests corren con `COVERAGE=1`: vitest deja `coverage/lcov.info` en una carpeta compartida con el runner.
 4. Build del sitio de prueba (export estático con datos simulados) para asegurarse de que nada lo rompe.
-5. **Paso de SonarQube:** si existen `SONAR_TOKEN`, `SONAR_ORGANIZATION` y `SONAR_PROJECT_KEY` y el PR no viene de un
-   fork, sube el análisis y la cobertura a SonarQube Cloud. Si algo falta, **se salta sin romper el CI**.
-6. El resultado de Sonar es **solo informe**: no frena el merge (ver sección 5.6).
-7. Con CI verde y la revisión hecha, se mergea con squash.
+5. **Paso de SonarQube:** en un PR **se salta**. Solo corre en el push a `staging` (sección 4 y 5.2).
+6. Con CI verde y la revisión hecha, se mergea con squash.
 
 ## 4. Qué pasa al pasar a staging (paso a paso)
 
 1. Se mergea `develop` → `staging` (push a `staging`).
 2. **Staging** dispara Deploy Pages (GitHub Pages) y la demo con Supabase dev, como antes.
+   También corre **CI**, y en ese push (y solo en ese) se sube el análisis a **SonarQube Cloud**.
 3. **Deploy Cloudflare (staging)** arranca en paralelo:
    1. Valida que existan `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_PROJECT_NAME`. Por push, si falta
       algo, avisa y se salta; a mano, falla diciendo cuál falta.
@@ -83,7 +82,12 @@ repositorios públicos como este.
 2. La acción `sonarqube-scan-action` lee `sonar-project.properties` (qué carpetas son código, cuáles son tests, dónde
    está el `lcov`) y sube todo a SonarQube Cloud con el `SONAR_TOKEN`.
 3. SonarQube Cloud analiza, calcula las métricas y evalúa el **quality gate** (la nota de aprobado/reprobado).
-4. El resultado se ve en su web y, si está activada la integración con GitHub, en el PR.
+4. El resultado se ve en su web.
+
+**Cuándo corre:** solo en el **push a `staging`**, que es la rama principal del proyecto en Sonar. Es a propósito: el
+plan Free de SonarQube Cloud analiza **una sola rama** y tiene un cupo limitado, y con varios agentes abriendo PRs todo
+el día se gastaría enseguida. En los PRs el paso se salta; `develop` y `production` no se analizan (aparecen como
+«Not analyzed»). Para analizar otra rama o cada PR hace falta otro plan (Team) o el plan Open Source.
 
 El análisis es **desde el CI** (no «Automatic Analysis»): es la única forma de que entre la cobertura. Por eso la
 Automatic Analysis tiene que estar apagada.
@@ -140,6 +144,7 @@ Un PR que toca poco código y lo cubre con tests lo pasa fácil. Uno que agrega 
 La decisión del #147 es arrancar **solo con informe**: el paso del CI usa `continue-on-error` y no espera el gate. Así
 se ve cómo se comporta con este código sin trabar a nadie. Cuando se quiera exigirlo:
 
+0. Primero habría que analizar también los PRs (hoy el paso corre solo en el push a `staging`, ver 5.2).
 1. En el workflow, agregar `-Dsonar.qualitygate.wait=true` a los `args` y quitar `continue-on-error`.
 2. En **Settings → Rules → Rulesets** de `develop`, marcar el chequeo de SonarQube como requerido.
 
