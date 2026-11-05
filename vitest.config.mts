@@ -23,6 +23,8 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text-summary", "lcov"],
       reportsDirectory: "coverage",
+      // En el CI `coverage/` es un volumen montado: vitest no puede borrarlo (EBUSY) antes de escribir, solo sobrescribir.
+      clean: false,
       include: ["src/**/*.{ts,tsx}", "scripts/**/*.mjs"],
       exclude: ["**/*.test.{ts,tsx,mjs}", "src/test/**", "src/**/*.d.ts"],
     },
