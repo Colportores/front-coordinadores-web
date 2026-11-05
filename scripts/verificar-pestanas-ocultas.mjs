@@ -34,7 +34,8 @@ for (const { ruta, patron } of ocultas) {
 }
 
 const PUERTO = 3199;
-const servidor = spawn("node_modules/.bin/next", ["start", "-p", String(PUERTO)], { stdio: "ignore" });
+// `process.execPath` (ruta absoluta de node) y no `node_modules/.bin/next`: no depende del PATH (Sonar S4036).
+const servidor = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(PUERTO)], { stdio: "ignore" });
 const base = `http://127.0.0.1:${PUERTO}`;
 
 try {
