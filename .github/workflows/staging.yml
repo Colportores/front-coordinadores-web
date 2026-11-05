@@ -1,7 +1,8 @@
 name: Staging
 
-# Entorno de prueba del panel, en cada push a `staging` (merge de develop → staging). Reúsa los dos workflows que antes
-# corrían en cada push a develop:
+# Despliegues del panel que ya NO corren solos en cada push a `staging`: desde el 05/11 el único despliegue automático de
+# staging es el de Cloudflare Pages (deploy-cloudflare.yml, issue #147), para no tener varios deploys por cada merge.
+# Este workflow queda solo para correrlo a mano (workflow_dispatch) y llama a los dos que ya existían:
 # - deploy-pages.yml: el sitio de prueba en GitHub Pages (export estático, datos simulados).
 # - demo-supabase-dev.yml: el panel compilado con las variables de DEV (Supabase `ohdsavwpasfpapbyutrv`) como servidor
 #   Node autónomo, subido como artefacto `panel-supabase-dev` (no se publica en ningún hosting).
@@ -10,8 +11,6 @@ name: Staging
 # `gh workflow run demo-supabase-dev.yml --ref develop`, `gh workflow run deploy-pages.yml --ref develop`).
 
 on:
-  push:
-    branches: [staging]
   # Corrida manual: solo sobre develop o staging (los workflows llamados lo verifican).
   workflow_dispatch:
   # Solo para que GitHub registre el workflow cuando un PR lo toca: `workflow_dispatch` exige que el archivo esté en la
@@ -28,7 +27,7 @@ concurrency:
 
 jobs:
   pages:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/deploy-pages.yml
     permissions:
       contents: read
@@ -36,7 +35,7 @@ jobs:
       id-token: write
 
   demo-supabase-dev:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/demo-supabase-dev.yml
     permissions:
       contents: read
