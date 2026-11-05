@@ -286,6 +286,8 @@ function aCasa(fila: Objeto): CasaSinZonas {
     lat: numero(rpc, fila, "lat"),
     tipo: tipo as TipoDeCasa,
     estado,
+    // Una base que todavía no devuelve `ultimo_cambio` (backend-supabase#247) es lo mismo que una casa sin estado: sin fecha.
+    ultimoCambio: cadenaONula(rpc, fila, "ultimo_cambio"),
   };
 }
 

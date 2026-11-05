@@ -46,7 +46,7 @@ describe("casasDeZonas (casas_de_zona, vista 24)", () => {
     const casas = await fuente.casasDeZonas(CAMPANIA, [ZONA_A]);
 
     expect(casas.map((c) => c.estado)).toEqual([...estados, "SIN_VISITA"]);
-    expect(casas[0]).toEqual({ id: uuid(1), lon: -56.26, lat: -34.87, tipo: "CASA", estado: "ENTREGA_Y_COBRANZA_PENDIENTE", zonaIds: [ZONA_A] });
+    expect(casas[0]).toEqual({ id: uuid(1), lon: -56.26, lat: -34.87, tipo: "CASA", estado: "ENTREGA_Y_COBRANZA_PENDIENTE", ultimoCambio: null, zonaIds: [ZONA_A] });
   });
 
   it("no deja pasar nada que no sea punto, tipo y estado: ni montos, ni personas, ni dirección", async () => {
@@ -54,7 +54,25 @@ describe("casasDeZonas (casas_de_zona, vista 24)", () => {
 
     const [casa] = await fuente.casasDeZonas(CAMPANIA, [ZONA_A]);
 
-    expect(Object.keys(casa).sort()).toEqual(["estado", "id", "lat", "lon", "tipo", "zonaIds"]);
+    expect(Object.keys(casa).sort()).toEqual(["estado", "id", "lat", "lon", "tipo", "ultimoCambio", "zonaIds"]);
+  });
+
+  it("lee la fecha del último cambio de estado (ultimo_cambio) y la deja nula si la casa no tiene estado", async () => {
+    const { fuente } = clienteCon(() => [
+      fila(1, "VENTA_COMPLETA", { ultimo_cambio: "2026-10-18T21:30:00+00:00" }),
+      fila(2, null, { ultimo_cambio: null }),
+      fila(3, "RECHAZO"),
+    ]);
+
+    const casas = await fuente.casasDeZonas(CAMPANIA, [ZONA_A]);
+
+    expect(casas.map((c) => c.ultimoCambio)).toEqual(["2026-10-18T21:30:00+00:00", null, null]);
+  });
+
+  it("una fecha que no es un texto es una respuesta inesperada, no un «sin fecha»", async () => {
+    const { fuente } = clienteCon(() => [fila(1, "VENTA_COMPLETA", { ultimo_cambio: 1760736600 })]);
+
+    await expect(fuente.casasDeZonas(CAMPANIA, [ZONA_A])).rejects.toBeInstanceOf(RespuestaInesperada);
   });
 
   it("pide de a una zona, con la campaña y sin cursor en la primera página", async () => {

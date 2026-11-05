@@ -24,3 +24,8 @@ export function fechaYHoraEnMontevideo(iso: string | null, ahora: Date = new Dat
   const dia = partes.year === esteAnio ? `${partes.day}/${partes.month}` : `${partes.day}/${partes.month}/${partes.year}`;
   return `${dia} a las ${partes.hour}:${partes.minute}`;
 }
+
+/** Solo el día, «18/10» (con el año, «18/10/2024», si no es el año en curso). `null` si el valor no es una fecha válida. */
+export function fechaEnMontevideo(iso: string | null, ahora: Date = new Date()): string | null {
+  return fechaYHoraEnMontevideo(iso, ahora)?.split(" a las ")[0] ?? null;
+}

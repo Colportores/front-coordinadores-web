@@ -6,6 +6,7 @@ import { Layer, Marker, Source } from "react-map-gl/maplibre";
 
 import type { CasaDeCiudad, ZonaDeCiudad } from "@/datos/equipo/zonas";
 import { ESTADOS_VISUALES, estadoVisual, textoDeTipo } from "@/features/equipo/zonas/casas/estados";
+import { fechaEnMontevideo } from "@/lib/momento";
 import { cn } from "@/lib/utils";
 import { PuntoDeCasa } from "@/features/equipo/zonas/casas/PuntoDeCasa";
 import { FUENTE_AGRUPADA, type useCasasEnMapa } from "@/features/equipo/zonas/casas/useCasasEnMapa";
@@ -48,6 +49,8 @@ interface Props {
 export function CapaDeCasas({ casas, zonas, tocables, estado }: Props) {
   const { agrupar, visibles, geojson, grupos } = estado;
   const elegida = agrupar ? undefined : visibles.find((c) => c.id === casas.elegidaId);
+  // Sin fecha (casa «Sin visita», o un valor que no se lee) no va la línea: nunca «Último cambio: —».
+  const ultimoCambio = fechaEnMontevideo(elegida?.ultimoCambio ?? null);
   const ordenados = useMemo(() => enOrdenDeLectura(visibles), [visibles]);
   const botones = useRef(new Map<string, HTMLButtonElement>());
   const [activoElegido, setActivoElegido] = useState<string | null>(null);
@@ -150,6 +153,7 @@ export function CapaDeCasas({ casas, zonas, tocables, estado }: Props) {
               {textoDeTipo(elegida.tipo)}
               {zonasDe(elegida, zonas)}
             </span>
+            {ultimoCambio === null ? null : <span className="text-chico text-tinta-suave">Último cambio: {ultimoCambio}</span>}
           </div>
         </Marker>
       ) : null}
