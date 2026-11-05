@@ -3,8 +3,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DATOS_ZONAS_SIMULADO } from "@/datos/equipo/zonas/simulado";
-import { ESPERA_DEL_MAPA_MS, MapaZonasGl } from "@/features/equipo/zonas/MapaZonasGl";
-import { ESPERA_MAXIMA_MS } from "@/features/equipo/zonas/mapa-base/useMapaBase";
+import { MapaZonasGl } from "@/features/equipo/zonas/MapaZonasGl";
 import type { DibujoEnMapa, PropsMapaZonas } from "@/features/equipo/zonas/tipos";
 
 /**
