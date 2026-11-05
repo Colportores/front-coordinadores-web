@@ -1,0 +1,502 @@
+{
+ "rivera": {
+  "heads": [
+   "COLPORTOR",
+   "CARRERA",
+   "APUNTA A",
+   "AVANCE · LIBROS BONIFICABLES"
+  ],
+  "filas": [
+   {
+    "colportor": "Lucía Fernández",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "50 de 100 libros · le faltan 50",
+    "ancho": "50%"
+   },
+   {
+    "colportor": "Bruno Techera",
+    "carrera": "Psicología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "107 de 250 libros · le faltan 143",
+    "ancho": "43%"
+   },
+   {
+    "colportor": "Valentina Silva",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "89 de 240 libros · le faltan 151",
+    "ancho": "37%"
+   },
+   {
+    "colportor": "Joaquín Duarte",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "61 de 120 libros · le faltan 59",
+    "ancho": "51%"
+   },
+   {
+    "colportor": "Martín Olivera",
+    "carrera": null,
+    "apuntaA": null,
+    "avance": "Sin meta: falta la carrera"
+   },
+   {
+    "colportor": "Florencia Pintos",
+    "carrera": "Contador Público",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "45 de 130 libros · le faltan 85",
+    "ancho": "35%"
+   },
+   {
+    "colportor": "Camila Núñez",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "46 de 100 libros · le faltan 54",
+    "ancho": "46%"
+   },
+   {
+    "colportor": "Santiago Pereira",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "67 de 100 libros · le faltan 33",
+    "ancho": "67%"
+   },
+   {
+    "colportor": "Micaela Rodríguez",
+    "carrera": "Enfermería",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "47 de 110 libros · le faltan 63",
+    "ancho": "43%"
+   },
+   {
+    "colportor": "Emiliano Sosa",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "78 de 120 libros · le faltan 42",
+    "ancho": "65%"
+   }
+  ]
+ },
+ "todasLibros": {
+  "heads": [
+   "COLPORTOR",
+   "CARRERA",
+   "APUNTA A",
+   "AVANCE · LIBROS BONIFICABLES"
+  ],
+  "filas": [
+   {
+    "colportor": "Lucía Fernández",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "50 de 100 libros · le faltan 50",
+    "ancho": "50%"
+   },
+   {
+    "colportor": "Bruno Techera",
+    "carrera": "Psicología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "107 de 250 libros · le faltan 143",
+    "ancho": "43%"
+   },
+   {
+    "colportor": "Valentina Silva",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "89 de 240 libros · le faltan 151",
+    "ancho": "37%"
+   },
+   {
+    "colportor": "Joaquín Duarte",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "61 de 120 libros · le faltan 59",
+    "ancho": "51%"
+   },
+   {
+    "colportor": "Martín Olivera",
+    "carrera": null,
+    "apuntaA": null,
+    "avance": "Sin meta: falta la carrera"
+   },
+   {
+    "colportor": "Florencia Pintos",
+    "carrera": "Contador Público",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "45 de 130 libros · le faltan 85",
+    "ancho": "35%"
+   },
+   {
+    "colportor": "Camila Núñez",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "46 de 100 libros · le faltan 54",
+    "ancho": "46%"
+   },
+   {
+    "colportor": "Santiago Pereira",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "67 de 100 libros · le faltan 33",
+    "ancho": "67%"
+   },
+   {
+    "colportor": "Micaela Rodríguez",
+    "carrera": "Enfermería",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "47 de 110 libros · le faltan 63",
+    "ancho": "43%"
+   },
+   {
+    "colportor": "Emiliano Sosa",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "78 de 120 libros · le faltan 42",
+    "ancho": "65%"
+   },
+   {
+    "colportor": "Sofía Cabral",
+    "carrera": "Psicología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "73 de 250 libros · le faltan 177",
+    "ancho": "29%"
+   },
+   {
+    "colportor": "Agustina Rey",
+    "carrera": "Contador Público",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "90 de 260 libros · le faltan 170",
+    "ancho": "35%"
+   },
+   {
+    "colportor": "Julieta Moreira",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "43 de 120 libros · le faltan 77",
+    "ancho": "36%"
+   },
+   {
+    "colportor": "Carolina Píriz",
+    "carrera": "Psicología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "38 de 125 libros · le faltan 87",
+    "ancho": "30%"
+   },
+   {
+    "colportor": "Martina Correa",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "78 de 120 libros · le faltan 42",
+    "ancho": "65%"
+   },
+   {
+    "colportor": "Paula Ferreira",
+    "carrera": null,
+    "apuntaA": null,
+    "avance": "Sin meta: falta la carrera"
+   },
+   {
+    "colportor": "Natalia Vidal",
+    "carrera": "Contador Público",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "60 de 130 libros · le faltan 70",
+    "ancho": "46%"
+   },
+   {
+    "colportor": "Lorena Acuña",
+    "carrera": "Enfermería",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "35 de 110 libros · le faltan 75",
+    "ancho": "32%"
+   },
+   {
+    "colportor": "Gonzalo Méndez",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "79 de 200 libros · le faltan 121",
+    "ancho": "40%"
+   },
+   {
+    "colportor": "Federico Da Rosa",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "39 de 100 libros · le faltan 61",
+    "ancho": "39%"
+   },
+   {
+    "colportor": "Ignacio Bentancor",
+    "carrera": "Enfermería",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "77 de 110 libros · le faltan 33",
+    "ancho": "70%"
+   },
+   {
+    "colportor": "Rodrigo Cardozo",
+    "carrera": "Contador Público",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "63 de 130 libros · le faltan 67",
+    "ancho": "48%"
+   },
+   {
+    "colportor": "Matías Rivero",
+    "carrera": "Enfermería",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "142 de 220 libros · le faltan 78",
+    "ancho": "65%"
+   },
+   {
+    "colportor": "Diego Machado",
+    "carrera": "Enfermería",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "40 de 110 libros · le faltan 70",
+    "ancho": "36%"
+   },
+   {
+    "colportor": "Nicolás Viera",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "149 de 240 libros · le faltan 91",
+    "ancho": "62%"
+   }
+  ]
+ },
+ "todasCes": {
+  "heads": [
+   "COLPORTOR",
+   "CARRERA",
+   "APUNTA A",
+   "AVANCE · COMPRA A LA CES"
+  ],
+  "filas": [
+   {
+    "colportor": "Lucía Fernández",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 75.200 de $U 150.000 · le faltan $U 74.800",
+    "ancho": "50%"
+   },
+   {
+    "colportor": "Bruno Techera",
+    "carrera": "Psicología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "$U 161.000 de $U 375.000 · le faltan $U 214.000",
+    "ancho": "43%"
+   },
+   {
+    "colportor": "Valentina Silva",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "$U 133.000 de $U 360.000 · le faltan $U 227.000",
+    "ancho": "37%"
+   },
+   {
+    "colportor": "Joaquín Duarte",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 91.700 de $U 180.000 · le faltan $U 88.300",
+    "ancho": "51%"
+   },
+   {
+    "colportor": "Martín Olivera",
+    "carrera": null,
+    "apuntaA": null,
+    "avance": "Sin meta: falta la carrera"
+   },
+   {
+    "colportor": "Florencia Pintos",
+    "carrera": "Contador Público",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 67.800 de $U 195.000 · le faltan $U 127.200",
+    "ancho": "35%"
+   },
+   {
+    "colportor": "Camila Núñez",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 69.200 de $U 150.000 · le faltan $U 80.800",
+    "ancho": "46%"
+   },
+   {
+    "colportor": "Santiago Pereira",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 100.600 de $U 150.000 · le faltan $U 49.400",
+    "ancho": "67%"
+   },
+   {
+    "colportor": "Micaela Rodríguez",
+    "carrera": "Enfermería",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 70.400 de $U 165.000 · le faltan $U 94.600",
+    "ancho": "43%"
+   },
+   {
+    "colportor": "Emiliano Sosa",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 116.700 de $U 180.000 · le faltan $U 63.300",
+    "ancho": "65%"
+   },
+   {
+    "colportor": "Sofía Cabral",
+    "carrera": "Psicología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "$U 109.200 de $U 375.000 · le faltan $U 265.800",
+    "ancho": "29%"
+   },
+   {
+    "colportor": "Agustina Rey",
+    "carrera": "Contador Público",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "$U 134.900 de $U 390.000 · le faltan $U 255.100",
+    "ancho": "35%"
+   },
+   {
+    "colportor": "Julieta Moreira",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 63.900 de $U 180.000 · le faltan $U 116.100",
+    "ancho": "36%"
+   },
+   {
+    "colportor": "Carolina Píriz",
+    "carrera": "Psicología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 57.000 de $U 187.500 · le faltan $U 130.500",
+    "ancho": "30%"
+   },
+   {
+    "colportor": "Martina Correa",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 117.000 de $U 180.000 · le faltan $U 63.000",
+    "ancho": "65%"
+   },
+   {
+    "colportor": "Paula Ferreira",
+    "carrera": null,
+    "apuntaA": null,
+    "avance": "Sin meta: falta la carrera"
+   },
+   {
+    "colportor": "Natalia Vidal",
+    "carrera": "Contador Público",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 89.300 de $U 195.000 · le faltan $U 105.700",
+    "ancho": "46%"
+   },
+   {
+    "colportor": "Lorena Acuña",
+    "carrera": "Enfermería",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 52.200 de $U 165.000 · le faltan $U 112.800",
+    "ancho": "32%"
+   },
+   {
+    "colportor": "Gonzalo Méndez",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "$U 119.100 de $U 300.000 · le faltan $U 180.900",
+    "ancho": "40%"
+   },
+   {
+    "colportor": "Federico Da Rosa",
+    "carrera": "Teología",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 57.800 de $U 150.000 · le faltan $U 92.200",
+    "ancho": "39%"
+   },
+   {
+    "colportor": "Ignacio Bentancor",
+    "carrera": "Enfermería",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 115.300 de $U 165.000 · le faltan $U 49.700",
+    "ancho": "70%"
+   },
+   {
+    "colportor": "Rodrigo Cardozo",
+    "carrera": "Contador Público",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 95.100 de $U 195.000 · le faltan $U 99.900",
+    "ancho": "49%"
+   },
+   {
+    "colportor": "Matías Rivero",
+    "carrera": "Enfermería",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "$U 212.800 de $U 330.000 · le faltan $U 117.200",
+    "ancho": "64%"
+   },
+   {
+    "colportor": "Diego Machado",
+    "carrera": "Enfermería",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Media",
+    "avance": "$U 59.400 de $U 165.000 · le faltan $U 105.600",
+    "ancho": "36%"
+   },
+   {
+    "colportor": "Nicolás Viera",
+    "carrera": "Ingeniería en Sistemas",
+    "carreraSub": "elegida el 01/09",
+    "apuntaA": "Completa",
+    "avance": "$U 224.000 de $U 360.000 · le faltan $U 136.000",
+    "ancho": "62%"
+   }
+  ]
+ }
+}

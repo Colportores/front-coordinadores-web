@@ -1,0 +1,135 @@
+name: Production
+
+# Producción del panel: build con las variables del environment `production` y deploy al hosting de producción, que
+# según ADR-015 es Vercel (el panel necesita servidor: proxy, cookies de sesión y server actions).
+#
+# Hoy NO hay producción (el Supabase de producción sale en diciembre): el workflow queda listo pero falla con un
+# mensaje claro mientras el environment no tenga sus variables y secretos. Nunca usa las variables de dev del repo:
+# exige APP_ENV=production y rechaza la URL del proyecto dev. El build lleva PANEL_EXIGIR_SUPABASE=1 (#101): sin
+# conexión a Supabase no compila.
+#
+# Environment `production` (lo crea Cristian; con revisores requeridos y solo la rama `production`). Tabla completa,
+# con ejemplos y cómo se carga cada una, en docs/ci-variables.md. Si falta algo, el workflow falla y el mensaje dice cuál.
+#   Variables: APP_ENV=production, PRODUCTION_SUPABASE_URL, PRODUCTION_SUPABASE_ANON_KEY (la anon key es pública por
+#              diseño), VERCEL_ORG_ID, VERCEL_PROJECT_ID; opcionales: PRODUCTION_DOMAIN (alias del deploy),
+#              SUPABASE_REF_DEV (ref EXTRA prohibido, se suma al de la demo).
+#   Nombres propios a propósito: a nivel repositorio existen SUPABASE_URL / SUPABASE_ANON_KEY con los valores del
+#   proyecto dev y `vars.*` mezcla environment y repo; producción no las lee nunca, así que un olvido en el environment
+#   falla en vez de compilar con la clave de dev.
+#   Secretos:  VERCEL_TOKEN.
+# Sin secretos en forks ni PR: el job solo corre por push a la rama `production` del repo.
+
+on:
+  push:
+    branches: [production]
+  workflow_dispatch:
+  # Solo para que GitHub registre el workflow cuando un PR lo toca (ver staging.yml). En un PR no corre ningún job:
+  # el job exige la rama production.
+  pull_request:
+    paths: [".github/workflows/production.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  # Proyecto Supabase de desarrollo/demo (público: figura en el README). Producción no puede apuntar acá.
+  # La variable SUPABASE_REF_DEV del environment suma otro ref prohibido; este siempre se rechaza.
+  SUPABASE_REF_DEV_DEFECTO: ohdsavwpasfpapbyutrv
+  # CLI de Vercel, fijada por versión mayor.
+  VERCEL_CLI: vercel@65
+
+jobs:
+  deploy:
+    name: Build y deploy de producción (Vercel)
+    if: github.ref == 'refs/heads/production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    permissions:
+      contents: read
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TELEMETRY_DISABLED: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Validar variables y secretos del environment
+        env:
+          APP_ENV: ${{ vars.APP_ENV }}
+          SUPABASE_URL: ${{ vars.PRODUCTION_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.PRODUCTION_SUPABASE_ANON_KEY }}
+          # Solo para comparar: producción no puede usar la clave dev del repositorio.
+          CLAVE_DEV_DEL_REPO: ${{ vars.SUPABASE_ANON_KEY }}
+          SUPABASE_REF_EXTRA: ${{ vars.SUPABASE_REF_DEV }}
+          SUPABASE_REF_DEFECTO: ${{ env.SUPABASE_REF_DEV_DEFECTO }}
+          DOMINIO: ${{ vars.PRODUCTION_DOMAIN }}
+          HAY_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
+        run: |
+          fallas=0
+          falla() { echo "::error title=Production::$1"; fallas=$((fallas + 1)); }
+          donde="Settings → Environments → production"
+          [ "$APP_ENV" = production ] || falla "la variable APP_ENV del environment production tiene que valer «production»: sin ella se compilaría con las variables de dev del repo (${donde} → Variables, o: gh variable set APP_ENV --env production --body production)."
+          [ -n "$SUPABASE_URL" ] || falla "falta la variable PRODUCTION_SUPABASE_URL (URL del proyecto Supabase de producción) en el environment production: se carga en ${donde} → Variables, o con: gh variable set PRODUCTION_SUPABASE_URL --env production"
+          [ -n "$SUPABASE_ANON_KEY" ] || falla "falta la variable PRODUCTION_SUPABASE_ANON_KEY (clave anónima del proyecto de producción, nunca la service_role) en el environment production: se carga en ${donde} → Variables, o con: gh variable set PRODUCTION_SUPABASE_ANON_KEY --env production"
+          case "$SUPABASE_URL" in ""|https://*) ;; *) falla "PRODUCTION_SUPABASE_URL tiene que empezar con https://." ;; esac
+          case "$SUPABASE_URL" in *"$SUPABASE_REF_DEFECTO"*) falla "PRODUCTION_SUPABASE_URL apunta al proyecto de desarrollo: producción necesita su propio proyecto Supabase." ;; esac
+          if [ -n "$SUPABASE_REF_EXTRA" ]; then
+            case "$SUPABASE_URL" in *"$SUPABASE_REF_EXTRA"*) falla "PRODUCTION_SUPABASE_URL apunta a un proyecto prohibido (SUPABASE_REF_DEV): producción necesita su propio proyecto Supabase." ;; esac
+          fi
+          # Por si alguien copia la variable del repo (dev) al environment con otro nombre.
+          [ -z "$SUPABASE_ANON_KEY" ] || [ -z "$CLAVE_DEV_DEL_REPO" ] || [ "$SUPABASE_ANON_KEY" != "$CLAVE_DEV_DEL_REPO" ] \
+            || falla "PRODUCTION_SUPABASE_ANON_KEY es igual a la SUPABASE_ANON_KEY de nivel repositorio (proyecto dev): producción necesita la clave de su propio proyecto."
+          if [ -n "$DOMINIO" ] && ! printf '%s' "$DOMINIO" | grep -Eq '^([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$'; then
+            falla "PRODUCTION_DOMAIN tiene que ser solo el dominio, sin https:// ni barras (ejemplo: panel.ejemplo.org)."
+          fi
+          [ -n "$VERCEL_ORG_ID" ] || falla "falta la variable VERCEL_ORG_ID (orgId de .vercel/project.json al vincular el proyecto) en el environment production: se carga en ${donde} → Variables, o con: gh variable set VERCEL_ORG_ID --env production"
+          [ -n "$VERCEL_PROJECT_ID" ] || falla "falta la variable VERCEL_PROJECT_ID (projectId de .vercel/project.json) en el environment production: se carga en ${donde} → Variables, o con: gh variable set VERCEL_PROJECT_ID --env production"
+          [ "$HAY_TOKEN" = true ] || falla "falta el secreto VERCEL_TOKEN (token de Vercel con acceso al proyecto) en el environment production: se carga en ${donde} → Secrets, o con: gh secret set VERCEL_TOKEN --env production"
+          [ "$fallas" -eq 0 ] || exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Node 24, el mismo que trae la imagen de desarrollo (dockerfile.dev).
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+      - run: npm install --global "$VERCEL_CLI"
+
+      - name: Configuración del proyecto en Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      # `vercel build` corre `npm run build` (next build) con estas variables: se incrustan en el build.
+      - name: Build de producción
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.PRODUCTION_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.PRODUCTION_SUPABASE_ANON_KEY }}
+          PANEL_EXIGIR_SUPABASE: "1"
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PRODUCTION_DOMAIN: ${{ vars.PRODUCTION_DOMAIN }}
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          if [ -n "$PRODUCTION_DOMAIN" ]; then
+            # El dominio tiene que estar agregado al proyecto en Vercel (Settings → Domains).
+            vercel alias set "$url" "$PRODUCTION_DOMAIN" --token="$VERCEL_TOKEN"
+            url="https://${PRODUCTION_DOMAIN}"
+          fi
+          echo "url=${url}" >> "$GITHUB_OUTPUT"

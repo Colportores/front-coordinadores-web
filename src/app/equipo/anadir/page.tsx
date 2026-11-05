@@ -1,0 +1,52 @@
+import { fuenteEquipo } from "@/datos/equipo";
+import { fuenteEquipoSimulada } from "@/datos/equipo/simulado";
+import { SeccionHu } from "@/dev/SeccionHu";
+import { AnadirColportor } from "@/features/equipo/AnadirColportor";
+import { AnadirColportorLocal } from "@/features/equipo/AnadirColportorLocal";
+import { SinCampaniaParaAnadir } from "@/features/equipo/SinCampaniaParaAnadir";
+import { ContenidoPestana } from "@/shell/ContenidoPestana";
+
+/** Vista 23 (HU-CAM-004): añadir colportor a la campaña. Cuelga de la pestaña Equipo. */
+export default async function AnadirColportorPagina() {
+  // Sitio de prueba (export estático, sin servidor): no hay server actions, así que la vista le habla a la fuente
+  // simulada desde el navegador. La condición es literal y el `import()` está en el `else` para que el módulo con
+  // la server action no entre al build exportado. Ver README, «Sitio de prueba».
+  if (process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1") {
+    // Siempre la simulada, por construcción: el sitio de prueba nunca lee `fuenteEquipo` (el selector).
+    const datos = await fuenteEquipoSimulada.obtenerAnadirColportor();
+
+    return (
+      <ContenidoPestana titulo="Añadir colportor">
+        <SeccionHu hu="HU-CAM-004">{datos ? <AnadirColportorLocal datos={datos} /> : <SinCampaniaParaAnadir />}</SeccionHu>
+      </ContenidoPestana>
+    );
+  } else {
+    const datos = await fuenteEquipo.obtenerAnadirColportor();
+    if (!datos) {
+      return (
+        <ContenidoPestana titulo="Añadir colportor">
+          <SeccionHu hu="HU-CAM-004">
+            <SinCampaniaParaAnadir />
+          </SeccionHu>
+        </ContenidoPestana>
+      );
+    }
+    const { crearInscribirServidor } = await import("./inscribir-servidor");
+    const { crearBuscarServidor } = await import("./buscar-servidor");
+
+    return (
+      <ContenidoPestana titulo="Añadir colportor">
+        <SeccionHu hu="HU-CAM-004">
+          {/* `key`: al elegir otra campaña en el topbar la página se vuelve a pedir (`router.refresh()`), que conserva el estado de
+              cliente; sin `key` lo añadido y la búsqueda de la campaña anterior pasarían a la nueva (#70). */}
+          <AnadirColportor
+            key={datos.campaniaId}
+            datos={datos}
+            inscribir={crearInscribirServidor(datos.campaniaId)}
+            buscar={crearBuscarServidor(datos.campaniaId)}
+          />
+        </SeccionHu>
+      </ContenidoPestana>
+    );
+  }
+}
