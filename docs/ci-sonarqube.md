@@ -95,6 +95,32 @@ Cada 90 días o enseguida si el token se filtró:
 4. Recién ahí revocá el token viejo (My Account → Security → Revoke).
 5. Si se filtró: revocalo primero.
 
+## Política de cobertura del proyecto (RA-MA02)
+
+La documentación del proyecto (repo `docs-organizacion`) fija la cobertura mínima como atributo de calidad **RA-MA02**
+(`docs/02-restricciones.md` R-OR-02, `docs/10-requisitos-calidad.md` M-3, `docs/convenciones-desarrollo.md` §6.4 y
+`docs/08-conceptos-transversales.md` §8.9). La definición de hecho (§8) agrega que «la cobertura no baja».
+
+| Capa (docs) | Piso | Equivalente en el panel | Dónde se exige |
+|---|---|---|---|
+| Total del proyecto | ≥ 70 % | todo `src/` | `vitest.config.mts` (`thresholds`), falla `npm run check` |
+| Dominio | ≥ 90 % | `src/lib`, `src/auth`, `src/config` | `vitest.config.mts` |
+| Datos | ≥ 80 % | `src/datos/**` | `vitest.config.mts` |
+| Presentación | ≥ 50 % | `src/**/*.tsx` | `vitest.config.mts` |
+| Código nuevo de cada cambio | ≥ 80 % | lo que cambia un PR | quality gate «Sonar way» de SonarQube Cloud |
+
+Cómo funcionan juntos:
+- **Vitest** (en el CI, con `COVERAGE=1`) corta el check si la cobertura baja de esos pisos. Es el único que puede frenar un
+  PR hoy. Valores medidos en `staging`: total ≈ 96 %, dominio ≈ 96 %, datos ≈ 99 %, presentación ≈ 97 %.
+- **SonarQube Cloud** informa. «Sonar way» exige 80 % de cobertura sobre el **código nuevo**, que es más estricto que el 70 %
+  de la política para cambios chicos. El 70 % sobre el **total** no es una condición de «Sonar way».
+- Para que el gate de Sonar también exija el total: en SonarQube Cloud, *Organization → Quality Gates → Copy «Sonar way»* →
+  agregar la condición **Coverage (overall) is less than 70 %** → *Set as default*. Hace falta que el plan permita gates
+  propios; si no, el piso del total queda solo en vitest.
+
+Los umbrales de `vitest.config.mts` solo se evalúan con una corrida **completa** y `COVERAGE=1`; si corrés un solo test
+con `COVERAGE=1` fallan por falta de datos, y es lo esperado.
+
 ## Qué no hacer
 
 - El token en `sonar-project.properties`, en el workflow, en un PR o en una captura. Si se vio, se revoca.
