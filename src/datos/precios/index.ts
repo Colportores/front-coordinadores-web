@@ -18,6 +18,7 @@ import { fuenteDeSesion } from "@/datos/supabase/fuente-de-sesion";
 
 export type {
   AccionesPrecios,
+  CategoriaDeProducto,
   CambioDePrecio,
   CausaDeFalla,
   CiudadDePrecios,
@@ -26,7 +27,6 @@ export type {
   ItemDePrecio,
   ResultadoDeGuardado,
   TipoDeItem,
-  TipoDeProducto,
 } from "@/datos/precios/contrato";
 export { claveDe } from "@/datos/precios/contrato";
 

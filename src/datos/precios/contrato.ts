@@ -12,8 +12,8 @@
 
 export type TipoDeItem = "PRODUCTO" | "COLECCION";
 
-/** El tipo del catálogo (`producto.tipo`). `null` cuando la lectura todavía no lo trae. */
-export type TipoDeProducto = "LIBRO" | "REVISTA" | "MATERIAL" | "MISIONERO";
+/** La categoría del producto (`producto.categoria`, 0149); la lectura `precios_de_la_ciudad()` la trae desde la 0171. */
+export type CategoriaDeProducto = "BONIFICABLES" | "MISIONEROS" | "ESPIRITUALES" | "REVISTAS" | "MATERIAL";
 
 /** Un producto o una colección (combo) del catálogo vivo, con su precio general. */
 export interface ItemDePrecio {
@@ -22,12 +22,13 @@ export interface ItemDePrecio {
   tipo: TipoDeItem;
   id: string;
   nombre: string;
-  /** Código del editor (`producto.codigo_editor`, opcional). `null`: sin código, o la lectura todavía no lo trae. */
+  /** Código del editor (`producto.codigo_editor`, opcional). `null`: el producto no tiene (una colección nunca). */
   codigo: string | null;
-  /** Solo en un producto, y `null` mientras la lectura no lo trae (entonces se agrupa como «Productos»). */
-  tipoDeProducto: TipoDeProducto | null;
+  /** Solo en un producto; de ahí salen el grupo de la tabla y la insignia de revista. `null` en una colección. */
+  categoria: CategoriaDeProducto | null;
   /** Solo un producto puede serlo: una colección es siempre `false`. */
   esBonificable: boolean;
+  /** `categoria = 'MISIONEROS'` (decisión del 04/11): no es una columna aparte. */
   esMisionero: boolean;
   /** Lo que lleva una colección además de lo fijo («2 libros a elegir»); `null` en un producto o sin nada que decir. */
   detalle: string | null;
@@ -67,7 +68,13 @@ export interface CambioDePrecio {
 /** Por qué no se pudo guardar: sin conexión (se reintenta igual) o rechazado por el servidor (trae su texto). */
 export type CausaDeFalla = "sin-conexion" | "rechazado";
 
-export type ResultadoDeGuardado = { ok: true } | { ok: false; causa: CausaDeFalla; mensaje?: string };
+export type ResultadoDeGuardado =
+  | { ok: true }
+  /**
+   * `sesionVencida`: la base rechazó el JWT entre que el proxy lo comprobó y la RPC. Vuelve como resultado y no como excepción
+   * porque el texto de una excepción no sale del servidor en producción (#41, P3).
+   */
+  | { ok: false; causa: CausaDeFalla; mensaje?: string; sesionVencida?: true };
 
 export interface FuenteDatosPrecios {
   /** `null` cuando el coordinador no tiene una campaña en curso ni por empezar. */
