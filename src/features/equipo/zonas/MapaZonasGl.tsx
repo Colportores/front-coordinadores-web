@@ -4,18 +4,35 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import type { Feature, FeatureCollection, LineString, Polygon } from "geojson";
 import { setWorkerUrl, type StyleSpecification } from "maplibre-gl";
-import { useEffect, useMemo } from "react";
-import Map, { Layer, Marker, NavigationControl, Source, type MapMouseEvent } from "react-map-gl/maplibre";
+import { useEffect, useMemo, useState } from "react";
+import Map, {
+  AttributionControl,
+  Layer,
+  Marker,
+  NavigationControl,
+  Source,
+  type ErrorEvent,
+  type MapMouseEvent,
+} from "react-map-gl/maplibre";
 
 import type { Punto, ZonaDeCiudad } from "@/datos/equipo/zonas";
 import { distanciaM, puntoADistancia, vertices } from "@/datos/equipo/zonas/geometria";
 import { CAPA_DE_GRUPOS, CapaDeCasas } from "@/features/equipo/zonas/casas/CapaDeCasas";
 import { useCasasEnMapa } from "@/features/equipo/zonas/casas/useCasasEnMapa";
+import { AvisoDelMapaBase, type AvisoBase } from "@/features/equipo/zonas/mapa-base/AvisoDelMapaBase";
+import { FUENTE_DE_TILES } from "@/features/equipo/zonas/mapa-base/catalogo";
+import { olvidarArchivosPmtiles, registrarPmtiles } from "@/features/equipo/zonas/mapa-base/pmtiles";
+import { useMapaBase } from "@/features/equipo/zonas/mapa-base/useMapaBase";
 import type { PropsMapaZonas } from "@/features/equipo/zonas/tipos";
 
 // Bajo Turbopack MapLibre no deduce la URL de su worker: se sirve desde public/maplibre (scripts/copiar-worker-maplibre.mjs).
 // El sitio de prueba (GitHub Pages) cuelga de un subdirectorio: NEXT_PUBLIC_BASE_PATH lo trae next.config.ts.
 setWorkerUrl(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/maplibre/maplibre-gl-worker.mjs`);
+// Los tiles de las calles son archivos PMTiles del bucket de mapas (ADR-011): `pmtiles://<url>` en el estilo.
+registrarPmtiles();
+
+/** Cuánto se espera a que el mapa termine de cargar antes de avisar que algo lo está frenando (el worker, la red). */
+export const ESPERA_DEL_MAPA_MS = 20_000;
 
 const RADIO_MIN_M = 1;
 const RADIO_MAX_M = 3000;
@@ -50,8 +67,9 @@ const DE_OTRA_COSA = '[role="dialog"], [role="alertdialog"], [role="listbox"], [
 
 /**
  * Mapa de la vista 24. Con `dibujo` dibuja la forma en curso; sin él, el clic elige zonas.
- * Base: fondo liso con las calles de los datos simulados. De dónde salen los tiles
- * (PMTiles de OSM, ADR-011) todavía no está decidido, así que no hay capa de tiles.
+ * Base: con Supabase, el estilo y el PMTiles de la ciudad del bucket `mapas` (ADR-011); sin él (sitio de prueba), o si la
+ * ciudad no tiene mapa publicado o el bucket no responde, un fondo liso con las zonas y, en los datos simulados, sus calles.
+ * Si el navegador no puede dibujar o el mapa no termina de cargar, lo dice en vez de dejar un recuadro vacío.
  */
 export function MapaZonasGl({
   ciudad,
@@ -64,6 +82,23 @@ export function MapaZonasGl({
   onMapaMove,
   onRadio,
 }: PropsMapaZonas) {
+  const { base, reintentar } = useMapaBase(ciudad.catalogoId);
+  // Cada vez que se rearma el mapa (otra ciudad, otro fondo, «Reintentar») es otro `Map`, con sus propios avisos.
+  const [reinicio, setReinicio] = useState(0);
+  const claveDelMapa = `${ciudad.id}:${base.fase === "listo" ? "bucket" : "liso"}:${reinicio}`;
+  const [sinWebgl, setSinWebgl] = useState<string | null>(null);
+  const [sinTiles, setSinTiles] = useState<string | null>(null);
+  const [cargado, setCargado] = useState<string | null>(null);
+  const [lento, setLento] = useState<string | null>(null);
+  const [contenedor, setContenedor] = useState<HTMLDivElement | null>(null);
+  const esperando = base.fase !== "cargando";
+  // El mapa que no llega a `load` (el worker no se sirvió, los tiles no bajan) no avisa nada por sí solo.
+  useEffect(() => {
+    if (!esperando) return;
+    const plazo = setTimeout(() => setLento(claveDelMapa), ESPERA_DEL_MAPA_MS);
+    return () => clearTimeout(plazo);
+  }, [esperando, claveDelMapa]);
+
   // vis.gl compara `mapStyle` por referencia: un objeto nuevo en cada render dispararía `setStyle` en cada clic o movimiento.
   const colores = useMemo(
     () => ({
@@ -130,6 +165,26 @@ export function MapaZonasGl({
     return () => document.removeEventListener("keydown", alTeclear);
   }, [casaElegida, cerrarTarjeta]);
 
+  function alFallar(e: ErrorEvent) {
+    if (/webgl/i.test(e.error?.message ?? "")) setSinWebgl(claveDelMapa);
+    // Un error de la fuente de tiles (el archivo no está, la red cayó): sin calles, pero las zonas siguen.
+    else if ((e as { sourceId?: string }).sourceId?.startsWith(FUENTE_DE_TILES)) setSinTiles(claveDelMapa);
+  }
+
+  function reintentarMapa() {
+    // El botón y el mapa se desmontan mientras se vuelve a pedir: el foco pasa al contenedor, que no se desmonta.
+    contenedor?.focus();
+    // El protocolo de PMTiles guarda también los pedidos que fallaron: sin esto, el reintento no vuelve a pedir el archivo.
+    olvidarArchivosPmtiles();
+    setReinicio((n) => n + 1);
+    reintentar();
+  }
+
+  function alCargar(e: Parameters<typeof casasEnMapa.leerCaja>[0]) {
+    setCargado(claveDelMapa);
+    if (casas) casasEnMapa.leerCaja(e);
+  }
+
   function alHacerClic(e: MapMouseEvent) {
     if (!dibujo) {
       const elegida = e.features?.[0];
@@ -148,23 +203,35 @@ export function MapaZonasGl({
 
   const asaRadio = dibujo?.centro && dibujo.radioM ? puntoADistancia(dibujo.centro, dibujo.radioM) : null;
 
-  return (
+  // Qué se le dice al coordinador, de lo más grave a lo menos: una sola cosa a la vez.
+  const aviso: AvisoBase | null =
+    base.fase === "falla" || sinTiles === claveDelMapa
+      ? { tipo: "sin-calles", onReintentar: reintentarMapa }
+      : lento === claveDelMapa && cargado !== claveDelMapa
+        ? { tipo: "lento" }
+        : base.fase === "sin-paquete"
+          ? { tipo: "sin-paquete", ciudad: ciudad.nombre }
+          : null;
+
+  const mapa = (
     <Map
-      key={ciudad.id}
+      key={claveDelMapa}
       initialViewState={{ longitude: ciudad.centro.lon, latitude: ciudad.centro.lat, zoom: ciudad.zoom }}
-      mapStyle={estilo}
+      mapStyle={base.fase === "listo" ? base.estilo : estilo}
       style={{ width: "100%", height: "100%" }}
       attributionControl={false}
       interactiveLayerIds={dibujo ? [] : casasEnMapa.agrupar ? [CAPA_DE_GRUPOS, "zonas-relleno"] : ["zonas-relleno"]}
       cursor={dibujo ? "crosshair" : undefined}
       onClick={alHacerClic}
-      onLoad={casas ? casasEnMapa.leerCaja : undefined}
+      onLoad={alCargar}
+      onError={alFallar}
       onMoveEnd={casas ? casasEnMapa.leerCaja : undefined}
       onIdle={casas ? casasEnMapa.leerGrupos : undefined}
       onMouseMove={(e) => dibujo && onMapaMove(punto(e))}
       doubleClickZoom={!dibujo}
     >
       <NavigationControl showCompass={false} position="bottom-right" />
+      {base.fase === "listo" ? <AttributionControl position="bottom-right" /> : null}
 
       <Source id="calles" type="geojson" data={callesGeojson}>
         <Layer id="calles-linea" type="line" paint={{ "line-color": colores.calle, "line-width": 6 }} />
@@ -271,6 +338,23 @@ export function MapaZonasGl({
           </span>
         </Marker>
       ) : null}
+
+      {aviso ? <AvisoDelMapaBase aviso={aviso} /> : null}
     </Map>
+  );
+
+  // Un contenedor fijo: lo que hay adentro (el aviso de «Cargando», el mapa, los avisos) se desmonta y se vuelve a montar al reintentar.
+  return (
+    <div ref={setContenedor} tabIndex={-1} className="h-full outline-none focus-visible:outline-2 focus-visible:-outline-offset-2">
+      {base.fase === "cargando" ? (
+        <div aria-live="polite" className="grid h-full place-items-center bg-superficie-mapa text-chico text-tinta-suave">
+          Cargando el mapa…
+        </div>
+      ) : sinWebgl === claveDelMapa ? (
+        <AvisoDelMapaBase aviso={{ tipo: "sin-webgl" }} />
+      ) : (
+        mapa
+      )}
+    </div>
   );
 }

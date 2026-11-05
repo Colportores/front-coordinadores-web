@@ -15,7 +15,7 @@ const doble = vi.hoisted(() => ({
   capas: {} as Record<string, Record<string, unknown>>,
 }));
 
-vi.mock("maplibre-gl", () => ({ setWorkerUrl: vi.fn() }));
+vi.mock("maplibre-gl", () => ({ setWorkerUrl: vi.fn(), addProtocol: vi.fn(), removeProtocol: vi.fn() }));
 vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 vi.mock("react-map-gl/maplibre", () => ({
   default: (props: Record<string, unknown> & { children: ReactNode }) => {
@@ -23,6 +23,7 @@ vi.mock("react-map-gl/maplibre", () => ({
     return <div data-testid="mapa-gl">{props.children}</div>;
   },
   NavigationControl: () => null,
+  AttributionControl: () => null,
   Source: ({ id, children, ...resto }: { id: string; children: ReactNode } & Record<string, unknown>) => {
     doble.fuentes[id] = resto;
     return <div data-testid={`fuente-${id}`}>{children}</div>;
@@ -472,7 +473,10 @@ describe("24P·04 · más de 200 a la vista: casas agrupadas", () => {
         onRadio={vi.fn()}
       />,
     );
-    expect(doble.mapa?.onLoad).toBeUndefined();
+    // `onLoad` siempre está (el mapa lo usa para saber que cargó); sin casas no lee nada del mapa.
+    expect(() => (doble.mapa?.onLoad as (e: unknown) => void)({})).not.toThrow();
+    expect(doble.mapa?.onMoveEnd).toBeUndefined();
+    expect(doble.mapa?.onIdle).toBeUndefined();
     expect(doble.fuentes["casas-agrupadas"]).toBeUndefined();
     expect(doble.mapa?.interactiveLayerIds).toEqual(["zonas-relleno"]);
   });
