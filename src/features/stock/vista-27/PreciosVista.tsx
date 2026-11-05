@@ -20,10 +20,12 @@ import {
   armarFilasGenerales,
   armarPestanas,
   AVISO_GENERAL,
+  bonificablesSinPrecioEnCiudad,
   bonificablesSinPrecioGeneral,
   resumirBorrador,
   SUBTITULO_GENERAL,
   subtituloDeCiudad,
+  textoDeAlertaSinPrecioEnCiudad,
   textoDeAlertaSinPrecioGeneral,
 } from "./modelo";
 import { usePrecios } from "./usePrecios";
@@ -115,6 +117,21 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
 
   const sinCatalogo = datos.items.length === 0 || (esGeneral && datos.items.every((i) => i.precioGeneral === null));
   const alertaSinGeneral = esGeneral && !sinCatalogo ? textoDeAlertaSinPrecioGeneral(bonificablesSinPrecioGeneral(datos)) : null;
+  // 27G·05: en cada ciudad, los bonificables que no tienen general ni excepción ahí (lo guardado, no lo tipeado).
+  const sinPrecioAca = ciudad ? bonificablesSinPrecioEnCiudad(datos, ciudad.id) : [];
+  const alertaSinPrecioAca = ciudad ? textoDeAlertaSinPrecioEnCiudad(sinPrecioAca, ciudad.nombre) : null;
+
+  // «Agregar precio» abre el campo del primero que todavía no tiene uno en el borrador; si ya los abrió todos, solo lleva el
+  // foco al primero (volver a abrirlo pisaría lo que se escribió).
+  function agregarPrecioFaltante() {
+    if (!ciudad || sinPrecioAca.length === 0) return;
+    const libre = sinPrecioAca.find((i) => borrador[i.clave] === undefined);
+    if (libre) {
+      e.agregarExcepcion(ciudad.id, libre.clave, null);
+      return;
+    }
+    document.querySelector<HTMLInputElement>(`[data-precio="${CSS.escape(sinPrecioAca[0].clave)}"]`)?.focus();
+  }
 
   // Los avisos de un guardado (falla, sesión, sin conexión) van en la barra fija de abajo: con la tabla larga y la fila editada
   // al final, arriba de la tabla quedarían fuera de la pantalla justo donde está «Reintentar» (QA #64).
@@ -194,6 +211,8 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
                 <span className="rounded-pastilla bg-alerta-fondo px-[7px] py-0.5 text-mini font-semibold text-alerta">
                   {p.sinGuardar} sin guardar
                 </span>
+              ) : p.faltan ? (
+                <span className="rounded-pastilla bg-alerta-fondo px-[7px] py-0.5 text-mini font-semibold text-alerta">{p.faltan}</span>
               ) : (
                 p.excepciones && (
                   <span className="rounded-pastilla bg-marca-clara px-[7px] py-0.5 text-mini font-semibold text-marca-media">{p.excepciones}</span>
@@ -209,6 +228,23 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
         {alertaSinGeneral && (
           <AvisoDePrecios tono="alerta" rol="alert">
             {alertaSinGeneral}
+          </AvisoDePrecios>
+        )}
+        {alertaSinPrecioAca && (
+          <AvisoDePrecios
+            tono="alerta"
+            rol="alert"
+            accion={
+              <button
+                type="button"
+                onClick={agregarPrecioFaltante}
+                className="inline-flex min-h-6 flex-none cursor-pointer items-center rounded-control px-1 text-nav font-semibold text-marca-media hover:text-marca focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none"
+              >
+                Agregar precio
+              </button>
+            }
+          >
+            {alertaSinPrecioAca}
           </AvisoDePrecios>
         )}
         {sinCatalogo ? (
