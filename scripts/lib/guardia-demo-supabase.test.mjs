@@ -222,7 +222,8 @@ describe("el workflow del artefacto", () => {
 
   it("el CI de los PR y el sitio de Pages siguen sin variables de Supabase", () => {
     for (const texto of [ci, pages]) {
-      expect(texto).not.toMatch(/vars\.|secrets\./);
+      // Solo el análisis de SonarQube (issue #147) lee un secreto y dos variables, y ninguna es de Supabase.
+      expect(texto).not.toMatch(/(vars|secrets)\.(?!SONAR_)/);
       expect(texto).not.toContain("SUPABASE");
     }
   });

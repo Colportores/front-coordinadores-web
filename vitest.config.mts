@@ -16,5 +16,17 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.mjs"],
     restoreMocks: true,
     unstubEnvs: true,
+    // Cobertura para SonarQube Cloud (docs/ci-sonarqube.md): solo con COVERAGE=1, así `npm run test` sigue siendo el
+    // de siempre. Deja `coverage/lcov.info`, con rutas relativas a la raíz del repo.
+    coverage: {
+      enabled: process.env.COVERAGE === "1",
+      provider: "v8",
+      reporter: ["text-summary", "lcov"],
+      reportsDirectory: "coverage",
+      // En el CI `coverage/` es un volumen montado: vitest no puede borrarlo (EBUSY) antes de escribir, solo sobrescribir.
+      clean: false,
+      include: ["src/**/*.{ts,tsx}", "scripts/**/*.mjs"],
+      exclude: ["**/*.test.{ts,tsx,mjs}", "src/test/**", "src/**/*.d.ts"],
+    },
   },
 });
