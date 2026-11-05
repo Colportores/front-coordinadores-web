@@ -72,8 +72,9 @@ environment), y en Pages no se puede pasar de Git a carga directa después.
 
 **Camino B, Pages (solo el export estático con datos simulados).**
 1. Dashboard → **Workers & Pages → Create → Pages → Upload assets** (Direct Upload).
-2. Nombre `panel-coordinadores-staging`, rama de producción `develop` → **Create project**. Podés saltar la subida de
-   archivos: la hace el workflow.
+2. Nombre `panel-coordinadores-staging` → **Create project**. Dejá la rama de producción en `main` (el workflow
+   publica con `--branch main`, así queda en `<proyecto>.pages.dev`). Podés saltar la subida de archivos: la hace el
+   workflow.
 3. Ese nombre es el valor de `CLOUDFLARE_PROJECT_NAME`.
 4. Sirve para el sitio de prueba, no para el panel real (sin servidor no hay sesión ni server actions).
 
@@ -81,7 +82,8 @@ environment), y en Pages no se puede pasar de Git a carga directa después.
 
 1. En el repo: **Settings → Environments.** `staging` ya existe; creá `production`.
 2. En `production`: **Required reviewers** (alguien que apruebe cada despliegue) y **Deployment branches and tags** →
-   solo la rama `production`. En `staging`: solo la rama `staging`.
+   solo la rama `production`. En `staging`: las ramas `staging` y `develop` (el workflow `deploy-cloudflare.yml` corre por push a `staging` o a mano
+   sobre cualquiera de las dos).
 3. En cada environment, **Environment secrets → Add secret** → `CLOUDFLARE_API_TOKEN` (el valor del paso 3).
    **Environment variables → Add variable** → `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_PROJECT_NAME`.
 4. O por consola, sin escribir el valor en disco (`gh` lo pide por la entrada y no lo repite en pantalla):
@@ -110,8 +112,10 @@ environment), y en Pages no se puede pasar de Git a carga directa después.
 
    La respuesta tiene que traer `"status":"active"`. Si el token es de usuario y no de cuenta, la URL es
    `…/client/v4/user/tokens/verify`.
-2. Probar el workflow: **Actions → Deploy Cloudflare → Run workflow** → environment `staging`. Si falta algo, falla
-   con un mensaje que dice cuál nombre falta y dónde cargarlo.
+2. Probar el workflow: **Actions → Deploy Cloudflare (staging) → Run workflow** sobre `develop` o `staging`. Si falta
+   algo, falla con un mensaje que dice cuál nombre falta y dónde cargarlo. Al terminar, abrí
+   `https://<proyecto>.pages.dev/`: redirige a `/front-coordinadores-web/` (el export lleva ese `basePath`).
+   Por push a `staging` sin credenciales cargadas el workflow no falla: avisa y se salta.
 3. Comprobar que el environment `production` pide aprobación antes de arrancar.
 
 ### 7. Rotar

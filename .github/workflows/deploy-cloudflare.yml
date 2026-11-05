@@ -1,0 +1,119 @@
+name: Deploy Cloudflare (staging)
+
+# Despliegue del sitio de prueba del panel en Cloudflare Pages (carga directa), environment `staging` (issue #147).
+# Es ADICIONAL: no toca deploy-pages.yml (GitHub Pages) ni staging.yml, y no usa production.yml (Vercel, ADR-015).
+# Publica el mismo export estático con DATOS SIMULADOS (`npm run build:pages`): sin Supabase, sin claves reales.
+#
+# Credenciales (nombres, nunca valores) en el environment `staging` de GitHub; guía paso a paso en docs/ci-cloudflare.md:
+#   Secreto:   CLOUDFLARE_API_TOKEN  (token con el permiso Account → Cloudflare Pages → Edit y nada más)
+#   Variables: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_PROJECT_NAME
+# Corrida manual sin credenciales: falla y dice cuál falta y dónde cargarla. Por push a `staging` sin credenciales: avisa
+# y se salta, para no marcar en rojo cada merge mientras Cloudflare no esté configurado.
+# Sin secretos en PRs ni en forks: el job solo corre por push a `staging` o a mano, y solo sobre develop o staging.
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+  # Solo para que GitHub registre el workflow cuando un PR lo toca (ver staging.yml). En un PR no corre ningún job.
+  pull_request:
+    paths: [".github/workflows/deploy-cloudflare.yml"]
+
+permissions:
+  contents: read
+
+# Un despliegue a la vez; el que está en curso termina y el último pedido espera su turno.
+concurrency:
+  group: cloudflare-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build y despliegue a Cloudflare Pages (staging)
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    permissions:
+      contents: read
+    steps:
+      - name: Validar variables y secreto del environment
+        id: validar
+        env:
+          CUENTA: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          PROYECTO: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+          HAY_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+          EVENTO: ${{ github.event_name }}
+        run: |
+          faltan=""
+          donde="Settings → Environments → staging (guía: docs/ci-cloudflare.md)"
+          [ -n "$CUENTA" ] || faltan="$faltan CLOUDFLARE_ACCOUNT_ID (variable; se carga en ${donde}, o con: gh variable set CLOUDFLARE_ACCOUNT_ID --env staging)"
+          [ -n "$PROYECTO" ] || faltan="$faltan CLOUDFLARE_PROJECT_NAME (variable)"
+          [ "$HAY_TOKEN" = true ] || faltan="$faltan CLOUDFLARE_API_TOKEN (secreto; se carga con: gh secret set CLOUDFLARE_API_TOKEN --env staging)"
+          if [ -z "$faltan" ]; then
+            echo "listo=true" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENTO" = push ]; then
+            echo "::notice title=Cloudflare::Se salta el despliegue: faltan en el environment staging:$faltan"
+            echo "listo=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error title=Cloudflare::Faltan en el environment staging:$faltan"
+            exit 1
+          fi
+          if [ -n "$PROYECTO" ] && ! printf '%s' "$PROYECTO" | grep -Eq '^[a-z0-9][a-z0-9-]{0,56}[a-z0-9]$'; then
+            echo "::error title=Cloudflare::CLOUDFLARE_PROJECT_NAME tiene que ser solo minúsculas, números y guiones (ejemplo: panel-coordinadores-staging)."
+            exit 1
+          fi
+
+      - if: steps.validar.outputs.listo == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Node 24, el mismo que trae la imagen de desarrollo (dockerfile.dev).
+      - if: steps.validar.outputs.listo == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - if: steps.validar.outputs.listo == 'true'
+        run: npm ci
+
+      # El mismo export estático del sitio de prueba, con sus guardas (sin claves, noindex, aviso de datos simulados).
+      # Ninguna credencial de Cloudflare entra acá: el build las rechazaría y no las necesita.
+      - name: Build (export estático, datos simulados)
+        if: steps.validar.outputs.listo == 'true'
+        run: npm run build:pages
+        env:
+          DEPLOY_PAGES: "1"
+
+      # El export lleva basePath /front-coordinadores-web (lo necesita GitHub Pages). Para no tocar esa configuración, se
+      # publica dentro de esa misma carpeta y la raíz redirige: <proyecto>.pages.dev/ → /front-coordinadores-web/.
+      - name: Armar la carpeta a publicar
+        if: steps.validar.outputs.listo == 'true'
+        run: |
+          mkdir -p publicar/front-coordinadores-web
+          cp -r out/. publicar/front-coordinadores-web/
+          cp out/robots.txt publicar/robots.txt
+          printf '/ /front-coordinadores-web/ 302\n' > publicar/_redirects
+
+      - name: Publicar en Cloudflare Pages
+        id: deploy
+        if: steps.validar.outputs.listo == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          PROYECTO: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+          WRANGLER_SEND_METRICS: "false"
+        # --branch main: la rama de producción del proyecto de Pages (por defecto main), así queda en <proyecto>.pages.dev.
+        # wrangler@4 fija la versión mayor; --commit-dirty evita el aviso de árbol sucio (publicar/ no está en git).
+        # shell: bash agrega pipefail: si wrangler falla, el paso falla aunque pase por tee.
+        # Si el nombre del proyecto estaba tomado, Cloudflare le agrega un sufijo al dominio: el log trae la URL real.
+        shell: bash
+        run: |
+          npx --yes wrangler@4 pages deploy publicar --project-name "$PROYECTO" --branch main --commit-dirty=true 2>&1 | tee "$RUNNER_TEMP/wrangler.log"
+          url="https://${PROYECTO}.pages.dev/front-coordinadores-web/"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Publicado: $url" >> "$GITHUB_STEP_SUMMARY"
