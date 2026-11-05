@@ -151,7 +151,7 @@ interface CiudadAcumulada {
  * sin contar `hoy` ni lo que quede después de `ultimoDia` (el último día de una campaña terminada); si no, `null`.
  */
 export function sinDatosDesde(horasPorDia: Record<Fecha, number>, hoy: Fecha, ultimoDia: Fecha): Fecha | null {
-  const conHoras = Object.keys(horasPorDia).sort();
+  const conHoras = Object.keys(horasPorDia).sort((a, b) => a.localeCompare(b)); // fechas ISO: mismo orden que el .sort() previo
   const ultimoConHoras = conHoras[conHoras.length - 1];
   if (ultimoConHoras === undefined) return null;
   const hasta = sumarDias(hoy, -1) < ultimoDia ? sumarDias(hoy, -1) : ultimoDia;

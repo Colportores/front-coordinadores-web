@@ -28,7 +28,7 @@ export function variablesProhibidas(env) {
       if (NOMBRES_PROHIBIDOS.test(nombre)) return true;
       return nombre.startsWith("NEXT_PUBLIC_") && !NEXT_PUBLIC_TOLERADAS.has(nombre);
     })
-    .sort();
+    .sort((a, b) => (a < b ? -1 : Number(a > b))); // orden por unidades de código, como el .sort() previo
 }
 
 /** Entorno con el que corre `next build`: lo permitido del entorno actual más lo que fija el build. */

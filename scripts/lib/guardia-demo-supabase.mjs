@@ -65,7 +65,7 @@ export function problemasDelEntorno(env) {
   const otras = Object.keys(env)
     .filter((nombre) => !VARIABLES_DE_CONEXION.includes(nombre))
     .filter((nombre) => NOMBRES_PROHIBIDOS.test(nombre) || (nombre.startsWith("NEXT_PUBLIC_") && !NEXT_PUBLIC_TOLERADAS.has(nombre)))
-    .sort();
+    .sort((a, b) => (a < b ? -1 : Number(a > b))); // orden por unidades de código, como el .sort() previo
   if (otras.length > 0) problemas.push(`el entorno trae variables que este build no admite: ${otras.join(", ")}`);
   return problemas;
 }
