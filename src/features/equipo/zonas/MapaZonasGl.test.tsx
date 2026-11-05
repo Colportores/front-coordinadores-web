@@ -15,7 +15,7 @@ const doble = vi.hoisted(() => ({
   capas: [] as string[],
 }));
 
-vi.mock("maplibre-gl", () => ({ setWorkerUrl: vi.fn() }));
+vi.mock("maplibre-gl", () => ({ setWorkerUrl: vi.fn(), addProtocol: vi.fn() }));
 vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 vi.mock("react-map-gl/maplibre", () => ({
   default: (props: Record<string, unknown> & { children: ReactNode }) => {
@@ -23,6 +23,7 @@ vi.mock("react-map-gl/maplibre", () => ({
     return <div data-testid="mapa-gl">{props.children}</div>;
   },
   NavigationControl: () => <div data-testid="zoom" />,
+  AttributionControl: () => <div data-testid="atribucion" />,
   Source: ({ id, data, children }: { id: string; data: { features: unknown[] }; children: ReactNode }) => {
     doble.fuentes[id] = data;
     return <div data-testid={`fuente-${id}`}>{children}</div>;
