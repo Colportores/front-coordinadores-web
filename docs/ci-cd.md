@@ -179,7 +179,7 @@ carpeta `coverage/` está en `.gitignore`. `--maxWorkers=2` evita que el contene
 
 ## 7. Ejemplos reales de corridas fallidas (para mostrar cómo funciona el CI)
 
-Todas son corridas **reales** del workflow CI de este repo. Cada enlace lleva al log: abrí el job «lint + typecheck +
+Todas son corridas **reales** del workflow CI de este repo. La columna «Por qué falló» sale del mensaje de error del log (no de revisar cada diff), así que es la causa más probable. Cada enlace lleva al log: abrí el job «lint + typecheck +
 tests + build (Docker)» y el paso rojo «Check (lint, typecheck, tests, build)». El paso corre `npm run check`, que
 encadena lint → typecheck → tests → build y **se corta en el primero que falla**, por eso cada ejemplo muestra un solo
 tipo de error.
@@ -200,7 +200,7 @@ tipo de error.
 ### Qué muestran estos ejemplos
 
 1. **El CI corta en el primer paso rojo:** lint, luego tipos, luego tests, luego build. Un error de lint ni llega a correr los tests.
-2. **Casi todos los rojos son tests**, y de tres clases: la prueba está bien y el código no (#112, #75), el código cambió y la prueba quedó vieja (#130, #126, develop), o el entorno del test no se parece al real (#76, #74).
+2. **Casi todos los rojos son tests**, y de tres clases: el código no cumple lo que la prueba pide (#112, #75), el código cambió y la prueba quedó vieja (#130, #126, develop), o el entorno del test no se parece al real (#76, #74).
 3. **Un rojo en `develop` se hereda:** cualquier PR que parte de ahí falla igual hasta que alguien lo arregle.
 4. **Cada falla es corta de explicar:** el log trae el nombre del test, lo esperado y lo recibido.
 
