@@ -401,6 +401,21 @@ describe("casos límite del guardado", () => {
     expect(guardar()).not.toHaveAttribute("aria-disabled");
   });
 
+  it("sesión vencida que la base devuelve como resultado: el mismo aviso, el enlace y los cambios marcados", async () => {
+    montar(
+      undefined,
+      acciones(() => ({ ok: false, causa: "rechazado", mensaje: "Tu sesión venció. Volvé a entrar para seguir.", sesionVencida: true })),
+    );
+    await abrir(/^Montevideo/);
+    escribir("Salud y Hogar", "2700");
+    await userEvent.click(guardar());
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent("Tu sesión venció. Volvé a entrar para seguir.");
+    expect(within(alerta).getByRole("link")).toBeInTheDocument();
+    expect(campo("Salud y Hogar")).toHaveValue("2700");
+    expect(guardar()).not.toHaveAttribute("aria-disabled");
+  });
+
   it("27G·09 · sin conexión al guardar: avisa, deja los cambios y reintenta solo cuando vuelve internet", async () => {
     let intento = 0;
     const { acciones: a } = montar(

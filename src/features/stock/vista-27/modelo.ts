@@ -86,14 +86,15 @@ export type TituloDeGrupo = "LIBROS" | "REVISTAS" | "MATERIALES" | "PRODUCTOS" |
 
 const ORDEN_DE_GRUPOS: TituloDeGrupo[] = ["LIBROS", "REVISTAS", "MATERIALES", "PRODUCTOS", "COLECCIONES"];
 
-/** El grupo del canvas. Un producto cuyo tipo la lectura no trae va a «Productos» en vez de adivinarlo. */
+/** El grupo del canvas, por la categoría (decisión del 04/11). Un producto sin categoría va a «Productos» en vez de adivinarlo. */
 export function grupoDe(item: ItemDePrecio): TituloDeGrupo {
   if (item.tipo === "COLECCION") return "COLECCIONES";
-  switch (item.tipoDeProducto) {
-    case "LIBRO":
-    case "MISIONERO":
+  switch (item.categoria) {
+    case "BONIFICABLES":
+    case "MISIONEROS":
+    case "ESPIRITUALES":
       return "LIBROS";
-    case "REVISTA":
+    case "REVISTAS":
       return "REVISTAS";
     case "MATERIAL":
       return "MATERIALES";
@@ -113,9 +114,9 @@ export interface Etiqueta {
 export function etiquetasDe(item: ItemDePrecio): Etiqueta[] {
   if (item.tipo === "COLECCION") return [{ texto: "Colección", tono: "coleccion" }];
   const etiquetas: Etiqueta[] = [];
-  if (item.esMisionero || item.tipoDeProducto === "MISIONERO") etiquetas.push({ texto: "Misionero", tono: "misionero" });
+  if (item.esMisionero) etiquetas.push({ texto: "Misionero", tono: "misionero" });
   if (item.esBonificable) etiquetas.push({ texto: "Bonificable", tono: "bonificable" });
-  if (item.tipoDeProducto === "REVISTA") etiquetas.push({ texto: "Revista", tono: "revista" });
+  if (item.categoria === "REVISTAS") etiquetas.push({ texto: "Revista", tono: "revista" });
   return etiquetas;
 }
 

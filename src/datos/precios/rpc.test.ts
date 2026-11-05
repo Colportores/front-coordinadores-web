@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { crearFuentePreciosRpc } from "@/datos/precios/rpc";
+import { etiquetasDe, grupoDe } from "@/features/stock/vista-27/modelo";
 import { ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
 import { RespuestaInesperada } from "@/datos/supabase/respuesta";
 
@@ -44,14 +45,16 @@ function fila(extra: Record<string, unknown>) {
     valido_hasta: null,
     componentes_de_baja: null,
     libros_a_elegir: null,
+    categoria: "BONIFICABLES",
+    codigo_editor: "SH-12",
     ...extra,
   };
 }
 
 const lecturaMvd = [
   fila({ precio_modificado: 260000, precio_vigente: 260000, origen: "EXCEPCION" }),
-  fila({ id: SIN_PRECIO, nombre: "Nuestros Hijos", precio_general: null, precio_vigente: null, origen: "SIN_PRECIO" }),
-  fila({ tipo: "COLECCION", id: COMBO, nombre: "Colección de 2 libros", es_bonificable: null, precio_general: 890000, precio_vigente: 890000, libros_a_elegir: 2, componentes_de_baja: 1 }),
+  fila({ id: SIN_PRECIO, nombre: "Nuestros Hijos", precio_general: null, precio_vigente: null, origen: "SIN_PRECIO", codigo_editor: null }),
+  fila({ tipo: "COLECCION", id: COMBO, nombre: "Colección de 2 libros", es_bonificable: null, precio_general: 890000, precio_vigente: 890000, libros_a_elegir: 2, componentes_de_baja: 1, categoria: null, codigo_editor: null }),
 ];
 const lecturaLasPiedras = lecturaMvd.map((f) => ({ ...f, precio_modificado: null }));
 
@@ -83,6 +86,33 @@ describe("fuente de precios por RPC (vista 27)", () => {
     expect(datos!.excepciones).toEqual({ [MVD]: { [`PRODUCTO:${LIBRO}`]: 2600 }, [LAS_PIEDRAS]: {} });
     // Una lectura por ciudad, con el id de la campaña-ciudad.
     expect(llamarRpc.mock.calls.filter(([n]) => n === "precios_de_la_ciudad").map(([, a]) => a.p_campania_ciudad_id)).toEqual([MVD, LAS_PIEDRAS]);
+  });
+
+  it("la categoría decide el grupo y la insignia «Misionero»; el código sale de `codigo_editor` (colección: sin código ni categoría)", async () => {
+    const lectura = [
+      fila({ id: "a1111111-1111-4111-8111-111111111111", categoria: "MISIONEROS", codigo_editor: "DG-01", es_bonificable: false }),
+      fila({ id: "a2222222-2222-4222-8222-222222222222", categoria: "ESPIRITUALES", codigo_editor: "" }),
+      fila({ id: "a3333333-3333-4333-8333-333333333333", categoria: "REVISTAS", codigo_editor: null }),
+      fila({ id: "a4444444-4444-4444-8444-444444444444", categoria: "MATERIAL" }),
+      fila({ tipo: "COLECCION", id: COMBO, categoria: "MISIONEROS", codigo_editor: "COL-1", es_bonificable: null }),
+    ];
+    const { cliente } = fuente({ [MVD]: lectura, [LAS_PIEDRAS]: [] });
+    const datos = await crearFuentePreciosRpc(cliente).obtenerPrecios();
+    expect(datos!.items.map((i) => [i.categoria, i.esMisionero, i.codigo])).toEqual([
+      ["MISIONEROS", true, "DG-01"],
+      ["ESPIRITUALES", false, null],
+      ["REVISTAS", false, null],
+      ["MATERIAL", false, "SH-12"],
+      [null, false, null],
+    ]);
+    expect(datos!.items.map(grupoDe)).toEqual(["LIBROS", "LIBROS", "REVISTAS", "MATERIALES", "COLECCIONES"]);
+    expect(etiquetasDe(datos!.items[0]).map((e) => e.texto)).toEqual(["Misionero"]);
+    expect(etiquetasDe(datos!.items[2]).map((e) => e.texto)).toEqual(["Bonificable", "Revista"]);
+  });
+
+  it("una categoría que no se conoce se frena en vez de adivinar el grupo", async () => {
+    const { cliente } = fuente({ [MVD]: [fila({ categoria: "OTRA" })], [LAS_PIEDRAS]: [] });
+    await expect(crearFuentePreciosRpc(cliente).obtenerPrecios()).rejects.toBeInstanceOf(RespuestaInesperada);
   });
 
   it("sin campaña vigente devuelve null", async () => {
@@ -124,11 +154,100 @@ describe("fuente de precios por RPC (vista 27)", () => {
     expect(datos?.campaniaId).toBe(CAMPANIA);
   });
 
-  it("guardar contesta un rechazo honesto: hoy no hay RPC de escritura y nunca se afirma que se guardó", async () => {
-    const { cliente, llamarRpc } = fuente();
-    const resultado = await crearFuentePreciosRpc(cliente).guardarPrecios(CAMPANIA, MVD, [{ tipo: "PRODUCTO", id: LIBRO, precio: 2700 }]);
-    expect(resultado).toMatchObject({ ok: false, causa: "rechazado" });
-    expect(resultado.ok === false && resultado.mensaje).toMatch(/no se guardó/);
-    expect(llamarRpc).not.toHaveBeenCalled();
+});
+
+describe("guardar los precios de una ciudad por RPC (guardar_precios_de_la_ciudad)", () => {
+  const guardado = [{ tipo: "PRODUCTO", id: LIBRO, accion: "CAMBIADA" }];
+  const cambios = [
+    { tipo: "PRODUCTO" as const, id: LIBRO, precio: 2700 },
+    { tipo: "COLECCION" as const, id: COMBO, precio: null },
+  ];
+  const guardarCon = (respuesta: unknown, c = cambios, ciudad = MVD) => {
+    const { cliente, llamarRpc } = clienteCon({ guardar_precios_de_la_ciudad: respuesta });
+    return { llamarRpc, resultado: crearFuentePreciosRpc(cliente).guardarPrecios(CAMPANIA, ciudad, c) };
+  };
+
+  it("manda la ciudad y solo lo que cambió, en centavos, con null para quitar la excepción", async () => {
+    const { llamarRpc, resultado } = guardarCon(guardado);
+    expect(await resultado).toEqual({ ok: true });
+    expect(llamarRpc).toHaveBeenCalledTimes(1);
+    expect(llamarRpc).toHaveBeenCalledWith("guardar_precios_de_la_ciudad", {
+      p_campania_ciudad_id: MVD,
+      p_cambios: [
+        { tipo: "PRODUCTO", id: LIBRO, precio: 270000 },
+        { tipo: "COLECCION", id: COMBO, precio: null },
+      ],
+    });
+  });
+
+  it("un cambio sin cambio en la base (SIN_CAMBIO) es un guardado igual", async () => {
+    expect(await guardarCon([{ tipo: "PRODUCTO", id: LIBRO, accion: "SIN_CAMBIO" }]).resultado).toEqual({ ok: true });
+  });
+
+  it.each([
+    ["PP003", "El precio del cambio 1 tiene que ser un número entero mayor que cero. Corregilo, o dejalo vacío para volver al precio general."],
+    ["PP005", "El cambio 1 es de un libro que no existe o está dado de baja. Recargá los precios de la ciudad."],
+    ["CZ012", "La ciudad no está en una campaña o ya se quitó de ella. Recargá las ciudades de la campaña."],
+    ["CZ001", "La campaña no existe. Elegí otra campaña."],
+  ])("el rechazo %s vuelve como resultado con el texto de la base", async (codigo, texto) => {
+    const resultado = await guardarCon(new ErrorSupabase(texto, 400, codigo)).resultado;
+    expect(resultado).toEqual({ ok: false, causa: "rechazado", mensaje: texto });
+  });
+
+  it("sin permiso (42501 con 403) lleva el texto del panel, no el técnico de la base", async () => {
+    const resultado = await guardarCon(new ErrorSupabase("permission denied for table precio_por_ciudad", 403, "42501")).resultado;
+    expect(resultado).toEqual({ ok: false, causa: "rechazado", mensaje: expect.stringMatching(/^Solo el coordinador de la campaña puede cambiar sus precios/) });
+    expect(JSON.stringify(resultado)).not.toMatch(/permission denied/);
+  });
+
+  it("un rechazo que el panel no conoce (función ausente, mensaje técnico) no muestra el texto de la base", async () => {
+    const resultado = await guardarCon(new ErrorSupabase("Could not find the function public.guardar_precios_de_la_ciudad", 404, "PGRST202")).resultado;
+    expect(resultado).toEqual({ ok: false, causa: "rechazado", mensaje: expect.stringMatching(/^No se pudieron guardar los precios\. Tus cambios siguen marcados/) });
+  });
+
+  it.each([
+    ["JWT vencido", new ErrorSupabase("JWT expired", 401, "PGRST301")],
+    ["sin credenciales", new ErrorSupabase("No credentials", 401, "PGRST302")],
+  ])("%s: vuelve como sesión vencida y no como excepción", async (_caso, error) => {
+    expect(await guardarCon(error).resultado).toEqual({
+      ok: false,
+      causa: "rechazado",
+      mensaje: "Tu sesión venció. Volvé a entrar para seguir.",
+      sesionVencida: true,
+    });
+  });
+
+  it.each([
+    ["un 503", new ErrorSupabase("caído", 503, "XX000")],
+    ["un 429", new ErrorSupabase("límite", 429, "")],
+    ["sin red", new TypeError("fetch failed")],
+  ])("%s no es un rechazo ni afirma que se guardó: sale como excepción", async (_caso, error) => {
+    await expect(guardarCon(error).resultado).rejects.toBe(error);
+  });
+
+  it("lo que no es de esta vista se frena sin llamar a la base", async () => {
+    const malos: [string, unknown, string?][] = [
+      ["precio con centavos", [{ tipo: "PRODUCTO", id: LIBRO, precio: 27.5 }]],
+      ["precio cero", [{ tipo: "PRODUCTO", id: LIBRO, precio: 0 }]],
+      ["precio negativo", [{ tipo: "PRODUCTO", id: LIBRO, precio: -5 }]],
+      ["precio que no cabe en centavos enteros de 32 bits", [{ tipo: "PRODUCTO", id: LIBRO, precio: 21_474_837 }]],
+      ["precio NaN", [{ tipo: "PRODUCTO", id: LIBRO, precio: Number.NaN }]],
+      ["tipo desconocido", [{ tipo: "OTRO", id: LIBRO, precio: 100 }]],
+      ["id que no es un uuid", [{ tipo: "PRODUCTO", id: "x", precio: 100 }]],
+      ["el mismo item dos veces", [{ tipo: "PRODUCTO", id: LIBRO, precio: 100 }, { tipo: "PRODUCTO", id: LIBRO.toUpperCase(), precio: 200 }]],
+      ["lista vacía", []],
+      ["más de 500", Array.from({ length: 501 }, (_, n) => ({ tipo: "PRODUCTO", id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`, precio: 100 }))],
+      ["ciudad que no es un uuid", [{ tipo: "PRODUCTO", id: LIBRO, precio: 100 }], "no-es-uuid"],
+    ];
+    for (const [caso, c, ciudad] of malos) {
+      const { llamarRpc, resultado } = guardarCon(guardado, c as typeof cambios, ciudad);
+      expect(await resultado, caso).toMatchObject({ ok: false, causa: "rechazado", mensaje: expect.any(String) });
+      expect(llamarRpc, caso).not.toHaveBeenCalled();
+    }
+  });
+
+  it("el precio más alto que acepta la base (2147483647 centavos) pasa; uno más no", async () => {
+    expect(await guardarCon(guardado, [{ tipo: "PRODUCTO", id: LIBRO, precio: 21_474_836 }]).resultado).toEqual({ ok: true });
+    expect(await guardarCon(guardado, [{ tipo: "PRODUCTO", id: LIBRO, precio: 21_474_837 }]).resultado).toMatchObject({ ok: false });
   });
 });

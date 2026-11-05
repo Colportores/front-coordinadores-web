@@ -155,6 +155,8 @@ export function usePrecios(inicial: DatosDePrecios, acciones: AccionesPrecios) {
         setBorradores((actual) => ({ ...actual, [ciudadId]: descontarGuardado(actual[ciudadId] ?? {}, enviado, guardadas) }));
         const ciudad = vistos.ciudades.find((c) => c.id === ciudadId)?.nombre ?? "la ciudad";
         setAviso({ ciudadId, texto: textoDeGuardado(cambios, ciudad) });
+      } else if (resultado.sesionVencida) {
+        setFalla({ ciudadId, tipo: "sesion", motivo: "vencida" });
       } else if (resultado.causa === "sin-conexion") {
         ponerEnCola(ciudadId, cambios);
         setFalla({ ciudadId, tipo: "sin-conexion" });

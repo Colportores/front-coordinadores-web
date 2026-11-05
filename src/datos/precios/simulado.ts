@@ -4,9 +4,9 @@ import {
   type DatosDePrecios,
   type FuenteDatosPrecios,
   type ItemDePrecio,
+  type CategoriaDeProducto,
   type ResultadoDeGuardado,
   type TipoDeItem,
-  type TipoDeProducto,
 } from "./contrato";
 
 /**
@@ -18,9 +18,9 @@ function producto(
   n: number,
   nombre: string,
   codigo: string,
-  tipoDeProducto: TipoDeProducto,
+  categoria: CategoriaDeProducto,
   precioGeneral: number | null,
-  extra: Partial<Pick<ItemDePrecio, "esBonificable" | "esMisionero">> = {},
+  extra: Partial<Pick<ItemDePrecio, "esBonificable">> = {},
 ): ItemDePrecio {
   const id = `00000000-0000-4000-8000-0000000001${String(n).padStart(2, "0")}`;
   return {
@@ -29,9 +29,9 @@ function producto(
     id,
     nombre,
     codigo,
-    tipoDeProducto,
+    categoria,
     esBonificable: extra.esBonificable ?? false,
-    esMisionero: extra.esMisionero ?? false,
+    esMisionero: categoria === "MISIONEROS",
     detalle: null,
     componentesDeBaja: 0,
     precioGeneral,
@@ -46,7 +46,7 @@ function coleccion(n: number, nombre: string, codigo: string, detalle: string, p
     id,
     nombre,
     codigo,
-    tipoDeProducto: null,
+    categoria: null,
     esBonificable: false,
     esMisionero: false,
     detalle,
@@ -56,12 +56,12 @@ function coleccion(n: number, nombre: string, codigo: string, detalle: string, p
 }
 
 export const ITEMS_SIMULADOS: ItemDePrecio[] = [
-  producto(1, "Salud y Hogar", "SH-12", "LIBRO", 2400, { esBonificable: true }),
-  producto(2, "Nuestros Hijos", "NH-04", "LIBRO", 1900, { esBonificable: true }),
-  producto(3, "El Deseado de todas las gentes", "DG-01", "MISIONERO", 450, { esMisionero: true }),
-  producto(4, "La gran esperanza", "GE-02", "MISIONERO", 150, { esMisionero: true }),
-  producto(5, "Vida Feliz", "VF-10", "REVISTA", 120),
-  producto(6, "Nuestra Salud", "NS-03", "REVISTA", 120),
+  producto(1, "Salud y Hogar", "SH-12", "BONIFICABLES", 2400, { esBonificable: true }),
+  producto(2, "Nuestros Hijos", "NH-04", "BONIFICABLES", 1900, { esBonificable: true }),
+  producto(3, "El Deseado de todas las gentes", "DG-01", "MISIONEROS", 450),
+  producto(4, "La gran esperanza", "GE-02", "MISIONEROS", 150),
+  producto(5, "Vida Feliz", "VF-10", "REVISTAS", 120),
+  producto(6, "Nuestra Salud", "NS-03", "REVISTAS", 120),
   coleccion(1, "Colección de 1 libro", "COL-1", "Misionero + revista + El Deseado + 1 libro a elegir", 4800),
   coleccion(2, "Colección de 2 libros", "COL-2", "Misionero + revista + El Deseado + 2 libros a elegir", 8900),
 ];
