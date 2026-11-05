@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fechaYHoraEnMontevideo } from "./momento";
+import { fechaEnMontevideo, fechaYHoraEnMontevideo } from "./momento";
 
 const AHORA = new Date("2026-10-27T15:00:00Z");
 
@@ -39,5 +39,21 @@ describe("fechaYHoraEnMontevideo", () => {
     expect(fechaYHoraEnMontevideo(null)).toBeNull();
     expect(fechaYHoraEnMontevideo("")).toBeNull();
     expect(fechaYHoraEnMontevideo("ayer")).toBeNull();
+  });
+});
+
+describe("fechaEnMontevideo", () => {
+  it("escribe solo el día y el mes de Montevideo", () => {
+    expect(fechaEnMontevideo("2026-10-18T21:30:00Z", AHORA)).toBe("18/10");
+    expect(fechaEnMontevideo("2026-10-18T02:00:00Z", AHORA)).toBe("17/10");
+  });
+
+  it("si no es del año en curso, lleva el año", () => {
+    expect(fechaEnMontevideo("2025-12-31T21:30:00Z", AHORA)).toBe("31/12/2025");
+  });
+
+  it("devuelve null si no hay fecha o no es una fecha", () => {
+    expect(fechaEnMontevideo(null)).toBeNull();
+    expect(fechaEnMontevideo("ayer")).toBeNull();
   });
 });

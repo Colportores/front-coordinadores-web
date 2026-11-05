@@ -167,6 +167,28 @@ describe("24P·03 · la casa elegida", () => {
     expect(tarjeta.textContent).not.toMatch(/[0-9]{3,}|colportor|cliente|U\$U|UYU/i);
   });
 
+  it("24P·03: la tarjeta suma «Último cambio: dd/mm» bajo la zona, con la fecha de Montevideo", () => {
+    montar({ casas: [casa(1, "COBRANZA_PENDIENTE", { ultimoCambio: new Date().toISOString() })], elegidaId: "c1" });
+
+    const tarjeta = screen.getByRole("group", { name: "Casa elegida" });
+    expect(tarjeta).toHaveTextContent(/Cobranza pendienteCasa · Zona .+Último cambio: \d{2}\/\d{2}$/);
+  });
+
+  it("24P·03: una casa «Sin visita» (sin fecha) o con una fecha ilegible no lleva la línea", () => {
+    montar({ casas: [casa(1, "SIN_VISITA", { ultimoCambio: null })], elegidaId: "c1" });
+    expect(screen.getByRole("group", { name: "Casa elegida" })).not.toHaveTextContent(/Último cambio/);
+  });
+
+  it("una fecha ilegible tampoco inventa la línea", () => {
+    montar({ casas: [casa(1, "RECHAZO", { ultimoCambio: "ayer" })], elegidaId: "c1" });
+    expect(screen.getByRole("group", { name: "Casa elegida" })).not.toHaveTextContent(/Último cambio/);
+  });
+
+  it("la fecha del último cambio de otro año lleva el año", () => {
+    montar({ casas: [casa(1, "RECHAZO", { ultimoCambio: "2020-03-05T15:00:00Z" })], elegidaId: "c1" });
+    expect(screen.getByRole("group", { name: "Casa elegida" })).toHaveTextContent("Último cambio: 05/03/2020");
+  });
+
   it("una casa en dos zonas superpuestas las nombra a las dos", () => {
     montar({ casas: [casa(1, "RECHAZO", { zonaIds: [ZONAS[0].id, ZONAS[1].id] })], elegidaId: "c1" });
 

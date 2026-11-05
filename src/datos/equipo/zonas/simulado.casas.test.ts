@@ -39,9 +39,16 @@ describe("casasDeZonas simulada (sitio de prueba)", () => {
     expect(await fuenteZonasSimulada.casasDeZonas(CAMPANIA, [])).toEqual([]);
   });
 
+  it("las casas con estado traen la fecha de su último cambio y las «Sin visita» no", async () => {
+    const casas = await fuenteZonasSimulada.casasDeZonas(CAMPANIA, ids(MONTEVIDEO.zonas[0]));
+
+    expect(casas.filter((c) => c.estado !== "SIN_VISITA").every((c) => typeof c.ultimoCambio === "string" && !Number.isNaN(Date.parse(c.ultimoCambio)))).toBe(true);
+    expect(casas.filter((c) => c.estado === "SIN_VISITA").every((c) => c.ultimoCambio === null)).toBe(true);
+  });
+
   it("nunca lleva montos ni personas", async () => {
     const [casa] = await fuenteZonasSimulada.casasDeZonas(CAMPANIA, ids(MONTEVIDEO.zonas[0]));
 
-    expect(Object.keys(casa).sort()).toEqual(["estado", "id", "lat", "lon", "tipo", "zonaIds"]);
+    expect(Object.keys(casa).sort()).toEqual(["estado", "id", "lat", "lon", "tipo", "ultimoCambio", "zonaIds"]);
   });
 });

@@ -202,6 +202,8 @@ export interface CasaDeCiudad {
   lat: number;
   tipo: TipoDeCasa;
   estado: EstadoDeCasa;
+  /** Cuándo cambió por última vez el estado de la casa (marca ISO de `house_status.updated_at`); `null` si no tiene estado («Sin visita»). */
+  ultimoCambio?: string | null;
   zonaIds: string[];
 }
 

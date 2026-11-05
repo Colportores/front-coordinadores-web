@@ -391,6 +391,12 @@ function generadorDe(semilla: string): () => number {
   return () => (estado = (estado * 9301 + 49297) % 233280) / 233280;
 }
 
+/** Una marca ISO de hace `dias` días, a las 12:00 de Montevideo (el mismo día durante todo el día: dos lecturas dan lo mismo). */
+function haceDias(dias: number): string {
+  const hoy = Math.floor(Date.now() / 86_400_000) * 86_400_000;
+  return new Date(hoy - dias * 86_400_000 + 15 * 3_600_000).toISOString();
+}
+
 /** Casas inventadas dentro de la forma de una zona: tantas como `ubicacionesRegistradas` (hasta el tope), con estados repartidos. */
 function casasSimuladas(zona: ZonaDeCiudad): CasaDeCiudad[] {
   const aleatorio = generadorDe(zona.id);
@@ -411,6 +417,8 @@ function casasSimuladas(zona: ZonaDeCiudad): CasaDeCiudad[] {
       ...punto,
       tipo: tipo < 0.84 ? "CASA" : tipo < 0.94 ? "NEGOCIO" : "EDIFICIO",
       estado,
+      // Sin sortear: no mueve el resto de las casas simuladas. Las casas sin estado no tienen fecha.
+      ultimoCambio: estado === "SIN_VISITA" ? null : haceDias((casas.length * 7) % 45),
       zonaIds: [zona.id],
     });
   }
