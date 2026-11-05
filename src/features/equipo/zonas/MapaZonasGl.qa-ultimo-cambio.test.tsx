@@ -23,7 +23,7 @@ import { fechaEnMontevideo } from "@/lib/momento";
  * WebGL: el doble solo deja ver lo que la capa de casas pone dentro del marcador.
  */
 
-vi.mock("maplibre-gl", () => ({ setWorkerUrl: vi.fn() }));
+vi.mock("maplibre-gl", () => ({ setWorkerUrl: vi.fn(), addProtocol: vi.fn(), removeProtocol: vi.fn() }));
 vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 vi.mock("react-map-gl/maplibre", () => ({
   default: (props: { children: ReactNode }) => (
