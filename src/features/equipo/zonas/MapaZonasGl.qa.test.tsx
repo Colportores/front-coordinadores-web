@@ -210,18 +210,24 @@ describe("QA #140: accesibilidad de los avisos", () => {
     expect(screen.getByRole("button", { name: "Reintentar" })).toHaveAttribute("type", "button");
   });
 
-  // QA #140: «Reintentar» desmonta el aviso y el mapa mientras recarga; el foco cae al <body> (MapaZonasGl.tsx reintentarMapa).
-  it.skip("QA #140: después de «Reintentar» el foco no cae al <body> (el botón se desmonta mientras vuelve a cargar)", async () => {
-    bucket({ fallas: 1 });
+  it("después de «Reintentar» el foco no cae al <body>, ni con el reintento fallido ni cuando por fin carga", async () => {
+    bucket({ fallas: 2 });
     montar();
     await screen.findByRole("alert");
-    const boton = screen.getByRole("button", { name: "Reintentar" });
-    boton.focus();
-    expect(document.activeElement).toBe(boton);
 
-    fireEvent.click(boton);
+    // Primer reintento: vuelve a fallar. El botón se desmonta pero el foco queda en el contenedor del mapa.
+    const primero = screen.getByRole("button", { name: "Reintentar" });
+    primero.focus();
+    fireEvent.click(primero);
+    expect(document.activeElement).not.toBe(document.body);
+    await screen.findByRole("alert");
+    expect(document.activeElement).not.toBe(document.body);
+
+    // Segundo reintento: carga.
+    const segundo = screen.getByRole("button", { name: "Reintentar" });
+    segundo.focus();
+    fireEvent.click(segundo);
     await vi.waitFor(() => expect(hayCalles()).toBe(true));
-
     expect(document.activeElement).not.toBe(document.body);
   });
 

@@ -90,6 +90,7 @@ export function MapaZonasGl({
   const [sinTiles, setSinTiles] = useState<string | null>(null);
   const [cargado, setCargado] = useState<string | null>(null);
   const [lento, setLento] = useState<string | null>(null);
+  const [contenedor, setContenedor] = useState<HTMLDivElement | null>(null);
   const esperando = base.fase !== "cargando";
   // El mapa que no llega a `load` (el worker no se sirvió, los tiles no bajan) no avisa nada por sí solo.
   useEffect(() => {
@@ -171,6 +172,8 @@ export function MapaZonasGl({
   }
 
   function reintentarMapa() {
+    // El botón y el mapa se desmontan mientras se vuelve a pedir: el foco pasa al contenedor, que no se desmonta.
+    contenedor?.focus();
     // El protocolo de PMTiles guarda también los pedidos que fallaron: sin esto, el reintento no vuelve a pedir el archivo.
     olvidarArchivosPmtiles();
     setReinicio((n) => n + 1);
@@ -210,16 +213,7 @@ export function MapaZonasGl({
           ? { tipo: "sin-paquete", ciudad: ciudad.nombre }
           : null;
 
-  if (base.fase === "cargando") {
-    return (
-      <div aria-live="polite" className="grid h-full place-items-center bg-superficie-mapa text-chico text-tinta-suave">
-        Cargando el mapa…
-      </div>
-    );
-  }
-  if (sinWebgl === claveDelMapa) return <AvisoDelMapaBase aviso={{ tipo: "sin-webgl" }} />;
-
-  return (
+  const mapa = (
     <Map
       key={claveDelMapa}
       initialViewState={{ longitude: ciudad.centro.lon, latitude: ciudad.centro.lat, zoom: ciudad.zoom }}
@@ -347,5 +341,20 @@ export function MapaZonasGl({
 
       {aviso ? <AvisoDelMapaBase aviso={aviso} /> : null}
     </Map>
+  );
+
+  // Un contenedor fijo: lo que hay adentro (el aviso de «Cargando», el mapa, los avisos) se desmonta y se vuelve a montar al reintentar.
+  return (
+    <div ref={setContenedor} tabIndex={-1} className="h-full outline-none focus-visible:outline-2 focus-visible:-outline-offset-2">
+      {base.fase === "cargando" ? (
+        <div aria-live="polite" className="grid h-full place-items-center bg-superficie-mapa text-chico text-tinta-suave">
+          Cargando el mapa…
+        </div>
+      ) : sinWebgl === claveDelMapa ? (
+        <AvisoDelMapaBase aviso={{ tipo: "sin-webgl" }} />
+      ) : (
+        mapa
+      )}
+    </div>
   );
 }
