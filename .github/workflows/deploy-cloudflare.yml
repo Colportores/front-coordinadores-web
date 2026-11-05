@@ -4,7 +4,8 @@ name: Deploy Cloudflare (staging)
 # Es ADICIONAL: no toca deploy-pages.yml (GitHub Pages) ni staging.yml, y no usa production.yml (Vercel, ADR-015).
 # Publica el mismo export estático con DATOS SIMULADOS (`npm run build:pages`): sin Supabase, sin claves reales.
 #
-# Credenciales (nombres, nunca valores) en el environment `staging` de GitHub; guía paso a paso en docs/ci-cloudflare.md:
+# Credenciales (nombres, nunca valores): del environment `staging` o, como hoy, de la organización con acceso a este repo
+# (un secreto o variable del environment pisa al de la organización); guía paso a paso en docs/ci-cloudflare.md:
 #   Secreto:   CLOUDFLARE_API_TOKEN  (token con el permiso Account → Cloudflare Pages → Edit y nada más)
 #   Variables: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_PROJECT_NAME
 # Corrida manual sin credenciales: falla y dice cuál falta y dónde cargarla. Por push a `staging` sin credenciales: avisa
@@ -48,17 +49,17 @@ jobs:
           EVENTO: ${{ github.event_name }}
         run: |
           faltan=""
-          donde="Settings → Environments → staging (guía: docs/ci-cloudflare.md)"
+          donde="Settings → Environments → staging o a nivel organización con acceso a este repo (guía: docs/ci-cloudflare.md)"
           [ -n "$CUENTA" ] || faltan="$faltan CLOUDFLARE_ACCOUNT_ID (variable; se carga en ${donde}, o con: gh variable set CLOUDFLARE_ACCOUNT_ID --env staging)"
           [ -n "$PROYECTO" ] || faltan="$faltan CLOUDFLARE_PROJECT_NAME (variable)"
           [ "$HAY_TOKEN" = true ] || faltan="$faltan CLOUDFLARE_API_TOKEN (secreto; se carga con: gh secret set CLOUDFLARE_API_TOKEN --env staging)"
           if [ -z "$faltan" ]; then
             echo "listo=true" >> "$GITHUB_OUTPUT"
           elif [ "$EVENTO" = push ]; then
-            echo "::notice title=Cloudflare::Se salta el despliegue: faltan en el environment staging:$faltan"
+            echo "::notice title=Cloudflare::Se salta el despliegue: faltan (environment staging u organización):$faltan"
             echo "listo=false" >> "$GITHUB_OUTPUT"
           else
-            echo "::error title=Cloudflare::Faltan en el environment staging:$faltan"
+            echo "::error title=Cloudflare::Faltan (environment staging u organización):$faltan"
             exit 1
           fi
           if [ -n "$PROYECTO" ] && ! printf '%s' "$PROYECTO" | grep -Eq '^[a-z0-9][a-z0-9-]{0,56}[a-z0-9]$'; then

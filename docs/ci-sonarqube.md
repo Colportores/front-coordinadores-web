@@ -11,7 +11,7 @@ forks, o antes de terminar esta guía), el paso se salta y el CI pasa igual.
 
 | Nombre | Tipo | Dónde | Qué es |
 |---|---|---|---|
-| `SONAR_TOKEN` | **secreto** | repositorio (Settings → Secrets and variables → Actions) | Token del proyecto en SonarQube Cloud. A nivel repositorio, no environment: el CI corre en PRs, no en un deploy |
+| `SONAR_TOKEN` | **secreto** | repositorio u organización con acceso a este repo (Settings → Secrets and variables → Actions) | Token del proyecto en SonarQube Cloud. A nivel repositorio, no environment: el CI corre en PRs, no en un deploy |
 | `SONAR_ORGANIZATION` | variable | repositorio | Clave de la organización en SonarQube Cloud |
 | `SONAR_PROJECT_KEY` | variable | repositorio | Clave del proyecto (se ve en Project Information) |
 

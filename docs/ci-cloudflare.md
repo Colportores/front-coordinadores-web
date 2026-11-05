@@ -23,6 +23,16 @@ pisan con los de Vercel ni con las variables de nivel repositorio.
 Cada environment tiene su propio token y su propio proyecto: así se rota o se revoca uno sin tocar el otro, y un fallo
 en staging no alcanza a producción.
 
+## Org o environment: dónde viven los valores
+
+Los workflows leen `secrets.CLOUDFLARE_API_TOKEN` y `vars.CLOUDFLARE_*` sin importar dónde estén cargados. Hoy están a
+**nivel organización, con acceso limitado a este repo** (Organization settings → Secrets and variables → Actions). Ojo:
+un secreto de organización **no pasa por las reglas del environment** (revisores requeridos, ramas permitidas): cualquier
+workflow de una rama de este repo lo puede leer. Si se quiere esa protección, cargá el mismo nombre en el environment
+(`gh secret set CLOUDFLARE_API_TOKEN --env staging`): el del environment pisa al de la organización. Con el token de
+permiso mínimo (solo Cloudflare Pages) y sin acceso de escritura abierto al repo, el riesgo es bajo para staging;
+para `production` conviene el environment con revisores.
+
 ## Paso a paso
 
 ### 1. Cuenta de Cloudflare
