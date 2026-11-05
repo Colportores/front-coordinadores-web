@@ -13,6 +13,8 @@ import {
   formatoPesos,
   subtituloDeCiudad,
   SUBTITULO_GENERAL,
+  bonificablesSinPrecioEnCiudad,
+  textoDeAlertaSinPrecioEnCiudad,
   textoDeAplicacion,
   textoDeCambios,
   textoDeCorregir,
@@ -170,11 +172,21 @@ describe("canvas 27G (precios: general y excepciones por ciudad)", () => {
     expect(textoDeCorregir(1)).toBe(artboard("27G-04").barSub);
   });
 
-  it("27G·05 · producto sin precio en una ciudad (las filas; la alerta de la ciudad no va, decisión del 04/11)", () => {
+  it("27G·05 · producto sin precio en una ciudad: las filas, la insignia de la pestaña y la alerta (decisión del 05/11, «Sin general»)", () => {
     const datos = crearDatosDePreciosSimulados();
     datos.items = datos.items.map((i) => (i.clave === NH.clave ? { ...i, precioGeneral: null } : i));
     compararCiudad("27G-05", datos, LAS_PIEDRAS.id, {});
     expect(subtituloDeCiudad("Las Piedras")).toBe(artboard("27G-05").sub);
+
+    const del = artboard("27G-05");
+    // La insignia de Las Piedras es la del canvas; Montevideo conserva la suya (el canvas no le dibuja la falta de precio).
+    expect(armarPestanas(datos, {}).find((p) => p.nombre === "Las Piedras")?.faltan).toBe(del.tabs[2].badge);
+    // La alerta empieza con la frase del canvas; después dice qué hacer (decisión del 05/11).
+    const alerta = textoDeAlertaSinPrecioEnCiudad(bonificablesSinPrecioEnCiudad(datos, LAS_PIEDRAS.id), "Las Piedras");
+    expect(alerta?.startsWith(del.banner)).toBe(true);
+    expect(alerta).toBe(`${del.banner} Cargá su precio en Las Piedras o pedile el general a Administración.`);
+    expect(del.bRole).toBe("alert");
+    expect(del.bBtn).toBe("Agregar precio");
   });
 
   it("27G·08 y 27G·09 · error al guardar y sin conexión: dos cambios marcados / uno marcado", () => {
