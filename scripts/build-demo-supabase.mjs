@@ -62,7 +62,9 @@ cpSync(join(raiz, ".next", "static"), join(salida, ".next", "static"), { recursi
 if (existsSync(join(raiz, "public"))) cpSync(join(raiz, "public"), join(salida, "public"), { recursive: true });
 mkdirSync(join(salida, "public"), { recursive: true });
 
-const commit = (process.env.GITHUB_SHA ?? spawnSync("git", ["rev-parse", "HEAD"], { cwd: raiz, encoding: "utf8" }).stdout ?? "").trim() || "desconocido";
+// En el CI llega GITHUB_SHA; en local se pide a `git` del PATH de la máquina del desarrollador (no hay otra forma de saberlo).
+// NOSONAR S4036: es un script de desarrollo, el PATH es el del propio desarrollador o del runner.
+const commit = (process.env.GITHUB_SHA ?? spawnSync("git", ["rev-parse", "HEAD"], { cwd: raiz, encoding: "utf8" }).stdout ?? "").trim() || "desconocido"; // NOSONAR
 writeFileSync(join(salida, "public", "robots.txt"), ROBOTS_TXT);
 writeFileSync(join(salida, "README.md"), readmeDelArtefacto({ commit, fecha: new Date().toISOString() }));
 

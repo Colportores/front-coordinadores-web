@@ -39,11 +39,11 @@ export function destinoSeguro(valor: unknown): string {
   if (/[\u0000-\u001f\u007f]/.test(valor)) return RUTA_INICIAL;
   let url: URL;
   try {
-    url = new URL(valor, "http://panel.invalido");
+    url = new URL(valor, "https://panel.invalido");
   } catch {
     return RUTA_INICIAL;
   }
-  if (url.origin !== "http://panel.invalido") return RUTA_INICIAL;
+  if (url.origin !== "https://panel.invalido") return RUTA_INICIAL;
   // `new URL` normaliza `/.//sitio.malo`, `/..//x` y `/%2e//x` a `//sitio.malo`: el chequeo de arriba mira el texto sin normalizar, y
   // el navegador lee un `//` inicial como otro sitio. Se vuelve a mirar el camino ya normalizado.
   if (!url.pathname.startsWith("/") || url.pathname.startsWith("//")) return RUTA_INICIAL;
