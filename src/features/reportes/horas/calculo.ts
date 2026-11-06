@@ -12,6 +12,7 @@ import {
   rotuloDelMes,
   sumarDias,
 } from "@/datos/reportes/fechas";
+import { conPuntosDeMiles } from "@/lib/texto";
 
 /**
  * Cuentas de la vista 32 (HU-REP-001 y HU-REP-002): de las horas y las ventas de cada día salen los períodos (días,
@@ -322,7 +323,7 @@ export function tendenciaEnPuntos(actual: Cifra, base: Cifra | null): Tendencia 
 
 /** Miles con punto: 1450 → «1.450». */
 export function formatearEntero(valor: number): string {
-  return String(Math.round(valor)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return conPuntosDeMiles(String(Math.round(valor)));
 }
 
 /** Una posición decimal con coma: 27.4 → «27,4». */

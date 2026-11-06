@@ -1,3 +1,5 @@
+import { sinBarrasFinales } from "@/lib/texto";
+
 /**
  * Conexión de desarrollo a Supabase (demo del 07/10, issue #45).
  *
@@ -20,7 +22,7 @@ type Entorno = Record<string, string | undefined>;
 export function leerConfigSupabase(env: Entorno = process.env): ConfigSupabase | null {
   if (env.NODE_ENV === "production") return null;
 
-  const url = env.SUPABASE_URL?.trim().replace(/\/+$/, "");
+  const url = typeof env.SUPABASE_URL === "string" ? sinBarrasFinales(env.SUPABASE_URL.trim()) : undefined;
   const anonKey = env.SUPABASE_ANON_KEY?.trim();
   const email = env.SUPABASE_COORDINADOR_EMAIL?.trim();
   const password = env.SUPABASE_COORDINADOR_PASSWORD;

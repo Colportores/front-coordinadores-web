@@ -7,6 +7,7 @@ import type {
   PendienteDeAccion,
   TableroDelDia,
 } from "@/datos/inicio";
+import { conPuntosDeMiles } from "@/lib/texto";
 
 /**
  * Lo que la vista 31 (Inicio) hace con los datos del día: qué ciudades entran en cada elección, las sumas, las listas
@@ -234,7 +235,7 @@ export function horasTexto(horas: number): string {
 export function montoTexto(centavos: number): string {
   const pesos = Math.trunc(centavos / 100);
   const resto = Math.abs(centavos % 100);
-  const miles = String(pesos).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const miles = conPuntosDeMiles(String(pesos));
   return `$U ${miles}${resto === 0 ? "" : `,${String(resto).padStart(2, "0")}`}`;
 }
 

@@ -1,4 +1,5 @@
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
+import { sinBarrasFinales } from "@/lib/texto";
 
 /**
  * El mapa de fondo del panel (ADR-011): un PMTiles de OpenStreetMap por ciudad, publicado en el bucket público `mapas` de
@@ -28,7 +29,7 @@ export interface CatalogoDeMapas {
 export const FUENTE_DE_TILES = "protomaps";
 
 export function urlDelCatalogo(supabaseUrl: string): string {
-  return `${supabaseUrl.replace(/\/+$/, "")}/storage/v1/object/public/mapas/catalogo.json`;
+  return `${sinBarrasFinales(supabaseUrl)}/storage/v1/object/public/mapas/catalogo.json`;
 }
 
 const esObjeto = (valor: unknown): valor is Record<string, unknown> =>

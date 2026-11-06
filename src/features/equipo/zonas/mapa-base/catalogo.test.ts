@@ -42,6 +42,13 @@ describe("urlDelCatalogo", () => {
   it("cuelga el catálogo del bucket público de mapas, con o sin barra final", () => {
     expect(urlDelCatalogo("https://abc.supabase.co")).toBe(URL_CATALOGO);
     expect(urlDelCatalogo("https://abc.supabase.co/")).toBe(URL_CATALOGO);
+    expect(urlDelCatalogo("https://abc.supabase.co///")).toBe(URL_CATALOGO);
+  });
+
+  it("una cadena enorme de barras no cuelga el armado de la URL", () => {
+    const inicio = Date.now();
+    expect(urlDelCatalogo(`https://abc.supabase.co${"/".repeat(200_000)}`)).toBe(URL_CATALOGO);
+    expect(Date.now() - inicio).toBeLessThan(1500);
   });
 });
 
