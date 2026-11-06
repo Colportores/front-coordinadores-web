@@ -1,5 +1,6 @@
 import type { BecaDeColportor, CarreraDelCatalogo, DatosDeBecas, MetaDeBeca, ResultadoBeca, TipoDeBeca } from "@/datos/equipo/contrato";
 import { logroDeBeca } from "@/datos/equipo/logro-de-beca";
+import { generadorDeAzar } from "@/lib/azar";
 
 /**
  * Datos de ejemplo de la pestaña «Becas» de la vista 33 (diseño «33 Equipo», canvas del 21/10). Las metas por carrera son
@@ -40,19 +41,8 @@ function semillaDe(texto: string): number {
   return h >>> 0;
 }
 
-function generador(semilla: number): () => number {
-  let s = semilla;
-  return () => {
-    s |= 0;
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 function becaInicial(nombre: string): BecaDeColportor {
-  const r = generador(semillaDe(`${nombre}eq`));
+  const r = generadorDeAzar(semillaDe(`${nombre}eq`));
   let elegida = CARRERAS_SIMULADAS[Math.floor(r() * CARRERAS_SIMULADAS.length)];
   let tipo: TipoDeBeca = r() < 0.45 ? "completa" : "media";
   const progreso = 0.25 + r() * 0.45;

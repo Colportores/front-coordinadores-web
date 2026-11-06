@@ -246,6 +246,8 @@ export function SelectorDeCampania({
         id={idOpcion(indice)}
         role="option"
         aria-selected={elegida}
+        // El foco se queda en la lista (aria-activedescendant); la opción se puede enfocar por código, no con Tab.
+        tabIndex={-1}
         title={c.nombre}
         // Que el clic no mueva el foco de la lista.
         onMouseDown={(e) => e.preventDefault()}
@@ -278,7 +280,8 @@ export function SelectorDeCampania({
     );
 
   return (
-    <div ref={envoltorio} className="relative" onKeyDown={alTeclear} onBlur={alSalirElFoco}>
+    // El envoltorio no es un control: solo recibe las teclas y la salida del foco del botón y de la lista que tiene adentro.
+    <div ref={envoltorio} role="presentation" className="relative" onKeyDown={alTeclear} onBlur={alSalirElFoco}>
       <button
         ref={boton}
         type="button"
