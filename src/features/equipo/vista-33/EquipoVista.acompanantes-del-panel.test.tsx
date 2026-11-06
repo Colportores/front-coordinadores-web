@@ -63,8 +63,8 @@ async function abrir(opciones: { acciones?: ReturnType<typeof crearAcciones>; da
 
 const botonDe = (cuando: string) =>
   screen.getByRole("button", { name: `Registrar acompañamiento en la jornada de Florencia Pintos del ${cuando}` });
-const otroRadio = () => screen.getByRole("radio", { name: "Otro colportor" });
-const selector = () => screen.getByRole("combobox", { name: "Colportor que acompañó" });
+const otroRadio = () => screen.getByRole("radio", { name: "Otra persona" });
+const selector = () => screen.getByRole("combobox", { name: "Quién acompañó" });
 const grupo = () => within(selector()).getByRole("group", { name: "Coordinadores y administradores" });
 const textos = (el: HTMLElement) => within(el).getAllByRole("option").map((o) => o.textContent);
 
@@ -76,7 +76,7 @@ describe("el selector con los dos grupos", () => {
     await usuario.click(otroRadio());
 
     expect(textos(selector())).toEqual([
-      "Elegí un colportor",
+      "Elegí quién acompañó",
       "Emiliano Sosa",
       "Federico Da Rosa",
       "Rocío Benítez",
@@ -126,7 +126,7 @@ describe("el selector con los dos grupos", () => {
     await usuario.click(otroRadio());
 
     expect(within(selector()).queryByRole("group")).not.toBeInTheDocument();
-    expect(textos(selector())).toEqual(["Elegí un colportor", "Emiliano Sosa", "Federico Da Rosa", "Rocío Benítez", "Sofía Cabral"]);
+    expect(textos(selector())).toEqual(["Elegí quién acompañó", "Emiliano Sosa", "Federico Da Rosa", "Rocío Benítez", "Sofía Cabral"]);
   });
 
   it("sin la acción (la vista de antes) tampoco hay grupo ni pide nada", async () => {
@@ -151,7 +151,7 @@ describe("el selector con los dos grupos", () => {
     const con = await abrir({ datos: solo });
     await waitFor(() => expect(otroRadio()).toBeEnabled());
     await con.usuario.click(otroRadio());
-    expect(textos(selector())).toEqual(["Elegí un colportor", "Alicia Benítez", "Marta Rivas", "Tomás Ibarra"]);
+    expect(textos(selector())).toEqual(["Elegí quién acompañó", "Alicia Benítez", "Marta Rivas", "Tomás Ibarra"]);
     expect(screen.queryByText("No hay otros colportores en esta campaña.")).not.toBeInTheDocument();
     con.unmount();
 

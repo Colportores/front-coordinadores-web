@@ -28,7 +28,7 @@ type Carga =
 /** Los coordinadores y administradores del selector: llegan aparte de las jornadas y sin ellos el panel sigue andando. */
 type Personas = { tipo: "cargando" } | { tipo: "error"; mensaje: string } | { tipo: "lista"; personas: AcompananteDelPanel[] };
 
-/** «Yo» (la coordinación de la sesión) u «Otro colportor» de la misma campaña. */
+/** «Yo» (la coordinación de la sesión) u «Otra persona» de la misma campaña. */
 type Quien = "yo" | "otro";
 
 /** El aviso de arriba de la lista: lo que salió bien, o lo que pasó y hay que saber (la nota no se guardó). */
@@ -60,7 +60,7 @@ export interface AcompanamientoRegistrado {
 }
 
 /**
- * «Registrar acompañamiento» de una fila (HU-JOR-004): quién lo acompañó («Yo» u «Otro colportor» de la campaña), una nota
+ * «Registrar acompañamiento» de una fila (HU-JOR-004): quién lo acompañó («Yo» u «Otra persona» de la campaña), una nota
  * opcional y las jornadas terminadas del colportor en la campaña, de la más nueva a la más vieja. Solo se ofrecen las
  * que nadie acompañó; las que ya tienen acompañante figuran con su nombre y no se tocan: el panel nunca pisa un
  * acompañamiento ya registrado. Pasados los 15 días del fin de la campaña no se registra nada y el panel lo dice.
@@ -362,14 +362,14 @@ function PanelDeRegistro({
                   onChange={() => setQuien("otro")}
                   className="size-4 accent-marca"
                 />
-                Otro colportor
+                Otra persona
               </label>
               {sinNadieMas && <span className="text-chico text-tinta-suave">No hay otros colportores en esta campaña.</span>}
             </div>
             {quien === "otro" && (
               <div className="flex min-w-0 flex-col gap-1">
                 <label htmlFor={idOtro} className="text-chico font-semibold text-tinta-2">
-                  Colportor que acompañó
+                  Quién acompañó
                 </label>
                 <select
                   id={idOtro}
@@ -386,7 +386,7 @@ function PanelDeRegistro({
                     faltaElOtro ? "border-peligro" : "border-borde",
                   )}
                 >
-                  <option value="">Elegí un colportor</option>
+                  <option value="">Elegí quién acompañó</option>
                   {otros.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.nombre}

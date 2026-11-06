@@ -288,7 +288,7 @@ export function crearFuentePestanaRpc(
         const vistos = new Set<string>();
         const acompanantes = [];
         for (const fila of filas(rpc, crudas)) {
-          const id = cadena(rpc, fila, "id");
+          const id = cadena(rpc, fila, "usuario_id");
           // Quien tiene la sesión es «Yo», no «otro»; y la base puede traer a la misma persona por más de un rol.
           if (id === yo || vistos.has(id)) continue;
           vistos.add(id);

@@ -10,7 +10,7 @@ import { colportor, datosDePrueba, HOY } from "./datos-de-prueba";
 import { EquipoVista } from "./EquipoVista";
 
 /**
- * HU-JOR-004 en la vista 33 (seguimiento #96 de #63): «Quién lo acompañó» («Yo» u «Otro colportor» de la campaña), la
+ * HU-JOR-004 en la vista 33 (seguimiento #96 de #63): «Quién lo acompañó» («Yo» u «Otra persona» de la campaña), la
  * nota opcional de hasta 500 caracteres, el origen y la nota en el historial, el rótulo de «Días sin acompañar» según
  * `contado_desde`, el aviso de CZ011 (más de 15 días del fin de la campaña) y la nota que no se guarda sobre un
  * acompañamiento que ya estaba registrado.
@@ -59,18 +59,18 @@ const campoNota = () => screen.getByRole("textbox", { name: "Nota (opcional)" })
 const fila = (nombre: RegExp | string) => screen.getByRole("row", { name: nombre });
 
 async function elegirOtro(usuario: Usuario, nombre: string) {
-  await usuario.click(screen.getByRole("radio", { name: "Otro colportor" }));
-  await usuario.selectOptions(screen.getByRole("combobox", { name: "Colportor que acompañó" }), nombre);
+  await usuario.click(screen.getByRole("radio", { name: "Otra persona" }));
+  await usuario.selectOptions(screen.getByRole("combobox", { name: "Quién acompañó" }), nombre);
 }
 
 describe("«Quién lo acompañó» y la nota", () => {
-  it("ofrece «Yo» (elegido) y «Otro colportor», y la nota con el aviso «Sin datos de clientes.» y su contador", async () => {
+  it("ofrece «Yo» (elegido) y «Otra persona», y la nota con el aviso «Sin datos de clientes.» y su contador", async () => {
     await abrir();
     await screen.findByRole("list", { name: /Jornadas terminadas/ });
 
     expect(screen.getByRole("group", { name: "QUIÉN LO ACOMPAÑÓ" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Yo" })).toBeChecked();
-    expect(screen.getByRole("radio", { name: "Otro colportor" })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: "Otra persona" })).not.toBeChecked();
     expect(campoNota()).toHaveValue("");
     expect(campoNota()).toHaveAccessibleDescription(/Sin datos de clientes\..*0 de 500 caracteres/);
   });
@@ -97,14 +97,14 @@ describe("«Quién lo acompañó» y la nota", () => {
     expect(campoNota()).toHaveValue("");
   });
 
-  it("«Otro colportor» ofrece a los demás de la campaña por orden alfabético, sin el dueño de la jornada, y lo manda", async () => {
+  it("«Otra persona» ofrece a los demás de la campaña por orden alfabético, sin el dueño de la jornada, y lo manda", async () => {
     const { acciones, usuario } = await abrir();
     await screen.findByRole("list", { name: /Jornadas terminadas/ });
 
-    await usuario.click(screen.getByRole("radio", { name: "Otro colportor" }));
-    const selector = screen.getByRole("combobox", { name: "Colportor que acompañó" });
+    await usuario.click(screen.getByRole("radio", { name: "Otra persona" }));
+    const selector = screen.getByRole("combobox", { name: "Quién acompañó" });
     expect(within(selector).getAllByRole("option").map((o) => o.textContent)).toEqual([
-      "Elegí un colportor",
+      "Elegí quién acompañó",
       "Emiliano Sosa",
       "Federico Da Rosa",
       "Rocío Benítez",
@@ -137,16 +137,16 @@ describe("«Quién lo acompañó» y la nota", () => {
     expect(historial.getByText("Repasamos la colección.")).toBeInTheDocument();
   });
 
-  it("«Otro colportor» sin elegir a nadie no manda nada: lo dice en el campo y el foco va al selector", async () => {
+  it("«Otra persona» sin elegir a nadie no manda nada: lo dice en el campo y el foco va al selector", async () => {
     const { acciones, usuario } = await abrir();
     await screen.findByRole("list", { name: /Jornadas terminadas/ });
-    await usuario.click(screen.getByRole("radio", { name: "Otro colportor" }));
+    await usuario.click(screen.getByRole("radio", { name: "Otra persona" }));
 
     await usuario.click(botonDe("mar 20/10"));
 
     expect(acciones.registrarAcompanamiento).not.toHaveBeenCalled();
     expect(await screen.findByRole("alert")).toHaveTextContent("Elegí al colportor que acompañó, o cambiá a «Yo».");
-    const selector = screen.getByRole("combobox", { name: "Colportor que acompañó" });
+    const selector = screen.getByRole("combobox", { name: "Quién acompañó" });
     expect(selector).toHaveFocus();
     expect(selector).toBeInvalid();
     // Elegir a alguien quita el aviso, y volver a «Yo» también.
@@ -154,12 +154,12 @@ describe("«Quién lo acompañó» y la nota", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("si no hay otros colportores, «Otro colportor» no se puede elegir y lo dice", async () => {
+  it("si no hay otros colportores, «Otra persona» no se puede elegir y lo dice", async () => {
     const datos = datosDePrueba({ colportores: [colportor({ id: "florencia", nombre: "Florencia Pintos" })] });
     await abrir({ datos });
     await screen.findByRole("list", { name: /Jornadas terminadas/ });
 
-    expect(screen.getByRole("radio", { name: "Otro colportor" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Otra persona" })).toBeDisabled();
     expect(screen.getByText("No hay otros colportores en esta campaña.")).toBeInTheDocument();
   });
 
@@ -186,7 +186,7 @@ describe("«Quién lo acompañó» y la nota", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Necesitás conexión para registrar el acompañamiento.");
     expect(campoNota()).toHaveValue("Buena jornada");
-    expect(screen.getByRole("combobox", { name: "Colportor que acompañó" })).toHaveValue("federico");
+    expect(screen.getByRole("combobox", { name: "Quién acompañó" })).toHaveValue("federico");
     expect(botonDe("mar 20/10")).toHaveAttribute("aria-disabled", "false");
 
     await usuario.click(botonDe("mar 20/10"));
@@ -256,9 +256,9 @@ describe("«Quién lo acompañó» y la nota", () => {
     const { usuario } = await abrir({ datos });
     await screen.findByRole("list", { name: /Jornadas terminadas/ });
 
-    await usuario.click(screen.getByRole("radio", { name: "Otro colportor" }));
+    await usuario.click(screen.getByRole("radio", { name: "Otra persona" }));
 
-    expect(within(screen.getByRole("combobox", { name: "Colportor que acompañó" })).getAllByRole("option")).toHaveLength(301);
+    expect(within(screen.getByRole("combobox", { name: "Quién acompañó" })).getAllByRole("option")).toHaveLength(301);
   });
 });
 
@@ -519,7 +519,7 @@ describe("pasaron más de 15 días del fin de la campaña (CZ011)", () => {
 });
 
 describe("accesibilidad del registro", () => {
-  it("axe A/AA sin violaciones con «Otro colportor», la nota escrita y el aviso de la nota no guardada", async () => {
+  it("axe A/AA sin violaciones con «Otra persona», la nota escrita y el aviso de la nota no guardada", async () => {
     vi.setConfig({ testTimeout: 60_000 });
     const acciones = crearAcciones();
     acciones.registrarAcompanamiento.mockResolvedValueOnce(ok("2026-10-20", { yaEstaba: true, origen: "COLPORTOR" }));

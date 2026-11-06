@@ -29,12 +29,12 @@ const perfil = [{ usuario_id: YO, nombre: "Mariana", apellido: "Pérez" }];
 const rechazo = (codigo: string, mensaje: string, estado = 400) => new ErrorSupabase(mensaje, estado, codigo);
 
 describe("acompanantesDelPanel", () => {
-  it("pide la lista de la campaña y devuelve id y nombre, sin ningún otro dato", async () => {
+  it("pide la lista de la campaña y devuelve id (la columna `usuario_id` de la RPC 0183) y nombre, sin ningún otro dato", async () => {
     const { cliente, llamarRpc } = clienteCon({
       mi_perfil: perfil,
       acompaniantes_del_panel: [
-        { id: MARTA, nombre: "Marta", apellido: "Rivas", email: "marta@example.com", telefono: "099" },
-        { id: ALICIA, nombre: "Alicia", apellido: "Benítez" },
+        { usuario_id: MARTA, nombre: "Marta", apellido: "Rivas", email: "marta@example.com", telefono: "099" },
+        { usuario_id: ALICIA, nombre: "Alicia", apellido: "Benítez" },
       ],
     });
 
@@ -54,9 +54,9 @@ describe("acompanantesDelPanel", () => {
     const { cliente } = clienteCon({
       mi_perfil: perfil,
       acompaniantes_del_panel: [
-        { id: YO, nombre: "Mariana", apellido: "Pérez" },
-        { id: MARTA, nombre: "Marta", apellido: "Rivas" },
-        { id: MARTA, nombre: "Marta", apellido: "Rivas" },
+        { usuario_id: YO, nombre: "Mariana", apellido: "Pérez" },
+        { usuario_id: MARTA, nombre: "Marta", apellido: "Rivas" },
+        { usuario_id: MARTA, nombre: "Marta", apellido: "Rivas" },
       ],
     });
 
@@ -67,7 +67,7 @@ describe("acompanantesDelPanel", () => {
   });
 
   it("una cuenta sin nombre ni apellido no se muestra vacía", async () => {
-    const { cliente } = clienteCon({ mi_perfil: perfil, acompaniantes_del_panel: [{ id: MARTA, nombre: null, apellido: null }] });
+    const { cliente } = clienteCon({ mi_perfil: perfil, acompaniantes_del_panel: [{ usuario_id: MARTA, nombre: null, apellido: null }] });
 
     expect(await crearFuentePestanaRpc(cliente).acompanantesDelPanel(CAMPANIA)).toEqual({
       ok: true,
@@ -110,7 +110,7 @@ describe("acompanantesDelPanel", () => {
   });
 
   it("una respuesta con otra forma es inesperada, no una lista vacía", async () => {
-    for (const respuesta of [{ no: "es una lista" }, [{ nombre: "Sin id" }], [{ id: 7 }]]) {
+    for (const respuesta of [{ no: "es una lista" }, [{ nombre: "Sin id" }], [{ usuario_id: 7 }], [{ id: MARTA, nombre: "Marta", apellido: "Rivas" }]]) {
       const { cliente } = clienteCon({ mi_perfil: perfil, acompaniantes_del_panel: respuesta });
       await expect(crearFuentePestanaRpc(cliente).acompanantesDelPanel(CAMPANIA)).rejects.toBeInstanceOf(RespuestaInesperada);
     }
