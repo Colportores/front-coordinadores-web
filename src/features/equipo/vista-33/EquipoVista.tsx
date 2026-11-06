@@ -14,6 +14,7 @@ import {
   construirLista,
   construirRiel,
   esCampaniaPermanente,
+  jornadasAcompanadas,
   mismoAmbito,
   pluralAcompanamientos,
   pluralColportores,
@@ -140,7 +141,7 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
 
   const total = resuelto.colportores.length;
   const sinZona = resuelto.sinZona.map((c) => c.nombre);
-  const totalAcompanamientos = resuelto.colportores.reduce((suma, c) => suma + c.acompanamientos.length, 0);
+  const totalAcompanamientos = resuelto.colportores.reduce((suma, c) => suma + jornadasAcompanadas(c), 0);
   const subtitulo = [
     pluralColportores(resuelto.conZona) + (sinZona.length > 0 ? ` + ${sinZona.length} sin zona` : ""),
     resuelto.departamento ? `Departamento ${resuelto.departamento}` : null,

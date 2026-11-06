@@ -266,6 +266,24 @@ describe("obtenerEquipoPorCiudad", () => {
     ]);
   });
 
+  it("0177: una jornada con dos acompañantes trae una fila por cada uno, cada una con su origen y su nota", async () => {
+    const { cliente } = clienteCon(
+      completas({
+        historial_de_acompaniamientos: [
+          historial({ acompaniante_id: "t", acompaniante_nombre: "Tomás", acompaniante_apellido: "Ibarra", acompaniamiento_origen: "COLPORTOR" }),
+          historial({ acompaniante_id: "g", acompaniante_nombre: "Marta", acompaniante_apellido: "Gómez", acompaniamiento_nota: "Vino de Salto." }),
+        ],
+      }),
+    );
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.colportores[0].acompanamientos.map((a) => [a.jornadaId, a.acompanante, a.origen, a.nota])).toEqual([
+      [JORNADA, "Tomás Ibarra", "COLPORTOR", null],
+      [JORNADA, "Marta Gómez", "COORDINADOR", "Vino de Salto."],
+    ]);
+  });
+
   it("«(vos)» solo donde acompañó quien tiene la sesión (`mi_perfil`); sin perfil, en ninguno", async () => {
     const otro = historial({ jornada_id: "j-otro", acompaniante_id: "t", acompaniante_nombre: "Tomás", acompaniante_apellido: "Ibarra" });
     const { cliente } = clienteCon(completas({ historial_de_acompaniamientos: [historial(), otro] }));
@@ -396,6 +414,35 @@ describe("jornadasParaAcompanar", () => {
       ],
     });
     expect(llamarRpc).toHaveBeenCalledWith("jornadas_cerradas_de_colportor", { p_campania_id: CAMPANIA, p_colportor_id: EMILIANO });
+  });
+
+  it("0177: una jornada con varios acompañantes viene en varias filas y sale una sola vez, con todos los nombres", async () => {
+    const { cliente } = clienteCon({
+      mi_perfil: perfil,
+      jornadas_cerradas_de_colportor: [
+        jornada({ jornada_id: "dos", acompaniante_id: "t", acompaniante_nombre: "Tomás", acompaniante_apellido: "Ibarra" }),
+        jornada({ jornada_id: "dos", acompaniante_id: "m", acompaniante_nombre: "Mariana", acompaniante_apellido: "Pérez" }),
+        jornada({ jornada_id: "tres", acompaniante_id: "t", acompaniante_nombre: "Tomás", acompaniante_apellido: "Ibarra" }),
+        jornada({ jornada_id: "tres", acompaniante_id: "g", acompaniante_nombre: "Marta", acompaniante_apellido: "Gómez" }),
+        jornada({ jornada_id: "tres", acompaniante_id: "d", acompaniante_nombre: "Daniel", acompaniante_apellido: "Ruiz" }),
+        jornada({ jornada_id: "una", acompaniante_id: "m", acompaniante_nombre: "Mariana", acompaniante_apellido: "Pérez" }),
+        jornada({ jornada_id: "nadie" }),
+      ],
+    });
+
+    const r = await crearFuentePestanaRpc(cliente).jornadasParaAcompanar(CAMPANIA, EMILIANO);
+
+    expect(r).toEqual({
+      ok: true,
+      jornadas: [
+        // Con varios, el «(vos)» va en el nombre de quien tiene la sesión y la vista no agrega otro.
+        { id: "dos", dia: "2026-10-20", horas: 5.5, acompanante: "Tomás Ibarra y Mariana Pérez (vos)", acompananteEsVos: false },
+        { id: "tres", dia: "2026-10-20", horas: 5.5, acompanante: "Tomás Ibarra, Marta Gómez y Daniel Ruiz", acompananteEsVos: false },
+        // Con uno solo, como siempre: la vista pone el «(vos)».
+        { id: "una", dia: "2026-10-20", horas: 5.5, acompanante: "Mariana Pérez", acompananteEsVos: true },
+        { id: "nadie", dia: "2026-10-20", horas: 5.5, acompanante: null, acompananteEsVos: false },
+      ],
+    });
   });
 
   it("un colportor que no es de la campaña da la lista vacía", async () => {

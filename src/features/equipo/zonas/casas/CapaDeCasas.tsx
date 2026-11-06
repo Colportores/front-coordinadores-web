@@ -22,6 +22,8 @@ const COLOR_DE_PUNTO = porEstado((e) => (e.borde ? "#FFFFFF" : e.color));
 const BORDE_DE_PUNTO = porEstado((e) => (e.borde ? e.color : "#FFFFFF"));
 
 function zonasDe(casa: CasaDeCiudad, zonas: readonly ZonaDeCiudad[]): string {
+  // La casa que no cae en ninguna zona lo dice (24P·03, «Casas s/zona»); una zona que ya no está en la lista no inventa nada.
+  if (casa.zonaIds.length === 0) return " · Sin zona";
   const nombres = casa.zonaIds.map((id) => zonas.find((z) => z.id === id)?.nombre).filter((n): n is string => n !== undefined);
   if (nombres.length === 0) return "";
   return ` · ${nombres.length > 1 ? "Zonas" : "Zona"} ${nombres.join(" y ")}`;
@@ -42,7 +44,7 @@ interface Props {
 
 /**
  * Las casas dentro del mapa de la vista 24 (diseño 24P): cada una un punto con su símbolo y su nombre de estado, la tarjeta de
- * la elegida (estado, tipo y zona; sin montos ni personas) y, con más de 200 a la vista, el cluster de MapLibre con la cantidad
+ * la elegida (estado, tipo, zona o «Sin zona», dirección del lugar y colportor que la registró; sin montos ni personas) y, con más de 200 a la vista, el cluster de MapLibre con la cantidad
  * de cada burbuja. Con teclado, los puntos son una sola parada de tabulación (tabindex móvil): flechas para recorrerlos en orden
  * de lectura, Enter o Espacio para abrir la tarjeta y Esc para cerrarla, con el foco en el mismo punto.
  */
@@ -51,6 +53,8 @@ export function CapaDeCasas({ casas, zonas, tocables, estado }: Props) {
   const elegida = agrupar ? undefined : visibles.find((c) => c.id === casas.elegidaId);
   // Sin fecha (casa «Sin visita», o un valor que no se lee) no va la línea: nunca «Último cambio: —».
   const ultimoCambio = fechaEnMontevideo(elegida?.ultimoCambio ?? null);
+  const direccion = elegida?.direccion?.trim() || null;
+  const registradaPor = elegida?.registradaPor?.trim() || null;
   const ordenados = useMemo(() => enOrdenDeLectura(visibles), [visibles]);
   const botones = useRef(new Map<string, HTMLButtonElement>());
   const [activoElegido, setActivoElegido] = useState<string | null>(null);
@@ -153,6 +157,9 @@ export function CapaDeCasas({ casas, zonas, tocables, estado }: Props) {
               {textoDeTipo(elegida.tipo)}
               {zonasDe(elegida, zonas)}
             </span>
+            {/* Sin dirección o sin quien la registró (se dio de baja) no va la línea: nunca «Dirección: —». */}
+            {direccion === null ? null : <span className="text-chico wrap-anywhere text-tinta-2">Dirección: {direccion}</span>}
+            {registradaPor === null ? null : <span className="text-chico wrap-anywhere text-tinta-2">Registrada por {registradaPor}</span>}
             {ultimoCambio === null ? null : <span className="text-chico text-tinta-suave">Último cambio: {ultimoCambio}</span>}
           </div>
         </Marker>

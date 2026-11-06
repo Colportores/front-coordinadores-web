@@ -193,8 +193,9 @@ export type EstadoDeCasa =
 export type TipoDeCasa = "CASA" | "NEGOCIO" | "EDIFICIO";
 
 /**
- * Un punto del mapa de la vista 24 (HU-CAM-006, `casas_de_zona()`, backend-supabase#72). `zonaIds` son las zonas de
- * la ciudad que lo incluyen: las zonas se pueden superponer, así que una casa puede estar en más de una.
+ * Un punto del mapa de la vista 24 (HU-CAM-006, `casas_de_la_ciudad()`, backend-supabase#254): todas las casas de la ciudad,
+ * estén o no dentro de una zona. `zonaIds` son las zonas de la ciudad que la incluyen: vacío si no cae en ninguna («Casas
+ * s/zona», decisión de Cristian del 05/11); la base informa una sola (la primera por nombre si se superponen).
  */
 export interface CasaDeCiudad {
   id: string;
@@ -205,6 +206,13 @@ export interface CasaDeCiudad {
   /** Cuándo cambió por última vez el estado de la casa (marca ISO de `house_status.updated_at`); `null` si no tiene estado («Sin visita»). */
   ultimoCambio?: string | null;
   zonaIds: string[];
+  /**
+   * La dirección del lugar, como se guardó (`calle` y `numero` de la ubicación; «Tarj. punto», decisión de Cristian del 05/11).
+   * `null` o ausente si la casa se marcó en el mapa sin dirección: la tarjeta no escribe la línea. Nunca es de una persona.
+   */
+  direccion?: string | null;
+  /** Nombre del colportor que registró la casa; `null` o ausente si no se sabe (la persona se dio de baja del sistema). */
+  registradaPor?: string | null;
 }
 
 export interface FuenteDatosZonas {
@@ -227,8 +235,8 @@ export interface FuenteDatosZonas {
   /** `agregar_ciudad_a_campania`. */
   agregarCiudad(campaniaId: string, catalogoId: string): Promise<ResultadoAgregarCiudad>;
   /**
-   * Las casas de esas zonas con su estado, sin repetir las que caen en dos (`casas_de_zona()` pide de a una zona y de a
-   * páginas: la fuente junta todas). Una falla es una excepción: nunca se toma por «no hay casas».
+   * Todas las casas de la ciudad de la campaña con su estado, también las que no están en ninguna zona
+   * (`casas_de_la_ciudad()` pide de a páginas: la fuente junta todas). Una falla es una excepción: nunca se toma por «no hay casas».
    */
-  casasDeZonas(campaniaId: string, zonaIds: string[]): Promise<CasaDeCiudad[]>;
+  casasDeLaCiudad(campaniaId: string, ciudadId: string): Promise<CasaDeCiudad[]>;
 }

@@ -45,8 +45,8 @@ export interface AccionesZonas {
   eliminarZona: (zonaId: string) => Promise<ResultadoEliminarZona>;
   buscarCiudades: (texto: string) => Promise<CiudadDelCatalogo[]>;
   agregarCiudad: (catalogoId: string) => Promise<ResultadoAgregarCiudad>;
-  /** Las casas de esas zonas con su estado, para los puntos del mapa (`casas_de_zona()`). */
-  casasDeZonas: (zonaIds: string[]) => Promise<CasaDeCiudad[]>;
+  /** Todas las casas de la ciudad con su estado, también las que no están en ninguna zona, para los puntos del mapa (`casas_de_la_ciudad()`). */
+  casasDeLaCiudad: (ciudadId: string) => Promise<CasaDeCiudad[]>;
 }
 
 interface EstadoDibujo {
@@ -175,8 +175,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
 
   const casasDeLaCiudad = useCasasDeCiudad({
     ciudadId: ciudad?.id ?? "",
-    zonaIds: ciudad?.zonas.map((z) => z.id) ?? [],
-    pedir: acciones.casasDeZonas,
+    pedir: acciones.casasDeLaCiudad,
     recarga: recargaCasas,
   });
   const casasQueSeVen = useMemo(() => sinOcultas(casasDeLaCiudad.casas, ocultos), [casasDeLaCiudad.casas, ocultos]);
@@ -300,7 +299,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
         ? { tipo: "sin-conexion", hora: horaEnMontevideo(casasDeLaCiudad.actualizadoA) }
         : casasDeLaCiudad.fase === "cargando"
           ? { tipo: "cargando", ciudad: ciudad.nombre }
-          : zonas.length > 0 && casasDeLaCiudad.casas.length === 0
+          : casasDeLaCiudad.casas.length === 0
             ? { tipo: "vacio", ciudad: ciudad.nombre }
             : agrupadas && casasQueSeVen.length > 0
               ? { tipo: "agrupadas" }
@@ -680,8 +679,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
 
       <div className="grid grid-cols-[360px_minmax(0,1fr)] items-start gap-4">
         <div className="flex max-h-[calc(100vh-var(--spacing-topbar)-var(--alto-aviso,0px)-230px)] min-h-[520px] flex-col gap-4 overflow-auto">
-          {/* Sin zonas no hay casas que contar: la leyenda diría «0 casas» y la lista ya dice que no hay zonas. */}
-          {panel.tipo === "lista" && zonas.length > 0 ? (
+          {/* Las casas son de toda la ciudad, tenga zonas o no (decisión de Cristian del 05/11, «Casas s/zona»). */}
+          {panel.tipo === "lista" ? (
             <LeyendaDeCasas
               fase={casasDeLaCiudad.fase}
               casas={casasDeLaCiudad.casas}
