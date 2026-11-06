@@ -222,6 +222,23 @@ export interface DatosDeAcompanamiento {
 }
 
 /**
+ * Una persona que el coordinador puede anotar como acompañante además de los colportores de su campaña: un coordinador de
+ * cualquier campaña o un administrador activo (`acompaniantes_del_panel()`). Solo el id y el nombre: la base no manda
+ * correo, teléfono ni cédula.
+ */
+export interface AcompananteDelPanel {
+  id: string;
+  nombre: string;
+}
+
+/**
+ * Los coordinadores y administradores que se ofrecen en «Quién lo acompañó». Un rechazo de la regla vuelve como
+ * `ok: false`; una falla de conexión, como excepción. Una base que todavía no tiene la RPC devuelve la lista vacía:
+ * el panel sigue ofreciendo solo a los colportores, como antes.
+ */
+export type ResultadoAcompanantes = { ok: true; acompanantes: AcompananteDelPanel[] } | { ok: false; mensaje: string };
+
+/**
  * Respuesta a registrar un acompañamiento (`agregar_acompaniamiento()`). `yaEstaba`: ya figuraba a nombre de esa misma
  * persona (un reintento, un doble toque o el teléfono que la marcó antes): no se tocó nada, **tampoco la nota**; `origen`
  * y `nota` son los que quedaron guardados. `recargar`: la jornada cambió y la lista que se está viendo ya no es cierta.
@@ -300,8 +317,13 @@ export interface FuenteDatosEquipo {
    */
   jornadasParaAcompanar(campaniaId: string, colportorId: string): Promise<ResultadoJornadas>;
   /**
+   * Los coordinadores (de cualquier campaña) y los administradores que se pueden anotar como acompañantes, además de los
+   * colportores de la campaña. Sin quien tiene la sesión: ese es «Yo».
+   */
+  acompanantesDelPanel(campaniaId: string): Promise<ResultadoAcompanantes>;
+  /**
    * Registra el acompañamiento de esa jornada: a nombre del coordinador de la sesión («Yo») o, con `acompananteId`, de otro
-   * colportor de la campaña, con una nota opcional.
+   * colportor de la campaña, de un coordinador o de un administrador, con una nota opcional.
    */
   registrarAcompanamiento(campaniaId: string, jornadaId: string, datos?: DatosDeAcompanamiento): Promise<ResultadoAcompanamiento>;
   /**
