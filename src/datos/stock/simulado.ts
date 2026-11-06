@@ -6,10 +6,11 @@ import type {
   FuenteDatosStock,
   ProductoDeStock,
 } from "@/datos/stock/contrato";
+import { generadorDeAzar } from "@/lib/azar";
 
 /**
  * Datos de ejemplo de la vista 34 (`34 Stock por Ciudad.dc.html`): tres ciudades de dos departamentos, 25 colportores y
- * 11 productos. Es el mismo generador del canvas (mismo `hash` y mismo `rng` por colportor y producto), con sus casos
+ * 11 productos. Es el mismo generador del canvas (mismo `hash` y mismo generador por colportor y producto), con sus casos
  * puestos a mano: «La Gran Esperanza» no alcanza en Rivera, las revistas «Salud y Hogar» se agotaron en Rivera y los
  * misioneros se agotaron en Artigas con 4 Pamplonas por entregar. `canvas-34.json` (salida del script del canvas) se compara
  * contra esto en los tests de la vista. La fecha del último dato de cada teléfono (`ultimoDatoAt`) no está en el canvas: sale
@@ -62,14 +63,6 @@ const hash = (texto: string): number => {
   return h >>> 0;
 };
 
-const rng = (semilla: number) => () => {
-  semilla |= 0;
-  semilla = (semilla + 0x6d2b79f5) | 0;
-  let t = Math.imul(semilla ^ (semilla >>> 15), 1 | semilla);
-  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-};
-
 const LGE_RIVERA: Record<string, number> = { "Valentina Silva": 3, "Santiago Pereira": 1 };
 const LGE_POR_ENTREGAR: Record<string, number> = { "Lucía Fernández": 2, "Emiliano Sosa": 3, "Camila Núñez": 1 };
 const RSH_POR_ENTREGAR: Record<string, number> = { "Micaela Rodríguez": 2, "Joaquín Duarte": 1 };
@@ -78,13 +71,13 @@ const HORAS_SIN_SENAL: Record<string, number | null> = { "Natalia Vidal": 74, "N
 const PAMPLONA_POR_ENTREGAR: Record<string, number> = { "Sofía Cabral": 2, "Natalia Vidal": 2 };
 
 function existencia(ciudadId: string, nombre: string, producto: (typeof PRODUCTOS)[number]): ExistenciaDeStock {
-  const r = rng(hash(nombre + producto.id));
+  const r = generadorDeAzar(hash(nombre + producto.id));
   let tiene = r() < 0.25 ? 0 : 1 + Math.floor(r() * producto.max);
   let porEntregar = r() < 0.65 ? 0 : 1 + Math.floor(r() * 2);
   const entregados = Math.floor(r() * (producto.max + 4));
   const porCobrar = Math.min(entregados, Math.floor(r() * 3));
   // Los devueltos salen de su propio generador: así las demás cifras (las del canvas) no cambian. Nunca más que lo entregado.
-  const rd = rng(hash(nombre + producto.id + "devueltos"));
+  const rd = generadorDeAzar(hash(nombre + producto.id + "devueltos"));
   const devueltos = Math.min(entregados, rd() < 0.7 ? 0 : 1 + Math.floor(rd() * 2));
   const rivera = ciudadId === "rivera";
   const artigas = ciudadId === "artigas";
@@ -116,10 +109,10 @@ const slug = (nombre: string) =>
 
 /** Hace cuántas horas llegó el último dato del teléfono: casi siempre de hoy, a veces de ayer; `null` = ninguno. */
 function ultimoDato(nombre: string, ahora: Date): string | null {
-  const horas = nombre in HORAS_SIN_SENAL ? HORAS_SIN_SENAL[nombre] : 1 + Math.floor(rng(hash(nombre + "sincronizo"))() * 30);
+  const horas = nombre in HORAS_SIN_SENAL ? HORAS_SIN_SENAL[nombre] : 1 + Math.floor(generadorDeAzar(hash(nombre + "sincronizo"))() * 30);
   if (horas === null) return null;
   // Con minutos distintos para que no queden todos a la misma hora en punto.
-  const minutos = Math.floor(rng(hash(nombre + "minuto"))() * 60);
+  const minutos = Math.floor(generadorDeAzar(hash(nombre + "minuto"))() * 60);
   return new Date(ahora.getTime() - horas * 3_600_000 - minutos * 60_000).toISOString();
 }
 

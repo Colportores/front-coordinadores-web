@@ -9,6 +9,7 @@ import type {
   TicketDeCuentas,
 } from "@/datos/cuentas/contrato";
 import { instanteHaceDias } from "@/datos/cuentas/fechas";
+import { generadorDeAzar } from "@/lib/azar";
 
 /**
  * Datos de ejemplo de la vista 36 («36 Cuentas.dc.html»): tres ciudades en dos departamentos (Rivera tiene banco;
@@ -67,16 +68,6 @@ function hash(texto: string): number {
   return h >>> 0;
 }
 
-function generador(semilla: number): () => number {
-  let s = semilla | 0;
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 const aCentenas = (x: number) => Math.round(x / 100) * 100;
 
 function identificador(nombre: string): string {
@@ -99,7 +90,7 @@ function armarColportor(
   nombre: string,
   ahoraIso: string,
 ): { colportor: ColportorDeCuentas; tickets: TicketDeCuentas[] } {
-  const r = generador(hash(`${nombre}cta`));
+  const r = generadorDeAzar(hash(`${nombre}cta`));
   const id = identificador(nombre);
   const colportor: ColportorDeCuentas = {
     id,

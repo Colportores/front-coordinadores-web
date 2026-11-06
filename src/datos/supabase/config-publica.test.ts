@@ -30,6 +30,15 @@ describe("leerConfigPublicaSupabase", () => {
     expect(config?.url).toBe("https://abc.supabase.co");
   });
 
+  it("una URL de solo barras no es una URL y una cadena enorme de barras no cuelga la lectura", () => {
+    const inicio = Date.now();
+    expect(leerConfigPublicaSupabase({ ...COMPLETO, NEXT_PUBLIC_SUPABASE_URL: "///" })).toBeNull();
+    expect(
+      leerConfigPublicaSupabase({ ...COMPLETO, NEXT_PUBLIC_SUPABASE_URL: `https://abc.supabase.co${"/".repeat(200_000)}` })?.url,
+    ).toBe("https://abc.supabase.co");
+    expect(Date.now() - inicio).toBeLessThan(1500);
+  });
+
   it.each(["http://127.0.0.1:54321", "http://localhost:54321", "http://[::1]:54321"])(
     "acepta el Supabase local por http: %s",
     (url) => {

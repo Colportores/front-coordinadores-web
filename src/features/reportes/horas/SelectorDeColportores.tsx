@@ -91,7 +91,8 @@ export function SelectorDeColportores({
   const cuantosMarcados = marcados.size;
 
   return (
-    <div ref={raiz} className="relative" onBlur={alSalirDelFoco} onKeyDown={alTeclear}>
+    // El envoltorio no es un control: solo recibe el Esc y la salida del foco de lo que tiene adentro.
+    <div ref={raiz} role="presentation" className="relative" onBlur={alSalirDelFoco} onKeyDown={alTeclear}>
       <button
         ref={boton}
         type="button"

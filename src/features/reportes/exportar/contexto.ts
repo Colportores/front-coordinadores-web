@@ -38,9 +38,9 @@ export function nombreDeArchivo(
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .replace(/^-|-$/g, "")
     .slice(0, 40)
-    .replace(/-+$/g, "");
+    .replace(/-$/, "");
   const grupo = { dia: "dias", semana: "semanas", mes: "meses", rango: "rango" }[granularidad];
   // El rango libre se nombra por sus fechas (el archivo cuenta lo que se ve, no el día en que se bajó).
   const cuando = granularidad === "rango" && rango ? `${rango.desde}-a-${rango.hasta}` : hoy;

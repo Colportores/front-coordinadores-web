@@ -186,3 +186,22 @@ describe("fuente simulada de la vista 33", () => {
     expect(enLaOtra?.acompanamientos).toEqual([]);
   });
 });
+
+describe("coordinadores y administradores como acompañantes (#161)", () => {
+  it("la fuente los lista sin quien tiene la sesión, y se puede registrar a nombre de uno", async () => {
+    const fuente = crearEquipoSimulado();
+    const r = await fuente.acompanantesDelPanel("c");
+    if (!r.ok) throw new Error("la simulada siempre los lista");
+    expect(r.acompanantes.map((a) => a.nombre)).toEqual(["Tomás Ibarra", "Marta Rivas", "Alicia Benítez"]);
+
+    const datos = await datosDe(fuente);
+    const colportor = datos.colportores.find((c) => c.ciudadId !== null);
+    if (!colportor) throw new Error("hay colportores con ciudad");
+    const jornadas = await fuente.jornadasParaAcompanar("c", colportor.id);
+    const libre = jornadas.ok ? jornadas.jornadas.find((j) => j.acompanante === null) : undefined;
+    if (!libre) throw new Error("hay una jornada sin acompañar");
+    const marta = r.acompanantes.find((a) => a.nombre === "Marta Rivas");
+
+    expect(await fuente.registrarAcompanamiento("c", libre.id, { acompananteId: marta?.id })).toMatchObject({ ok: true, acompanante: "Marta Rivas", yaEstaba: false });
+  });
+});
