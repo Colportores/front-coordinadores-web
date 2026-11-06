@@ -9,6 +9,7 @@ import type {
   JornadaParaAcompanar,
   OrigenDeAcompanamiento,
   ResultadoAcompanamiento,
+  ResultadoAcompanantes,
   ResultadoBeca,
   ResultadoJornadas,
   ZonaAnterior,
@@ -64,11 +65,21 @@ const COLPORTOR_FUERA_DE_CAMPANIA = "El colportor no está en esta campaña.";
 const ACOMPANANTE_FUERA_DE_CAMPANIA = "Ese colportor no está inscripto en esta campaña. Elegí a alguien de su equipo.";
 const NOTA_LARGA = `La nota admite hasta ${LARGO_MAXIMO_NOTA} caracteres. Acortala; no pongas datos de clientes.`;
 const JORNADAS_RECHAZADAS = "No se pudieron traer las jornadas. Probá de nuevo más tarde.";
+const SIN_PERMISO_ACOMPANANTES = "Solo el coordinador de la campaña puede ver a quién anotar como acompañante.";
+const ACOMPANANTES_RECHAZADOS = "No se pudieron traer los coordinadores y administradores. Probá de nuevo más tarde.";
 const REGISTRO_RECHAZADO = "No se pudo registrar el acompañamiento. Probá de nuevo más tarde.";
 
 /** Un rechazo de la regla se traduce; una caída, un 5xx o una sesión vencida siguen como excepción. */
 function esRechazo(error: unknown): error is ErrorSupabase {
   return error instanceof ErrorSupabase && causaDe(error) === "rechazo";
+}
+
+/**
+ * La base todavía no tiene la función (PostgREST contesta 404 `PGRST202`; Postgres, `42883`): no es un permiso negado ni una
+ * caída, es que el backend aún no la publicó (backend-supabase#257).
+ */
+function laRpcNoExiste(error: unknown): boolean {
+  return error instanceof ErrorSupabase && (error.codigo === "PGRST202" || error.codigo === "42883");
 }
 
 /** La campaña se terminó o se dio de baja entre una llamada y la siguiente: ya no hay campaña que mostrar. */
@@ -174,7 +185,7 @@ function textoDeRechazo(error: ErrorSupabase, sinPermiso: string, generico: stri
 
 type FuentePestana = Pick<
   FuenteDatosEquipo,
-  "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
+  "obtenerEquipoPorCiudad" | "acompanantesDelPanel" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
 >;
 
 /** Las becas (V2) todavía no tienen RPC (se conectan después del 20/11): la vista no ofrece guardarlas con esta fuente. */
@@ -268,6 +279,28 @@ export function crearFuentePestanaRpc(
 
     async asignarTipoDeBeca(): Promise<ResultadoBeca> {
       return { ok: false, mensaje: BECAS_SIN_CONECTAR };
+    },
+
+    async acompanantesDelPanel(campaniaId): Promise<ResultadoAcompanantes> {
+      const rpc = "acompaniantes_del_panel";
+      try {
+        const [crudas, yo] = await Promise.all([cliente.llamarRpc(rpc, { p_campania_id: campaniaId }), miId(cliente)]);
+        const vistos = new Set<string>();
+        const acompanantes = [];
+        for (const fila of filas(rpc, crudas)) {
+          const id = cadena(rpc, fila, "id");
+          // Quien tiene la sesión es «Yo», no «otro»; y la base puede traer a la misma persona por más de un rol.
+          if (id === yo || vistos.has(id)) continue;
+          vistos.add(id);
+          acompanantes.push({ id, nombre: nombreVisible(cadenaONula(rpc, fila, "nombre") ?? "", cadenaONula(rpc, fila, "apellido") ?? "", CUENTA_SIN_NOMBRE) });
+        }
+        return { ok: true, acompanantes };
+      } catch (error) {
+        // Sin la RPC publicada el selector queda como antes (solo los colportores): no es un error que mostrarle a nadie.
+        if (laRpcNoExiste(error)) return { ok: true, acompanantes: [] };
+        if (esRechazo(error)) return { ok: false, mensaje: textoDeRechazo(error, SIN_PERMISO_ACOMPANANTES, ACOMPANANTES_RECHAZADOS) };
+        throw error;
+      }
     },
 
     async jornadasParaAcompanar(campaniaId, colportorId): Promise<ResultadoJornadas> {

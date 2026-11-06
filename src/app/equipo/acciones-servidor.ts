@@ -11,6 +11,10 @@ import type { AccionesEquipo } from "@/features/equipo/vista-33/acciones";
  */
 export function crearAccionesEquipo(campaniaId: string): AccionesEquipo {
   return {
+    async acompanantesDelPanel() {
+      "use server";
+      return fuenteEquipo.acompanantesDelPanel(campaniaId);
+    },
     async jornadasParaAcompanar(colportorId) {
       "use server";
       return fuenteEquipo.jornadasParaAcompanar(campaniaId, colportorId);
