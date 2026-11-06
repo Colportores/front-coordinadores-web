@@ -82,7 +82,7 @@ afterEach(() => {
 });
 
 describe("QA #162 · foco y reintentos de la lista de coordinadores", () => {
-  it.skip("QA #162: al tocar «Reintentar» (traer los coordinadores) el foco cae al <body>: el aviso y su botón se desmontan", async () => {
+  it("QA #162: al tocar «Reintentar» (traer los coordinadores) el foco pasa al selector: el aviso y su botón se desmontan", async () => {
     const respuestas: ResultadoAcompanantes[] = [{ ok: false, mensaje: "No se pudieron traer los coordinadores y administradores. Probá de nuevo más tarde." }, lista(MARTA)];
     const acciones = crearAcciones(async () => respuestas.shift() ?? lista());
     const { usuario } = await abrir({ acciones });
@@ -93,8 +93,9 @@ describe("QA #162 · foco y reintentos de la lista de coordinadores", () => {
     await usuario.click(reintentar);
     await within(selector()).findByRole("group", { name: "Coordinadores y administradores" });
 
-    // El foco queda en algún control de la vista (el selector, por ejemplo), nunca en el <body>.
+    // El foco queda en el selector «Quién acompañó», nunca en el <body>.
     expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement).toBe(selector());
   });
 
   it("si «Reintentar» vuelve a fallar, el aviso reaparece con el botón habilitado y el tercer intento trae el grupo", async () => {

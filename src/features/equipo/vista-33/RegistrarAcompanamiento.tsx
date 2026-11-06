@@ -197,6 +197,8 @@ function PanelDeRegistro({
   }, [acciones]);
 
   const reintentarPersonas = useCallback(() => {
+    // El aviso y su botón se desmontan al volver a cargar: el foco pasa al selector antes, para no caer al <body>.
+    selector.current?.focus();
     setPanel({ tipo: "cargando" });
     void pedirPersonas();
   }, [pedirPersonas]);
