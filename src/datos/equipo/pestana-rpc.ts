@@ -153,18 +153,36 @@ async function miId(cliente: ClienteRpc): Promise<string | null> {
   return fila ? cadena(rpc, fila, "usuario_id") : null;
 }
 
-function aJornada(fila: Objeto, yo: string | null): JornadaParaAcompanar {
+/** Une los nombres como se lee: «A», «A y B», «A, B y C». */
+function unirNombres(nombres: string[]): string {
+  return nombres.length <= 1 ? (nombres[0] ?? "") : `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}`;
+}
+
+/**
+ * Las jornadas cerradas del colportor, una por jornada: desde la 0177 la base manda una fila por acompañante (una jornada con dos
+ * sale dos veces, la que no tiene acompañante una vez con el acompañante en null). Con varios, `acompanante` los nombra a todos
+ * y el «(vos)» va en el nombre de quien tiene la sesión; con uno solo, el «(vos)» lo pone la vista como siempre.
+ */
+function aJornadas(filasCrudas: Objeto[], yo: string | null): JornadaParaAcompanar[] {
   const rpc = "jornadas_cerradas_de_colportor";
-  const nombre = cadenaONula(rpc, fila, "acompaniante_nombre") ?? "";
-  const apellido = cadenaONula(rpc, fila, "acompaniante_apellido") ?? "";
-  const acompananteId = cadenaONula(rpc, fila, "acompaniante_id");
-  return {
-    id: cadena(rpc, fila, "jornada_id"),
-    dia: dia(rpc, fila, "dia"),
-    horas: numero(rpc, fila, "horas"),
-    acompanante: acompananteId === null ? null : nombreVisible(nombre, apellido, CUENTA_SIN_NOMBRE),
-    acompananteEsVos: acompananteId !== null && acompananteId === yo,
-  };
+  const porJornada = new Map<string, { base: Omit<JornadaParaAcompanar, "acompanante" | "acompananteEsVos">; acompanantes: { nombre: string; esVos: boolean }[] }>();
+  for (const fila of filasCrudas) {
+    const id = cadena(rpc, fila, "jornada_id");
+    const acompananteId = cadenaONula(rpc, fila, "acompaniante_id");
+    const entrada = porJornada.get(id) ?? { base: { id, dia: dia(rpc, fila, "dia"), horas: numero(rpc, fila, "horas") }, acompanantes: [] };
+    if (acompananteId !== null) {
+      entrada.acompanantes.push({
+        nombre: nombreVisible(cadenaONula(rpc, fila, "acompaniante_nombre") ?? "", cadenaONula(rpc, fila, "acompaniante_apellido") ?? "", CUENTA_SIN_NOMBRE),
+        esVos: acompananteId === yo,
+      });
+    }
+    porJornada.set(id, entrada);
+  }
+  return Array.from(porJornada.values(), ({ base, acompanantes }) => {
+    if (acompanantes.length === 0) return { ...base, acompanante: null, acompananteEsVos: false };
+    if (acompanantes.length === 1) return { ...base, acompanante: acompanantes[0].nombre, acompananteEsVos: acompanantes[0].esVos };
+    return { ...base, acompanante: unirNombres(acompanantes.map((a) => (a.esVos ? `${a.nombre} (vos)` : a.nombre))), acompananteEsVos: false };
+  });
 }
 
 function textoDeRechazo(error: ErrorSupabase, sinPermiso: string, generico: string): string {
@@ -278,7 +296,7 @@ export function crearFuentePestanaRpc(
           cliente.llamarRpc("jornadas_cerradas_de_colportor", { p_campania_id: campaniaId, p_colportor_id: colportorId }),
           miId(cliente),
         ]);
-        return { ok: true, jornadas: filas("jornadas_cerradas_de_colportor", crudas).map((f) => aJornada(f, yo)) };
+        return { ok: true, jornadas: aJornadas(filas("jornadas_cerradas_de_colportor", crudas), yo) };
       } catch (error) {
         if (esRechazo(error)) return { ok: false, mensaje: textoDeRechazo(error, SIN_PERMISO_JORNADAS, JORNADAS_RECHAZADAS) };
         throw error;

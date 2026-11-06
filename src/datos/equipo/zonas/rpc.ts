@@ -95,12 +95,12 @@ const ASIGNAR_RECHAZADO = "No se pudo asignar la zona. Probá de nuevo más tard
 const QUITAR_RECHAZADO = "No se pudo quitar la zona. Probá de nuevo más tarde.";
 const AGREGAR_RECHAZADO = "No se pudo agregar la ciudad. Probá de nuevo más tarde.";
 
-/** Tamaño de página de `casas_de_zona()` (su máximo es 5000): un tamaño técnico, el panel pide páginas hasta tenerlas todas. */
+/** Tamaño de página de `casas_de_la_ciudad()` (su máximo es 5000): un tamaño técnico, el panel pide páginas hasta tenerlas todas. */
 const CASAS_POR_PAGINA = 1000;
-/** Freno de seguridad: una zona con más páginas que esto (200 000 casas) es una respuesta que no avanza, no una ciudad. */
-const MAX_PAGINAS_POR_ZONA = 200;
+/** Freno de seguridad: una ciudad con más páginas que esto (200 000 casas) es una respuesta que no avanza, no una ciudad. */
+const MAX_PAGINAS_POR_CIUDAD = 200;
 
-/** El `estado` que contesta `casas_de_zona()` (el `color` de `house_status`, ADR-003); `null` es la casa sin visita. */
+/** El `estado` que contesta `casas_de_la_ciudad()` (el `color` de `house_status`, ADR-003); `null` es la casa sin visita. */
 const ESTADOS_DE_LA_BASE: Readonly<Record<string, EstadoDeCasa>> = {
   ENTREGA_Y_COBRANZA_PENDIENTE: "ENTREGA_Y_COBRANZA_PENDIENTE",
   COBRANZA_PENDIENTE: "COBRANZA_PENDIENTE",
@@ -271,35 +271,48 @@ async function leerCiudades(cliente: ClienteRpc, campaniaId: string, soloCiudadI
   );
 }
 
-type CasaSinZonas = Omit<CasaDeCiudad, "zonaIds">;
-
-function aCasa(fila: Objeto): CasaSinZonas {
-  const rpc = "casas_de_zona";
+function aCasa(fila: Objeto): CasaDeCiudad {
+  const rpc = "casas_de_la_ciudad";
   const tipo = cadena(rpc, fila, "tipo");
   if (!TIPOS_DE_CASA.has(tipo)) throw new RespuestaInesperada(rpc, `\`tipo\` desconocido (${tipo})`);
   const estadoDeLaBase = cadenaONula(rpc, fila, "estado");
   const estado = estadoDeLaBase === null ? "SIN_VISITA" : ESTADOS_DE_LA_BASE[estadoDeLaBase];
   if (estado === undefined) throw new RespuestaInesperada(rpc, `\`estado\` desconocido (${estadoDeLaBase})`);
+  const zonaId = cadenaONula(rpc, fila, "zona_id");
+  const registradaPorId = cadenaONula(rpc, fila, "registrada_por");
   return {
     id: cadena(rpc, fila, "ubicacion_id"),
     lon: numero(rpc, fila, "lon"),
     lat: numero(rpc, fila, "lat"),
     tipo: tipo as TipoDeCasa,
     estado,
-    // Una base que todavía no devuelve `ultimo_cambio` (backend-supabase#247) es lo mismo que una casa sin estado: sin fecha.
     ultimoCambio: cadenaONula(rpc, fila, "ultimo_cambio"),
+    // La base informa una sola zona (la primera por nombre si se superponen); sin zona, la casa no está en ninguna.
+    zonaIds: zonaId === null ? [] : [zonaId],
+    direccion: direccionDe(rpc, fila),
+    // Sin persona (se dio de baja del sistema) no se inventa un nombre; con persona y sin nombre, «Cuenta sin nombre».
+    registradaPor:
+      registradaPorId === null
+        ? null
+        : nombreVisible(cadenaONula(rpc, fila, "registrada_por_nombre") ?? "", cadenaONula(rpc, fila, "registrada_por_apellido") ?? "", CUENTA_SIN_NOMBRE),
   };
 }
 
-/** Todas las casas de una zona: páginas de `CASAS_POR_PAGINA` hasta que una venga con menos (un tope no esconde resultados). */
-async function leerCasasDeZona(cliente: ClienteRpc, campaniaId: string, zonaId: string): Promise<CasaSinZonas[]> {
-  const rpc = "casas_de_zona";
-  const casas: CasaSinZonas[] = [];
+/** La dirección del lugar: calle y número como se guardaron (cualquiera puede faltar); `null` si no hay ninguno de los dos. */
+function direccionDe(rpc: string, fila: Objeto): string | null {
+  const partes = [cadenaONula(rpc, fila, "calle"), cadenaONula(rpc, fila, "numero")].map((p) => p?.trim() ?? "").filter((p) => p !== "");
+  return partes.length === 0 ? null : partes.join(" ");
+}
+
+/** Todas las casas de una ciudad: páginas de `CASAS_POR_PAGINA` hasta que una venga con menos (un tope no esconde resultados). */
+async function leerCasasDeLaCiudad(cliente: ClienteRpc, campaniaId: string, ciudadId: string): Promise<CasaDeCiudad[]> {
+  const rpc = "casas_de_la_ciudad";
+  const casas: CasaDeCiudad[] = [];
   let despuesDe: string | null = null;
-  for (let pagina = 0; pagina < MAX_PAGINAS_POR_ZONA; pagina++) {
+  for (let pagina = 0; pagina < MAX_PAGINAS_POR_CIUDAD; pagina++) {
     const respuesta: unknown = await cliente.llamarRpc(rpc, {
       p_campania_id: campaniaId,
-      p_zona_id: zonaId,
+      p_campania_ciudad_id: ciudadId,
       p_limite: CASAS_POR_PAGINA,
       ...(despuesDe === null ? {} : { p_despues_de: despuesDe }),
     });
@@ -308,7 +321,7 @@ async function leerCasasDeZona(cliente: ClienteRpc, campaniaId: string, zonaId: 
     if (leidas.length < CASAS_POR_PAGINA) return casas;
     despuesDe = leidas[leidas.length - 1].id;
   }
-  throw new RespuestaInesperada(rpc, "la zona no termina de paginar");
+  throw new RespuestaInesperada(rpc, "la ciudad no termina de paginar");
 }
 
 /**
@@ -469,30 +482,9 @@ export function crearFuenteZonasRpc(
       }));
     },
 
-    async casasDeZonas(campaniaId, zonaIds): Promise<CasaDeCiudad[]> {
-      const unicas = [...new Set(zonaIds)];
-      if (unicas.some((id) => !UUID.test(id))) throw new RespuestaInesperada("casas_de_zona", "un id de zona no es un UUID");
-      const porZona = await Promise.all(
-        unicas.map(async (zonaId) => {
-          try {
-            return { zonaId, casas: await leerCasasDeZona(cliente, campaniaId, zonaId) };
-          } catch (error) {
-            // Una zona que se dio de baja mientras tanto ya no tiene casas que mostrar; cualquier otro rechazo o caída corta todo.
-            if (error instanceof ErrorSupabase && error.codigo === "CZ004") return { zonaId, casas: [] };
-            throw error;
-          }
-        }),
-      );
-      // Las zonas se pueden superponer: una casa que cae en dos viene dos veces y se junta en un solo punto.
-      const juntas = new Map<string, CasaDeCiudad>();
-      for (const { zonaId, casas } of porZona) {
-        for (const casa of casas) {
-          const antes = juntas.get(casa.id);
-          if (antes) antes.zonaIds.push(zonaId);
-          else juntas.set(casa.id, { ...casa, zonaIds: [zonaId] });
-        }
-      }
-      return [...juntas.values()];
+    async casasDeLaCiudad(campaniaId, ciudadId): Promise<CasaDeCiudad[]> {
+      if (!UUID.test(ciudadId)) throw new RespuestaInesperada("casas_de_la_ciudad", "el id de la ciudad no es un UUID");
+      return leerCasasDeLaCiudad(cliente, campaniaId, ciudadId);
     },
 
     async agregarCiudad(campaniaId, catalogoId): Promise<ResultadoAgregarCiudad> {

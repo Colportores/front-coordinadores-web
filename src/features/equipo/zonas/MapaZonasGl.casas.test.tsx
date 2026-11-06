@@ -160,12 +160,48 @@ describe("24P·03 · la casa elegida", () => {
     expect(otro.onElegir).toHaveBeenLastCalledWith(null);
   });
 
-  it("la tarjeta dice el estado, el tipo y la zona, y nada de montos, personas ni direcciones", () => {
+  it("la tarjeta dice el estado, el tipo y la zona, y nada de montos ni personas", () => {
     montar({ casas: [casa(1, "COBRANZA_PENDIENTE", { tipo: "NEGOCIO" })], elegidaId: "c1" });
 
     const tarjeta = screen.getByRole("group", { name: "Casa elegida" });
     expect(tarjeta).toHaveTextContent(`Cobranza pendienteNegocio · Zona ${ZONAS[0].nombre}`);
     expect(tarjeta.textContent).not.toMatch(/[0-9]{3,}|colportor|cliente|U\$U|UYU/i);
+  });
+
+  it("24P·03: la tarjeta suma la dirección y el colportor que la registró (decisión del 05/11), sin montos ni personas", () => {
+    montar({ casas: [casa(1, "COBRANZA_PENDIENTE", { direccion: "Heredia 1234", registradaPor: "Ana Pérez" })], elegidaId: "c1" });
+
+    const tarjeta = screen.getByRole("group", { name: "Casa elegida" });
+    expect(tarjeta).toHaveTextContent(`Cobranza pendienteCasa · Zona ${ZONAS[0].nombre}Dirección: Heredia 1234Registrada por Ana Pérez`);
+    expect(tarjeta.textContent).not.toMatch(/U\$U|UYU|cliente/i);
+  });
+
+  it("una casa sin dirección, o cuya registradora se dio de baja, no escribe esas líneas (nunca «Dirección: —»)", () => {
+    montar({ casas: [casa(1, "RECHAZO", { direccion: null, registradaPor: null })], elegidaId: "c1" });
+
+    const tarjeta = screen.getByRole("group", { name: "Casa elegida" });
+    expect(tarjeta).not.toHaveTextContent(/Dirección|Registrada por/);
+  });
+
+  it("una dirección o un nombre en blanco tampoco inventan la línea", () => {
+    montar({ casas: [casa(1, "RECHAZO", { direccion: "   ", registradaPor: " " })], elegidaId: "c1" });
+
+    expect(screen.getByRole("group", { name: "Casa elegida" })).not.toHaveTextContent(/Dirección|Registrada por/);
+  });
+
+  it("una dirección larguísima y sin espacios se parte dentro de la tarjeta", () => {
+    const larga = "Avenida".repeat(30);
+    montar({ casas: [casa(1, "RECHAZO", { direccion: larga, registradaPor: "Nombre".repeat(30) })], elegidaId: "c1" });
+
+    const tarjeta = screen.getByRole("group", { name: "Casa elegida" });
+    expect(tarjeta).toHaveTextContent(larga);
+    expect(Array.from(tarjeta.querySelectorAll("span.wrap-anywhere")).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("24P·03: la casa que no cae en ninguna zona dice «Sin zona» (todas las casas de la ciudad, 05/11)", () => {
+    montar({ casas: [casa(1, "SIN_VISITA", { zonaIds: [] })], elegidaId: "c1" });
+
+    expect(screen.getByRole("group", { name: "Casa elegida" })).toHaveTextContent("Sin visitaCasa · Sin zona");
   });
 
   it("24P·03: la tarjeta suma «Último cambio: dd/mm» bajo la zona, con la fecha de Montevideo", () => {
