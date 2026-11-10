@@ -100,6 +100,8 @@ Por pestaña, tres archivos en `src/datos/<pestaña>/` (el ejemplo completo est�
 
 Las vistas nunca importan `simulado.ts` directo (los tests sí pueden).
 
+**Cuentas: la vista 29 va conectada antes que el resto.** Por la [decisión de Cristian del 10/11, «Conectar 29»](https://github.com/Colportores/front-coordinadores-web/pull/168#issuecomment-6765395618) (issue #170), «Validar tickets» lee y decide contra Supabase (`src/datos/cuentas/validar/rpc.ts`: `tickets_de_campania`, `retiros_de_campania`, `validacion_de_*`, `validar_ticket`, `confirmar_retiro`, `rechazar_*` y la Edge Function `foto-ticket`) cuando el panel tiene Supabase; su `index.ts` sigue cayendo a la simulada sin él, y el sitio de prueba la usa siempre. El resto de Cuentas (vista 36 y sus diálogos) sigue con datos simulados hasta que se conecte: por eso un «Validar» de Cuentas → Tickets puede traer un id que la cola real no tiene, y la 29 abre la cola sin error.
+
 **Criterios de datos (obligatorios):**
 
 - El coordinador ve **montos y agregados, nunca datos de clientes**: ni nombres, ni apellidos, ni teléfonos, ni direcciones de clientes, ni notas. Los nombres de **colportores** sí (son el equipo del coordinador).

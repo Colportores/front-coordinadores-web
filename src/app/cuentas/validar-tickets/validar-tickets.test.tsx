@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { isValidElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ErrorValidarTickets from "@/app/cuentas/validar-tickets/error";
@@ -14,15 +15,24 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 // El selector se reemplaza por uno que se puede controlar; en el sitio de prueba tiene que explotar si alguien lo usa:
 // ahí la fuente es siempre la simulada, aunque el día de mañana `index.ts` apunte a la real.
+// `accionesValidarTickets`: null = sin Supabase (las simuladas del navegador); un objeto = conectada (server actions, #170).
+const conexion = vi.hoisted(() => ({ acciones: null as unknown }));
 vi.mock("@/datos/cuentas/validar", async (importOriginal) => {
   const original = await importOriginal<typeof ModuloValidar>();
-  return { ...original, fuenteValidarTickets: { obtenerPorValidar: vi.fn() } };
+  return {
+    ...original,
+    fuenteValidarTickets: { obtenerPorValidar: vi.fn() },
+    get accionesValidarTickets() {
+      return conexion.acciones;
+    },
+  };
 });
 
 const obtenerPorValidar = vi.mocked(fuenteValidarTickets.obtenerPorValidar);
 const AHORA = new Date("2026-11-10T14:00:00.000Z");
 
 afterEach(() => {
+  conexion.acciones = null;
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
   obtenerPorValidar.mockReset();
@@ -37,6 +47,30 @@ describe("ruta /cuentas/validar-tickets (vista 29)", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Validar tickets" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Tickets por validar · 5");
     expect(screen.getByRole("link", { name: "‹ Estado de cuenta del equipo" })).toHaveAttribute("href", "/cuentas");
+  });
+
+  it("conectada a Supabase (#170): la vista recibe las server actions, que llaman a las acciones reales", async () => {
+    const validar = vi.fn(async () => ({ ok: true, valor: { resueltoEn: AHORA.toISOString(), yaEstaba: false } }));
+    conexion.acciones = { validar, rechazar: vi.fn(), enlaceDeFoto: vi.fn() };
+    obtenerPorValidar.mockResolvedValue(armarValidacionSimulada(AHORA));
+
+    const jsx = await ValidarTickets();
+    let actual: unknown = jsx;
+    let acciones: { validar: (item: unknown) => Promise<unknown> } | undefined;
+    while (isValidElement(actual)) {
+      const props = actual.props as { acciones?: typeof acciones; children?: unknown };
+      if (props.acciones) {
+        acciones = props.acciones;
+        break;
+      }
+      actual = props.children;
+    }
+
+    expect(acciones).toBeDefined();
+    await acciones?.validar({ id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", tipo: "deposito", monto: 1 });
+    expect(validar).toHaveBeenCalledWith({ id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", tipo: "deposito" });
+    render(<ProveedorModoDev activo={false}>{jsx}</ProveedorModoDev>);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Tickets por validar · 5");
   });
 
   it("si la fuente falla, la página falla y Next muestra error.tsx (no se pinta una vista vacía)", async () => {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent } from "react";
 
+import { mensajeDeRechazo, motivoDelRechazo } from "@/auth/sesion-vencida";
 import type { AccionesValidarTickets, DatosDeValidacion, ItemPorValidar, ResultadoDeAccion } from "@/datos/cuentas/validar";
 import { useEnLinea } from "@/lib/en-linea";
 import { mensajeSinConexion } from "@/lib/mensajes";
@@ -58,6 +59,15 @@ function elegirAbierto(cola: readonly ItemPorValidar[], elegida: string | null |
   if (existe(elegida)) return elegida;
   if (elegida === undefined && existe(pedido)) return pedido;
   return cola.find(esAccionable)?.id ?? null;
+}
+
+/**
+ * Un envío que tiró: si el proxy cerró la sesión mientras la vista estaba abierta (#41), un rechazo que lo dice; si no, sin
+ * conexión (el servidor no contestó).
+ */
+function fallaDeEnvio(error: unknown, accion: string): Extract<ResultadoDeAccion<never>, { ok: false }> {
+  const motivo = motivoDelRechazo(error);
+  return motivo ? { ok: false, causa: "rechazado", mensaje: mensajeDeRechazo(motivo, accion) } : { ok: false, causa: "sin-conexion" };
 }
 
 function esCampoDeTexto(destino: EventTarget | null): boolean {
@@ -135,8 +145,8 @@ export function ValidarTicketsVista({ datos, acciones }: { datos: DatosDeValidac
       let r: ResultadoDeAccion<unknown>;
       try {
         r = await acciones.validar(item);
-      } catch {
-        r = { ok: false, causa: "sin-conexion" };
+      } catch (error) {
+        r = fallaDeEnvio(error, "validar el ticket");
       }
       if (r.ok) return true;
       setCola((previa) => conDecision(previa, item.id, { estado: "PENDIENTE" }));
@@ -185,8 +195,8 @@ export function ValidarTicketsVista({ datos, acciones }: { datos: DatosDeValidac
         let r: ResultadoDeAccion<{ resueltoEn: string }>;
         try {
           r = decision === "validar" ? await acciones.validar(item) : await acciones.rechazar(item, motivo);
-        } catch {
-          r = { ok: false, causa: "sin-conexion" };
+        } catch (error) {
+          r = fallaDeEnvio(error, decision === "validar" ? "confirmar" : "guardar el rechazo");
         }
         const que = item.tipo === "retiro" ? `el retiro de ${item.colportorNombre}` : `el ticket de ${item.colportorNombre}`;
         if (!r.ok) {

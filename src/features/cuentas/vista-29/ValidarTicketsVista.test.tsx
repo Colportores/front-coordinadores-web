@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { marcaDeRechazo } from "@/auth/sesion-vencida";
 import type { AccionesValidarTickets, DatosDeValidacion, ItemPorValidar, Resolucion, ResultadoDeAccion } from "@/datos/cuentas/validar";
 import { armarValidacionSimulada } from "@/datos/cuentas/validar/simulado";
 import { hayTrabajoPendiente, reiniciarTrabajoPendiente } from "@/shell/trabajo-pendiente";
@@ -590,5 +591,66 @@ describe("cómo se llega y casos límite", () => {
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Tickets por validar · 60");
     expect(within(panel()).getByText(largo)).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(61);
+  });
+});
+
+describe("la sesión que el proxy cerró con la vista abierta (#41, #170)", () => {
+  /** Lo que llega de una server action cuando `src/proxy.ts` contesta 401 con su marca. */
+  const cerrada = (motivo: "vencida" | "sin-acceso") => async () => {
+    throw new Error(marcaDeRechazo(motivo));
+  };
+
+  it("validar un depósito: dice que la sesión venció, no «sin conexión», y el ticket sigue por validar", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: false });
+    montar(simulados(), acciones({ validar: cerrada("vencida") }));
+    await abrir("Lucía Fernández");
+    await tocar(boton(/^Validar/));
+    await act(async () => {
+      vi.advanceTimersByTime(MS_DESHACER);
+    });
+    expect(filaDe("Lucía Fernández")).toHaveAccessibleName(/Por validar$/);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "No se validó el ticket de Lucía Fernández: sigue por validar. Tu sesión venció. Volvé a entrar para seguir.",
+    );
+  });
+
+  it("confirmar un retiro sin acceso: pide volver a entrar y el botón vuelve a poder usarse", async () => {
+    montar(simulados(), acciones({ validar: cerrada("sin-acceso") }));
+    await abrir("Lucía Benítez");
+    await tocar(boton(/^Confirmar/));
+    expect(within(panel()).getByText("No se pudo confirmar. Volvé a entrar para seguir.")).toBeInTheDocument();
+    expect(boton(/^Confirmar/)).not.toHaveAttribute("aria-disabled", "true");
+    expect(filaDe("Lucía Benítez")).toHaveAccessibleName(/Por confirmar$/);
+  });
+
+  it("rechazar: el motivo sigue escrito y el aviso dice que la sesión venció", async () => {
+    montar(simulados(), acciones({ rechazar: cerrada("vencida") }));
+    await abrir("Lucía Benítez");
+    await tocar(boton(/^Rechazar/));
+    await escribir(motivo(), "Me entregaste otro monto");
+    await tocar(boton("Confirmar rechazo"));
+    expect(within(panel()).getByText("Tu sesión venció. Volvé a entrar para seguir.")).toBeInTheDocument();
+    expect(motivo()).toHaveValue("Me entregaste otro monto");
+  });
+
+  it("la foto: dice que la sesión venció", async () => {
+    montar(simulados(), acciones({ enlaceDeFoto: cerrada("vencida") }));
+    await abrir("Lucía Fernández");
+    await tocar(boton("Ver foto"));
+    expect(within(panel()).getByRole("alert")).toHaveTextContent("Tu sesión venció. Volvé a entrar para seguir.");
+  });
+
+  it("un error cualquiera (sin la marca del proxy) sigue siendo «sin conexión»", async () => {
+    montar(simulados(), acciones({ enlaceDeFoto: async () => Promise.reject(new TypeError("fetch failed")) }));
+    await abrir("Lucía Fernández");
+    await tocar(boton("Ver foto"));
+    expect(within(panel()).getByRole("alert")).toHaveTextContent("Necesitás conexión para ver la foto.");
+  });
+
+  it("un ?ticket= de Cuentas que la cola real no tiene (Cuentas sigue simulada) abre la cola sin error", () => {
+    window.history.replaceState(null, "", "/cuentas/validar-tickets?ticket=00000000-0000-4000-8000-000000000000");
+    montar();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Tickets por validar · 5");
   });
 });

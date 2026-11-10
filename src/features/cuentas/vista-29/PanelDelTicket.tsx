@@ -2,6 +2,7 @@
 
 import { useId, useState, type KeyboardEvent } from "react";
 
+import { mensajeDeRechazo, motivoDelRechazo } from "@/auth/sesion-vencida";
 import type { AccionesValidarTickets, ItemPorValidar } from "@/datos/cuentas/validar";
 import { cn } from "@/lib/utils";
 
@@ -76,8 +77,10 @@ function FotoDelTicket({ item, acciones }: { item: ItemPorValidar; acciones: Acc
           ? { tipo: "lista", url: r.valor }
           : { tipo: "error", texto: r.causa === "sin-conexion" ? "Necesitás conexión para ver la foto. Revisá la conexión y probá de nuevo." : (r.mensaje ?? "No pudimos traer la foto. Probá de nuevo.") },
       );
-    } catch {
-      setEstado({ tipo: "error", texto: "Necesitás conexión para ver la foto. Revisá la conexión y probá de nuevo." });
+    } catch (error) {
+      // El proxy cerró la sesión mientras la vista estaba abierta (#41): se dice eso, no «sin conexión».
+      const motivo = motivoDelRechazo(error);
+      setEstado({ tipo: "error", texto: motivo ? mensajeDeRechazo(motivo, "ver la foto") : "Necesitás conexión para ver la foto. Revisá la conexión y probá de nuevo." });
     }
   };
 
