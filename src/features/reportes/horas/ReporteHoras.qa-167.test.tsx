@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { crearFuenteReportesRpc } from "@/datos/reportes/rpc";
@@ -102,5 +103,15 @@ describe("QA #167 · Reportes con datos de las RPC", () => {
     expect(texto).toContain("$U 5.751");
     expect(within(fila).queryByText("—")).not.toBeInTheDocument();
     expect(screen.queryByText(/POR COBRAR/i)).not.toBeInTheDocument();
+  });
+
+  // Decisión del agente de decisiones (10/11, mapa §2, P1): Semanas rotula la semana completa y avisa de la que está en curso.
+  it.skip("QA #167: Semanas dice «última semana completa» y avisa que la semana en curso se compara cuando termine (decisión P1, sin aplicar)", async () => {
+    const user = userEvent.setup();
+    render(<ReporteHoras datos={await datosReales()} />);
+    await user.click(screen.getByRole("button", { name: "Semanas" }));
+
+    expect(screen.getByText(/S\d+ · última semana completa/)).toBeInTheDocument();
+    expect(screen.getByText(/La S\d+ está en curso: se compara cuando termine\./)).toBeInTheDocument();
   });
 });
