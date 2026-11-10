@@ -10,15 +10,20 @@ import { cn } from "@/lib/utils";
 const CLASE_BOTON =
   "inline-flex min-h-8 cursor-pointer items-center justify-center rounded-control border px-3.5 text-chico font-semibold whitespace-nowrap focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none aria-disabled:cursor-not-allowed aria-disabled:opacity-60";
 
-/** El alquiler de la campaña se edita acá y cambia para todos los inscriptos (C7). Si falla, queda abierto con lo escrito. */
+/**
+ * El alquiler de la campaña se edita acá y cambia para todos los inscriptos (C7). Si falla, queda abierto con lo escrito. Con
+ * pagos de alquiler en la campaña no deja guardar 0 ni vacío y lo explica junto al campo (Cristian 10/11, «Alquiler a 0»).
+ */
 function EditorDeAlquiler({
   alquiler,
+  hayPagos,
   guardando,
   errorDeGuardado,
   alGuardar,
   alCancelar,
 }: {
   alquiler: number;
+  hayPagos: boolean;
   guardando: boolean;
   errorDeGuardado: string | null;
   alGuardar: (monto: number) => void;
@@ -36,7 +41,7 @@ function EditorDeAlquiler({
   function enviar(evento: FormEvent) {
     evento.preventDefault();
     if (guardando) return;
-    const lectura = validarAlquiler(texto);
+    const lectura = validarAlquiler(texto, { hayPagos });
     if (lectura.monto === null) {
       setError(lectura.error);
       entrada.current?.focus();
@@ -98,6 +103,7 @@ export function EncabezadoDeCuentas({
   titulo,
   subtitulo,
   alquiler,
+  hayPagosDeAlquiler,
   editando,
   guardando,
   errorDeGuardado,
@@ -108,6 +114,8 @@ export function EncabezadoDeCuentas({
   titulo: string;
   subtitulo: string;
   alquiler: number;
+  /** La campaña ya tiene pagos de alquiler (por validar o validados): el alquiler no puede quedar en 0 ni vacío. */
+  hayPagosDeAlquiler: boolean;
   editando: boolean;
   guardando: boolean;
   errorDeGuardado: string | null;
@@ -125,6 +133,7 @@ export function EncabezadoDeCuentas({
         {editando ? (
           <EditorDeAlquiler
             alquiler={alquiler}
+            hayPagos={hayPagosDeAlquiler}
             guardando={guardando}
             errorDeGuardado={errorDeGuardado}
             alGuardar={alGuardarAlquiler}

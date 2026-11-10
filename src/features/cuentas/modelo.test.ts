@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { DatosDeCuentas, TicketDeCuentas } from "@/datos/cuentas";
 import { armarCuentasSimuladas } from "@/datos/cuentas/simulado";
+import { hayPagosDeAlquiler, TEXTO_ALQUILER_CON_PAGOS } from "@/features/cuentas/por-decidir";
 import {
   aplicarAlquiler,
   aplicarTicket,
@@ -312,6 +313,46 @@ describe("validarAlquiler", () => {
     expect(validarAlquiler("").error).toMatch(/0 si la campaña no cobra/);
     expect(validarAlquiler("1,5").monto).toBeNull();
     expect(validarAlquiler("-3").monto).toBeNull();
+  });
+
+  it("con pagos de alquiler en la campaña rechaza 0 y vacío con el aviso de la decisión «Alquiler a 0»; otro monto sigue andando", () => {
+    const conPagos = { hayPagos: true };
+    for (const texto of ["0", "000", "", "   "]) {
+      expect(validarAlquiler(texto, conPagos)).toEqual({ error: TEXTO_ALQUILER_CON_PAGOS, monto: null });
+    }
+    expect(validarAlquiler("20.000", conPagos)).toEqual({ error: null, monto: 20000 });
+    expect(validarAlquiler("1", conPagos)).toEqual({ error: null, monto: 1 });
+    expect(validarAlquiler("1,5", conPagos).error).toMatch(/número entero de pesos/);
+    expect(validarAlquiler("0", { hayPagos: false })).toEqual({ error: null, monto: 0 });
+  });
+});
+
+describe("hayPagosDeAlquiler", () => {
+  const datos = armarCuentasSimuladas(new Date("2026-10-22T15:00:00.000Z"));
+  const pago = (estado: TicketDeCuentas["estado"], extra: Partial<TicketDeCuentas> = {}): TicketDeCuentas => ({
+    id: `pago-${estado}`,
+    colportorId: datos.colportores[0].id,
+    fecha: datos.ahora,
+    monto: 5000,
+    medio: "deposito-banco",
+    destino: "alquiler",
+    estado,
+    tieneFoto: true,
+    ...extra,
+  });
+  const con = (tickets: TicketDeCuentas[]): DatosDeCuentas => ({ ...datos, tickets });
+
+  it("cuenta los pagos de alquiler por validar y validados, de cualquier colportor", () => {
+    expect(hayPagosDeAlquiler(datos)).toBe(true);
+    expect(hayPagosDeAlquiler(con([pago("PENDIENTE")]))).toBe(true);
+    expect(hayPagosDeAlquiler(con([pago("VALIDADO")]))).toBe(true);
+  });
+
+  it("no cuenta los rechazados, los devueltos (anulados) ni los depósitos a la casa editora", () => {
+    expect(hayPagosDeAlquiler(con([]))).toBe(false);
+    expect(hayPagosDeAlquiler(con([pago("RECHAZADO", { motivoRechazo: "Foto ilegible" })]))).toBe(false);
+    expect(hayPagosDeAlquiler(con([pago("VALIDADO", { anulado: { en: datos.ahora } })]))).toBe(false);
+    expect(hayPagosDeAlquiler(con([pago("VALIDADO", { destino: "casa-editora" })]))).toBe(false);
   });
 });
 

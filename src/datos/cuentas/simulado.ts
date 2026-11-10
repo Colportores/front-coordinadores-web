@@ -13,7 +13,7 @@ import type {
 } from "@/datos/cuentas/contrato";
 import { instanteHaceDias } from "@/datos/cuentas/fechas";
 import { aplicarAlquiler, aplicarDecision } from "@/features/cuentas/modelo";
-import { alquilerDecidible } from "@/features/cuentas/por-decidir";
+import { alquilerDecidible, hayPagosDeAlquiler, TEXTO_ALQUILER_CON_PAGOS } from "@/features/cuentas/por-decidir";
 import { generadorDeAzar } from "@/lib/azar";
 
 /**
@@ -321,6 +321,10 @@ export function crearAccionesSimuladas(inicial?: DatosDeCuentas): AccionesCuenta
     async editarAlquiler(monto: number): Promise<ResultadoDeAccion<number>> {
       if (!Number.isInteger(monto) || monto < 0) {
         return { ok: false, causa: "rechazado", mensaje: "El alquiler tiene que ser un monto entero, sin negativos." };
+      }
+      // Como definir_alquiler_de_campania (backend-supabase#260): con pagos de alquiler vivos, no queda en 0.
+      if (monto === 0 && datos && hayPagosDeAlquiler(datos)) {
+        return { ok: false, causa: "rechazado", mensaje: TEXTO_ALQUILER_CON_PAGOS };
       }
       if (datos) datos = aplicarAlquiler(datos, monto);
       return { ok: true, valor: monto };
