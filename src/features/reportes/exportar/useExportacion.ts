@@ -36,7 +36,7 @@ export type ResultadoDeExportacion =
 export interface EstadoDeExportacion {
   /** Qué se está generando ahora, o `null`. Mientras tanto no se acepta otro pedido. */
   ocupado: FormatoDeExportacion | null;
-  /** El aviso del último pedido; desaparece en cuanto cambia lo que se ve (otro ámbito o período). */
+  /** El aviso del último pedido; el de éxito desaparece en cuanto cambia lo que se ve (otro ámbito o período), el de error se queda hasta el pedido siguiente. */
   resultado: ResultadoDeExportacion | null;
   /** El reporte no tiene ningún colportor ni período que exportar. */
   vacio: boolean;
@@ -138,5 +138,8 @@ export function useExportacion(reporte: ReporteArmado, contexto: ContextoDeExpor
     [reporte, contexto, vacio, enLinea, descargarInforme],
   );
 
-  return { ocupado, resultado: aviso && aviso.para === reporte ? aviso.resultado : null, vacio, motivoPdf, exportar };
+  // El éxito se va cuando cambia lo que se ve (ya no habla de esa pantalla); un error no: la persona apretó el botón, no bajó
+  // nada y tiene que enterarse aunque haya cambiado el filtro mientras tanto. Se va con el pedido siguiente.
+  const resultado = aviso && (aviso.resultado.tipo === "error" || aviso.para === reporte) ? aviso.resultado : null;
+  return { ocupado, resultado, vacio, motivoPdf, exportar };
 }

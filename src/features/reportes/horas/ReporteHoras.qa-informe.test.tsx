@@ -66,7 +66,7 @@ afterEach(() => {
 });
 
 describe("QA #84 · cambiar el filtro mientras se arma el informe", () => {
-  it.skip("QA #84: si el servidor rechaza el informe después de cambiar el filtro, el error se pierde y no se ve ningún aviso", async () => {
+  it("QA #84: si el servidor rechaza el informe después de cambiar el filtro, el error se pierde y no se ve ningún aviso", async () => {
     const user = userEvent.setup();
     const servidor = pendiente();
     informe.mockReturnValueOnce(servidor.promesa);
@@ -81,7 +81,7 @@ describe("QA #84 · cambiar el filtro mientras se arma el informe", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("No se pudo armar el informe");
   });
 
-  it.skip("QA #84: sin conexión a mitad del pedido y con otro filtro, tampoco se avisa que hace falta conexión", async () => {
+  it("QA #84: sin conexión a mitad del pedido y con otro filtro, tampoco se avisa que hace falta conexión", async () => {
     const user = userEvent.setup();
     const servidor = pendiente();
     informe.mockReturnValueOnce(servidor.promesa);
