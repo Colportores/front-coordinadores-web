@@ -20,7 +20,7 @@ export const MOTIVO_SIN_CONEXION = "Necesitás conexión para descargar el infor
 export const MOTIVO_RANGO =
   "El informe PDF todavía no se puede armar con un rango de fechas: elegí Días, Semanas o Meses. «Datos CSV» sí sirve.";
 export const MOTIVO_COLPORTORES_ELEGIDOS =
-  "El informe PDF todavía no se puede armar con colportores elegidos: sacá la elección para descargarlo. «Datos CSV» sí sirve.";
+  "El informe PDF todavía no se puede armar con colportores elegidos: tildá a todos los colportores para descargarlo. «Datos CSV» sí sirve.";
 
 /** Lo que pasó con el último pedido de exportar, para decírselo a la persona. */
 export type ResultadoDeExportacion =

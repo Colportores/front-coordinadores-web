@@ -475,6 +475,7 @@ describe("ReporteHoras · Informe PDF que el servidor todavía no arma (issue #8
 
     expect(estaApagado(botonPdf())).toBe(true);
     expect(botonPdf()).toHaveAccessibleDescription(MOTIVO_COLPORTORES_ELEGIDOS);
+    expect(MOTIVO_COLPORTORES_ELEGIDOS).toContain("tildá a todos los colportores para descargarlo.");
     await user.click(botonPdf());
     expect(informe).not.toHaveBeenCalled();
 
