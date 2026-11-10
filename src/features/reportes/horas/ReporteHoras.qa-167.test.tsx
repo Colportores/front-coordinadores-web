@@ -106,7 +106,7 @@ describe("QA #167 · Reportes con datos de las RPC", () => {
   });
 
   // Decisión del agente de decisiones (10/11, mapa §2, P1): Semanas rotula la semana completa y avisa de la que está en curso.
-  it.skip("QA #167: Semanas dice «última semana completa» y avisa que la semana en curso se compara cuando termine (decisión P1, sin aplicar)", async () => {
+  it("QA #167: Semanas dice «última semana completa» y avisa que la semana en curso se compara cuando termine (decisión P1)", async () => {
     const user = userEvent.setup();
     render(<ReporteHoras datos={await datosReales()} />);
     await user.click(screen.getByRole("button", { name: "Semanas" }));

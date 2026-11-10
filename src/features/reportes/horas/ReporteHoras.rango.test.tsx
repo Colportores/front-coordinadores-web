@@ -151,7 +151,7 @@ describe("ReporteHoras · rango de fechas libre", () => {
 
     await user.click(screen.getByRole("button", { name: "Semanas" }));
     expect(screen.queryByLabelText("DESDE")).not.toBeInTheDocument();
-    expect(screen.getByText("4 colportores · S2 contra S1")).toBeInTheDocument();
+    expect(screen.getByText("4 colportores · S2 · última semana completa contra S1")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Rango" }));
     expect(desde().value).toBe("2026-10-12");
@@ -223,7 +223,7 @@ describe("ReporteHoras · elegir colportores", () => {
 
     // S2: Carla 30 + Darío 24
     expect(within(tarjeta("HORAS")).getByText("54")).toBeInTheDocument();
-    expect(screen.getByText("2 colportores · S2 contra S1")).toBeInTheDocument();
+    expect(screen.getByText("2 colportores · S2 · última semana completa contra S1")).toBeInTheDocument();
   });
 
   it("«Todos» vuelve a ver a todos", async () => {
