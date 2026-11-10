@@ -95,8 +95,21 @@ describe("modelo de la vista 29", () => {
 
     it("un depósito de casa editora mayor que la deuda avisa lo que queda a favor, sin frenar («Pago de más»)", () => {
       const previa = previaDelItem(item("joaquin-duarte-de-mas"));
-      expect(previa?.aviso).toBe("Supera la deuda de $U 5.000: quedan $U 3.000 a favor");
+      expect(previa?.avisos).toEqual(["Supera la deuda de $U 5.000: quedan $U 3.000 a favor"]);
       expect(previa?.campos[2]).toMatchObject({ rotulo: "SI VALIDÁS, QUEDA EN", valor: "a favor $U 3.000" });
+    });
+
+    it("el alquiler de más avisa que pasa a la deuda con la casa editora; la previa no baja de 0 (P2)", () => {
+      const previa = previaDelItem({ ...item("valentina-silva-alquiler"), monto: 15000, cifras: { enMano: 15000, deuda: 13500 } });
+      expect(previa?.campos[2]).toMatchObject({ valor: "$U 0" });
+      expect(previa?.avisos).toEqual(["Supera la deuda de alquiler de $U 13.500: los $U 1.500 de más van a la deuda con la casa editora"]);
+    });
+
+    it("avisa la diferencia con lo que tenía en mano, sin frenar; si coincide, no dice nada (P2)", () => {
+      expect(previaDelItem(item("lucia-benitez-retiro"))?.avisos).toEqual([
+        "Según la app tenía en mano $U 9.400 y el retiro dice $U 6.000 (diferencia $U 3.400)",
+      ]);
+      expect(previaDelItem({ ...item("lucia-fernandez-por-validar"), cifras: { enMano: 9000, deuda: 18400 } })?.avisos).toEqual([]);
     });
 
     it("el alquiler usa su propia deuda", () => {

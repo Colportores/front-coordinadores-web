@@ -135,8 +135,12 @@ export function camposDelItem(item: ItemPorValidar, ahoraIso: string): Campo[] {
 
 export interface Previa {
   campos: Campo[];
-  /** «Supera la deuda de $U 5.000: quedan $U 3.000 a favor» (decisión de Cristian, 25/10, «Pago de más»): avisa, no frena. */
-  aviso: string | null;
+  /**
+   * Avisos que no frenan (regla R4): «Pago de más» de casa editora (Cristian, 25/10), el alquiler de más que pasa a la casa
+   * editora (`a_la_casa_editora`, 0152) y la diferencia con lo que tenía en mano (`diferencia = monto - en_mano`, 0152).
+   * Textos decididos en pendientes/front-coordinadores-web-69-impl-261110-0734.md, P2.
+   */
+  avisos: string[];
 }
 
 /**
@@ -150,13 +154,25 @@ export function previaDelItem(item: ItemPorValidar): Previa | null {
   const rotuloDeuda = item.concepto === "alquiler" ? "DEUDA DE ALQUILER" : "DEUDA CON LA CASA EDITORA";
   const rotuloQueda = item.tipo === "retiro" ? "SI CONFIRMÁS, QUEDA EN" : "SI VALIDÁS, QUEDA EN";
   const aFavor = item.concepto === "casa-editora" && despues < 0 ? -despues : 0;
+  const aLaCasaEditora = item.concepto === "alquiler" && despues < 0 ? -despues : 0;
+  const diferencia = item.monto - enMano;
+  const avisos: string[] = [];
+  if (aFavor > 0) avisos.push(`Supera la deuda de ${formatMonto(deuda)}: quedan ${formatMonto(aFavor)} a favor`);
+  if (aLaCasaEditora > 0) {
+    avisos.push(`Supera la deuda de alquiler de ${formatMonto(deuda)}: los ${formatMonto(aLaCasaEditora)} de más van a la deuda con la casa editora`);
+  }
+  if (diferencia !== 0) {
+    avisos.push(
+      `Según la app tenía en mano ${formatMonto(enMano)} y ${item.tipo === "retiro" ? "el retiro" : "el ticket"} dice ${formatMonto(item.monto)} (diferencia ${formatMonto(Math.abs(diferencia))})`,
+    );
+  }
   return {
     campos: [
       { rotulo: "EN MANO SEGÚN LA APP", valor: formatMonto(enMano), mono: true },
       { rotulo: rotuloDeuda, valor: formatMonto(deuda), mono: true },
       { rotulo: rotuloQueda, valor: aFavor > 0 ? `a favor ${formatMonto(aFavor)}` : formatMonto(Math.max(despues, 0)), mono: true },
     ],
-    aviso: aFavor > 0 ? `Supera la deuda de ${formatMonto(deuda)}: quedan ${formatMonto(aFavor)} a favor` : null,
+    avisos,
   };
 }
 

@@ -245,12 +245,12 @@ export function PanelDelTicket(p: PropsDelPanel) {
       {previa && (
         <div className="flex flex-col gap-2 border-t border-borde-suave pt-2.5">
           <Campos campos={previa.campos} />
-          {previa.aviso && (
-            <p role="note" className="flex items-start gap-2 rounded-control bg-alerta-fondo px-3 py-2 text-chico text-alerta">
+          {previa.avisos.map((aviso) => (
+            <p key={aviso} role="note" className="flex items-start gap-2 rounded-control bg-alerta-fondo px-3 py-2 text-chico text-alerta">
               <span aria-hidden="true">△</span>
-              <span>{previa.aviso}</span>
+              <span>{aviso}</span>
             </p>
-          )}
+          ))}
         </div>
       )}
 

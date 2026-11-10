@@ -8,6 +8,9 @@ import { hayTrabajoPendiente, reiniciarTrabajoPendiente } from "@/shell/trabajo-
 import { MS_DESHACER } from "./modelo";
 import { ValidarTicketsVista } from "./ValidarTicketsVista";
 
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+
 const AHORA = new Date("2026-11-10T14:00:00.000Z"); // 11:00 en Montevideo
 const simulados = (): DatosDeValidacion => armarValidacionSimulada(AHORA);
 
@@ -62,6 +65,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  push.mockReset();
   vi.useRealTimers();
   vi.restoreAllMocks();
   reiniciarTrabajoPendiente();
@@ -303,11 +307,56 @@ describe("29A·03 · validado, paso al siguiente, con «Deshacer» 8 s", () => {
   });
 });
 
+describe("volver a Cuentas con algo a medio mandar (revisión, PR #168)", () => {
+  const ultimo = () => {
+    const datos = simulados();
+    datos.items = datos.items.filter((x) => x.id === "lucia-fernandez-por-validar");
+    return datos;
+  };
+
+  it("«Volver a Cuentas» manda la validación y espera: si falla, se queda con el aviso y no navega", async () => {
+    const espera = diferida();
+    const a = acciones({ validar: () => espera.promesa });
+    montar(ultimo(), a);
+    await tocar(boton(/^Validar/));
+    const volver = screen.getByRole("link", { name: "Volver a Cuentas" });
+    await act(async () => fireEvent.click(volver));
+    expect(a.validar).toHaveBeenCalledTimes(1);
+    expect(push).not.toHaveBeenCalled();
+    await act(async () => espera.resolver({ ok: false, causa: "sin-conexion" }));
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/^No se validó el ticket de Lucía Fernández: sigue por validar./);
+    expect(filaDe("Lucía Fernández")).toHaveAccessibleName(/Por validar$/);
+  });
+
+  it("si el envío sale bien, después de esperar va a Cuentas", async () => {
+    const espera = diferida();
+    montar(ultimo(), acciones({ validar: () => espera.promesa }));
+    await tocar(boton(/^Validar/));
+    await act(async () => fireEvent.click(screen.getByRole("link", { name: "‹ Estado de cuenta del equipo" })));
+    expect(push).not.toHaveBeenCalled();
+    await act(async () => espera.resolver(ok));
+    expect(push).toHaveBeenCalledWith("/cuentas");
+  });
+
+  it("sin nada a medio mandar el enlace navega solo, sin esperar", async () => {
+    montar(ultimo());
+    const volver = screen.getByRole("link", { name: "‹ Estado de cuenta del equipo" });
+    const evento = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
+    evento.preventDefault = vi.fn(evento.preventDefault.bind(evento));
+    act(() => {
+      volver.dispatchEvent(evento);
+    });
+    expect(push).not.toHaveBeenCalled();
+    expect(volver).toHaveAttribute("href", "/cuentas");
+  });
+});
+
 describe("pago de más («Pago de más», 25/10)", () => {
   it("avisa lo que queda a favor y deja validar igual", async () => {
     montar();
     await abrir("Joaquín Duarte");
-    expect(within(panel()).getByRole("note")).toHaveTextContent("Supera la deuda de $U 5.000: quedan $U 3.000 a favor");
+    expect(within(panel()).getAllByRole("note")[0]).toHaveTextContent("Supera la deuda de $U 5.000: quedan $U 3.000 a favor");
     expect(within(panel()).getByText("SI VALIDÁS, QUEDA EN", { selector: "dt" }).nextElementSibling).toHaveTextContent("a favor $U 3.000");
     expect(boton(/^Validar/)).not.toHaveAttribute("aria-disabled", "true");
   });
@@ -323,6 +372,7 @@ describe("36R · el retiro por el coordinador", () => {
     expect(p.getByText("EN MANO SEGÚN LA APP", { selector: "dt" }).nextElementSibling).toHaveTextContent("$U 9.400");
     expect(p.getByText("SI CONFIRMÁS, QUEDA EN", { selector: "dt" }).nextElementSibling).toHaveTextContent("$U 15.300");
     expect(p.getByText("Confirmar acredita $U 6.000 igual que un depósito validado. Rechazar no cambia la deuda.")).toBeInTheDocument();
+    expect(p.getByRole("note")).toHaveTextContent("Según la app tenía en mano $U 9.400 y el retiro dice $U 6.000 (diferencia $U 3.400)");
     expect(boton(/^Confirmar/)).toHaveFocus();
     expect(p.getByText("Retiro 3 de 3")).toBeInTheDocument();
   });
