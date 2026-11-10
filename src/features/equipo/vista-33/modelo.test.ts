@@ -98,8 +98,8 @@ describe("construirLista", () => {
       ["DEPTO. ARTIGAS", ["Todo el departamento:2", "Artigas:1", "Bella Unión:1"]],
       ["DEPTO. RIVERA", ["Rivera:2"]],
     ]);
-    // Los que no tienen zona se suman a cada renglón («8 + 1 sin zona»); no tienen renglón propio.
-    expect(lista.grupos.flatMap((g) => g.nodos).every((n) => n.sinZona === 1)).toBe(true);
+    // Los que no tienen zona se cuentan una sola vez, en «Todas las ciudades»: no se repiten en cada ciudad (#167).
+    expect(lista.grupos.flatMap((g) => g.nodos).every((n) => n.sinZona === 0)).toBe(true);
   });
 
   it("marca como seleccionado el ámbito actual", () => {

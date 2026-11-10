@@ -30,6 +30,30 @@ const fila = (extra: Record<string, unknown>) => ({
   ...extra,
 });
 
+/** Una fila de `ventas_por_ciudad_y_colportor()` (migración 0061), agrupada por día; `monto_total` en centavos. */
+const filaVentas = (extra: Record<string, unknown>) => ({
+  periodo_inicio: "2026-10-20",
+  periodo_fin: "2026-10-20",
+  ciudad_id: RIVERA,
+  ciudad_nombre: "Rivera",
+  colportor_id: "u-1",
+  nombre: "Lucía",
+  apellido: "Fernández",
+  ventas: 2,
+  monto_total: 380000,
+  presentaciones: 7,
+  en_curso: false,
+  ventas_anterior: 1,
+  monto_anterior: 190000,
+  presentaciones_anterior: 5,
+  cobrado: null,
+  cobrado_anterior: null,
+  ...extra,
+});
+
+/** Un día con horas y sin ventas: trabajó y no vendió (ceros, no «sin datos»). */
+const CERO = { presentaciones: 0, ventas: 0, monto: 0, cobrado: null };
+
 const ciudadesDeCampania = [
   { campania_ciudad_id: "cc-1", ciudad_id: RIVERA, nombre: "Rivera", departamento: "Rivera" },
   { campania_ciudad_id: "cc-2", ciudad_id: ARTIGAS, nombre: "Artigas", departamento: "Artigas" },
@@ -54,6 +78,7 @@ function lecturas(cambios: Record<string, Respuesta> = {}) {
     campanias_del_coordinador: [{ id: CAMPANIA, nombre: "Primavera", fecha_inicio: "2026-09-01", fecha_fin: null }],
     ciudades_de_campania: ciudadesDeCampania,
     horas_por_ciudad_y_colportor: [fila({})],
+    ventas_por_ciudad_y_colportor: [],
     zonas_por_colportor: [],
     ...cambios,
   });
@@ -122,15 +147,15 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
           id: ARTIGAS,
           nombre: "Artigas",
           departamento: "Artigas",
-          colportores: [{ id: "u-3", nombre: "Sofía Cabral", horasPorDia: { "2026-10-20": 6 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: {}, sinDatosDesde: null }],
+          colportores: [{ id: "u-3", nombre: "Sofía Cabral", horasPorDia: { "2026-10-20": 6 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: { "2026-10-20": CERO }, sinDatosDesde: null }],
         },
         {
           id: RIVERA,
           nombre: "Rivera",
           departamento: "Rivera",
           colportores: [
-            { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-19": 3.25, "2026-10-20": 4.5 }, acompaniadasPorDia: { "2026-10-19": 0, "2026-10-20": 0 }, ventasPorDia: {}, sinDatosDesde: null },
-            { id: "u-2", nombre: "Bruno Techera", horasPorDia: { "2026-10-20": 2 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: {}, sinDatosDesde: null },
+            { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-19": 3.25, "2026-10-20": 4.5 }, acompaniadasPorDia: { "2026-10-19": 0, "2026-10-20": 0 }, ventasPorDia: { "2026-10-19": CERO, "2026-10-20": CERO }, sinDatosDesde: null },
+            { id: "u-2", nombre: "Bruno Techera", horasPorDia: { "2026-10-20": 2 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: { "2026-10-20": CERO }, sinDatosDesde: null },
           ],
         },
       ],
@@ -176,8 +201,8 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
     const sinZona = datos?.ciudades[1];
     expect(sinZona).toMatchObject({ id: ID_SIN_ZONA, departamento: null });
     expect(sinZona?.colportores).toEqual([
-      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 20, "2026-10-19": 1.5 }, acompaniadasPorDia: { "2026-10-20": 0, "2026-10-19": 0 }, ventasPorDia: {}, sinDatosDesde: null },
-      { id: "u-8", nombre: "Ana Zapata", horasPorDia: { "2026-10-20": 3 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: {}, sinDatosDesde: null },
+      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 20, "2026-10-19": 1.5 }, acompaniadasPorDia: { "2026-10-20": 0, "2026-10-19": 0 }, ventasPorDia: { "2026-10-20": CERO, "2026-10-19": CERO }, sinDatosDesde: null },
+      { id: "u-8", nombre: "Ana Zapata", horasPorDia: { "2026-10-20": 3 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: { "2026-10-20": CERO }, sinDatosDesde: null },
     ]);
   });
 
@@ -202,7 +227,7 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
     expect(datos?.ciudades).toHaveLength(1);
     expect(datos?.ciudades[0].colportores).toEqual([
       { id: "u-5", nombre: "Rocío Benítez", horasPorDia: {}, acompaniadasPorDia: {}, ventasPorDia: {}, sinDatosDesde: null },
-      { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-20": 4.5 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: {}, sinDatosDesde: null },
+      { id: "u-1", nombre: "Lucía Fernández", horasPorDia: { "2026-10-20": 4.5 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: { "2026-10-20": CERO }, sinDatosDesde: null },
     ]);
   });
 
@@ -219,7 +244,7 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
 
     expect(datos?.ciudades.map((c) => c.id)).toEqual([ID_SIN_ZONA]);
     expect(datos?.ciudades[0].colportores).toEqual([
-      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 4.5 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: {}, sinDatosDesde: null },
+      { id: "u-9", nombre: "Diego Machado", horasPorDia: { "2026-10-20": 4.5 }, acompaniadasPorDia: { "2026-10-20": 0 }, ventasPorDia: { "2026-10-20": CERO }, sinDatosDesde: null },
       { id: "u-8", nombre: "Ana Zapata", horasPorDia: {}, acompaniadasPorDia: {}, ventasPorDia: {}, sinDatosDesde: null },
     ]);
   });
@@ -351,6 +376,100 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
 
     const diaInvalido = lecturas({ horas_por_ciudad_y_colportor: [fila({ periodo_inicio: "20/10/2026" })] });
     await expect(crearFuenteReportesRpc(diaInvalido.cliente, sinElegir, hoy).obtenerHoras()).rejects.toBeInstanceOf(RespuestaInesperada);
+  });
+
+  it("pide las ventas por día con los mismos parámetros que las horas (#167: antes no se pedían y salía «—»)", async () => {
+    const { cliente, llamarRpc } = lecturas();
+
+    await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(llamarRpc).toHaveBeenCalledWith("ventas_por_ciudad_y_colportor", {
+      p_campania_id: CAMPANIA,
+      p_desde: "2026-09-01",
+      p_hasta: "2026-10-21",
+      p_agrupar: "dia",
+      p_ciudad_id: null,
+      p_colportor_ids: null,
+    });
+  });
+
+  it("arma las presentaciones, las ventas y el monto en $U de cada día (la base manda centavos); lo cobrado (V2) queda en null", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [fila({ periodo_inicio: "2026-10-19" }), fila({ periodo_inicio: "2026-10-20" })],
+      ventas_por_ciudad_y_colportor: [
+        filaVentas({ periodo_inicio: "2026-10-19", ventas: 1, monto_total: 195050, presentaciones: 4 }),
+        filaVentas({ periodo_inicio: "2026-10-20" }),
+      ],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades[0].colportores[0].ventasPorDia).toEqual({
+      "2026-10-19": { presentaciones: 4, ventas: 1, monto: 1950.5, cobrado: null },
+      "2026-10-20": { presentaciones: 7, ventas: 2, monto: 3800, cobrado: null },
+    });
+  });
+
+  it("un día con horas y sin fila de ventas va en ceros; uno sin horas ni ventas no figura", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [fila({ periodo_inicio: "2026-10-20" })],
+      ventas_por_ciudad_y_colportor: [],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades[0].colportores[0].ventasPorDia).toEqual({ "2026-10-20": CERO });
+  });
+
+  it("la fila de ventas en cero que existe solo para la comparación del servidor no es un día con datos", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [],
+      ventas_por_ciudad_y_colportor: [filaVentas({ periodo_inicio: "2026-10-21", ventas: 0, monto_total: 0, presentaciones: 0 })],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades[0].colportores).toEqual([
+      { id: "u-1", nombre: "Lucía Fernández", horasPorDia: {}, acompaniadasPorDia: {}, ventasPorDia: {}, sinDatosDesde: null },
+    ]);
+  });
+
+  it("quien vendió sin jornada cerrada figura con sus ventas, una sola vez aunque también esté entre los inscriptos", async () => {
+    const { cliente } = lecturas({
+      horas_por_ciudad_y_colportor: [],
+      ventas_por_ciudad_y_colportor: [filaVentas({ colportor_id: "u-4", nombre: "Rocío", apellido: "Benítez" })],
+      zonas_por_colportor: [inscripto({ colportor_id: "u-4", nombre: "Rocío", apellido: "Benítez" })],
+    });
+
+    const datos = await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
+
+    expect(datos?.ciudades[0].colportores).toEqual([
+      {
+        id: "u-4",
+        nombre: "Rocío Benítez",
+        horasPorDia: {},
+        acompaniadasPorDia: {},
+        ventasPorDia: { "2026-10-20": { presentaciones: 7, ventas: 2, monto: 3800, cobrado: null } },
+        sinDatosDesde: null,
+      },
+    ]);
+  });
+
+  it("una falla o un rechazo al leer las ventas sale como excepción: nunca se toma por «sin ventas»", async () => {
+    const caida = lecturas({ ventas_por_ciudad_y_colportor: new TypeError("fetch failed") });
+    await expect(crearFuenteReportesRpc(caida.cliente, sinElegir, hoy).obtenerHoras()).rejects.toThrow("fetch failed");
+
+    const rechazo = lecturas({ ventas_por_ciudad_y_colportor: new ErrorSupabase("sin permiso", 403, "42501") });
+    await expect(crearFuenteReportesRpc(rechazo.cliente, sinElegir, hoy).obtenerHoras()).rejects.toMatchObject({ codigo: "42501" });
+
+    const enTexto = lecturas({ ventas_por_ciudad_y_colportor: [filaVentas({ ventas: "2" })] });
+    await expect(crearFuenteReportesRpc(enTexto.cliente, sinElegir, hoy).obtenerHoras()).rejects.toBeInstanceOf(RespuestaInesperada);
+  });
+
+  it("si la campaña desaparece al leer las ventas (CZ001) devuelve null", async () => {
+    const { cliente } = lecturas({ ventas_por_ciudad_y_colportor: new ErrorSupabase("La campaña no existe", 400, "CZ001") });
+
+    expect(await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras()).toBeNull();
   });
 
   it("un colportor sin nombre ni apellido figura igual", async () => {

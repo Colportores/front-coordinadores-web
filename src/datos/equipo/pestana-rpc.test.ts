@@ -100,6 +100,7 @@ const completas = (cambios: Respuestas = {}): Respuestas => ({
   zonas_por_colportor: [zonas()],
   historial_de_acompaniamientos: [historial()],
   acompaniamientos_por_colportor: [tabla()],
+  colportores_de_campania: [],
   ...cambios,
 });
 
@@ -243,6 +244,41 @@ describe("obtenerEquipoPorCiudad", () => {
     expect(datos?.colportores).toEqual([
       { id: ROCIO, nombre: "Rocío Benítez", ciudadId: null, zonaActual: null, zonasAnteriores: [], casasRegistradas: 0, acompanamientos: [], contadoDesde: "2026-09-01" },
     ]);
+  });
+
+  it("marca la cuenta suspendida con `colportores_de_campania()` (#167): sin zona no es un pendiente de acción", async () => {
+    const sinZona = zonas({ colportor_id: ROCIO, nombre: "Rocío", apellido: "Benítez", ciudad_id: null, ciudad_nombre: null, zona_id: null, zona_nombre: null, zona_desde: null, zona_desde_inicial: null, zonas_anteriores: [], casas_registradas: 0 });
+    const { cliente, llamarRpc } = clienteCon(
+      completas({
+        zonas_por_colportor: [zonas(), sinZona],
+        colportores_de_campania: [
+          { usuario_id: EMILIANO, nombre: "Emiliano", apellido: "Sosa", zona_id: "z-1", zona_nombre: "Santa Isabel", suspendido: false, email: "e@x.uy", estado: "ACTIVA" },
+          { usuario_id: ROCIO, nombre: "Rocío", apellido: "Benítez", zona_id: null, zona_nombre: null, suspendido: true, email: "r@x.uy", estado: "SUSPENDIDA" },
+        ],
+      }),
+    );
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(llamarRpc).toHaveBeenCalledWith("colportores_de_campania", { p_campania_id: CAMPANIA });
+    expect(datos?.colportores.map((c) => [c.nombre, c.suspendido ?? false])).toEqual([
+      ["Emiliano Sosa", false],
+      ["Rocío Benítez", true],
+    ]);
+  });
+
+  it("una campaña terminada se sigue leyendo aunque `colportores_de_campania()` la rechace (CZ011): nadie queda marcado", async () => {
+    const { cliente } = clienteCon(completas({ colportores_de_campania: rechazo("CZ011", "La campaña ya terminó.") }));
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.colportores.map((c) => c.suspendido ?? false)).toEqual([false]);
+  });
+
+  it("una falla al leer quién está suspendido sale como excepción (no se toma por «nadie suspendido»)", async () => {
+    const { cliente } = clienteCon(completas({ colportores_de_campania: new TypeError("fetch failed") }));
+
+    await expect(crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad()).rejects.toThrow("fetch failed");
   });
 
   it("junta los acompañamientos de cada colportor en el orden en que los manda la base y deja las horas nulas de una jornada abierta", async () => {

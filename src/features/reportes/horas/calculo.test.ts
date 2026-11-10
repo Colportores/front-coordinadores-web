@@ -162,6 +162,28 @@ describe("compararPeriodos", () => {
     expect(c?.base).toEqual(con(30));
   });
 
+  it("semanas: aclara que es la última completa y, con una en curso, cuál es y cuándo se compara (#167)", () => {
+    // Martes 15/09: la S2 está en curso, así que el encabezado muestra la S1.
+    const c = compararPeriodos("semana", constante(5), crearCalendario("2026-09-07", "2026-09-15"));
+    expect(c).toMatchObject({
+      rotulo: "S1",
+      aclaracion: "última semana completa",
+      contra: "",
+      enCurso: "La S2 está en curso: se compara cuando termine.",
+    });
+  });
+
+  it("semanas: con la campaña terminada no queda ninguna en curso y no hay aviso (#167)", () => {
+    const c = compararPeriodos("semana", constante(5), crearCalendario("2026-09-07", "2026-10-21", "2026-09-19"));
+    expect(c).toMatchObject({ rotulo: "S2", aclaracion: "última semana completa", contra: "contra S1" });
+    expect(c?.enCurso).toBeUndefined();
+  });
+
+  it("días y meses no llevan la aclaración de las semanas", () => {
+    expect(compararPeriodos("dia", constante(5), cal)?.aclaracion).toBeUndefined();
+    expect(compararPeriodos("mes", constante(5), cal)?.enCurso).toBeUndefined();
+  });
+
   it("días: ayer contra el día anterior", () => {
     const serie: Serie = (f) => con(f === "2026-10-20" ? 6 : 5);
     const c = compararPeriodos("dia", serie, cal);

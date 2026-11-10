@@ -103,6 +103,12 @@ export interface DatosZonas {
   /** P. ej. "Verano 2026". */
   campania: string;
   ciudades: CiudadDeCampania[];
+  /**
+   * `false`: esta fuente todavía no puede dibujar zonas por esquinas (la esquina más cercana, el tramo por calles y
+   * guardar el borde no están conectados, front-coordinadores-web#40). La vista lo dice en vez de culpar a la conexión
+   * (#167). Ausente: se puede.
+   */
+  esquinasDisponibles?: boolean;
 }
 
 /** Forma que el coordinador está dibujando (o editando). */

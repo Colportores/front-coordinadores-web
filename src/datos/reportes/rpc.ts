@@ -1,4 +1,4 @@
-import type { CiudadHoras, ColportorHoras, DatosHoras, Fecha, FuenteDatosReportes } from "@/datos/reportes/contrato";
+import type { CiudadHoras, ColportorHoras, DatosHoras, Fecha, FuenteDatosReportes, VentasDelDia } from "@/datos/reportes/contrato";
 import { campaniaProvisoriaConFechas } from "@/datos/supabase/campania-provisoria";
 import { ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
 import {
@@ -35,6 +35,12 @@ import { diasEntre, esDiaIso, hoyEnMontevideo, lunesDe, sumarDias } from "@/lib/
  *   · `jornadas_acompaniadas` (cuántas de las jornadas del día tienen acompañante) se guarda por día junto a las horas, para
  *     «jornadas con acompañamiento» del rango libre de la vista 32 (issue #107, sin parámetros nuevos en la RPC).
  *
+ *   · Las presentaciones, las ventas y el monto de cada día salen de `ventas_por_ciudad_y_colportor()` (0061, la hermana de
+ *     la de horas: mismos parámetros, mismo rango, misma ciudad), pedida igual, por día y partida igual (issue #167: antes
+ *     no se pedía y la vista mostraba «—» aunque hubiera ventas). `monto_total` viene en centavos y acá va en $U. Una fila
+ *     con 0 ventas y 0 presentaciones existe solo para la comparación del servidor: no es un día con datos. Un día con horas
+ *     y sin ventas sí lo es: trabajó y no vendió, así que va con ceros (como en el diseño, donde cada día con horas tiene
+ *     sus ventas). Lo cobrado es V2 y la RPC lo manda en `null`: queda en `null` y el panel no muestra el % por cobrar.
  *   · La RPC solo devuelve a quienes tienen horas, así que la lista se completa con `zonas_por_colportor()` (0047/0062, la
  *     que usa Equipo): quien está inscripto y todavía no cerró ninguna jornada figura igual, con guion, en su ciudad o en
  *     «Sin zona asignada» (decisión del 25/10, P2 de los pendientes de #60). Quien ya figura por sus horas no se toca.
@@ -59,6 +65,7 @@ import { diasEntre, esDiaIso, hoyEnMontevideo, lunesDe, sumarDias } from "@/lib/
  */
 
 const RPC = "horas_por_ciudad_y_colportor";
+const RPC_VENTAS = "ventas_por_ciudad_y_colportor";
 const RPC_CIUDADES = "ciudades_de_campania";
 const RPC_INSCRIPTOS = "zonas_por_colportor";
 
@@ -98,17 +105,17 @@ async function departamentos(cliente: ClienteRpc, campaniaId: string): Promise<M
 }
 
 /**
- * Las filas de `horas_por_ciudad_y_colportor` por día entre `desde` y `hasta` (ambos incluidos), partiendo el pedido a la
- * mitad mientras el rango pase de `TOPE_DIAS` o la respuesta pueda estar cortada (`TOPE_FILAS`). Los tramos no se
- * superponen, así que no hay filas repetidas.
+ * Las filas de `horas_por_ciudad_y_colportor` (o de `ventas_por_ciudad_y_colportor`, `rpc`) por día entre `desde` y
+ * `hasta` (ambos incluidos), partiendo el pedido a la mitad mientras el rango pase de `TOPE_DIAS` o la respuesta pueda
+ * estar cortada (`TOPE_FILAS`). Los tramos no se superponen, así que no hay filas repetidas.
  */
-async function leerHoras(cliente: ClienteRpc, campaniaId: string, desde: Fecha, hasta: Fecha): Promise<Objeto[]> {
+async function leerPorDia(rpc: string, cliente: ClienteRpc, campaniaId: string, desde: Fecha, hasta: Fecha): Promise<Objeto[]> {
   const dias = diasEntre(desde, hasta) + 1;
   const partir = async (): Promise<Objeto[]> => {
     const mitad = sumarDias(desde, Math.floor(dias / 2) - 1);
     const [primera, segunda] = await Promise.all([
-      leerHoras(cliente, campaniaId, desde, mitad),
-      leerHoras(cliente, campaniaId, sumarDias(mitad, 1), hasta),
+      leerPorDia(rpc, cliente, campaniaId, desde, mitad),
+      leerPorDia(rpc, cliente, campaniaId, sumarDias(mitad, 1), hasta),
     ]);
     return [...primera, ...segunda];
   };
@@ -116,8 +123,8 @@ async function leerHoras(cliente: ClienteRpc, campaniaId: string, desde: Fecha, 
   if (dias > TOPE_DIAS) return partir();
 
   const leidas = filas(
-    RPC,
-    await cliente.llamarRpc(RPC, {
+    rpc,
+    await cliente.llamarRpc(rpc, {
       p_campania_id: campaniaId,
       p_desde: desde,
       p_hasta: hasta,
@@ -127,7 +134,7 @@ async function leerHoras(cliente: ClienteRpc, campaniaId: string, desde: Fecha, 
     }),
   );
   if (leidas.length < TOPE_FILAS) return leidas;
-  if (dias === 1) throw new RespuestaInesperada(RPC, `el día ${desde} trae ${leidas.length} filas o más y la respuesta puede estar cortada`);
+  if (dias === 1) throw new RespuestaInesperada(rpc, `el día ${desde} trae ${leidas.length} filas o más y la respuesta puede estar cortada`);
   return partir();
 }
 
@@ -138,6 +145,7 @@ interface ColportorAcumulado {
   nombreSolo: string;
   horasPorDia: Record<Fecha, number>;
   acompaniadasPorDia: Record<Fecha, number>;
+  ventasPorDia: Record<Fecha, VentasDelDia>;
 }
 
 interface CiudadAcumulada {
@@ -163,7 +171,15 @@ export function sinDatosDesde(horasPorDia: Record<Fecha, number>, hoy: Fecha, ul
   return sinHoras >= DIAS_SIN_DATOS ? ultimoConHoras : null;
 }
 
-// Las ventas por día todavía no tienen RPC: sin datos (vacío) hasta que se conecten, como mostraba la vista antes de #61.
+/** Las ventas de cada día con datos: las que trajo la RPC y, en cada día con horas sin ventas, ceros (trabajó y no vendió). */
+function ventasConDiasTrabajados(a: ColportorAcumulado): Record<Fecha, VentasDelDia> {
+  const ventas: Record<Fecha, VentasDelDia> = { ...a.ventasPorDia };
+  for (const fecha of Object.keys(a.horasPorDia)) {
+    ventas[fecha] ??= { presentaciones: 0, ventas: 0, monto: 0, cobrado: null };
+  }
+  return ventas;
+}
+
 function ordenarColportores(colportores: Map<string, ColportorAcumulado>, hoy: Fecha, ultimoDia: Fecha): ColportorHoras[] {
   return [...colportores.values()]
     .sort((a, b) => COLLATOR.compare(a.apellido, b.apellido) || COLLATOR.compare(a.nombreSolo, b.nombreSolo))
@@ -173,7 +189,7 @@ function ordenarColportores(colportores: Map<string, ColportorAcumulado>, hoy: F
         nombre: a.nombre,
         horasPorDia: a.horasPorDia,
         acompaniadasPorDia: a.acompaniadasPorDia,
-        ventasPorDia: {},
+        ventasPorDia: ventasConDiasTrabajados(a),
         sinDatosDesde: sinDatosDesde(a.horasPorDia, hoy, ultimoDia),
       }),
     );
@@ -194,11 +210,13 @@ export function crearFuenteReportesRpc(
     const hasta = campania.fechaFin !== null && campania.fechaFin < hoy ? campania.fechaFin : hoy;
 
     let filasDeHoras: Objeto[];
+    let filasDeVentas: Objeto[];
     let inscriptos: unknown;
     let departamentoDe: Map<string, string | null>;
     try {
-      [filasDeHoras, inscriptos, departamentoDe] = await Promise.all([
-        leerHoras(cliente, campania.id, campania.fechaInicio, hasta),
+      [filasDeHoras, filasDeVentas, inscriptos, departamentoDe] = await Promise.all([
+        leerPorDia(RPC, cliente, campania.id, campania.fechaInicio, hasta),
+        leerPorDia(RPC_VENTAS, cliente, campania.id, campania.fechaInicio, hasta),
         cliente.llamarRpc(RPC_INSCRIPTOS, { p_campania_id: campania.id }),
         departamentos(cliente, campania.id),
       ]);
@@ -234,16 +252,17 @@ export function crearFuenteReportesRpc(
           nombreSolo: nombre,
           horasPorDia: {},
           acompaniadasPorDia: {},
+          ventasPorDia: {},
         };
         ciudad.colportores.set(colportorId, acumulado);
       }
       return acumulado;
     };
 
-    const conHoras = new Set<string>();
+    const presentes = new Set<string>();
     for (const fila of filasDeHoras) {
       const acumulado = colportorDe(RPC, grupoDe(RPC, fila), fila);
-      conHoras.add(acumulado.id);
+      presentes.add(acumulado.id);
 
       // El colportor figura aunque este día no tenga jornadas; el día solo entra si tuvo alguna cerrada.
       const horas = numero(RPC, fila, "horas");
@@ -255,9 +274,29 @@ export function crearFuenteReportesRpc(
       }
     }
 
+    // Las ventas del día. Una fila con 0 ventas y 0 presentaciones es solo para la comparación del servidor: no es un día con datos.
+    for (const fila of filasDeVentas) {
+      const acumulado = colportorDe(RPC_VENTAS, grupoDe(RPC_VENTAS, fila), fila);
+      presentes.add(acumulado.id);
+      const ventas = numero(RPC_VENTAS, fila, "ventas");
+      const presentaciones = numero(RPC_VENTAS, fila, "presentaciones");
+      const centavos = numero(RPC_VENTAS, fila, "monto_total");
+      if (ventas === 0 && presentaciones === 0 && centavos === 0) continue;
+      const fecha = dia(RPC_VENTAS, fila, "periodo_inicio");
+      const antes = acumulado.ventasPorDia[fecha];
+      acumulado.ventasPorDia[fecha] = {
+        presentaciones: (antes?.presentaciones ?? 0) + presentaciones,
+        ventas: (antes?.ventas ?? 0) + ventas,
+        // La base guarda centavos; el contrato de la vista, $U.
+        monto: Math.round(((antes?.monto ?? 0) + centavos / 100) * 100) / 100,
+        // V2: lo cobrado todavía no se calcula (la RPC lo manda en null).
+        cobrado: null,
+      };
+    }
+
     // Los inscriptos que todavía no tienen ninguna jornada cerrada figuran sin horas (guion), en su ciudad o sin zona.
     for (const fila of filas(RPC_INSCRIPTOS, inscriptos)) {
-      if (conHoras.has(cadena(RPC_INSCRIPTOS, fila, "colportor_id"))) continue;
+      if (presentes.has(cadena(RPC_INSCRIPTOS, fila, "colportor_id"))) continue;
       colportorDe(RPC_INSCRIPTOS, grupoDe(RPC_INSCRIPTOS, fila), fila);
     }
 
