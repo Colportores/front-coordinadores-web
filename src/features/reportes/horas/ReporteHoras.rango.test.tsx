@@ -5,24 +5,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ColportorHoras, DatosHoras } from "@/datos/reportes/contrato";
 
-import { descargarArchivo, imprimirDocumento, retirarDocumentoDeImpresion } from "../exportar/descargar";
+import { descargarArchivo } from "../exportar/descargar";
+import { MOTIVO_RANGO } from "../exportar/useExportacion";
 import { colportor, conAcompanamientos, datosDePruebaConVentas, horasConstantes } from "./datos-de-prueba";
 import { ReporteHoras } from "./ReporteHoras";
 import { TEXTO_SIN_COINCIDENCIAS, TEXTO_UNO_AL_MENOS } from "./SelectorDeColportores";
 
-// El navegador (bajar un archivo, abrir la impresión) se reemplaza; lo que se arma para eso se prueba entero.
+// El navegador (bajar un archivo) se reemplaza; lo que se arma para eso se prueba entero.
 vi.mock("../exportar/descargar", () => ({
   descargarArchivo: vi.fn(),
-  imprimirDocumento: vi.fn(),
-  retirarDocumentoDeImpresion: vi.fn(),
 }));
 
 const bajar = vi.mocked(descargarArchivo);
 
 beforeEach(() => {
   bajar.mockReset();
-  vi.mocked(imprimirDocumento).mockReset().mockResolvedValue(undefined);
-  vi.mocked(retirarDocumentoDeImpresion).mockReset();
 });
 
 // Campaña del lunes 05/10 a hoy, miércoles 21/10. Del 12 al 17/10: 122 h en 22 días (5,5 por día), 4 acompañadas.
@@ -355,7 +352,7 @@ describe("ReporteHoras · rango · exportar", () => {
     expect(bajar).toHaveBeenCalledTimes(1);
     const [nombre, contenido] = bajar.mock.calls[0];
     expect(nombre).toBe("reportes-todas-las-ciudades-rango-2026-10-12-a-2026-10-17.csv");
-    const lineas = contenido.split("\r\n");
+    const lineas = (contenido as string).split("\r\n");
     expect(lineas[0]).toBe(
       "﻿Ciudad,Colportor,Período,Horas,Días trabajados,Promedio de horas por día trabajado,Jornadas con acompañamiento,Presentaciones,Ventas,Monto ($U),Nota",
     );
@@ -363,16 +360,15 @@ describe("ReporteHoras · rango · exportar", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Datos CSV" })).not.toHaveAttribute("aria-disabled", "true"), { timeout: 3000 });
   });
 
-  it("el informe PDF dice el rango y no dibuja gráficos vacíos", async () => {
+  it("el informe PDF no se pide con un rango (la función del servidor todavía no lo admite): el botón dice qué hacer y el CSV sigue", async () => {
     const user = await abrirRango();
     elegirS2();
 
-    await user.click(screen.getByRole("button", { name: "Informe PDF" }));
-
-    const html = vi.mocked(imprimirDocumento).mock.calls[0][0];
-    expect(html).toContain("<dt>Agrupado por</dt><dd>Rango de fechas</dd>");
-    expect(html).toContain("<dt>Período</dt><dd>Del 12/10/2026 al 17/10/2026</dd>");
-    expect(html).toContain("JORNADAS CON ACOMPAÑAMIENTO");
-    expect(html).not.toContain('class="barras"');
+    const pdf = screen.getByRole("button", { name: "Informe PDF" });
+    expect(pdf).toHaveAttribute("aria-disabled", "true");
+    expect(pdf).toHaveAccessibleDescription(MOTIVO_RANGO);
+    await user.click(pdf);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Datos CSV" })).not.toHaveAttribute("aria-disabled", "true");
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fechaCompleta, nombreDeArchivo } from "./contexto";
+import { nombreDeArchivo } from "./contexto";
 
 describe("nombreDeArchivo", () => {
   it("dice qué se mira, cómo se agrupó y el día", () => {
@@ -39,11 +39,5 @@ describe("nombreDeArchivo", () => {
   it("un título sin letras ni números cae en un nombre genérico", () => {
     expect(nombreDeArchivo("???", "semana", "2026-10-21", "csv")).toBe("reportes-semanas-2026-10-21.csv");
     expect(nombreDeArchivo("", "dia", "2026-10-21", "csv")).toBe("reportes-dias-2026-10-21.csv");
-  });
-});
-
-describe("fechaCompleta", () => {
-  it("día, mes y año", () => {
-    expect(fechaCompleta("2026-10-21")).toBe("21/10/2026");
   });
 });
