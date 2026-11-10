@@ -13,7 +13,10 @@ import {
   camposDelItem,
   contadorDelMotivo,
   esAccionable,
+  largoDelMotivo,
   previaDelItem,
+  sePuedeValidar,
+  TEXTO_SIN_MONTO_PARA_VALIDAR,
   textoDeMotivoLargo,
   textoDeResuelto,
   textoInformativo,
@@ -153,8 +156,11 @@ export function PanelDelTicket(p: PropsDelPanel) {
   const retiro = item.tipo === "retiro";
   const banda = bandaDelItem(item, p.ahoraIso);
   const previa = previaDelItem(item);
-  const largo = p.motivo.trim().length > MAXIMO_DEL_MOTIVO;
-  const avisoDelMotivo = largo ? textoDeMotivoLargo(p.motivo.trim().length) : errorDelMotivo;
+  const largoDelEscrito = largoDelMotivo(p.motivo.trim());
+  const largo = largoDelEscrito > MAXIMO_DEL_MOTIVO;
+  const avisoDelMotivo = largo ? textoDeMotivoLargo(largoDelEscrito) : errorDelMotivo;
+  const sinMonto = accionable && !sePuedeValidar(item);
+  const idSinMonto = `${idMotivo}-sin-monto`;
   const apagado = !p.enLinea || p.ocupado !== null;
   const info = accionable ? textoInformativo(item, p.rechazando) : textoDeResuelto(item);
 
@@ -238,6 +244,13 @@ export function PanelDelTicket(p: PropsDelPanel) {
               ? "Sin conexión. Para confirmar o rechazar un retiro hace falta conexión. Lo que ves puede estar desactualizado."
               : "Sin conexión. Para validar o rechazar un ticket hace falta conexión. Lo que ves puede estar desactualizado."}
           </span>
+        </p>
+      )}
+
+      {sinMonto && (
+        <p id={idSinMonto} className="flex items-start gap-2 rounded-control border border-alerta/40 bg-alerta-fondo px-3 py-2 text-chico text-alerta">
+          <span aria-hidden="true">△</span>
+          <span>{TEXTO_SIN_MONTO_PARA_VALIDAR}</span>
         </p>
       )}
 
@@ -376,10 +389,11 @@ export function PanelDelTicket(p: PropsDelPanel) {
               <button
                 type="button"
                 data-foco="validar"
-                aria-disabled={apagado}
+                aria-disabled={apagado || sinMonto}
+                aria-describedby={sinMonto ? idSinMonto : undefined}
                 aria-keyshortcuts={retiro ? "C" : "V"}
                 onClick={() => {
-                  if (!apagado) p.alValidar();
+                  if (!apagado && !sinMonto) p.alValidar();
                 }}
                 className={cn(BOTON, "border-marca bg-marca text-superficie")}
               >

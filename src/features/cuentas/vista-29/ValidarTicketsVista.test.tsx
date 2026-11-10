@@ -446,9 +446,21 @@ describe("36R · el retiro por el coordinador", () => {
     expect(a.rechazar).toHaveBeenCalledTimes(1);
   });
 
+  it("36R·07B sin conexión (decisión del 10/11, P1 del QA de #168): dice que falta la conexión y el motivo sigue escrito", async () => {
+    montar(simulados(), acciones({ rechazar: async () => ({ ok: false, causa: "sin-conexion" }) }));
+    await abrir("Lucía Benítez");
+    await tocar(boton(/^Rechazar/));
+    await escribir(motivo(), "No recibí el efectivo");
+    await tocar(boton("Confirmar rechazo"));
+    expect(within(panel()).getByRole("alert")).toHaveTextContent(
+      "Necesitás conexión para rechazar el retiro de Lucía Benítez. El motivo sigue escrito: revisá la conexión y probá de nuevo.",
+    );
+    expect(motivo()).toHaveValue("No recibí el efectivo");
+  });
+
   it("36R·07B: si no se guarda, el motivo sigue escrito y «Reintentar» vuelve a probar", async () => {
     let veces = 0;
-    const a = acciones({ rechazar: async () => (++veces === 1 ? { ok: false, causa: "sin-conexion" } : ok) });
+    const a = acciones({ rechazar: async () => (++veces === 1 ? { ok: false, causa: "rechazado" } : ok) });
     montar(simulados(), a);
     await abrir("Lucía Benítez");
     await tocar(boton(/^Rechazar/));
@@ -652,5 +664,46 @@ describe("la sesión que el proxy cerró con la vista abierta (#41, #170)", () =
     montar();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Tickets por validar · 5");
+  });
+});
+
+describe("un ticket sin monto (la base lo permite; TV004) (#170, QA)", () => {
+  const conSinMonto = () => {
+    const datos = simulados();
+    datos.items = datos.items.map((x) => (x.id === "lucia-fernandez-por-validar" ? { ...x, monto: null, cifras: null } : x));
+    return datos;
+  };
+
+  it("la fila y el panel dicen «Monto no informado», «Validar» se apaga con su motivo y se puede rechazar", async () => {
+    const { acciones: a } = montar(conSinMonto());
+    expect(filaDe("Lucía Fernández")).toHaveAccessibleName(/Monto no informado/);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Tickets por validar · 5");
+    await abrir("Lucía Fernández");
+    expect(within(panel()).getAllByText("Monto no informado").length).toBeGreaterThan(0);
+    const validar = boton(/^Validar/);
+    expect(validar).toHaveAttribute("aria-disabled", "true");
+    expect(validar).toHaveAccessibleDescription(
+      "El ticket no tiene monto, no hay nada para acreditar. Rechazalo con un motivo para que el colportor lo cargue de nuevo.",
+    );
+    await tocar(validar);
+    await act(async () => fireEvent.keyDown(panel(), { key: "v" }));
+    expect(screen.queryByRole("button", { name: /^Deshacer/ })).not.toBeInTheDocument();
+    expect(a.validar).not.toHaveBeenCalled();
+
+    await tocar(boton(/^Rechazar/));
+    await escribir(motivo(), "Falta el monto");
+    await tocar(boton("Confirmar rechazo"));
+    expect(a.rechazar).toHaveBeenCalledWith(expect.objectContaining({ id: "lucia-fernandez-por-validar" }), "Falta el monto");
+  });
+
+  it("los demás tickets se siguen validando", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: false });
+    const { acciones: a } = montar(conSinMonto());
+    await abrir("Joaquín Duarte");
+    await tocar(boton(/^Validar/));
+    await act(async () => {
+      vi.advanceTimersByTime(MS_DESHACER);
+    });
+    expect(a.validar).toHaveBeenCalledWith(expect.objectContaining({ id: "joaquin-duarte-de-mas" }));
   });
 });

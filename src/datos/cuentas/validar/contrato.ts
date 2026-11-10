@@ -45,7 +45,11 @@ export interface ItemPorValidar {
   esVos: boolean;
   /** La ciudad de su zona actual; `null` si no tiene zona. */
   ciudad: string | null;
-  monto: number;
+  /**
+   * En pesos. `null` si el ticket no tiene monto: la base lo permite (`ticket_monto_check`) y no lo deja validar (TV004);
+   * solo se puede rechazar con un motivo para que lo cargue de nuevo. Un retiro siempre tiene monto.
+   */
+  monto: number | null;
   concepto: ConceptoPorValidar;
   lugar?: LugarDelDeposito;
   /** Banco del depósito («BROU»). */

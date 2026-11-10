@@ -48,15 +48,17 @@ afterEach(() => {
 });
 
 describe("rechazar sin conexión (decisión del 10/11 en #168, P1)", () => {
-  it.skip("QA #170: el rechazo que no llegó por falta de conexión dice «Necesitás conexión para rechazar el depósito de X» y deja el motivo escrito", async () => {
+  it("QA #170: el rechazo que no llegó por falta de conexión dice «Necesitás conexión para rechazar el depósito de X» y deja el motivo escrito", async () => {
     // Con la conexión real, una caída del servidor (la server action tira) es el caso común. Hoy el aviso es el de 36R·07B
     // («No pudimos guardar el rechazo…»), que no dice que falta la conexión. La decisión del 10/11 (P1, opción b) pide:
     // «Necesitás conexión para rechazar el depósito de X. El motivo sigue escrito: revisá la conexión y probá de nuevo.»
     montar(async () => ({ ok: false, causa: "sin-conexion" }));
+    // El primero abierto es un retiro: se abre un depósito para probar «el depósito de X» (un retiro dice «el retiro de X»).
+    await tocar(screen.getByRole("button", { name: /^[^,]+, Lucía Fernández/ }));
     const campo = await rechazarConMotivo("Foto ilegible");
 
     expect(within(panel()).getByRole("alert")).toHaveTextContent(
-      /Necesitás conexión para rechazar el depósito de .+\. El motivo sigue escrito: revisá la conexión y probá de nuevo\./,
+      "Necesitás conexión para rechazar el depósito de Lucía Fernández. El motivo sigue escrito: revisá la conexión y probá de nuevo.",
     );
     expect(campo).toHaveValue("Foto ilegible");
   });

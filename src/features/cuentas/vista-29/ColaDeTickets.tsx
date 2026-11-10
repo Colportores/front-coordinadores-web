@@ -3,10 +3,9 @@
 import type { ItemPorValidar } from "@/datos/cuentas/validar";
 import { textoFechaDeTicket } from "@/datos/cuentas/fechas";
 import { Pastilla } from "@/features/cuentas/TablaDeFilas";
-import { formatMonto } from "@/features/cuentas/formato";
 import { cn } from "@/lib/utils";
 
-import { detalleDeMedio, etiquetaDeEstado, textoDeMedio } from "./modelo";
+import { detalleDeMedio, etiquetaDeEstado, textoDeMedio, textoDelMonto } from "./modelo";
 
 const PLANTILLA = "grid-cols-[72px_minmax(0,1.3fr)_minmax(0,1.5fr)_96px_124px]";
 
@@ -49,7 +48,7 @@ export function ColaDeTickets({
                 type="button"
                 data-foco={`fila:${item.id}`}
                 aria-current={elegido ? "true" : undefined}
-                aria-label={[fecha, item.colportorNombre + (item.esVos ? " (vos)" : ""), textoDeMedio(item), formatMonto(item.monto), estado.texto.slice(2), motivo ? `Motivo: ${motivo}` : null]
+                aria-label={[fecha, item.colportorNombre + (item.esVos ? " (vos)" : ""), textoDeMedio(item), textoDelMonto(item), estado.texto.slice(2), motivo ? `Motivo: ${motivo}` : null]
                   .filter(Boolean)
                   .join(", ")}
                 onClick={() => alElegir(item.id)}
@@ -71,7 +70,7 @@ export function ColaDeTickets({
                     <span className="truncate">{textoDeMedio(item)}</span>
                     {detalle && <span className="truncate text-[10.5px] text-tinta-suave">{detalle}</span>}
                   </span>
-                  <span className="text-right font-mono whitespace-nowrap">{formatMonto(item.monto)}</span>
+                  <span className="text-right font-mono whitespace-nowrap">{textoDelMonto(item)}</span>
                   <span>
                     <Pastilla tono={estado.tono}>{estado.texto}</Pastilla>
                   </span>

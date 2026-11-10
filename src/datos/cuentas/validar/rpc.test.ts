@@ -250,6 +250,43 @@ describe("crearFuenteValidarTicketsRpc · la cola", () => {
     expect(items.map((i) => i.cifras)).toEqual([null, null]);
   });
 
+  it("una previa que se cae (5xx, red) deja sin cifras solo esa fila; la sesión vencida en la previa sí falla", async () => {
+    const caida = lecturaBasica({ validacion_de_ticket: rechazo("", "Service Unavailable", 503), validacion_de_retiro: new TypeError("fetch failed") });
+    const items = (await crearFuenteValidarTicketsRpc(caida.cliente).obtenerPorValidar()).items;
+    expect(items.map((i) => [i.id, i.cifras])).toEqual([
+      [TICKET, null],
+      [RETIRO, null],
+    ]);
+
+    const vencida = lecturaBasica({ validacion_de_retiro: rechazo("PGRST301", "JWT expired", 401) });
+    await expect(crearFuenteValidarTicketsRpc(vencida.cliente).obtenerPorValidar()).rejects.toMatchObject({ estado: 401 });
+  });
+
+  it("un ticket sin monto entra con `monto: null`, sin pedir su previa, y la cola sigue", async () => {
+    const { cliente, llamarRpc } = lecturaBasica({ tickets_de_campania: [ticket({ monto: null }), ticket({ ticket_id: TICKET_2 })] });
+    const items = (await crearFuenteValidarTicketsRpc(cliente).obtenerPorValidar()).items;
+    expect(items.map((i) => [i.id, i.monto])).toEqual([
+      [TICKET, null],
+      [TICKET_2, 9000],
+      [RETIRO, 6000],
+    ]);
+    // La previa se pide igual (la base devuelve sus cifras); lo que no se ofrece es validarlo (lo cuida la vista).
+    expect(llamarRpc).toHaveBeenCalledWith("validacion_de_ticket", { p_ticket_id: TICKET });
+  });
+
+  it("un id repetido entre páginas (entró una fila entre las dos) sale una sola vez", async () => {
+    const primera = Array.from({ length: FILAS_POR_PAGINA }, (_, i) =>
+      ticket({ ticket_id: `cccccccc-cccc-4ccc-8ccc-${String(i).padStart(12, "0")}`, estado: "VALIDADO", revisado_en: "2026-11-01T00:00:00Z" }),
+    );
+    const { cliente } = lecturaBasica({
+      tickets_de_campania: (a: Record<string, unknown>) => (a.p_desplazamiento === 0 ? primera : [primera[FILAS_POR_PAGINA - 1]]),
+      retiros_de_campania: [],
+    });
+    const items = (await crearFuenteValidarTicketsRpc(cliente).obtenerPorValidar()).items;
+    expect(items).toHaveLength(FILAS_POR_PAGINA);
+    expect(new Set(items.map((i) => i.id)).size).toBe(FILAS_POR_PAGINA);
+  });
+
   it("una cuenta sin nombre ni apellido no deja la fila sin título", async () => {
     const { cliente } = lecturaBasica({ tickets_de_campania: [ticket({ nombre: null, apellido: "" })], retiros_de_campania: [] });
     const [item] = (await crearFuenteValidarTicketsRpc(cliente).obtenerPorValidar()).items;
@@ -282,9 +319,6 @@ describe("crearFuenteValidarTicketsRpc · la cola", () => {
 
     const sinRed = lecturaBasica({ retiros_de_campania: new TypeError("fetch failed") });
     await expect(crearFuenteValidarTicketsRpc(sinRed.cliente).obtenerPorValidar()).rejects.toThrow("fetch failed");
-
-    const caida = lecturaBasica({ validacion_de_ticket: rechazo("", "Service Unavailable", 503) });
-    await expect(crearFuenteValidarTicketsRpc(caida.cliente).obtenerPorValidar()).rejects.toMatchObject({ estado: 503 });
 
     const vencida = lecturaBasica({ tickets_de_campania: rechazo("PGRST301", "JWT expired", 401) });
     await expect(crearFuenteValidarTicketsRpc(vencida.cliente).obtenerPorValidar()).rejects.toMatchObject({ estado: 401 });

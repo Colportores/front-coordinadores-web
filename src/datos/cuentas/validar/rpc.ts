@@ -160,7 +160,8 @@ function base(rpc: string, fila: Objeto, yo: string | null) {
     colportorNombre: nombreVisible(cadenaONula(rpc, fila, "nombre") ?? "", cadenaONula(rpc, fila, "apellido") ?? "", CUENTA_SIN_NOMBRE),
     esVos: yo !== null && colportorId === yo,
     ciudad: cadenaONula(rpc, fila, "ciudad_nombre"),
-    monto: pesos(rpc, fila, "monto"),
+    // Un ticket puede no tener monto (`ticket_monto_check`; TV004): la fila se muestra «Monto no informado» y la cola sigue.
+    monto: pesosONulo(rpc, fila, "monto"),
     enviadoEn: instante(rpc, fila, "subido_en"),
     estado,
     ...(estado === "RECHAZADO" && motivo !== null ? { motivoRechazo: motivo } : {}),
@@ -219,8 +220,20 @@ async function miId(cliente: ClienteRpc): Promise<string | null> {
   return fila ? cadena(rpc, fila, "usuario_id") : null;
 }
 
-/** Todas las páginas de una lectura de la campaña (PostgREST y la RPC cortan en 500 filas). */
-async function todasLasFilas(cliente: ClienteRpc, rpc: string, campaniaId: string): Promise<Objeto[]> {
+/**
+ * Todas las páginas de una lectura de la campaña (PostgREST y la RPC cortan en 500 filas). La paginación es por posición: si
+ * entra una fila entre dos páginas, otra puede salir dos veces; se queda la primera de cada id.
+ */
+function sinRepetir(filasLeidas: Objeto[], campoId: string): Objeto[] {
+  const vistos = new Set<unknown>();
+  return filasLeidas.filter((fila) => {
+    if (vistos.has(fila[campoId])) return false;
+    vistos.add(fila[campoId]);
+    return true;
+  });
+}
+
+async function todasLasFilas(cliente: ClienteRpc, rpc: string, campaniaId: string, campoId: string): Promise<Objeto[]> {
   const todas: Objeto[] = [];
   for (let desplazamiento = 0; ; desplazamiento += FILAS_POR_PAGINA) {
     const pagina = filas(
@@ -228,14 +241,15 @@ async function todasLasFilas(cliente: ClienteRpc, rpc: string, campaniaId: strin
       await cliente.llamarRpc(rpc, { p_campania_id: campaniaId, p_limite: FILAS_POR_PAGINA, p_desplazamiento: desplazamiento }),
     );
     todas.push(...pagina);
-    if (pagina.length < FILAS_POR_PAGINA) return todas;
+    if (pagina.length < FILAS_POR_PAGINA) return sinRepetir(todas, campoId);
   }
 }
 
 /**
  * Lo que la app sabe para comparar antes de decidir. Sin cifras (`null`) si la base no las calcula (una campaña sin alquiler,
- * un depósito que ya no está pendiente) o si rechaza la pregunta (otra persona lo resolvió entre la lista y esto): la vista
- * igual deja decidir. Una caída sigue como excepción.
+ * un depósito que ya no está pendiente), si rechaza la pregunta (otra persona lo resolvió entre la lista y esto) o si esa
+ * pregunta sola se cae (red, 5xx, 429): la previa es una ayuda y la vista igual deja decidir, así que una falla en una fila
+ * no tira la cola entera. Solo la sesión vencida sigue como excepción (la página entera necesita volver a entrar).
  */
 async function cifrasDe(cliente: ClienteRpc, item: ItemPorValidar): Promise<CifrasDelColportor | null> {
   const rpc = item.tipo === "retiro" ? "validacion_de_retiro" : "validacion_de_ticket";
@@ -244,8 +258,8 @@ async function cifrasDe(cliente: ClienteRpc, item: ItemPorValidar): Promise<Cifr
   try {
     respuesta = await cliente.llamarRpc(rpc, argumentos);
   } catch (error) {
-    if (esRechazo(error)) return null;
-    throw error;
+    if (esSesionVencidaDeLaBase(error)) throw error;
+    return null;
   }
   const [fila] = filas(rpc, respuesta);
   if (!fila) return null;
@@ -284,9 +298,9 @@ export function crearFuenteValidarTicketsRpc(
       if (!campania) return { campaniaId: "", ahora, items: [] };
 
       const [tickets, retiros, yo] = await Promise.all([
-        todasLasFilas(cliente, "tickets_de_campania", campania.id),
+        todasLasFilas(cliente, "tickets_de_campania", campania.id, "ticket_id"),
         // La 0184 puede no estar aplicada todavía en un proyecto: sin la función, la cola queda solo con los depósitos.
-        todasLasFilas(cliente, "retiros_de_campania", campania.id).catch((error: unknown) => {
+        todasLasFilas(cliente, "retiros_de_campania", campania.id, "deposito_id").catch((error: unknown) => {
           if (esFuncionQueNoExiste(error)) return [];
           throw error;
         }),
@@ -368,7 +382,8 @@ export function crearAccionesValidarTicketsRpc(cliente: ClienteRpc, funciones: C
     async rechazar(item, motivo) {
       if (!valido(item)) return { ok: false, causa: "rechazado", mensaje: NO_EXISTE[item.tipo] ?? NO_SE_GUARDO };
       const limpio = typeof motivo === "string" ? motivo.trim() : "";
-      if (limpio === "" || limpio.length > MAX_MOTIVO) return { ok: false, causa: "rechazado", mensaje: MOTIVO_INVALIDO[item.tipo] };
+      // Por caracteres, como `length()` de la base: un emoji cuenta uno, no las dos unidades UTF-16 de `String.length`.
+      if (limpio === "" || Array.from(limpio).length > MAX_MOTIVO) return { ok: false, causa: "rechazado", mensaje: MOTIVO_INVALIDO[item.tipo] };
       return item.tipo === "retiro"
         ? decidir("rechazar_retiro", { p_deposito_id: item.id, p_motivo: limpio }, "rechazado_en")
         : decidir("rechazar_ticket", { p_ticket_id: item.id, p_motivo: limpio }, "revisado_en");

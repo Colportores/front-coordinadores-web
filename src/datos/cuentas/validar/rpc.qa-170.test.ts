@@ -116,7 +116,7 @@ describe("la cola que sale al navegador", () => {
     expect(maximo).toBeLessThanOrEqual(6);
   });
 
-  it.skip("QA #170: un ticket de depósito sin monto (la base lo permite) no tira abajo toda la cola", async () => {
+  it("QA #170: un ticket de depósito sin monto (la base lo permite) no tira abajo toda la cola", async () => {
     // `ticket_monto_check`: `monto is null or monto > 0`, y TV004 («el ticket no tiene monto… Rechazalo con un motivo») lo
     // prevé. Hoy `numero()` tira `RespuestaInesperada` y la página entera dice «No se pudieron cargar los tickets. Revisá tu
     // conexión»: ni «Reintentar» ni nada ayudan, y la coordinadora no ve ni rechaza ningún otro ticket.
@@ -162,7 +162,7 @@ describe("las decisiones", () => {
     expect(llamarRpc).toHaveBeenCalledWith("rechazar_ticket", { p_ticket_id: T1, p_motivo: '<b>"a"</b> & ñ\n\tb' });
   });
 
-  it.skip("QA #170: 300 emojis son 300 caracteres para la base y entran en el tope de 500", async () => {
+  it("QA #170: 300 emojis son 300 caracteres para la base y entran en el tope de 500", async () => {
     // La base cuenta caracteres (`length()` de PostgreSQL); `String.length` de JavaScript cuenta unidades UTF-16: cada emoji
     // son 2. 300 emojis dan 600 y la fuente los rechaza con «hasta 500 caracteres» sin llamar a la base. Mismo hallazgo que
     // el de la vista (#69), ahora también en la fuente.

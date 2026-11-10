@@ -13,7 +13,7 @@ import { esperarYSalir, estaEsperando, hayQueEsperar, registrarEnvio } from "@/s
 
 import { ColaDeTickets } from "./ColaDeTickets";
 import { PanelDelTicket } from "./PanelDelTicket";
-import { conDecision, encabezadoDeCola, esAccionable, ordenarCola, siguienteAccionable, textoDeDecision } from "./modelo";
+import { conDecision, encabezadoDeCola, esAccionable, ordenarCola, sePuedeValidar, siguienteAccionable, textoDeDecision } from "./modelo";
 import { useValidacionesDiferidas } from "./useValidacionesDiferidas";
 
 interface Aviso {
@@ -204,7 +204,10 @@ export function ValidarTicketsVista({ datos, acciones }: { datos: DatosDeValidac
             decision === "rechazar"
               ? r.causa === "rechazado" && r.mensaje
                 ? r.mensaje
-                : "No pudimos guardar el rechazo. El motivo sigue escrito: probá de nuevo."
+                : r.causa === "sin-conexion"
+                  ? // Decisión del 10/11 (P1 del QA de #168): sin conexión dice qué pasó y cómo seguir; lo demás, el 36R·07B.
+                    `Necesitás conexión para rechazar ${item.tipo === "retiro" ? "el retiro" : "el depósito"} de ${item.colportorNombre}. El motivo sigue escrito: revisá la conexión y probá de nuevo.`
+                  : "No pudimos guardar el rechazo. El motivo sigue escrito: probá de nuevo."
               : mensajeDeFalla(r, `confirmar ${que}`, "No pudimos guardar la confirmación. Probá de nuevo.");
           setErrores((previos) => ({ ...previos, [item.id]: texto }));
           if (ultimo.current.abiertoId === item.id) focoPendiente.current = decision === "rechazar" ? "confirmar-rechazo" : "validar";
@@ -241,7 +244,7 @@ export function ValidarTicketsVista({ datos, acciones }: { datos: DatosDeValidac
   };
 
   const validar = (item: ItemPorValidar) => {
-    if (!esAccionable(item) || !enLinea || enCursoRef.current.has(item.id)) return;
+    if (!sePuedeValidar(item) || !enLinea || enCursoRef.current.has(item.id)) return;
     if (item.tipo === "deposito") validarDeposito(item);
     else decidir(item, "validar");
   };
