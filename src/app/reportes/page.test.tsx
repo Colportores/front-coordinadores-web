@@ -41,6 +41,16 @@ describe("PestanaReportes (vista 32, HU-REP-001 y HU-REP-002)", () => {
     }
   });
 
+  it("el informe PDF pasa por la server action; sin Supabase configurado avisa que no está disponible en vez de fallar", async () => {
+    const user = userEvent.setup();
+    render(<ProveedorModoDev activo={false}>{await PestanaReportes()}</ProveedorModoDev>);
+
+    await user.click(screen.getByRole("button", { name: "Informe PDF" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("lo arma el servidor del panel");
+    expect(screen.getByRole("button", { name: "Informe PDF" })).not.toHaveAttribute("aria-busy");
+  });
+
   it("sin una campaña que consultar (la fuente devuelve null) lo dice, sin tabla ni selector", async () => {
     vi.spyOn(fuenteReportes, "obtenerHoras").mockResolvedValueOnce(null);
     render(<ProveedorModoDev activo={false}>{await PestanaReportes()}</ProveedorModoDev>);
