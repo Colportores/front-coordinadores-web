@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import { formatMonto } from "@/features/cuentas/formato";
 import { validarAlquiler } from "@/features/cuentas/modelo";
 import { cn } from "@/lib/utils";
@@ -155,9 +155,15 @@ export function EncabezadoDeCuentas({
             </button>
           </>
         )}
-        <AccionNoDisponible className={cn("inline-flex items-center text-chico font-semibold whitespace-nowrap text-marca-media", editando ? "min-h-[34px]" : "min-h-8")}>
+        <Link
+          href="/cuentas/validar-tickets"
+          className={cn(
+            "inline-flex items-center rounded-sm text-chico font-semibold whitespace-nowrap text-marca-media focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca-media",
+            editando ? "min-h-[34px]" : "min-h-8",
+          )}
+        >
           Validar tickets →
-        </AccionNoDisponible>
+        </Link>
       </div>
     </div>
   );
