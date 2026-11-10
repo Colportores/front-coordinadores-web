@@ -11,7 +11,7 @@
  * `accionesValidarTickets` es `null` con la fuente simulada: ahí las decisiones se resuelven en el navegador y no se guardan
  * (`crearAccionesDeValidacionSimuladas`). Con Supabase las llaman las server actions de la página.
  */
-import { modoDeAcceso } from "@/auth/modo";
+import { fuenteDeValidarTickets } from "@/datos/cuentas/validar/conexion";
 import type { AccionesValidarTickets, FuenteValidarTickets } from "@/datos/cuentas/validar/contrato";
 import { crearAccionesValidarTicketsRpc, crearFuenteValidarTicketsRpc, funcionesDeSupabase } from "@/datos/cuentas/validar/rpc";
 import { fuenteValidarTicketsSimulada } from "@/datos/cuentas/validar/simulado";
@@ -55,18 +55,20 @@ function accionesDeSesion(): AccionesValidarTickets {
   };
 }
 
-const configSupabase = leerConfigSupabase();
-const clienteDelPuente = modoDeAcceso() === "apagado" && configSupabase ? crearClienteSupabase(configSupabase) : null;
+// La regla es una sola (`conexion.ts`): la misma que usa la franja del shell para decir que la 29 sí guarda.
+const fuente = fuenteDeValidarTickets();
+const configSupabase = fuente === "puente" ? leerConfigSupabase() : null;
+const clienteDelPuente = configSupabase ? crearClienteSupabase(configSupabase) : null;
 
 export const fuenteValidarTickets: FuenteValidarTickets =
-  modoDeAcceso() !== "apagado"
+  fuente === "sesion"
     ? fuenteDeSesion((cliente) => crearFuenteValidarTicketsRpc(cliente, leerCampaniaElegida))
     : clienteDelPuente
       ? crearFuenteValidarTicketsRpc(clienteDelPuente, leerCampaniaElegida)
       : fuenteValidarTicketsSimulada;
 
 export const accionesValidarTickets: AccionesValidarTickets | null =
-  modoDeAcceso() !== "apagado"
+  fuente === "sesion"
     ? accionesDeSesion()
     : clienteDelPuente
       ? crearAccionesValidarTicketsRpc(clienteDelPuente, clienteDelPuente)

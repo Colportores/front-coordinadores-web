@@ -251,7 +251,7 @@ async function todasLasFilas(cliente: ClienteRpc, rpc: string, campaniaId: strin
  * pregunta sola se cae (red, 5xx, 429): la previa es una ayuda y la vista igual deja decidir, así que una falla en una fila
  * no tira la cola entera. Solo la sesión vencida sigue como excepción (la página entera necesita volver a entrar).
  */
-async function cifrasDe(cliente: ClienteRpc, item: ItemPorValidar): Promise<CifrasDelColportor | null> {
+async function cifrasDe(cliente: ClienteRpc, item: ItemPorValidar): Promise<CifrasDelColportor | null | "caida"> {
   const rpc = item.tipo === "retiro" ? "validacion_de_retiro" : "validacion_de_ticket";
   const argumentos = item.tipo === "retiro" ? { p_deposito_id: item.id } : { p_ticket_id: item.id };
   let respuesta: unknown;
@@ -259,7 +259,8 @@ async function cifrasDe(cliente: ClienteRpc, item: ItemPorValidar): Promise<Cifr
     respuesta = await cliente.llamarRpc(rpc, argumentos);
   } catch (error) {
     if (esSesionVencidaDeLaBase(error)) throw error;
-    return null;
+    // La base contestó que no (otra persona lo resolvió): sin cifras, sin más. Si no contestó, se avisa en el panel.
+    return esRechazo(error) ? null : "caida";
   }
   const [fila] = filas(rpc, respuesta);
   if (!fila) return null;
@@ -271,12 +272,14 @@ async function cifrasDe(cliente: ClienteRpc, item: ItemPorValidar): Promise<Cifr
 /** Las cifras de cada ítem por validar que no es propio (nadie valida lo suyo: 42501), de a `PREVIAS_A_LA_VEZ`. */
 async function conCifras(cliente: ClienteRpc, items: ItemPorValidar[]): Promise<ItemPorValidar[]> {
   const resultado = [...items];
-  const porCalcular = items.flatMap((item, i) => (item.estado === "PENDIENTE" && !item.esVos ? [i] : []));
+  // Un ticket sin monto no muestra cifras ni comparación (decisión P1 del QA de #173): no se pregunta.
+  const porCalcular = items.flatMap((item, i) => (item.estado === "PENDIENTE" && !item.esVos && item.monto !== null ? [i] : []));
   for (let desde = 0; desde < porCalcular.length; desde += PREVIAS_A_LA_VEZ) {
     const tanda = porCalcular.slice(desde, desde + PREVIAS_A_LA_VEZ);
     const cifras = await Promise.all(tanda.map((i) => cifrasDe(cliente, items[i])));
     tanda.forEach((i, j) => {
-      resultado[i] = { ...items[i], cifras: cifras[j] };
+      const c = cifras[j];
+      resultado[i] = c === "caida" ? { ...items[i], cifras: null, previaNoDisponible: true } : { ...items[i], cifras: c };
     });
   }
   return resultado;

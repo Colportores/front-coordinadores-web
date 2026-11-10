@@ -253,10 +253,18 @@ describe("crearFuenteValidarTicketsRpc · la cola", () => {
   it("una previa que se cae (5xx, red) deja sin cifras solo esa fila; la sesión vencida en la previa sí falla", async () => {
     const caida = lecturaBasica({ validacion_de_ticket: rechazo("", "Service Unavailable", 503), validacion_de_retiro: new TypeError("fetch failed") });
     const items = (await crearFuenteValidarTicketsRpc(caida.cliente).obtenerPorValidar()).items;
-    expect(items.map((i) => [i.id, i.cifras])).toEqual([
-      [TICKET, null],
-      [RETIRO, null],
+    // Sin cifras y marcada, para que el panel lo diga en su lugar (P3 del QA de #173).
+    expect(items.map((i) => [i.id, i.cifras, i.previaNoDisponible])).toEqual([
+      [TICKET, null, true],
+      [RETIRO, null, true],
     ]);
+
+    const limite = lecturaBasica({ validacion_de_ticket: rechazo("", "Too Many Requests", 429) });
+    expect((await crearFuenteValidarTicketsRpc(limite.cliente).obtenerPorValidar()).items[0]).toMatchObject({ cifras: null, previaNoDisponible: true });
+
+    // Un rechazo de la base (otra persona lo resolvió) no es una caída: sin cifras y sin aviso.
+    const resuelto = lecturaBasica({ validacion_de_ticket: rechazo("TV001", "El ticket no existe…") });
+    expect((await crearFuenteValidarTicketsRpc(resuelto.cliente).obtenerPorValidar()).items[0]).not.toHaveProperty("previaNoDisponible");
 
     const vencida = lecturaBasica({ validacion_de_retiro: rechazo("PGRST301", "JWT expired", 401) });
     await expect(crearFuenteValidarTicketsRpc(vencida.cliente).obtenerPorValidar()).rejects.toMatchObject({ estado: 401 });
@@ -270,8 +278,9 @@ describe("crearFuenteValidarTicketsRpc · la cola", () => {
       [TICKET_2, 9000],
       [RETIRO, 6000],
     ]);
-    // La previa se pide igual (la base devuelve sus cifras); lo que no se ofrece es validarlo (lo cuida la vista).
-    expect(llamarRpc).toHaveBeenCalledWith("validacion_de_ticket", { p_ticket_id: TICKET });
+    // Sin monto no hay cifras ni comparación (P1 del QA de #173): no se pregunta.
+    expect(llamarRpc).not.toHaveBeenCalledWith("validacion_de_ticket", { p_ticket_id: TICKET });
+    expect(llamarRpc).toHaveBeenCalledWith("validacion_de_ticket", { p_ticket_id: TICKET_2 });
   });
 
   it("un id repetido entre páginas (entró una fila entre las dos) sale una sola vez", async () => {

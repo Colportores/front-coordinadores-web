@@ -707,3 +707,30 @@ describe("un ticket sin monto (la base lo permite; TV004) (#170, QA)", () => {
     expect(a.validar).toHaveBeenCalledWith(expect.objectContaining({ id: "joaquin-duarte-de-mas" }));
   });
 });
+
+describe("una previa que no se pudo calcular (P3 del QA de #173)", () => {
+  it("en el lugar de las cifras dice que no se pudo calcular y deja decidir igual", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: false });
+    const datos = simulados();
+    datos.items = datos.items.map((x) => (x.id === "lucia-fernandez-por-validar" ? { ...x, cifras: null, previaNoDisponible: true } : x));
+    const { acciones: a } = montar(datos);
+    await abrir("Lucía Fernández");
+    expect(
+      within(panel()).getByText("No pudimos calcular lo que tenía en mano y lo que debe. Podés decidir igual: la base controla al guardar."),
+    ).toBeInTheDocument();
+    expect(within(panel()).queryByText("EN MANO SEGÚN LA APP")).not.toBeInTheDocument();
+    await tocar(boton(/^Validar/));
+    await act(async () => {
+      vi.advanceTimersByTime(MS_DESHACER);
+    });
+    expect(a.validar).toHaveBeenCalledWith(expect.objectContaining({ id: "lucia-fernandez-por-validar" }));
+  });
+
+  it("sin la marca (la base no las calcula, p. ej. campaña sin alquiler) no se avisa nada", async () => {
+    const datos = simulados();
+    datos.items = datos.items.map((x) => (x.id === "lucia-fernandez-por-validar" ? { ...x, cifras: null } : x));
+    montar(datos);
+    await abrir("Lucía Fernández");
+    expect(within(panel()).queryByText(/No pudimos calcular/)).not.toBeInTheDocument();
+  });
+});

@@ -46,6 +46,15 @@ export function largoDelMotivo(texto: string): number {
   return Array.from(texto).length;
 }
 
+/** En el lugar de las cifras, cuando su pregunta se cayó (decisión P3 del QA de #173, 10/11). */
+export const TEXTO_PREVIA_NO_DISPONIBLE =
+  "No pudimos calcular lo que tenía en mano y lo que debe. Podés decidir igual: la base controla al guardar.";
+
+/** El aviso que va en lugar de la previa, si su pregunta se cayó; `null` si no (o si no hay nada que decidir). */
+export function avisoSinPrevia(item: ItemPorValidar): string | null {
+  return item.previaNoDisponible && !item.cifras && sePuedeValidar(item) ? TEXTO_PREVIA_NO_DISPONIBLE : null;
+}
+
 /** Se puede validar o rechazar: está pendiente y no es de quien mira (nadie confirma ni rechaza lo suyo, 36R·06). */
 export function esAccionable(item: ItemPorValidar): boolean {
   return item.estado === "PENDIENTE" && !item.esVos;

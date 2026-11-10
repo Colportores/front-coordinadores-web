@@ -15,6 +15,7 @@ import {
   esAccionable,
   largoDelMotivo,
   previaDelItem,
+  avisoSinPrevia,
   sePuedeValidar,
   TEXTO_SIN_MONTO_PARA_VALIDAR,
   textoDeMotivoLargo,
@@ -156,6 +157,7 @@ export function PanelDelTicket(p: PropsDelPanel) {
   const retiro = item.tipo === "retiro";
   const banda = bandaDelItem(item, p.ahoraIso);
   const previa = previaDelItem(item);
+  const sinPrevia = previa ? null : avisoSinPrevia(item);
   const largoDelEscrito = largoDelMotivo(p.motivo.trim());
   const largo = largoDelEscrito > MAXIMO_DEL_MOTIVO;
   const avisoDelMotivo = largo ? textoDeMotivoLargo(largoDelEscrito) : errorDelMotivo;
@@ -268,6 +270,13 @@ export function PanelDelTicket(p: PropsDelPanel) {
             </p>
           ))}
         </div>
+      )}
+
+      {sinPrevia && (
+        <p className="flex items-start gap-2 border-t border-borde-suave pt-2.5 text-chico text-tinta-2">
+          <span aria-hidden="true">△</span>
+          <span>{sinPrevia}</span>
+        </p>
       )}
 
       {item.estado === "RECHAZADO" && item.motivoRechazo && (

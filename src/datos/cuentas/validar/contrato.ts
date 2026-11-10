@@ -70,6 +70,11 @@ export interface ItemPorValidar {
   tieneFoto: boolean;
   /** `null` si el servidor no las pudo calcular (ya resuelto o sin permiso). */
   cifras: CifrasDelColportor | null;
+  /**
+   * La pregunta de las cifras se cayó (red, 5xx, 429): sin cifras, y el panel lo dice en su lugar en vez de callarlo (decisión
+   * P3 del QA de #173, 10/11). Se puede decidir igual: la base controla al guardar.
+   */
+  previaNoDisponible?: boolean;
 }
 
 export interface DatosDeValidacion {
