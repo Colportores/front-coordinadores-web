@@ -14,7 +14,7 @@ describe("PestanaReportes (vista 32, HU-REP-001 y HU-REP-002)", () => {
 
     expect(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Todas las ciudades", level: 2 })).toBeInTheDocument();
-    expect(screen.getByText("25 colportores · S7 contra S6")).toBeInTheDocument();
+    expect(screen.getByText("25 colportores · S7 · última semana completa contra S6")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Semanas", pressed: true })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "HORAS" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "PRESENTACIONES" })).toBeInTheDocument();

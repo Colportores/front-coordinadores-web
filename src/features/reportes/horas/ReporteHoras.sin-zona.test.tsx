@@ -40,7 +40,7 @@ describe("ReporteHoras · colportores sin zona", () => {
       .map((b) => b.textContent ?? "");
     expect(botones[botones.length - 1]).toMatch(/^Sin zona asignada/);
     expect(botones[botones.length - 1]).toContain("1 colportor");
-    expect(screen.getByText("5 colportores · S2 contra S1")).toBeInTheDocument();
+    expect(screen.getByText("5 colportores · S2 · última semana completa contra S1")).toBeInTheDocument();
     expect(textoDeFilas().some((f) => f.includes("Diego Machado"))).toBe(true);
   });
 

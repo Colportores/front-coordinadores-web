@@ -45,9 +45,10 @@ import {
  * códigos. Una falla de conexión, de servicio o de sesión no es un rechazo y sale como excepción (la vista la muestra
  * como «sin conexión»). **Ninguna falla se toma por una lista vacía.**
  *
- * Lo que todavía no está conectado, porque el backend no lo tiene (backend-supabase#25): `esquinaMasCercana`,
- * `tramoPorCalles` y, con ellas, guardar o mirar una zona por esquinas (el borde por calles lo manda el cliente). Tiran
- * `FuncionSinConectar`. La superposición con otra zona y la calle compartida (`superposicion`, `comparteCalle`) tampoco
+ * Lo que todavía no está conectado (el backend ya lo tiene desde backend-supabase#25; conectarlo es
+ * front-coordinadores-web#40): `esquinaMasCercana`, `tramoPorCalles` y, con ellas, guardar o mirar una zona por esquinas
+ * (el borde por calles lo manda el cliente). Tiran `FuncionSinConectar`, y `obtenerZonas` lo avisa con
+ * `esquinasDisponibles: false` para que la vista no lo confunda con una falla de conexión (#167). La superposición con otra zona y la calle compartida (`superposicion`, `comparteCalle`) tampoco
  * las calcula ninguna RPC: la vista previa las deja en `null`.
  */
 
@@ -332,7 +333,13 @@ export function crearFuenteZonasRpc(
       const campania = await campaniaProvisoria(cliente, await campaniaElegida());
       if (!campania) return null;
       try {
-        return { campaniaId: campania.id, campania: campania.nombre, ciudades: await leerCiudades(cliente, campania.id) };
+        return {
+          campaniaId: campania.id,
+          campania: campania.nombre,
+          ciudades: await leerCiudades(cliente, campania.id),
+          // Las zonas por esquinas todavía no están conectadas (ver arriba, `FuncionSinConectar`): la vista lo dice (#167).
+          esquinasDisponibles: false,
+        };
       } catch (error) {
         if (campaniaYaNoVigente(error)) return null;
         throw error;

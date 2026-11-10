@@ -154,6 +154,7 @@ export function ReporteHoras({
             )}
             <h2 className="font-serif text-[22px] font-semibold wrap-anywhere text-tinta">{reporte.titulo}</h2>
             <p className="text-chico text-tinta-suave">{reporte.subtitulo}</p>
+            {reporte.avisoDelPeriodo && <p className="text-chico text-tinta-suave">{reporte.avisoDelPeriodo}</p>}
           </div>
           <div className="flex flex-none flex-col items-end gap-1.5">
             <div className="flex items-center gap-2">
