@@ -3,21 +3,25 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { AccionNoDisponible } from "@/components/AccionNoDisponible";
-import type { AccionesCuentas, DatosDeCuentas, ResultadoDeAccion } from "@/datos/cuentas";
+import type { AccionesCuentas, DatosDeCuentas, DestinoDeAlquiler, ResultadoDeAccion } from "@/datos/cuentas";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { ColumnaDeCiudades } from "@/features/cuentas/ColumnaDeCiudades";
+import { DialogoDeAlquiler, type PasoDeDecision } from "@/features/cuentas/DialogoDeAlquiler";
+import { AvisoDeAlquiler, CeldaDePagado, EstadoDecidible } from "@/features/cuentas/FilaPorDecidir";
 import { EncabezadoDeCuentas } from "@/features/cuentas/EncabezadoDeCuentas";
 import { Pastilla, TablaDeFilas, type ColumnaDeTabla } from "@/features/cuentas/TablaDeFilas";
 import { TablaDeTickets } from "@/features/cuentas/TablaDeTickets";
 import { formatMonto } from "@/features/cuentas/formato";
 import {
   aplicarAlquiler,
+  aplicarDecision,
   avisoDePendientes,
   ciudadesDe,
   colportoresDe,
   elementosDeLista,
   estadoDeAlquiler,
   fechaDeCuenta,
+  filaPorDecidir,
   filasDe,
   kpisDeAlquiler,
   kpisDeCasaEditora,
@@ -29,6 +33,7 @@ import {
   seleccionVigente,
   siguienteOrden,
   subtituloDeSeleccion,
+  textoDeACuenta,
   textoDeSaldo,
   textoDeTraslado,
   ticketsDe,
@@ -39,6 +44,19 @@ import {
   type Orden,
   type Seleccion,
 } from "@/features/cuentas/modelo";
+import {
+  avisoDePorDecidir,
+  campaniaSinAlquiler,
+  lineasDeLaFila,
+  sePuedeDecidir,
+  TEXTO_SIN_CONEXION,
+  TEXTO_YA_ESTABA,
+  textoDeDecidido,
+  textoDeFallaAlDecidir,
+  textosDeConfirmacion,
+  textosDeEleccion,
+} from "@/features/cuentas/por-decidir";
+import { useEnLinea } from "@/lib/en-linea";
 import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
 import { registrarEnvio } from "@/shell/trabajo-pendiente";
@@ -69,8 +87,11 @@ const COLUMNAS_ALQUILER: ColumnaDeTabla[] = [
   { rotulo: "DEBE", derecha: true, ordenable: "debe" },
   { rotulo: "ÚLTIMO PAGO", ordenable: "ultimoPago" },
   { rotulo: "ESTADO" },
+  { rotulo: "" },
 ];
-const PLANTILLA_ALQUILER = "grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))_minmax(0,.8fr)_minmax(0,1fr)]";
+// Como la vista 41: el estado lleva las pastillas de lo decidido y la última columna, «Decidir».
+const PLANTILLA_ALQUILER =
+  "grid-cols-[minmax(0,1.6fr)_minmax(0,.75fr)_minmax(0,.75fr)_minmax(0,.6fr)_minmax(0,.75fr)_minmax(0,1.5fr)_88px]";
 
 function FranjaDeCifras({ kpis }: { kpis: Kpi[] }) {
   return (
@@ -89,7 +110,16 @@ function FranjaDeCifras({ kpis }: { kpis: Kpi[] }) {
   );
 }
 
-type Aviso = { tipo: "exito" | "error"; texto: string };
+/** El aviso de una escritura: una franja arriba (alquiler de la campaña) o, tras decidir lo pagado, abajo (41A·06). */
+type Aviso = { tipo: "exito" | "error"; texto: string; forma?: "franja" | "abajo" };
+
+/** El diálogo de decidir lo pagado «por decidir», abierto sobre un colportor. */
+interface Decidiendo {
+  colportorId: string;
+  paso: PasoDeDecision;
+  destino: DestinoDeAlquiler | null;
+  error: string | null;
+}
 
 function mensajeDeFalla<T>(resultado: Extract<ResultadoDeAccion<T>, { ok: false }>, accion: string): string {
   if (resultado.causa === "sin-conexion") return mensajeSinConexion(accion);
@@ -113,6 +143,9 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
   const [guardando, setGuardando] = useState(false);
   const [errorDeAlquiler, setErrorDeAlquiler] = useState<string | null>(null);
   const [aviso, setAviso] = useState<Aviso | null>(null);
+  const [decidiendo, setDecidiendo] = useState<Decidiendo | null>(null);
+  const [decidida, setDecidida] = useState<string | null>(null);
+  const enLinea = useEnLinea();
   const ocupado = useRef(false);
   const focoPendiente = useRef<string | null>(null);
 
@@ -137,8 +170,13 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
   const pendientes = pendientesDe(datos, seleccion);
 
   const orden = ordenes[pestana] ?? null;
-  const filasOrdenadas = ordenarFilas(filas, orden);
+  const filasOrdenadas = ordenarFilas(filas, orden, pestana === "alquiler" ? filaPorDecidir : undefined);
   const alquiler = datos.alquilerPorColportor;
+  const sinAlquiler = campaniaSinAlquiler(datos);
+  const avisoDeAlquiler = avisoDePorDecidir(filas, sinAlquiler);
+  // La fila del diálogo, mientras siga habiendo algo que decidir en ella.
+  const filaDecidiendo = decidiendo ? filasDe(datos, TODAS).find((f) => f.colportor.id === decidiendo.colportorId) : undefined;
+  const resaltada = decidiendo?.colportorId ?? decidida;
 
   /** Una escritura por vez: la segunda mientras la primera está en camino se ignora. Cuenta como trabajo sin contestar. */
   async function escribir<T>(hacer: () => Promise<ResultadoDeAccion<T>>): Promise<ResultadoDeAccion<T> | null> {
@@ -176,9 +214,59 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
     }
     const nuevo = resultado.valor;
     setDatos((previos) => aplicarAlquiler(previos, nuevo));
-    setAviso({ tipo: "exito", texto: `Alquiler de la campaña: ${formatMonto(nuevo)} por colportor, para todos los inscriptos.` });
+    setAviso({
+      tipo: "exito",
+      texto:
+        nuevo === 0
+          ? "Alquiler de la campaña: no se cobra, para todos los inscriptos."
+          : `Alquiler de la campaña: ${formatMonto(nuevo)} por colportor, para todos los inscriptos.`,
+    });
     setEditandoAlquiler(false);
     focoPendiente.current = "editar-alquiler";
+  }
+
+  function abrirDecision(colportorId: string) {
+    if (ocupado.current || !enLinea) return;
+    setDecidida(null);
+    setDecidiendo({ colportorId, paso: "elegir", destino: null, error: null });
+  }
+
+  function cerrarDecision() {
+    if (!decidiendo) return;
+    focoPendiente.current = `decidir-${decidiendo.colportorId}`;
+    setDecidiendo(null);
+  }
+
+  /** Después de decidir, el foco va al próximo «Decidir» de la lista o, si no queda ninguno, a la pestaña Alquiler. */
+  function focoTrasDecidir(colportorId: string) {
+    const siguiente = filasOrdenadas.find((f) => f.colportor.id !== colportorId && filaPorDecidir(f));
+    focoPendiente.current = siguiente ? `decidir-${siguiente.colportor.id}` : "pestana-alquiler";
+  }
+
+  async function confirmarDecision() {
+    if (!decidiendo?.destino) return;
+    const { colportorId, destino } = decidiendo;
+    const nombre = datos.colportores.find((c) => c.id === colportorId)?.nombre ?? "";
+    if (ocupado.current) return;
+    // Al reintentar, el error anterior se va mientras guarda (41A·05).
+    setDecidiendo((d) => d && { ...d, error: null });
+    const resultado = await escribir(() => acciones.decidirAlquiler(colportorId, destino));
+    if (!resultado) return;
+    if (!resultado.ok) {
+      const error = textoDeFallaAlDecidir(resultado.causa, resultado.mensaje);
+      setDecidiendo((d) => (d?.colportorId === colportorId ? { ...d, error } : d));
+      return;
+    }
+    setDecidiendo(null);
+    focoTrasDecidir(colportorId);
+    if (resultado.valor.yaEstaba) {
+      setAviso({ tipo: "exito", texto: TEXTO_YA_ESTABA, forma: "abajo" });
+      return;
+    }
+    const decision = resultado.valor.decision;
+    setDatos((previos) => aplicarDecision(previos, decision));
+    setDecidida(colportorId);
+    setAviso({ tipo: "exito", texto: textoDeDecidido(nombre, decision), forma: "abajo" });
   }
 
   function elegirSeleccion(nueva: Seleccion) {
@@ -233,7 +321,7 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
           }}
         />
 
-        {aviso && (
+        {aviso && aviso.forma !== "abajo" && (
           <div
             role={aviso.tipo === "error" ? "alert" : "status"}
             className={cn(
@@ -297,6 +385,11 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
             </div>
           )}
 
+          {pestana === "alquiler" && !enLinea && filas.some((f) => sePuedeDecidir(f.colportor, f.alquiler)) && (
+            <AvisoDeAlquiler variante="sin-conexion" texto={TEXTO_SIN_CONEXION} />
+          )}
+          {pestana === "alquiler" && enLinea && avisoDeAlquiler && <AvisoDeAlquiler variante="por-decidir" texto={avisoDeAlquiler} />}
+
           {pestana === "tickets" && (
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
               <label className="flex items-center gap-2.5 text-chico font-semibold text-tinta-2">
@@ -343,6 +436,11 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
                         {textoDeTraslado(f.trasladadoAlquiler)}
                       </span>
                     )}
+                    {f.alquiler.aCuenta > 0 && (
+                      <span className="block py-0.5 text-mini whitespace-normal text-tinta-suave [overflow-wrap:anywhere]">
+                        {textoDeACuenta(f.alquiler.aCuenta)}
+                      </span>
+                    )}
                   </span>,
                   <span key="d" className="font-mono font-semibold">{textoDeSaldo(f.colportor.deuda, f.colportor.aFavor ?? 0)}</span>,
                   <span key="p" className="font-mono">{formatMonto(f.colportor.depositado)}</span>,
@@ -365,23 +463,70 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
               orden={orden}
               alOrdenar={(c: ColumnaOrdenable) => setOrdenes((o) => ({ ...o, [pestana]: siguienteOrden(o[pestana] ?? null, c) }))}
               textoVacio={`Todavía no hay colportores inscriptos en ${titulo}. Se suman desde Equipo.`}
+              resaltada={resaltada}
               celdas={(f) => {
-                const estado = estadoDeAlquiler(f, alquiler);
-                return [
-                  <b key="n" className="font-semibold">{f.colportor.nombre}</b>,
-                  <span key="a" className="font-mono text-tinta-suave">{formatMonto(alquiler)}</span>,
-                  <span key="p" className="font-mono">{formatMonto(f.pagadoAlquiler)}</span>,
-                  <span key="d" className="font-mono font-semibold">{formatMonto(f.debeAlquiler)}</span>,
+                const a = f.alquiler;
+                const lineas = lineasDeLaFila(f.colportor, a);
+                const ultimoPago = (
                   <span key="u" className={cn("font-mono", !f.ultimoPagoAlquiler && "text-tinta-tenue")}>
                     {f.ultimoPagoAlquiler ? fechaDeCuenta(f.ultimoPagoAlquiler, datos.ahora) : "—"}
-                  </span>,
-                  estado === "pagado" ? (
-                    <Pastilla key="e" tono="exito">✓ Pagado</Pastilla>
-                  ) : estado === "parcial" ? (
-                    <Pastilla key="e" tono="marca">Pagó una parte</Pastilla>
-                  ) : (
-                    <Pastilla key="e" tono="alerta">Debe todo</Pastilla>
-                  ),
+                  </span>
+                );
+                const nombre = (
+                  <span key="n" className="block whitespace-normal">
+                    <b className="font-semibold">{f.colportor.nombre}</b>
+                    {f.colportor.esVos && <span className="text-mini text-tinta-suave"> (vos)</span>}
+                    {lineas.map((linea) => (
+                      <span key={linea} className="block py-px text-mini text-tinta-suave [overflow-wrap:anywhere]">
+                        {linea}
+                      </span>
+                    ))}
+                  </span>
+                );
+                if (!a.decide) {
+                  const estado = estadoDeAlquiler(f, alquiler);
+                  return [
+                    nombre,
+                    <span key="a" className="font-mono text-tinta-suave">{formatMonto(alquiler)}</span>,
+                    <span key="p" className="font-mono">{formatMonto(f.pagadoAlquiler)}</span>,
+                    <span key="d" className="font-mono font-semibold">{formatMonto(f.debeAlquiler)}</span>,
+                    ultimoPago,
+                    estado === "pagado" ? (
+                      <Pastilla key="e" tono="exito">✓ Pagado</Pastilla>
+                    ) : estado === "parcial" ? (
+                      <Pastilla key="e" tono="marca">Pagó una parte</Pastilla>
+                    ) : (
+                      <Pastilla key="e" tono="alerta">Debe todo</Pastilla>
+                    ),
+                    null,
+                  ];
+                }
+                const decidible = sePuedeDecidir(f.colportor, a);
+                const apagado = !enLinea || guardando;
+                return [
+                  nombre,
+                  <span key="a" className="font-mono text-tinta-suave">—</span>,
+                  <CeldaDePagado key="p" pagado={f.pagadoAlquiler} devuelto={a.devuelto} />,
+                  <span key="d" className="font-mono text-tinta-suave">—</span>,
+                  ultimoPago,
+                  <EstadoDecidible key="e" alquiler={a} pagado={f.pagadoAlquiler} />,
+                  decidible ? (
+                    <span key="x" className="flex justify-end">
+                      <button
+                        type="button"
+                        data-foco={`decidir-${f.colportor.id}`}
+                        aria-disabled={apagado}
+                        aria-label={`Decidir qué se hace con lo pagado de alquiler de ${f.colportor.nombre}`}
+                        onClick={() => abrirDecision(f.colportor.id)}
+                        className={cn(
+                          "inline-flex min-h-8 cursor-pointer items-center rounded-control border border-marca bg-marca px-3 text-[11.5px] font-semibold whitespace-nowrap text-superficie focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none",
+                          apagado && "cursor-not-allowed opacity-45",
+                        )}
+                      >
+                        Decidir
+                      </button>
+                    </span>
+                  ) : null,
                 ];
               }}
             />
@@ -411,6 +556,48 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
           )}
         </div>
       </div>
+
+      {decidiendo && filaDecidiendo && (
+        <DialogoDeAlquiler
+          eleccion={textosDeEleccion(filaDecidiendo.colportor, filaDecidiendo.alquiler)}
+          confirmacion={decidiendo.destino ? textosDeConfirmacion(filaDecidiendo.colportor, filaDecidiendo.alquiler, decidiendo.destino) : null}
+          paso={decidiendo.paso}
+          destino={decidiendo.destino}
+          error={decidiendo.error}
+          guardando={guardando}
+          alElegir={(destino) => setDecidiendo((d) => d && { ...d, destino })}
+          alSeguir={() => setDecidiendo((d) => d && { ...d, paso: "confirmar", error: null })}
+          alVolver={() => setDecidiendo((d) => d && { ...d, paso: "elegir", error: null })}
+          alCancelar={cerrarDecision}
+          alConfirmar={() => void confirmarDecision()}
+        />
+      )}
+
+      {aviso?.forma === "abajo" && (
+        <div
+          role="status"
+          className={cn(
+            "fixed bottom-6 z-40 flex max-w-[min(640px,calc(100vw-48px))] items-center gap-3.5 rounded-[10px] bg-tinta py-2 pr-2 pl-4 text-[13.5px] text-superficie shadow-[0_10px_24px_rgba(14,26,43,.25)]",
+            contraida ? "left-[92px]" : "left-[344px]",
+          )}
+        >
+          <span aria-hidden className="font-bold text-[#9FD3AE]">
+            ✓
+          </span>
+          <span className="min-w-0 [overflow-wrap:anywhere]">{aviso.texto}</span>
+          <button
+            type="button"
+            aria-label="Cerrar el aviso"
+            onClick={() => {
+              setAviso(null);
+              setDecidida(null);
+            }}
+            className="inline-flex size-8 flex-none cursor-pointer items-center justify-center rounded-control focus-visible:ring-[3px] focus-visible:ring-[#B9D3F2] focus-visible:outline-none"
+          >
+            <span aria-hidden>✕</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -56,7 +56,7 @@ describe("A01 · Casa editora · todas las ciudades", () => {
   it("abre en Casa editora con el título, el subtítulo y las cuatro cifras", () => {
     montar();
     expect(screen.getByRole("heading", { level: 2, name: "Todas las ciudades" })).toBeInTheDocument();
-    expect(screen.getByText(/^25 colportores · en Artigas y Bella Unión no hay banco: el coordinador retira el efectivo$/)).toBeInTheDocument();
+    expect(screen.getByText(/^26 colportores · en Artigas y Bella Unión no hay banco: el coordinador retira el efectivo$/)).toBeInTheDocument();
     expect(pestana(/Casa editora/)).toHaveAttribute("aria-selected", "true");
     for (const rotulo of ["DEUDA TOTAL", "DEPOSITADO", "EN MANO", "POR COBRAR"]) expect(cifra(rotulo)).toBeInTheDocument();
     expect(screen.getByText("con la casa editora")).toBeInTheDocument();
@@ -69,7 +69,7 @@ describe("A01 · Casa editora · todas las ciudades", () => {
       expect(within(tabla).getByRole("columnheader", { name: new RegExp(columna) })).toBeInTheDocument();
     }
     expect(within(tabla).getByText("Rivera")).toBeInTheDocument();
-    expect(within(tabla).getByText("10 colportores")).toBeInTheDocument();
+    expect(within(tabla).getByText("11 colportores")).toBeInTheDocument();
     expect(within(tabla).getByText("8 colportores")).toBeInTheDocument();
     expect(within(tabla).getByText("7 colportores")).toBeInTheDocument();
     expect(within(tabla).getByText("Gonzalo Méndez")).toBeInTheDocument();
@@ -104,15 +104,15 @@ describe("A01 · Casa editora · todas las ciudades", () => {
 });
 
 describe("A02 · Alquiler · Rivera", () => {
-  it("muestra el alquiler de los 10 colportores de Rivera, sin la nota de banco", async () => {
+  it("muestra el alquiler de los 11 colportores de Rivera, sin la nota de banco", async () => {
     const { usuario } = montar();
     await usuario.click(ciudad(/^Rivera/));
     await usuario.click(pestana(/Alquiler/));
 
     expect(screen.getByRole("heading", { level: 2, name: "Rivera" })).toBeInTheDocument();
-    expect(screen.getByText("10 colportores · Departamento Rivera")).toBeInTheDocument();
+    expect(screen.getByText("11 colportores · Departamento Rivera")).toBeInTheDocument();
     expect(cifra("ALQUILER DE LA CAMPAÑA")).toBeInTheDocument();
-    expect(screen.getByText("10 × $U 18.500")).toBeInTheDocument();
+    expect(screen.getByText("5 × $U 18.500")).toBeInTheDocument();
     expect(cifra("PAGADO")).toBeInTheDocument();
     expect(cifra("DEBEN")).toBeInTheDocument();
     expect(cifra("PAGARON TODO")).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe("A02 · Alquiler · Rivera", () => {
     for (const columna of ["COLPORTOR", "ALQUILER", "PAGADO", "DEBE", "ÚLTIMO PAGO", "ESTADO"]) {
       expect(within(tabla).getByRole("columnheader", { name: new RegExp(`^${columna}`) })).toBeInTheDocument();
     }
-    expect(within(tabla).queryByText("10 colportores")).not.toBeInTheDocument();
+    expect(within(tabla).queryByText("11 colportores")).not.toBeInTheDocument();
   });
 
   it("cada colportor tiene su estado: pagado, pagó una parte o debe todo", async () => {
@@ -517,7 +517,7 @@ describe("Editar el alquiler", () => {
     expect(acciones.editarAlquiler).toHaveBeenCalledWith(20000);
     expect(await screen.findByRole("status")).toHaveTextContent("Alquiler de la campaña: $U 20.000 por colportor, para todos los inscriptos.");
     expect(screen.getByText("$U 20.000", { selector: "b" })).toBeInTheDocument();
-    expect(screen.getByText("25 × $U 20.000")).toBeInTheDocument();
+    expect(screen.getByText("20 × $U 20.000")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Editar" })).toHaveFocus();
     expect(screen.queryByRole("form", { name: "Editar el alquiler de la campaña" })).not.toBeInTheDocument();
   });
@@ -538,7 +538,7 @@ describe("Editar el alquiler", () => {
     await usuario.type(editor.getByLabelText(/Alquiler por colportor/), "0");
     await usuario.click(editor.getByRole("button", { name: "Guardar" }));
     await screen.findByRole("status");
-    expect(cifra("PAGARON TODO").closest("div")).toHaveTextContent("25de 25");
+    expect(cifra("PAGARON TODO").closest("div")).toHaveTextContent("20de 20");
   });
 
   it.each([

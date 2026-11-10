@@ -7,16 +7,16 @@ const AHORA = new Date("2026-10-22T15:00:00.000Z");
 describe("armarCuentasSimuladas", () => {
   const datos = armarCuentasSimuladas(AHORA);
 
-  it("arma tres ciudades y 25 colportores siempre igual", () => {
+  it("arma tres ciudades y 26 colportores siempre igual", () => {
     expect(datos.ciudades.map((c) => c.nombre)).toEqual(["Rivera", "Artigas", "Bella Unión"]);
-    expect(datos.colportores).toHaveLength(25);
+    expect(datos.colportores).toHaveLength(26);
     expect(armarCuentasSimuladas(AHORA)).toEqual(datos);
-    expect(new Set(datos.colportores.map((c) => c.id)).size).toBe(25);
+    expect(new Set(datos.colportores.map((c) => c.id)).size).toBe(26);
     expect(new Set(datos.tickets.map((t) => t.id)).size).toBe(datos.tickets.length);
   });
 
-  it("el alquiler pagado de cada colportor sale solo de depósitos validados con ese destino", () => {
-    for (const c of datos.colportores) {
+  it("el alquiler pagado de cada colportor inscripto sale solo de depósitos validados con ese destino", () => {
+    for (const c of datos.colportores.filter((x) => !x.baja)) {
       const pagado = datos.tickets
         .filter((t) => t.colportorId === c.id && t.destino === "alquiler" && t.estado === "VALIDADO")
         .reduce((total, t) => total + t.monto, 0);
@@ -47,7 +47,7 @@ describe("armarCuentasSimuladas", () => {
 
   it("la fuente arma la lectura a la hora del pedido", async () => {
     const lectura = await fuenteCuentasSimulada.obtenerCuentas();
-    expect(lectura.colportores).toHaveLength(25);
+    expect(lectura.colportores).toHaveLength(26);
     expect(Number.isNaN(Date.parse(lectura.ahora))).toBe(false);
   });
 });

@@ -133,7 +133,14 @@ export function EncabezadoDeCuentas({
         ) : (
           <>
             <span className="text-chico text-tinta-2">
-              Alquiler de la campaña: <b className="font-mono font-medium">{formatMonto(alquiler)}</b> por colportor
+              Alquiler de la campaña:{" "}
+              {alquiler === 0 ? (
+                <b className="font-mono font-medium">no se cobra</b>
+              ) : (
+                <>
+                  <b className="font-mono font-medium">{formatMonto(alquiler)}</b> por colportor
+                </>
+              )}
             </span>
             <button
               type="button"

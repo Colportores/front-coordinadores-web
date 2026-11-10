@@ -82,14 +82,14 @@ describe("selección de ciudades", () => {
     expect(tituloDeSeleccion(datos, TODAS)).toBe("Todas las ciudades");
     expect(tituloDeSeleccion(datos, DEPTO_ARTIGAS)).toBe("Departamento Artigas");
     expect(tituloDeSeleccion(datos, ARTIGAS)).toBe("Artigas");
-    expect(colportoresDe(datos, TODAS)).toHaveLength(25);
+    expect(colportoresDe(datos, TODAS)).toHaveLength(26);
     expect(colportoresDe(datos, DEPTO_ARTIGAS)).toHaveLength(15);
     expect(ciudadesDe(datos, DEPTO_ARTIGAS).map((c) => c.id)).toEqual(["artigas", "bella-union"]);
-    expect(subtituloDeSeleccion(datos, RIVERA)).toBe("10 colportores · Departamento Rivera");
+    expect(subtituloDeSeleccion(datos, RIVERA)).toBe("11 colportores · Departamento Rivera");
     expect(subtituloDeSeleccion(datos, ARTIGAS)).toBe(
       "8 colportores · Departamento Artigas · en Artigas no hay banco: el coordinador retira el efectivo",
     );
-    expect(subtituloDeSeleccion(datos, TODAS)).toBe("25 colportores · en Artigas y Bella Unión no hay banco: el coordinador retira el efectivo");
+    expect(subtituloDeSeleccion(datos, TODAS)).toBe("26 colportores · en Artigas y Bella Unión no hay banco: el coordinador retira el efectivo");
   });
 
   it("una ciudad con un solo colportor dice «1 colportor»", () => {
@@ -165,12 +165,15 @@ describe("tickets", () => {
 describe("filas por colportor", () => {
   const filas = filasDe(datos, TODAS);
 
-  it("el alquiler pagado y lo que debe salen de los tickets validados: suman el alquiler y ninguno pasa de él ni baja de cero", () => {
-    for (const f of filas) {
+  it("el alquiler pagado y lo que debe de cada inscripto salen de los tickets validados: suman el alquiler y ninguno pasa de él ni baja de cero", () => {
+    const inscriptos = (lista: typeof filas) => lista.filter((f) => !f.colportor.baja);
+    for (const f of inscriptos(filas)) {
       expect(f.pagadoAlquiler + f.debeAlquiler).toBe(datos.alquilerPorColportor);
       expect(f.trasladadoAlquiler).toBe(0);
     }
-    const sobrepago = filasDe(aplicarAlquiler(datos, 1000), TODAS);
+    // Quien se dio de baja no debe: lo que pagó lo decide el coordinador (vista 41).
+    for (const f of filas.filter((x) => x.colportor.baja)) expect(f.debeAlquiler).toBe(0);
+    const sobrepago = inscriptos(filasDe(aplicarAlquiler(datos, 1000), TODAS));
     expect(sobrepago.every((f) => f.debeAlquiler >= 0 && f.pagadoAlquiler <= 1000)).toBe(true);
     expect(sobrepago.every((f) => f.pagadoAlquiler + f.debeAlquiler === 1000)).toBe(true);
   });
@@ -222,11 +225,11 @@ describe("filas por colportor", () => {
 
   it("las cifras de alquiler: total, pagado con porcentaje, deben y pagaron todo", () => {
     const [total, pagado, deben, pagaron] = kpisDeAlquiler(filasDe(datos, RIVERA), datos.alquilerPorColportor);
-    expect(total.valor).toBe("$U 185.000");
-    expect(total.detalle).toBe("10 × $U 18.500");
+    expect(total.valor).toBe("$U 92.500");
+    expect(total.detalle).toBe("5 × $U 18.500");
     expect(pagado.extra).toMatch(/^\d+%$/);
     expect(deben.detalle).toMatch(/colportor/);
-    expect(pagaron.extra).toBe("de 10");
+    expect(pagaron.extra).toBe("de 5");
   });
 
   it("las cifras de alquiler con cero colportores no dan NaN ni dividen por cero", () => {

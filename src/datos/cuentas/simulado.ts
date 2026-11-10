@@ -3,12 +3,17 @@ import type {
   CiudadDeCuentas,
   ColportorDeCuentas,
   DatosDeCuentas,
+  DecisionDeAlquiler,
+  DestinoDeAlquiler,
   FuenteDatosCuentas,
   MedioDeTicket,
   ResultadoDeAccion,
+  ResultadoDeDecision,
   TicketDeCuentas,
 } from "@/datos/cuentas/contrato";
 import { instanteHaceDias } from "@/datos/cuentas/fechas";
+import { aplicarAlquiler, aplicarDecision } from "@/features/cuentas/modelo";
+import { alquilerDecidible } from "@/features/cuentas/por-decidir";
 import { generadorDeAzar } from "@/lib/azar";
 
 /**
@@ -37,6 +42,8 @@ const NOMBRES: Record<string, string[]> = {
     "Santiago Pereira",
     "Micaela Rodríguez",
     "Emiliano Sosa",
+    // La coordinadora que mira el sitio de prueba, inscripta en su propia campaña (su alquiler no lo decide ella).
+    "Marta Pérez",
   ],
   artigas: [
     "Sofía Cabral",
@@ -194,13 +201,105 @@ export function armarCuentasSimuladas(ahora: Date = new Date()): DatosDeCuentas 
       tieneFoto: true,
     },
   );
-  return {
+  return conAlquilerPorDecidir({
     campaniaId: "campania-simulada",
     ahora: ahoraIso,
     alquilerPorColportor: ALQUILER_SIMULADO,
     ciudades: CIUDADES_SIMULADAS,
     colportores,
     tickets,
+  });
+}
+
+/** Quien mira el sitio de prueba y decide lo pagado «por decidir» (vista 41). */
+export const COORDINADORA_SIMULADA = "Marta Pérez";
+
+interface PagoDeEjemplo {
+  /** Días antes de hoy. */
+  hace: number;
+  monto: number;
+  anulado?: number;
+}
+
+interface BajaDeEjemplo {
+  nombre: string;
+  /** Días antes de hoy en que se dio de baja. */
+  baja: number;
+  pagos: PagoDeEjemplo[];
+  decisiones?: Array<{ destino: DestinoDeAlquiler; monto: number; hace: number }>;
+}
+
+/**
+ * Las bajas de Rivera que dibuja la vista 41: una por decidir (41A·01), una por cada destino ya decidido (41A·07), una con
+ * una decisión anterior y un pago que llegó después («Devolver resto») y la de la coordinadora, que no decide la suya.
+ */
+const BAJAS_DE_EJEMPLO: BajaDeEjemplo[] = [
+  { nombre: "Santiago Pereira", baja: 2, pagos: [{ hace: 23, monto: 5000 }, { hace: 9, monto: 4250 }] },
+  { nombre: "Camila Núñez", baja: 15, pagos: [{ hace: 24, monto: 5000 }], decisiones: [{ destino: "a-cuenta", monto: 5000, hace: 14 }] },
+  { nombre: "Emiliano Sosa", baja: 20, pagos: [{ hace: 26, monto: 18500 }], decisiones: [{ destino: "se-lo-queda", monto: 18500, hace: 19 }] },
+  {
+    nombre: "Micaela Rodríguez",
+    baja: 6,
+    pagos: [
+      { hace: 30, monto: 5000, anulado: 5 },
+      { hace: 16, monto: 4250, anulado: 5 },
+    ],
+    decisiones: [{ destino: "devolver", monto: 9250, hace: 5 }],
+  },
+  {
+    nombre: "Martín Olivera",
+    baja: 12,
+    pagos: [{ hace: 20, monto: 12000 }, { hace: 2, monto: 3000 }],
+    decisiones: [{ destino: "a-cuenta", monto: 12000, hace: 10 }],
+  },
+  { nombre: COORDINADORA_SIMULADA, baja: 4, pagos: [{ hace: 18, monto: 5000 }] },
+];
+
+/** Reemplaza el alquiler de esas personas por el de ejemplo (sus demás cifras siguen saliendo del generador). */
+function conAlquilerPorDecidir(datos: DatosDeCuentas): DatosDeCuentas {
+  const ahoraIso = datos.ahora;
+  const porId = new Map(BAJAS_DE_EJEMPLO.map((b) => [identificador(b.nombre), b]));
+  const tickets = datos.tickets.filter((t) => !(t.destino === "alquiler" && porId.has(t.colportorId)));
+  const decisiones: DecisionDeAlquiler[] = [];
+  for (const [id, b] of porId) {
+    b.pagos.forEach((p, i) => {
+      const fecha = instanteHaceDias(ahoraIso, p.hace, 10, 15);
+      tickets.push({
+        id: `${id}-alquiler-${i + 1}`,
+        colportorId: id,
+        fecha,
+        validadoEn: instanteHaceDias(ahoraIso, p.hace, 17, 40),
+        monto: p.monto,
+        medio: "deposito-banco",
+        entidad: "BROU",
+        numero: String(3100 + i * 7),
+        destino: "alquiler",
+        estado: "VALIDADO",
+        tieneFoto: true,
+        ...(p.anulado === undefined ? {} : { anulado: { en: instanteHaceDias(ahoraIso, p.anulado, 14, 20) } }),
+      });
+    });
+    (b.decisiones ?? []).forEach((d, i) => {
+      decisiones.push({
+        id: `${id}-decision-${i + 1}`,
+        colportorId: id,
+        destino: d.destino,
+        monto: d.monto,
+        decididoPor: COORDINADORA_SIMULADA,
+        decididoEn: instanteHaceDias(ahoraIso, d.hace, 14, 20),
+      });
+    });
+  }
+  return {
+    ...datos,
+    tickets,
+    decisionesDeAlquiler: decisiones,
+    colportores: datos.colportores.map((c) => {
+      const b = porId.get(c.id);
+      if (!b) return c;
+      const marcada = { ...c, baja: { fecha: instanteHaceDias(ahoraIso, b.baja, 9, 0) } };
+      return b.nombre === COORDINADORA_SIMULADA ? { ...marcada, esVos: true } : marcada;
+    }),
   };
 }
 
@@ -215,13 +314,48 @@ export const fuenteCuentasSimulada: FuenteDatosCuentas = {
  * Las escrituras de la vista contra la fuente simulada: se resuelven en el navegador y no se guardan (al recargar vuelven
  * los datos de ejemplo). Cuando se conecten las RPC, lo reemplazan las server actions con el mismo contrato.
  */
-export function crearAccionesSimuladas(): AccionesCuentas {
+export function crearAccionesSimuladas(inicial?: DatosDeCuentas): AccionesCuentas {
+  // Como el servidor, la fuente simulada recuerda lo que ya se decidió: el doble toque contesta `yaEstaba`.
+  let datos = inicial;
   return {
     async editarAlquiler(monto: number): Promise<ResultadoDeAccion<number>> {
       if (!Number.isInteger(monto) || monto < 0) {
         return { ok: false, causa: "rechazado", mensaje: "El alquiler tiene que ser un monto entero, sin negativos." };
       }
+      if (datos) datos = aplicarAlquiler(datos, monto);
       return { ok: true, valor: monto };
+    },
+    async decidirAlquiler(colportorId: string, destino: DestinoDeAlquiler): Promise<ResultadoDeAccion<ResultadoDeDecision>> {
+      const colportor = datos?.colportores.find((c) => c.id === colportorId);
+      if (!datos || !colportor) {
+        return { ok: false, causa: "rechazado", mensaje: "No encontramos ese alquiler en tus campañas. Recargá la lista de cuentas." };
+      }
+      if (colportor.esVos) {
+        return {
+          ok: false,
+          causa: "rechazado",
+          mensaje: "No podés decidir qué hacer con tu propio alquiler. Pedile a otro coordinador o a un administrador que lo haga.",
+        };
+      }
+      const cuenta = alquilerDecidible(datos, colportor);
+      if (!cuenta.decide) {
+        return {
+          ok: false,
+          causa: "rechazado",
+          mensaje: "El alquiler de esta persona sigue vigente: lo que pagó de más pasa solo a la deuda con la casa editora. No hay nada que decidir.",
+        };
+      }
+      if (cuenta.porDecidir === 0) return { ok: true, valor: { yaEstaba: true } };
+      const decision: DecisionDeAlquiler = {
+        id: `decision-${colportorId}-${(datos.decisionesDeAlquiler ?? []).length + 1}`,
+        colportorId,
+        destino,
+        monto: cuenta.porDecidir,
+        decididoPor: COORDINADORA_SIMULADA,
+        decididoEn: new Date().toISOString(),
+      };
+      datos = aplicarDecision(datos, decision);
+      return { ok: true, valor: { yaEstaba: false, decision } };
     },
   };
 }
