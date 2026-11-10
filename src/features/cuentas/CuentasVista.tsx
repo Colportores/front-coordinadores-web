@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
-import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import type { AccionesCuentas, DatosDeCuentas, DestinoDeAlquiler, ResultadoDeAccion } from "@/datos/cuentas";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { ColumnaDeCiudades } from "@/features/cuentas/ColumnaDeCiudades";
@@ -379,9 +379,12 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
               <span className="min-w-0 text-[12.5px] [overflow-wrap:anywhere]">
                 <b className="font-semibold">{alertaDePendientes.titulo}</b> {alertaDePendientes.detalle}
               </span>
-              <AccionNoDisponible className="ml-auto inline-flex min-h-8 flex-none items-center rounded-control border border-borde bg-superficie px-3 text-[11.5px] font-semibold text-tinta-2">
+              <Link
+                href="/cuentas/validar-tickets"
+                className="ml-auto inline-flex min-h-8 flex-none items-center rounded-control border border-borde bg-superficie px-3 text-[11.5px] font-semibold text-tinta-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca-media"
+              >
                 Validar tickets
-              </AccionNoDisponible>
+              </Link>
             </div>
           )}
 

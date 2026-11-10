@@ -2,7 +2,6 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
 import type { AccionesCuentas, DatosDeCuentas, ResultadoDeAccion, TicketDeCuentas } from "@/datos/cuentas";
 import { armarCuentasSimuladas, crearAccionesSimuladas } from "@/datos/cuentas/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
@@ -80,16 +79,14 @@ describe("A01 · Casa editora · todas las ciudades", () => {
     expect(screen.getByText("2 tickets por validar", { selector: "b" })).toBeInTheDocument();
     expect(screen.getByText(/Sofía Cabral \$U 18\.500 \(hoy 09:15\)/)).toBeInTheDocument();
     expect(screen.getByText(/Lucía Fernández \$U 9\.000 \(ayer 18:30\)/)).toBeInTheDocument();
-    const validar = screen.getByRole("button", { name: "Validar tickets" });
-    expect(validar).toHaveAttribute("aria-disabled", "true");
-    expect(validar).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
+    expect(screen.getByRole("link", { name: "Validar tickets" })).toHaveAttribute("href", "/cuentas/validar-tickets");
   });
 
   it("el encabezado muestra el alquiler de la campaña con Editar y el paso a validar tickets", () => {
     montar();
     expect(screen.getByText(/Alquiler de la campaña:/)).toHaveTextContent("Alquiler de la campaña: $U 18.500 por colportor");
     expect(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Validar tickets →" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("link", { name: "Validar tickets →" })).toHaveAttribute("href", "/cuentas/validar-tickets");
   });
 
   it("la lista de ciudades es el filtro y cuenta los tickets por validar de cada una", () => {
@@ -191,13 +188,23 @@ describe("A03 · Tickets · Artigas · ticket abierto", () => {
     expect(within(primera).getByRole("button", { name: "Validar el ticket de Sofía Cabral" })).toHaveAttribute("aria-disabled", "true");
   });
 
+  it("un depósito o retiro por validar lleva a la vista 29 con ese ticket abierto (#69)", async () => {
+    const { usuario } = montar();
+    await irATickets(usuario, /^Rivera/);
+    const tabla = within(screen.getByRole("table", { name: "Tickets" }));
+    expect(tabla.getByRole("link", { name: "Validar el ticket de Lucía Fernández" })).toHaveAttribute(
+      "href",
+      "/cuentas/validar-tickets?ticket=lucia-fernandez-por-validar",
+    );
+  });
+
   it("la pestaña Tickets cuenta los tickets de la selección y no muestra la franja de pendientes", async () => {
     const { usuario } = montar();
     await irATickets(usuario, /^Artigas/);
     const cantidad = within(screen.getByRole("table", { name: "Tickets" })).getAllByRole("button", { name: /^[▸▾]?\s?\S/ }).length;
     expect(cantidad).toBeGreaterThan(0);
     expect(pestana(/Tickets/)).toHaveTextContent(/Tickets\d+/);
-    expect(screen.queryByRole("button", { name: "Validar tickets" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Validar tickets" })).not.toBeInTheDocument();
   });
 
   it("abre un ticket y muestra foto, fecha, número, medio y para qué; lo cierra con otro toque", async () => {
