@@ -40,7 +40,43 @@ export interface ColportorDeCuentas {
   /** Lo cobrado y no depositado, sin descontar gastos del día: una referencia. */
   enMano: number;
   porCobrar: number;
+  /**
+   * Se dio de baja de la campaña: ya no debe alquiler y lo que pagó lo decide el coordinador (`de_baja` de
+   * `cuentas_de_campania()`; decisión «Baja y alq.», 03/11). `fecha` es el instante ISO de la baja, si se sabe.
+   */
+  baja?: { fecha: string | null };
+  /**
+   * La fila es la de quien mira el panel (un coordinador inscripto en su propia campaña). Su alquiler no lo decide él: la
+   * acción no se ofrece (el servidor contesta 42501, «No podés decidir qué hacer con tu propio alquiler»).
+   */
+  esVos?: boolean;
 }
+
+/**
+ * Qué hace el coordinador con lo pagado de alquiler «por decidir» («Alq. baja», Cristian 04/11; `decidir_alquiler_pagado`
+ * de la 0167/0181). Una sola elección para todo lo que está por decidir.
+ * - `devolver`: DEVOLVER_AL_COLPORTOR. Los pagos validados después de la última decisión quedan anulados (nunca borrados):
+ *   dejan de contar como pagados y como «Depositado», y la plata vuelve a figurar «en mano».
+ * - `a-cuenta`: A_CUENTA_PROXIMO_DEPOSITO. Se descuenta de la deuda con la casa editora.
+ * - `se-lo-queda`: SE_LO_QUEDA_EL_COORDINADOR. Queda con el coordinador; la deuda no se mueve.
+ */
+export type DestinoDeAlquiler = "devolver" | "a-cuenta" | "se-lo-queda";
+
+/** Una decisión vigente sobre lo pagado de alquiler de un colportor (`alquiler_decision`). */
+export interface DecisionDeAlquiler {
+  id: string;
+  colportorId: string;
+  destino: DestinoDeAlquiler;
+  /** Lo decidido en esa vez (todo lo que estaba por decidir). */
+  monto: number;
+  /** Nombre y apellido de quien decidió. */
+  decididoPor: string;
+  /** Instante ISO 8601 de la decisión. */
+  decididoEn: string;
+}
+
+/** Lo que contesta la decisión: la que quedó registrada, o `yaEstaba` si no había nada por decidir (doble toque u otra persona). */
+export type ResultadoDeDecision = { yaEstaba: false; decision: DecisionDeAlquiler } | { yaEstaba: true };
 
 export interface TicketDeCuentas {
   id: string;
@@ -59,6 +95,13 @@ export interface TicketDeCuentas {
   motivoRechazo?: string;
   /** Si hay foto para pedir con una URL firmada (el retiro no tiene comprobante). */
   tieneFoto: boolean;
+  /** Instante ISO de la validación; si falta, se toma `fecha`. Con él se sabe qué pagos llegaron después de una decisión. */
+  validadoEn?: string;
+  /**
+   * Pago de alquiler devuelto al colportor (`deposito.anulado_at`, 0167): queda como historia y no cuenta como pagado, ni
+   * como depositado. `en` es el instante ISO de la anulación.
+   */
+  anulado?: { en: string };
 }
 
 export interface DatosDeCuentas {
@@ -71,6 +114,8 @@ export interface DatosDeCuentas {
   colportores: ColportorDeCuentas[];
   /** Todos los tickets de la campaña, en cualquier estado. */
   tickets: TicketDeCuentas[];
+  /** Las decisiones vigentes sobre el alquiler pagado «por decidir» (sin decisiones, vacío o ausente). */
+  decisionesDeAlquiler?: DecisionDeAlquiler[];
 }
 
 export interface FuenteDatosCuentas {
@@ -86,4 +131,9 @@ export type ResultadoDeAccion<T> = { ok: true; valor: T } | { ok: false; causa: 
 export interface AccionesCuentas {
   /** Cambia el alquiler de todos los inscriptos de la campaña. */
   editarAlquiler(monto: number): Promise<ResultadoDeAccion<number>>;
+  /**
+   * Decide qué se hace con todo lo pagado de alquiler «por decidir» de un colportor (`decidir_alquiler_pagado`, sin monto).
+   * El servidor registra quién y cuándo.
+   */
+  decidirAlquiler(colportorId: string, destino: DestinoDeAlquiler): Promise<ResultadoDeAccion<ResultadoDeDecision>>;
 }

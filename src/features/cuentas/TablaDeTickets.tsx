@@ -28,6 +28,7 @@ const COLUMNAS: ColumnaDeTabla[] = [
 
 function EstadoDelTicket({ fila }: { fila: FilaDeTicket }) {
   const { ticket } = fila;
+  if (ticket.anulado) return <Pastilla tono="neutro">↩ Devuelto</Pastilla>;
   if (ticket.estado === "PENDIENTE") return <Pastilla tono="alerta">◔ Por validar</Pastilla>;
   if (ticket.estado === "RECHAZADO") return <Pastilla tono="peligro">✕ Rechazado</Pastilla>;
   return <Pastilla tono="exito">✓ Validado</Pastilla>;

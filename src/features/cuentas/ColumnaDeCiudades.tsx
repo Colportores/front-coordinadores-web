@@ -44,7 +44,7 @@ export function ColumnaDeCiudades({
         />
         {elementos.map((elemento) => {
           if (elemento.tipo === "grupo") return <span key={elemento.clave} aria-hidden className="my-1.5 h-px w-7 bg-borde" />;
-          const detalle = detalleDePendientes(elemento.pendientes);
+          const detalle = detalleDePendientes(elemento.pendientes, elemento.porDecidir);
           return (
             <button
               key={elemento.clave}
@@ -62,9 +62,9 @@ export function ColumnaDeCiudades({
               <span aria-hidden className="text-[11.5px] font-semibold">
                 {elemento.sigla}
               </span>
-              {elemento.pendientes > 0 && (
+              {elemento.pendientes + elemento.porDecidir > 0 && (
                 <span aria-hidden className="font-mono text-etiqueta text-alerta">
-                  {elemento.pendientes}
+                  {elemento.pendientes + elemento.porDecidir}
                 </span>
               )}
             </button>
@@ -108,7 +108,7 @@ export function ColumnaDeCiudades({
               )}
             >
               <span className="min-w-0 text-nav font-semibold [overflow-wrap:anywhere]">{elemento.nombre}</span>
-              <span className="shrink-0 font-mono text-[10.5px] text-tinta-suave">{detalleDePendientes(elemento.pendientes)}</span>
+              <span className="shrink-0 font-mono text-[10.5px] text-tinta-suave">{detalleDePendientes(elemento.pendientes, elemento.porDecidir)}</span>
             </button>
           ),
         )}
