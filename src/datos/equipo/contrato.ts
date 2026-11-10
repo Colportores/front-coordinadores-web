@@ -82,6 +82,11 @@ export interface ColportorDeEquipo {
   nombre: string;
   /** Ciudad de su zona actual; `null` mientras no tenga zona. */
   ciudadId: string | null;
+  /**
+   * La cuenta está suspendida: no se le puede asignar zona (`asignar_zona` lo rechaza), así que sin zona no es un pendiente
+   * de acción (#167). Ausente o `false`: activa.
+   */
+  suspendido?: boolean;
   zonaActual: ZonaActualDeColportor | null;
   /** Del más viejo al más nuevo. */
   zonasAnteriores: ZonaAnterior[];

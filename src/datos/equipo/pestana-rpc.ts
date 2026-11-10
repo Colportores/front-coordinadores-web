@@ -210,12 +210,31 @@ export function crearFuentePestanaRpc(
           cliente.llamarRpc("historial_de_acompaniamientos", { ...argumentos, p_colportor_id: null }),
           cliente.llamarRpc("acompaniamientos_por_colportor", argumentos),
           miId(cliente),
+          // Solo para saber quién tiene la cuenta suspendida: `zonas_por_colportor()` no lo trae (#167). Esta no lee una
+          // campaña terminada (`CZ011`), que Equipo sí muestra: ahí nadie queda marcado (no hay zonas que asignar).
+          cliente.llamarRpc("colportores_de_campania", argumentos).catch((error: unknown) => {
+            if (error instanceof ErrorSupabase && error.codigo === "CZ011") return [];
+            throw error;
+          }),
         ]);
       } catch (error) {
         if (campaniaYaNoVigente(error)) return null;
         throw error;
       }
-      const [ciudadesCrudas, colportoresCrudos, historialCrudo, tablaCruda, yo] = respuestas as [unknown, unknown, unknown, unknown, string | null];
+      const [ciudadesCrudas, colportoresCrudos, historialCrudo, tablaCruda, yo, inscriptosCrudos] = respuestas as [
+        unknown,
+        unknown,
+        unknown,
+        unknown,
+        string | null,
+        unknown,
+      ];
+
+      const rpcInscriptos = "colportores_de_campania";
+      const suspendidos = new Set<string>();
+      for (const fila of filas(rpcInscriptos, inscriptosCrudos)) {
+        if (booleano(rpcInscriptos, fila, "suspendido")) suspendidos.add(cadena(rpcInscriptos, fila, "usuario_id"));
+      }
 
       const ciudades = new Map<string, CiudadDeEquipo>();
       for (const fila of filas("ciudades_de_campania", ciudadesCrudas)) {
@@ -256,6 +275,7 @@ export function crearFuentePestanaRpc(
           casasRegistradas: numero(rpc, fila, "casas_registradas"),
           acompanamientos: acompanamientos.get(id) ?? [],
           contadoDesde: contadoDesde.get(id) ?? campania.fechaInicio,
+          ...(suspendidos.has(id) ? { suspendido: true } : {}),
         };
       });
 

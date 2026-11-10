@@ -55,10 +55,12 @@ describe("EquipoVista · la lista de ciudades", () => {
     expect(within(nav).getByRole("heading", { name: "DEPTO. ARTIGAS" })).toBeInTheDocument();
     expect(within(nav).getByRole("heading", { name: "DEPTO. RIVERA" })).toBeInTheDocument();
     expect(within(nav).getByRole("button", { name: "Todas las ciudades, 4 colportores y 1 sin zona" })).toHaveAttribute("aria-current", "true");
-    expect(within(nav).getByRole("button", { name: "Todo el departamento, 2 colportores y 1 sin zona" })).toBeInTheDocument();
-    expect(within(nav).getByRole("button", { name: "Rivera, 2 colportores y 1 sin zona" })).toBeInTheDocument();
-    expect(within(nav).getByRole("button", { name: "Bella Unión, 1 colportor y 1 sin zona" })).toBeInTheDocument();
-    // Los que no tienen zona se suman a cada renglón: no tienen uno propio.
+    expect(within(nav).getByRole("button", { name: "Todo el departamento, 2 colportores" })).toBeInTheDocument();
+    expect(within(nav).getByRole("button", { name: "Rivera, 2 colportores" })).toBeInTheDocument();
+    expect(within(nav).getByRole("button", { name: "Bella Unión, 1 colportor" })).toBeInTheDocument();
+    // Los que no tienen zona se cuentan una sola vez, en «Todas las ciudades» (#167): ni en cada ciudad ni con un renglón propio.
+    expect(within(nav).getByRole("button", { name: "Todas las ciudades, 4 colportores y 1 sin zona" })).toHaveTextContent("4 + 1 sin zona");
+    expect(within(nav).getByRole("button", { name: "Rivera, 2 colportores" })).not.toHaveTextContent("sin zona");
     expect(within(nav).queryByRole("button", { name: /^Sin zona asignada/ })).not.toBeInTheDocument();
   });
 
@@ -206,6 +208,36 @@ describe("EquipoVista · pendientes de acción", () => {
 
     expect(screen.getByText("2 colportores no tienen zona asignada")).toBeInTheDocument();
     expect(screen.getByText("3 personas pidieron entrar a la campaña")).toBeInTheDocument();
+  });
+
+  it("una cuenta suspendida sin zona no es un pendiente (no se le puede asignar zona, #167), pero sigue en la tabla", async () => {
+    const datos = datosDePrueba({
+      solicitudesPendientes: 0,
+      colportores: [
+        colportor({ id: "a", nombre: "Ana Sosa", ciudadId: null, zonaActual: null }),
+        colportor({ id: "s", nombre: "Sergio Píriz", ciudadId: null, zonaActual: null, suspendido: true }),
+      ],
+    });
+    const { usuario } = mostrar(datos);
+
+    await irAAcompanamientos(usuario);
+
+    const pendientes = screen.getByRole("list", { name: "Pendientes de acción" });
+    expect(within(pendientes).getByText("Ana Sosa no tiene zona asignada")).toBeInTheDocument();
+    expect(within(pendientes).queryByText(/Sergio Píriz|2 colportores/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("Sergio Píriz").length).toBeGreaterThan(0);
+  });
+
+  it("si el único sin zona está suspendido, no hay franja", async () => {
+    const datos = datosDePrueba({
+      solicitudesPendientes: 0,
+      colportores: [colportor({ id: "s", nombre: "Sergio Píriz", ciudadId: null, zonaActual: null, suspendido: true })],
+    });
+    const { usuario } = mostrar(datos);
+
+    await irAAcompanamientos(usuario);
+
+    expect(screen.queryByRole("list", { name: "Pendientes de acción" })).not.toBeInTheDocument();
   });
 
   it("sin nada pendiente no hay franja", () => {
