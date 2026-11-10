@@ -110,7 +110,7 @@ function acciones(sobre: Partial<AccionesZonas> = {}): AccionesZonas {
       { id: "cat-mercedes", nombre: "Mercedes", departamento: "Soriano" },
     ]),
     agregarCiudad: vi.fn(async () => ({ ok: false as const, mensaje: "no" })),
-    casasDeZonas: vi.fn(async () => []),
+    casasDeLaCiudad: vi.fn(async () => []),
     ...sobre,
   };
 }

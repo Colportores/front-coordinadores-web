@@ -300,6 +300,14 @@ export function semanasAcompanadas(colportor: ColportorDeEquipo, semanas: Semana
   return semanas.map((s) => colportor.acompanamientos.some((a) => a.dia >= s.desde && a.dia <= s.hasta));
 }
 
+/**
+ * Cuántas jornadas acompañadas tiene el colportor. Desde la 0177 una jornada puede tener varios acompañantes y el historial trae una
+ * fila por cada uno: la jornada se cuenta una sola vez («los días acompañados se cuentan una vez por jornada»).
+ */
+export function jornadasAcompanadas(colportor: ColportorDeEquipo): number {
+  return new Set(colportor.acompanamientos.map((a) => a.jornadaId)).size;
+}
+
 /** «4,2 h»; sin horas, la jornada sigue abierta. */
 export function textoHoras(horas: number | null): string {
   return horas === null ? "en curso" : `${horas.toFixed(1).replace(".", ",")} h`;

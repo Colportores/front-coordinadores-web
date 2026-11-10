@@ -397,8 +397,22 @@ function haceDias(dias: number): string {
   return new Date(hoy - dias * 86_400_000 + 15 * 3_600_000).toISOString();
 }
 
+/** Calles inventadas para las direcciones de las casas simuladas (el número sale del orden de la casa, sin sortear). */
+const CALLES_SIMULADAS = ["18 de Julio", "Bulevar Artigas", "Av. Italia", "8 de Octubre", "Rivera", "Mercedes", "Constituyente", "Av. Brasil"];
+/** Cuántas casas sin zona inventa cada ciudad: pocas, para que se noten contra las de las zonas (24P, «Casas s/zona»). */
+const CASAS_SIMULADAS_SIN_ZONA = 12;
+
+/** Dirección y quién registró la casa número `n` (de 1): una de cada trece sin dirección y una de cada once de una persona dada de baja. */
+function origenSimulado(n: number, ciudad: CiudadDeCampania): Pick<CasaDeCiudad, "direccion" | "registradaPor"> {
+  const colportores = ciudad.colportores.filter((c) => !c.suspendido);
+  return {
+    direccion: n % 13 === 0 ? null : `${CALLES_SIMULADAS[n % CALLES_SIMULADAS.length]} ${100 + ((n * 37) % 1900)}`,
+    registradaPor: n % 11 === 0 || colportores.length === 0 ? null : colportores[n % colportores.length].nombre,
+  };
+}
+
 /** Casas inventadas dentro de la forma de una zona: tantas como `ubicacionesRegistradas` (hasta el tope), con estados repartidos. */
-function casasSimuladas(zona: ZonaDeCiudad): CasaDeCiudad[] {
+function casasSimuladas(zona: ZonaDeCiudad, ciudad: CiudadDeCampania): CasaDeCiudad[] {
   const aleatorio = generadorDe(zona.id);
   const vs = vertices(zona.poligonoGeojson);
   const lons = vs.map((v) => v.lon);
@@ -420,6 +434,30 @@ function casasSimuladas(zona: ZonaDeCiudad): CasaDeCiudad[] {
       // Sin sortear: no mueve el resto de las casas simuladas. Las casas sin estado no tienen fecha.
       ultimoCambio: estado === "SIN_VISITA" ? null : haceDias((casas.length * 7) % 45),
       zonaIds: [zona.id],
+      ...origenSimulado(casas.length + 1, ciudad),
+    });
+  }
+  return casas;
+}
+
+/** Casas inventadas alrededor del centro de la ciudad que no caen en ninguna zona: lo que Marta nota para dibujar una zona que las cubra. */
+function casasSimuladasSinZona(ciudad: CiudadDeCampania): CasaDeCiudad[] {
+  const aleatorio = generadorDe(`sin-zona-${ciudad.id}`);
+  const casas: CasaDeCiudad[] = [];
+  for (let intento = 0; casas.length < CASAS_SIMULADAS_SIN_ZONA && intento < CASAS_SIMULADAS_SIN_ZONA * 200; intento++) {
+    const punto = { lon: ciudad.centro.lon + (aleatorio() - 0.5) * 0.034, lat: ciudad.centro.lat + (aleatorio() - 0.5) * 0.026 };
+    if (ciudad.zonas.some((z) => contiene(z.poligonoGeojson, punto))) continue;
+    let sorteo = aleatorio() * PESO_TOTAL_DE_ESTADOS;
+    const estado = (ESTADOS_SIMULADOS.find(([, peso]) => (sorteo -= peso) < 0) ?? ESTADOS_SIMULADOS[0])[0];
+    const tipo = aleatorio();
+    casas.push({
+      id: `casa-${ciudad.id}-sin-zona-${casas.length + 1}`,
+      ...punto,
+      tipo: tipo < 0.84 ? "CASA" : tipo < 0.94 ? "NEGOCIO" : "EDIFICIO",
+      estado,
+      ultimoCambio: estado === "SIN_VISITA" ? null : haceDias((casas.length * 5) % 30),
+      zonaIds: [],
+      ...origenSimulado(casas.length + 1, ciudad),
     });
   }
   return casas;
@@ -494,9 +532,9 @@ export const fuenteZonasSimulada: FuenteSimulada = {
     return { ok: true, colportoresSinZona: zona?.colportores.length ?? 0 };
   },
 
-  async casasDeZonas(_campaniaId, zonaIds) {
-    const pedidas = new Set(zonaIds);
-    return DATOS_ZONAS_SIMULADO.ciudades.flatMap((c) => c.zonas.filter((z) => pedidas.has(z.id)).flatMap(casasSimuladas));
+  async casasDeLaCiudad(_campaniaId, ciudadId) {
+    const ciudad = DATOS_ZONAS_SIMULADO.ciudades.find((c) => c.id === ciudadId);
+    return ciudad ? [...ciudad.zonas.flatMap((z) => casasSimuladas(z, ciudad)), ...casasSimuladasSinZona(ciudad)] : [];
   },
 
   async buscarCiudades(_campaniaId, texto) {

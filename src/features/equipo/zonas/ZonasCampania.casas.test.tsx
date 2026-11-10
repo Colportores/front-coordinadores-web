@@ -50,7 +50,7 @@ function acciones(sobre: Partial<AccionesZonas> = {}): AccionesZonas {
     eliminarZona: vi.fn((id: string) => fuenteZonasSimulada.eliminarZona("campania-verano-2026", id)),
     buscarCiudades: vi.fn(async () => []),
     agregarCiudad: vi.fn(async () => ({ ok: false as const, mensaje: "no" })),
-    casasDeZonas: vi.fn(async () => CINCO),
+    casasDeLaCiudad: vi.fn(async () => CINCO),
     ...sobre,
   };
 }
@@ -83,11 +83,11 @@ afterEach(() => {
 });
 
 describe("24P·01 · la ciudad con las casas por estado", () => {
-  it("pide las casas de todas las zonas de la ciudad y las pasa al mapa", async () => {
+  it("pide las casas de la ciudad entera (con zona o sin ella) y las pasa al mapa", async () => {
     const { acc } = montar();
 
     await waitFor(() => expect(mapa.props?.casas?.casas).toHaveLength(5));
-    expect(acc.casasDeZonas).toHaveBeenCalledWith(MONTEVIDEO.zonas.map((z) => z.id));
+    expect(acc.casasDeLaCiudad).toHaveBeenCalledWith(MONTEVIDEO.id);
     expect(chip()).toBeNull();
   });
 
@@ -190,7 +190,7 @@ describe("24P·04 · las casas agrupadas", () => {
 describe("24P·05 · cargando los puntos", () => {
   it("avisa que está cargando, deja la leyenda en «–» y apagada, y todo vuelve al llegar las casas", async () => {
     const espera = pendiente<CasaDeCiudad[]>();
-    montar({ casasDeZonas: vi.fn(() => espera.promesa) });
+    montar({ casasDeLaCiudad: vi.fn(() => espera.promesa) });
 
     expect(chip()).toHaveTextContent("Cargando las casas de Montevideo…");
     expect(cantidad("Rechazó")).toBe("–");
@@ -207,14 +207,14 @@ describe("24P·05 · cargando los puntos", () => {
   it("el nombre de una ciudad larguísima y sin espacios se parte dentro del aviso, no lo desborda", () => {
     const largo = "Villa".repeat(30);
     const datos = { ...DATOS_ZONAS_SIMULADO, ciudades: [{ ...MONTEVIDEO, nombre: largo }, ...DATOS_ZONAS_SIMULADO.ciudades.slice(1)] };
-    montar({ casasDeZonas: vi.fn(() => new Promise<CasaDeCiudad[]>(() => undefined)) }, datos);
+    montar({ casasDeLaCiudad: vi.fn(() => new Promise<CasaDeCiudad[]>(() => undefined)) }, datos);
 
     expect(chip()).toHaveTextContent(`Cargando las casas de ${largo}…`);
     expect(chip()?.querySelector("span.wrap-anywhere")).not.toBeNull();
   });
 
   it("las zonas se pueden usar mientras las casas cargan", async () => {
-    montar({ casasDeZonas: vi.fn(() => new Promise<CasaDeCiudad[]>(() => undefined)) });
+    montar({ casasDeLaCiudad: vi.fn(() => new Promise<CasaDeCiudad[]>(() => undefined)) });
 
     expect(screen.getByRole("button", { name: "+ Nueva zona" })).toBeEnabled();
     expect(screen.getByRole("region", { name: "Zonas de Montevideo" })).toBeInTheDocument();
@@ -223,7 +223,7 @@ describe("24P·05 · cargando los puntos", () => {
 
 describe("24P·06 · sin casas registradas", () => {
   it("dice que todavía no hay casas y la leyenda queda en cero", async () => {
-    montar({ casasDeZonas: vi.fn(async () => []) });
+    montar({ casasDeLaCiudad: vi.fn(async () => []) });
 
     await waitFor(() =>
       expect(chip()).toHaveTextContent(
@@ -234,26 +234,36 @@ describe("24P·06 · sin casas registradas", () => {
     expect(cantidad("Rechazó")).toBe("0");
   });
 
-  it("una ciudad sin zonas no pide nada (las casas llegan por zona) y no dice que no hay casas", async () => {
-    const { acc } = montar();
+  it("una ciudad sin zonas igual pide sus casas: las ve todas, sin zona, y la leyenda las cuenta", async () => {
+    const sinZona: CasaDeCiudad[] = [{ ...casa(8, "RECHAZO"), zonaIds: [] }, { ...casa(9, "SIN_VISITA"), zonaIds: [] }];
+    const { acc } = montar({ casasDeLaCiudad: vi.fn(async (id: string) => (id === MONTEVIDEO.id ? CINCO : sinZona)) });
     await screen.findByText("5 casas");
-    vi.mocked(acc.casasDeZonas).mockClear();
 
     await userEvent.click(screen.getByRole("button", { name: /Canelones/ }));
 
-    expect(acc.casasDeZonas).not.toHaveBeenCalled();
+    await screen.findByText("2 casas");
+    expect(acc.casasDeLaCiudad).toHaveBeenLastCalledWith(DATOS_ZONAS_SIMULADO.ciudades[2].id);
     expect(chip()).toBeNull();
-    // Sin zonas no hay qué contar: la leyenda no afirma «0 casas» y el panel dice que todavía no hay zonas.
-    expect(screen.queryByRole("region", { name: "Casas por estado" })).toBeNull();
-    expect(screen.queryByText("0 casas")).toBeNull();
+    expect(cantidad("Rechazó")).toBe("1");
     expect(screen.getByText(/Todavía no hay zonas en Canelones/)).toBeInTheDocument();
-    expect(mapa.props?.casas?.casas).toEqual([]);
+    expect(mapa.props?.casas?.casas.map((c) => c.id)).toEqual(["casa-8", "casa-9"]);
+  });
+
+  it("una ciudad sin zonas y sin casas dice que todavía no hay casas, no que no hay zonas", async () => {
+    const { acc } = montar({ casasDeLaCiudad: vi.fn(async (id: string) => (id === MONTEVIDEO.id ? CINCO : [])) });
+    await screen.findByText("5 casas");
+
+    await userEvent.click(screen.getByRole("button", { name: /Canelones/ }));
+
+    await waitFor(() => expect(chip()).toHaveTextContent("Todavía no hay casas registradas en Canelones."));
+    expect(acc.casasDeLaCiudad).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("0 casas")).toBeInTheDocument();
   });
 });
 
 describe("24P·07 · error al traer los puntos", () => {
   it("avisa con una alerta, dice que las zonas se pueden editar igual y deja «Reintentar»", async () => {
-    montar({ casasDeZonas: vi.fn(async () => Promise.reject(new Error("boom"))) });
+    montar({ casasDeLaCiudad: vi.fn(async () => Promise.reject(new Error("boom"))) });
 
     const alerta = await screen.findByRole("alert");
     expect(alerta).toHaveTextContent("No pudimos traer las casas. Las zonas se pueden editar igual.");
@@ -265,11 +275,11 @@ describe("24P·07 · error al traer los puntos", () => {
 
   it("«Reintentar» vuelve a pedir y, si sale bien, trae las casas; si vuelve a fallar, el botón sigue disponible", async () => {
     const pedir = vi
-      .fn<AccionesZonas["casasDeZonas"]>()
+      .fn<AccionesZonas["casasDeLaCiudad"]>()
       .mockRejectedValueOnce(new Error("boom"))
       .mockRejectedValueOnce(new Error("boom"))
       .mockResolvedValue(CINCO);
-    montar({ casasDeZonas: pedir });
+    montar({ casasDeLaCiudad: pedir });
     await userEvent.click(await screen.findByRole("button", { name: "Reintentar" }));
 
     await waitFor(() => expect(pedir).toHaveBeenCalledTimes(2));
@@ -282,8 +292,8 @@ describe("24P·07 · error al traer los puntos", () => {
 
   it("«Reintentar» desaparece mientras vuelve a pedir: un toque doble no manda dos pedidos y la respuesta llega una vez", async () => {
     const espera = pendiente<CasaDeCiudad[]>();
-    const pedir = vi.fn<AccionesZonas["casasDeZonas"]>().mockRejectedValueOnce(new Error("boom")).mockReturnValueOnce(espera.promesa);
-    montar({ casasDeZonas: pedir });
+    const pedir = vi.fn<AccionesZonas["casasDeLaCiudad"]>().mockRejectedValueOnce(new Error("boom")).mockReturnValueOnce(espera.promesa);
+    montar({ casasDeLaCiudad: pedir });
     const boton = await screen.findByRole("button", { name: "Reintentar" });
 
     await userEvent.dblClick(boton);
@@ -314,20 +324,20 @@ describe("24P·08 · sin conexión", () => {
       window.dispatchEvent(new Event("online"));
     });
 
-    await waitFor(() => expect(acc.casasDeZonas).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(acc.casasDeLaCiudad).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(chip()).toBeNull());
   });
 
   it("sin red y sin casas traídas todavía no hay nada que mostrar: es el error, con «Reintentar»", async () => {
     vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
-    montar({ casasDeZonas: vi.fn(async () => Promise.reject(new TypeError("Failed to fetch"))) });
+    montar({ casasDeLaCiudad: vi.fn(async () => Promise.reject(new TypeError("Failed to fetch"))) });
 
     expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos traer las casas.");
   });
 
   it("si al volver a pedir falla por falta de red, conserva las casas de antes con el aviso", async () => {
-    const pedir = vi.fn<AccionesZonas["casasDeZonas"]>().mockResolvedValueOnce(CINCO).mockRejectedValue(new TypeError("Failed to fetch"));
-    montar({ casasDeZonas: pedir });
+    const pedir = vi.fn<AccionesZonas["casasDeLaCiudad"]>().mockResolvedValueOnce(CINCO).mockRejectedValue(new TypeError("Failed to fetch"));
+    montar({ casasDeLaCiudad: pedir });
     await screen.findByText("5 casas");
     vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
 
@@ -346,20 +356,20 @@ describe("cambios de ciudad y de zonas", () => {
   it("la respuesta de una ciudad que ya no está a la vista no pisa a la de la ciudad nueva", async () => {
     const montevideo = pendiente<CasaDeCiudad[]>();
     const lasPiedras = pendiente<CasaDeCiudad[]>();
-    const pedir = vi.fn<AccionesZonas["casasDeZonas"]>((ids) => (ids.includes(MONTEVIDEO.zonas[0].id) ? montevideo.promesa : lasPiedras.promesa));
-    montar({ casasDeZonas: pedir });
+    const pedir = vi.fn<AccionesZonas["casasDeLaCiudad"]>((id) => (id === MONTEVIDEO.id ? montevideo.promesa : lasPiedras.promesa));
+    montar({ casasDeLaCiudad: pedir });
 
     await userEvent.click(screen.getByRole("button", { name: /Las Piedras/ }));
     await act(async () => lasPiedras.resolver([casa(7, "RECHAZO")]));
     await act(async () => montevideo.resolver(CINCO));
 
     expect(mapa.props?.casas?.casas.map((c) => c.id)).toEqual(["casa-7"]);
-    expect(pedir).toHaveBeenLastCalledWith(LAS_PIEDRAS.zonas.map((z) => z.id));
+    expect(pedir).toHaveBeenLastCalledWith(LAS_PIEDRAS.id);
   });
 
   it("al elegir otra ciudad no quedan a la vista las casas de la anterior", async () => {
     const lasPiedras = pendiente<CasaDeCiudad[]>();
-    montar({ casasDeZonas: vi.fn((ids) => (ids.includes(MONTEVIDEO.zonas[0].id) ? Promise.resolve(CINCO) : lasPiedras.promesa)) });
+    montar({ casasDeLaCiudad: vi.fn((id: string) => (id === MONTEVIDEO.id ? Promise.resolve(CINCO) : lasPiedras.promesa)) });
     await screen.findByText("5 casas");
 
     await userEvent.click(screen.getByRole("button", { name: /Las Piedras/ }));
@@ -379,8 +389,8 @@ describe("cambios de ciudad y de zonas", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar zona" }));
 
     await screen.findByRole("region", { name: "Zona Casabó" });
-    await waitFor(() => expect(acc.casasDeZonas).toHaveBeenCalledTimes(2));
-    expect(vi.mocked(acc.casasDeZonas).mock.calls[1][0]).toHaveLength(MONTEVIDEO.zonas.length + 1);
+    await waitFor(() => expect(acc.casasDeLaCiudad).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(acc.casasDeLaCiudad).mock.calls[1][0]).toBe(MONTEVIDEO.id);
   });
 
   it("mientras se dibuja la leyenda no estorba y los puntos siguen en el mapa", async () => {
@@ -413,14 +423,14 @@ describe("accesibilidad (axe A/AA, sin contraste)", () => {
 
   it("la alerta de error", async () => {
     vi.setConfig({ testTimeout: 60_000 });
-    const { contenedor } = montar({ casasDeZonas: vi.fn(async () => Promise.reject(new Error("boom"))) });
+    const { contenedor } = montar({ casasDeLaCiudad: vi.fn(async () => Promise.reject(new Error("boom"))) });
     await screen.findByRole("alert");
     expect(await violaciones(contenedor)).toEqual([]);
   });
 
   it("el aviso de cargando", async () => {
     vi.setConfig({ testTimeout: 60_000 });
-    const { contenedor } = montar({ casasDeZonas: vi.fn(() => new Promise<CasaDeCiudad[]>(() => undefined)) });
+    const { contenedor } = montar({ casasDeLaCiudad: vi.fn(() => new Promise<CasaDeCiudad[]>(() => undefined)) });
     expect(chip()).not.toBeNull();
     expect(await violaciones(contenedor)).toEqual([]);
   });
