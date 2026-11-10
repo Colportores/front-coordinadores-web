@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { fuenteCuentasSimulada, armarCuentasSimuladas, crearAccionesSimuladas, ALQUILER_SIMULADO } from "@/datos/cuentas/simulado";
+import { TEXTO_ALQUILER_CON_PAGOS } from "@/features/cuentas/por-decidir";
 
 const AHORA = new Date("2026-10-22T15:00:00.000Z");
 
@@ -53,12 +54,22 @@ describe("armarCuentasSimuladas", () => {
 });
 
 describe("crearAccionesSimuladas", () => {
-  const acciones = crearAccionesSimuladas();
+  const datos = armarCuentasSimuladas(AHORA);
+  const sinPagosDeAlquiler = { ...datos, tickets: datos.tickets.filter((t) => t.destino !== "alquiler") };
 
-  it("editarAlquiler acepta 0 y rechaza negativos y decimales", async () => {
+  it("editarAlquiler acepta 0 sin pagos de alquiler y rechaza negativos y decimales", async () => {
+    const acciones = crearAccionesSimuladas(sinPagosDeAlquiler);
     expect(await acciones.editarAlquiler(0)).toEqual({ ok: true, valor: 0 });
     expect(await acciones.editarAlquiler(20000)).toEqual({ ok: true, valor: 20000 });
     expect(await acciones.editarAlquiler(-1)).toMatchObject({ ok: false });
     expect(await acciones.editarAlquiler(1.5)).toMatchObject({ ok: false });
+  });
+
+  it("editarAlquiler con pagos de alquiler rechaza 0 con el aviso de la decisión «Alquiler a 0» y deja cambiar el monto", async () => {
+    const acciones = crearAccionesSimuladas(datos);
+    expect(await acciones.editarAlquiler(0)).toEqual({ ok: false, causa: "rechazado", mensaje: TEXTO_ALQUILER_CON_PAGOS });
+    expect(await acciones.editarAlquiler(20000)).toEqual({ ok: true, valor: 20000 });
+    // Sigue rechazando después de cambiar el monto: los pagos siguen ahí.
+    expect(await acciones.editarAlquiler(0)).toMatchObject({ ok: false, causa: "rechazado" });
   });
 });

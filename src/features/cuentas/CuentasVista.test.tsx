@@ -10,6 +10,8 @@ import { hayTrabajoPendiente } from "@/shell/trabajo-pendiente";
 
 const AHORA = new Date("2026-10-22T15:00:00.000Z");
 const datosBase = () => armarCuentasSimuladas(AHORA);
+/** La campaña sin ningún pago de alquiler: ahí el alquiler puede quedar en 0 (Cristian 10/11, «Alquiler a 0»). */
+const sinPagosDeAlquiler = (d: DatosDeCuentas): DatosDeCuentas => ({ ...d, tickets: d.tickets.filter((t) => t.destino !== "alquiler") });
 
 function diferida<T>() {
   let resolver!: (valor: T) => void;
@@ -537,14 +539,15 @@ describe("Editar el alquiler", () => {
     expect(screen.getByRole("button", { name: "Editar" })).toHaveFocus();
   });
 
-  it("acepta 0 (la campaña no cobra alquiler) y entonces nadie debe", async () => {
-    const { usuario } = montar();
+  it("sin pagos de alquiler acepta 0 (la campaña no cobra alquiler) y entonces nadie debe", async () => {
+    const { usuario, acciones } = montar({ datos: sinPagosDeAlquiler(datosBase()) });
     await usuario.click(pestana(/Alquiler/));
     const editor = await abrirEditor(usuario);
     await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
     await usuario.type(editor.getByLabelText(/Alquiler por colportor/), "0");
     await usuario.click(editor.getByRole("button", { name: "Guardar" }));
     await screen.findByRole("status");
+    expect(acciones.editarAlquiler).toHaveBeenCalledWith(0);
     expect(cifra("PAGARON TODO").closest("div")).toHaveTextContent("20de 20");
   });
 
@@ -554,7 +557,7 @@ describe("Editar el alquiler", () => {
     ["-5", /número entero de pesos/],
     ["1,5", /número entero de pesos/],
   ])("rechaza «%s» sin mandar nada y deja el foco en el campo", async (texto, mensaje) => {
-    const { usuario, acciones } = montar();
+    const { usuario, acciones } = montar({ datos: sinPagosDeAlquiler(datosBase()) });
     const editor = await abrirEditor(usuario);
     await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
     if (texto) await usuario.type(editor.getByLabelText(/Alquiler por colportor/), texto);
@@ -563,6 +566,91 @@ describe("Editar el alquiler", () => {
     expect(editor.getByLabelText(/Alquiler por colportor/)).toHaveFocus();
     expect(editor.getByLabelText(/Alquiler por colportor/)).toHaveAttribute("aria-invalid", "true");
     expect(acciones.editarAlquiler).not.toHaveBeenCalled();
+  });
+
+  describe("con pagos de alquiler en la campaña (Cristian 10/11, «Alquiler a 0»)", () => {
+    const AVISO = "Ya hay pagos de alquiler en esta campaña, así que no puede quedar sin alquiler. Podés cambiar el monto.";
+
+    it.each([
+      ["0", "0"],
+      ["vacío", ""],
+    ])("no deja guardar %s: lo explica junto al campo, sin borrar lo escrito ni mandar nada", async (_caso, texto) => {
+      const { usuario, acciones } = montar();
+      const editor = await abrirEditor(usuario);
+      const campo = editor.getByLabelText(/Alquiler por colportor/);
+      await usuario.clear(campo);
+      if (texto) await usuario.type(campo, texto);
+      await usuario.click(editor.getByRole("button", { name: "Guardar" }));
+
+      expect(editor.getByRole("alert")).toHaveTextContent(AVISO);
+      expect(campo).toHaveValue(texto);
+      expect(campo).toHaveFocus();
+      expect(campo).toHaveAttribute("aria-invalid", "true");
+      expect(acciones.editarAlquiler).not.toHaveBeenCalled();
+      expect(editor.getByRole("button", { name: "Guardar" })).not.toHaveAttribute("aria-disabled", "true");
+
+      // Al corregir, el aviso se va y otro monto se guarda.
+      await usuario.clear(campo);
+      await usuario.type(campo, "19000");
+      expect(editor.queryByRole("alert")).not.toBeInTheDocument();
+      await usuario.click(editor.getByRole("button", { name: "Guardar" }));
+      expect(acciones.editarAlquiler).toHaveBeenCalledWith(19000);
+      expect(await screen.findByRole("status")).toHaveTextContent("Alquiler de la campaña: $U 19.000 por colportor, para todos los inscriptos.");
+    });
+
+    it("un pago por validar alcanza para bloquear; uno rechazado o devuelto no", async () => {
+      const base = sinPagosDeAlquiler(datosBase());
+      const pago: TicketDeCuentas = {
+        id: "pago-169",
+        colportorId: base.colportores[0].id,
+        fecha: base.ahora,
+        monto: 5000,
+        medio: "deposito-banco",
+        destino: "alquiler",
+        estado: "PENDIENTE",
+        tieneFoto: true,
+      };
+      for (const [ticket, bloquea] of [
+        [pago, true],
+        [{ ...pago, estado: "RECHAZADO", motivoRechazo: "Foto ilegible" }, false],
+        [{ ...pago, estado: "VALIDADO", anulado: { en: base.ahora } }, false],
+      ] as const) {
+        const { usuario, acciones, unmount } = montar({ datos: { ...base, tickets: [...base.tickets, ticket] } });
+        const editor = await abrirEditor(usuario);
+        await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
+        await usuario.type(editor.getByLabelText(/Alquiler por colportor/), "0");
+        await usuario.click(editor.getByRole("button", { name: "Guardar" }));
+        if (bloquea) {
+          expect(editor.getByRole("alert")).toHaveTextContent(AVISO);
+          expect(acciones.editarAlquiler).not.toHaveBeenCalled();
+        } else {
+          expect(await screen.findByRole("status")).toHaveTextContent("Alquiler de la campaña: no se cobra");
+          expect(acciones.editarAlquiler).toHaveBeenCalledWith(0);
+        }
+        unmount();
+      }
+    });
+
+    it("si el servidor lo rechaza (otro coordinador o un pago que no se veía), muestra su aviso y deja lo escrito", async () => {
+      const datos = sinPagosDeAlquiler(datosBase());
+      const editarAlquiler = vi.fn().mockResolvedValue({ ok: false, causa: "rechazado", mensaje: AVISO });
+      const { usuario } = montar({ datos, acciones: { editarAlquiler } });
+      const editor = await abrirEditor(usuario);
+      await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
+      await usuario.type(editor.getByLabelText(/Alquiler por colportor/), "0");
+      await usuario.click(editor.getByRole("button", { name: "Guardar" }));
+
+      expect(await editor.findByRole("alert")).toHaveTextContent(AVISO);
+      expect(editarAlquiler).toHaveBeenCalledTimes(1);
+      expect(editor.getByLabelText(/Alquiler por colportor/)).toHaveValue("0");
+      expect(editor.getByRole("button", { name: "Guardar" })).not.toHaveAttribute("aria-disabled", "true");
+    });
+
+    it("con las acciones simuladas, el rechazo viene con el mismo texto", async () => {
+      const datos = datosBase();
+      const simuladas = crearAccionesSimuladas(datos);
+      expect(await simuladas.editarAlquiler(0)).toEqual({ ok: false, causa: "rechazado", mensaje: AVISO });
+    });
   });
 
   it("el doble toque en Guardar manda una sola vez; si falla, queda abierto y se puede reintentar", async () => {

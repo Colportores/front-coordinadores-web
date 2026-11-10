@@ -47,6 +47,7 @@ import {
 import {
   avisoDePorDecidir,
   campaniaSinAlquiler,
+  hayPagosDeAlquiler,
   lineasDeLaFila,
   sePuedeDecidir,
   TEXTO_SIN_CONEXION,
@@ -306,6 +307,7 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
           titulo={titulo}
           subtitulo={subtituloDeSeleccion(datos, seleccion)}
           alquiler={alquiler}
+          hayPagosDeAlquiler={hayPagosDeAlquiler(datos)}
           editando={editandoAlquiler}
           guardando={guardando}
           errorDeGuardado={errorDeAlquiler}

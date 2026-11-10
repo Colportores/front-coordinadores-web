@@ -14,6 +14,7 @@ import {
   esPagoDeAlquilerVigente,
   sePuedeDecidir,
   sumarDecision,
+  TEXTO_ALQUILER_CON_PAGOS,
   type AlquilerDecidible,
 } from "@/features/cuentas/por-decidir";
 
@@ -471,8 +472,13 @@ export function leerMonto(texto: string): LecturaDeMonto {
   return { ok: true, valor: Number(limpio) };
 }
 
-export function validarAlquiler(texto: string): { error: string | null; monto: number | null } {
+/**
+ * Lee lo escrito en «Editar» del alquiler. Con pagos de alquiler en la campaña (`hayPagos`), 0 y vacío no se aceptan: la
+ * campaña no puede quedar sin alquiler (decisión de Cristian del 10/11, «Alquiler a 0»).
+ */
+export function validarAlquiler(texto: string, { hayPagos = false }: { hayPagos?: boolean } = {}): { error: string | null; monto: number | null } {
   const monto = leerMonto(texto);
+  if (hayPagos && (monto.ok ? monto.valor === 0 : monto.motivo === "vacio")) return { error: TEXTO_ALQUILER_CON_PAGOS, monto: null };
   if (monto.ok) return { error: null, monto: monto.valor };
   const error =
     monto.motivo === "vacio"

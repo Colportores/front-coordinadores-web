@@ -28,6 +28,18 @@ export const instanteDeValidacion = (t: TicketDeCuentas) => t.validadoEn ?? t.fe
 /** Un pago de alquiler que cuenta: validado y no devuelto. */
 export const esPagoDeAlquilerVigente = (t: TicketDeCuentas) => t.estado === "VALIDADO" && t.destino === "alquiler" && !t.anulado;
 
+/** Un pago de alquiler vivo: por validar o validado, sin contar los rechazados ni los devueltos (anulados). */
+export const esPagoDeAlquilerVivo = (t: TicketDeCuentas) => t.destino === "alquiler" && t.estado !== "RECHAZADO" && !t.anulado;
+
+/**
+ * La campaña ya tiene pagos de alquiler (de cualquier colportor, también de quien se dio de baja). Con pagos, el alquiler no
+ * puede quedar en 0 ni vacío: decisión de Cristian del 10/11 («Alquiler a 0»: bloquear si ya hay pagos; backend-supabase#260).
+ */
+export const hayPagosDeAlquiler = (datos: DatosDeCuentas) => datos.tickets.some(esPagoDeAlquilerVivo);
+
+/** Lo que se ve junto al campo del alquiler (y lo que contesta el servidor) al querer dejarlo en 0 o vacío con pagos. */
+export const TEXTO_ALQUILER_CON_PAGOS = "Ya hay pagos de alquiler en esta campaña, así que no puede quedar sin alquiler. Podés cambiar el monto.";
+
 export interface AlquilerDecidible {
   /** Lo pagado lo decide el coordinador (si es `false`, lo demás vale 0 o vacío). */
   decide: boolean;

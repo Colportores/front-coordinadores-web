@@ -9,11 +9,13 @@ import { CuentasVista } from "@/features/cuentas/CuentasVista";
 /** 41B·01: con el alquiler en 0 el encabezado dice «no se cobra», sin fecha de «dejó de cobrar» en el subtítulo. */
 describe("la campaña sin alquiler", () => {
   it("el encabezado dice «no se cobra», el aviso de guardado también y el subtítulo no dice desde cuándo", async () => {
-    const datos = armarCuentasSimuladas(new Date("2026-11-04T15:00:00.000Z"));
+    // Sin pagos de alquiler: con pagos el alquiler no puede quedar en 0 (Cristian 10/11, «Alquiler a 0»; front-coordinadores-web#169).
+    const simulados = armarCuentasSimuladas(new Date("2026-11-04T15:00:00.000Z"));
+    const datos = { ...simulados, tickets: simulados.tickets.filter((t) => t.destino !== "alquiler") };
     const usuario = userEvent.setup();
     render(
       <ProveedorModoDev activo={false}>
-        <CuentasVista datos={datos} acciones={crearAccionesSimuladas()} />
+        <CuentasVista datos={datos} acciones={crearAccionesSimuladas(datos)} />
       </ProveedorModoDev>,
     );
     expect(screen.getByText(/Alquiler de la campaña:/)).toHaveTextContent("Alquiler de la campaña: $U 18.500 por colportor");
