@@ -98,6 +98,8 @@ describe("41A·02 a 41A·06 · decidir devolverlo", () => {
 
     // 41A·02: tres destinos, una sola elección; «Seguir» espera la elección.
     expect(d.getByRole("heading", { name: "¿Qué hacés con los $U 9.250 que pagó Santiago?" })).toBeInTheDocument();
+    // El monto del título no se parte entre líneas (QA #165).
+    expect(d.getByText("$U 9.250", { selector: "h2 span" })).toHaveClass("whitespace-nowrap");
     expect(d.getByText("Santiago Pereira se dio de baja de la campaña el 20/10. Elegí un solo destino para todo el monto.")).toBeInTheDocument();
     expect(d.getAllByRole("radio")).toHaveLength(3);
     expect(d.getByRole("radio", { name: /Devolverlo al colportor/ })).toHaveFocus();
@@ -112,7 +114,7 @@ describe("41A·02 a 41A·06 · decidir devolverlo", () => {
     expect(d.getByRole("radio", { name: /Devolverlo al colportor/ })).toBeChecked();
     await usuario.click(d.getByRole("button", { name: "Seguir" }));
     expect(d.getByRole("heading", { name: "¿Devolverle $U 9.250 a Santiago?" })).toBeInTheDocument();
-    expect(d.getByText("Se anulan sus 2 pagos de alquiler (29/09 y 13/10). Queda registrado que lo decidiste vos, hoy.")).toBeInTheDocument();
+    expect(d.getByText("Se anulan sus 2 pagos de alquiler (29/09 y 13/10). Queda registrado que lo decidiste vos, hoy. No se puede cambiar después.")).toBeInTheDocument();
     expect(d.getByRole("button", { name: "Volver" })).toHaveFocus();
 
     // 41A·05: guardando, sin volver ni cerrar; el doble toque manda una sola vez.
@@ -224,7 +226,7 @@ describe("Devolver resto · con una decisión anterior y un pago que llegó desp
     await usuario.click(d.getByRole("button", { name: "Seguir" }));
     expect(
       d.getByText(
-        "Se anula solo lo que pagó después de la última decisión (20/10). Lo ya decidido ($U 12.000 a cuenta del próximo depósito) queda como estaba. Queda registrado que lo decidiste vos, hoy.",
+        "Se anula solo lo que pagó después de la última decisión (20/10). Lo ya decidido ($U 12.000 a cuenta del próximo depósito) queda como estaba. Queda registrado que lo decidiste vos, hoy. No se puede cambiar después.",
       ),
     ).toBeInTheDocument();
     await usuario.click(d.getByRole("button", { name: "Sí, devolver" }));

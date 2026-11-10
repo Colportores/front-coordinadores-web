@@ -198,7 +198,7 @@ describe("textos del diálogo", () => {
   it("confirmar: cada destino dice qué pasa con la plata (41A·04)", () => {
     expect(textosDeConfirmacion(ana, a, "devolver")).toEqual({
       titulo: "¿Devolverle $U 9.250 a Ana?",
-      texto: "Se anulan sus 2 pagos de alquiler (14/10 y 28/10). Queda registrado que lo decidiste vos, hoy.",
+      texto: "Se anulan sus 2 pagos de alquiler (14/10 y 28/10). Queda registrado que lo decidiste vos, hoy. No se puede cambiar después.",
       boton: "Sí, devolver",
     });
     expect(textosDeConfirmacion(ana, a, "a-cuenta")).toMatchObject({
@@ -206,6 +206,18 @@ describe("textos del diálogo", () => {
       boton: "Sí, dejar a cuenta",
     });
     expect(textosDeConfirmacion(ana, a, "se-lo-queda")).toMatchObject({ titulo: "¿Quedarte con los $U 9.250 de Ana?", boton: "Sí, quedármelo" });
+  });
+
+  it("la decisión es definitiva (Cristian, 10/11): los tres destinos lo dicen antes de confirmar", () => {
+    expect(textosDeConfirmacion(ana, a, "a-cuenta").texto).toBe(
+      "Se descuentan de su deuda con la casa editora. Queda registrado que lo decidiste vos, hoy. No se puede cambiar después.",
+    );
+    expect(textosDeConfirmacion(ana, a, "se-lo-queda").texto).toBe(
+      "La plata queda con el coordinador y su deuda con la casa editora no cambia. Queda registrado que lo decidiste vos, hoy. No se puede cambiar después.",
+    );
+    for (const destino of ["devolver", "a-cuenta", "se-lo-queda"] as const) {
+      expect(textosDeConfirmacion(ana, a, destino).texto).toMatch(/ No se puede cambiar después\.$/);
+    }
   });
 
   it("con una decisión anterior, devolver dice que anula solo lo de después y que lo decidido queda como estaba", () => {
@@ -222,7 +234,7 @@ describe("textos del diálogo", () => {
     );
     expect(e.opciones[0].detalle).toBe("Se anula solo el pago que llegó después. Lo ya decidido queda como estaba.");
     expect(textosDeConfirmacion(ana, r, "devolver").texto).toBe(
-      "Se anula solo lo que pagó después de la última decisión (03/11). Lo ya decidido ($U 12.000 a cuenta del próximo depósito) queda como estaba. Queda registrado que lo decidiste vos, hoy.",
+      "Se anula solo lo que pagó después de la última decisión (03/11). Lo ya decidido ($U 12.000 a cuenta del próximo depósito) queda como estaba. Queda registrado que lo decidiste vos, hoy. No se puede cambiar después.",
     );
   });
 
@@ -232,7 +244,7 @@ describe("textos del diálogo", () => {
     const r = alquilerDecidible(d, lucia);
     expect(textosDeEleccion(lucia, r).texto).toBe("La campaña no cobra alquiler y Lucía Fernández había pagado $U 9.250. Elegí un solo destino para todo el monto.");
     expect(textosDeEleccion(lucia, r).opciones[0].detalle).toBe("Se anula su pago de alquiler.");
-    expect(textosDeConfirmacion(lucia, r, "devolver").texto).toBe("Se anula su pago de alquiler (14/10). Queda registrado que lo decidiste vos, hoy.");
+    expect(textosDeConfirmacion(lucia, r, "devolver").texto).toBe("Se anula su pago de alquiler (14/10). Queda registrado que lo decidiste vos, hoy. No se puede cambiar después.");
   });
 
   it("los avisos de después y de error", () => {

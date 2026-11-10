@@ -230,7 +230,7 @@ export interface TextosDeConfirmacion {
   boton: string;
 }
 
-const REGISTRO = "Queda registrado que lo decidiste vos, hoy.";
+const REGISTRO = "Queda registrado que lo decidiste vos, hoy. No se puede cambiar después.";
 
 /** El segundo paso (41A·04): qué pasa con la plata según el destino elegido. */
 export function textosDeConfirmacion(colportor: ColportorDeCuentas, a: AlquilerDecidible, destino: DestinoDeAlquiler): TextosDeConfirmacion {

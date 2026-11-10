@@ -3,6 +3,7 @@
 import { useEffect, useRef, type KeyboardEvent } from "react";
 
 import type { DestinoDeAlquiler } from "@/datos/cuentas";
+import { trozosConMontos } from "@/features/cuentas/formato";
 import type { TextosDeConfirmacion, TextosDeEleccion } from "@/features/cuentas/por-decidir";
 import { cn } from "@/lib/utils";
 
@@ -111,7 +112,16 @@ export function DialogoDeAlquiler({
         className="flex max-h-full w-full max-w-[480px] flex-col gap-3.5 overflow-auto rounded-[12px] focus:outline-none bg-superficie px-[26px] py-6 shadow-[0_24px_60px_rgba(14,26,43,.3)]"
       >
         <h2 id="titulo-decidir-alquiler" className="font-serif text-[21px] font-semibold text-balance text-tinta [overflow-wrap:anywhere]">
-          {titulo}
+          {/* El monto no se parte entre líneas («$U» / «9.250»); el título tiene uno solo, así que es su propia clave. */}
+          {trozosConMontos(titulo).map((trozo) =>
+            trozo.monto ? (
+              <span key={trozo.texto} className="whitespace-nowrap">
+                {trozo.texto}
+              </span>
+            ) : (
+              trozo.texto
+            ),
+          )}
         </h2>
         <p id="texto-decidir-alquiler" className="text-[13.5px] leading-normal text-pretty text-tinta-2 [overflow-wrap:anywhere]">
           {texto}

@@ -3,28 +3,29 @@ import { describe, expect, it } from "vitest";
 import { armarCuentasSimuladas } from "@/datos/cuentas/simulado";
 import { aplicarAlquiler, subtituloDeSeleccion, TODAS } from "@/features/cuentas/modelo";
 
-/** Una campaña que dejó de cobrar alquiler (41B·01): la fecha es un dato opcional; sin él el subtítulo no la inventa. */
+/**
+ * Una campaña sin alquiler (41B·01). Cristian, 10/11: una campaña no deja de cobrar alquiler a mitad de camino, así que
+ * «no se cobra» es de una campaña que nunca cobró y el subtítulo no dice «la campaña dejó de cobrar alquiler el dd/mm».
+ */
 const AHORA = new Date("2026-11-04T15:00:00.000Z");
 
-describe("la fecha en que la campaña dejó de cobrar alquiler", () => {
-  it("al pasar el alquiler a 0 guarda el día del cambio, en hora de Montevideo, y el subtítulo lo dice", () => {
+describe("la campaña sin alquiler", () => {
+  it("el subtítulo es el de siempre: sin fecha de «dejó de cobrar»", () => {
     const datos = armarCuentasSimuladas(AHORA);
-    const sinAlquiler = aplicarAlquiler(datos, 0, "2026-11-01T02:30:00.000Z");
-    expect(sinAlquiler.alquilerDejoDeCobrarEl).toBe("2026-10-31");
-    expect(subtituloDeSeleccion(sinAlquiler, TODAS)).toMatch(/ · la campaña dejó de cobrar alquiler el 31\/10$/);
+    const sinAlquiler = aplicarAlquiler(datos, 0);
+    expect(subtituloDeSeleccion(sinAlquiler, TODAS)).toBe(subtituloDeSeleccion(datos, TODAS));
+    expect(subtituloDeSeleccion(sinAlquiler, TODAS)).not.toMatch(/dejó de cobrar/);
   });
 
-  it("sin el dato (o si la campaña cobra) el subtítulo es el de siempre, sin fecha inventada", () => {
+  it("pasar el alquiler a 0 no suma ningún dato nuevo a las cuentas", () => {
     const datos = armarCuentasSimuladas(AHORA);
-    expect(subtituloDeSeleccion({ ...datos, alquilerPorColportor: 0 }, TODAS)).not.toMatch(/dejó de cobrar/);
-    expect(subtituloDeSeleccion({ ...datos, alquilerDejoDeCobrarEl: "2026-11-01" }, TODAS)).not.toMatch(/dejó de cobrar/);
-    expect(subtituloDeSeleccion({ ...datos, alquilerPorColportor: 0, alquilerDejoDeCobrarEl: "no-es-fecha" }, TODAS)).not.toMatch(/dejó de cobrar/);
+    expect(Object.keys(aplicarAlquiler(datos, 0)).sort()).toEqual(Object.keys(datos).sort());
+    expect(Object.keys(aplicarAlquiler(aplicarAlquiler(datos, 0), 5000)).sort()).toEqual(Object.keys(datos).sort());
   });
 
-  it("otro cambio a 0 con la campaña ya sin alquiler no pisa la fecha; volver a cobrar la borra", () => {
+  it("los datos de ejemplo cobran alquiler: lo «por decidir» sale de las bajas, de a una", () => {
     const datos = armarCuentasSimuladas(AHORA);
-    const sin = aplicarAlquiler(datos, 0, "2026-11-01T15:00:00.000Z");
-    expect(aplicarAlquiler(sin, 0, "2026-11-03T15:00:00.000Z").alquilerDejoDeCobrarEl).toBe("2026-11-01");
-    expect(aplicarAlquiler(sin, 5000, "2026-11-03T15:00:00.000Z").alquilerDejoDeCobrarEl).toBeUndefined();
+    expect(datos.alquilerPorColportor).toBeGreaterThan(0);
+    expect(datos.colportores.filter((c) => c.baja).length).toBeGreaterThan(0);
   });
 });

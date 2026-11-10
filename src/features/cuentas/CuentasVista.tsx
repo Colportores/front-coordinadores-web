@@ -213,8 +213,7 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
       return;
     }
     const nuevo = resultado.valor;
-    const hoy = new Date().toISOString();
-    setDatos((previos) => aplicarAlquiler(previos, nuevo, hoy));
+    setDatos((previos) => aplicarAlquiler(previos, nuevo));
     setAviso({
       tipo: "exito",
       texto:

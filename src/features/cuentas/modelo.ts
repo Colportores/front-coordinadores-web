@@ -6,7 +6,7 @@ import type {
   DestinoDeTicket,
   TicketDeCuentas,
 } from "@/datos/cuentas";
-import { diaEnMontevideo, textoFechaDeTicket } from "@/datos/cuentas/fechas";
+import { textoFechaDeTicket } from "@/datos/cuentas/fechas";
 import { formatMonto } from "@/features/cuentas/formato";
 import {
   alquilerDecidible,
@@ -75,8 +75,6 @@ export function subtituloDeSeleccion(datos: DatosDeCuentas, seleccion: Seleccion
   if (ciudades.length === 1) partes.push(`Departamento ${ciudades[0].departamento}`);
   const sinBanco = ciudades.filter((c) => !c.hayBanco).map((c) => c.nombre);
   if (sinBanco.length > 0) partes.push(`en ${listaConY(sinBanco)} no hay banco: el coordinador retira el efectivo`);
-  const desde = datos.alquilerPorColportor === 0 ? datos.alquilerDejoDeCobrarEl : undefined;
-  if (desde && /^\d{4}-\d{2}-\d{2}$/.test(desde)) partes.push(`la campaña dejó de cobrar alquiler el ${desde.slice(8, 10)}/${desde.slice(5, 7)}`);
   return partes.join(" · ");
 }
 
@@ -549,14 +547,8 @@ export function aplicarTicket(datos: DatosDeCuentas, ticket: TicketDeCuentas): D
  * la campaña pasa a cobrar, lo decidido «a cuenta» o «se lo queda» de quien sigue inscripto deja de valer (lo dejado a cuenta
  * vuelve a la deuda), como en `refrescar_cuenta_alquiler()`; lo devuelto no se deshace.
  */
-export function aplicarAlquiler(datos: DatosDeCuentas, monto: number, ahoraIso?: string): DatosDeCuentas {
+export function aplicarAlquiler(datos: DatosDeCuentas, monto: number): DatosDeCuentas {
   const nuevos: DatosDeCuentas = { ...datos, alquilerPorColportor: monto };
-  // La fecha en que dejó de cobrar: la de este cambio (solo si antes cobraba); si vuelve a cobrar, se borra.
-  if (monto > 0) delete nuevos.alquilerDejoDeCobrarEl;
-  else if (datos.alquilerPorColportor > 0) {
-    const dia = diaEnMontevideo(ahoraIso ?? datos.ahora);
-    if (dia) nuevos.alquilerDejoDeCobrarEl = dia;
-  }
   if (datos.decisionesDeAlquiler) {
     const colportores = new Map(datos.colportores.map((c) => [c.id, c]));
     nuevos.decisionesDeAlquiler = datos.decisionesDeAlquiler.filter((d) => {

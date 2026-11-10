@@ -6,9 +6,9 @@ import { armarCuentasSimuladas, crearAccionesSimuladas } from "@/datos/cuentas/s
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 import { CuentasVista } from "@/features/cuentas/CuentasVista";
 
-/** 41B·01: al dejar el alquiler en 0 el encabezado dice «no se cobra» y el subtítulo, desde cuándo. */
-describe("la campaña deja de cobrar alquiler", () => {
-  it("el encabezado dice «no se cobra», el aviso de guardado también y el subtítulo trae la fecha del cambio", async () => {
+/** 41B·01: con el alquiler en 0 el encabezado dice «no se cobra», sin fecha de «dejó de cobrar» en el subtítulo. */
+describe("la campaña sin alquiler", () => {
+  it("el encabezado dice «no se cobra», el aviso de guardado también y el subtítulo no dice desde cuándo", async () => {
     const datos = armarCuentasSimuladas(new Date("2026-11-04T15:00:00.000Z"));
     const usuario = userEvent.setup();
     render(
@@ -30,6 +30,7 @@ describe("la campaña deja de cobrar alquiler", () => {
     const encabezado = screen.getAllByText(/Alquiler de la campaña:/).find((el) => !el.closest('[role="status"]'));
     expect(encabezado).toHaveTextContent(/^Alquiler de la campaña: no se cobra$/);
     expect(screen.queryByText(/\$U 0 por colportor/)).not.toBeInTheDocument();
-    expect(screen.getByText(/ · la campaña dejó de cobrar alquiler el \d{2}\/\d{2}$/)).toBeInTheDocument();
+    // Cristian, 10/11: una campaña no deja de cobrar a mitad de camino; el subtítulo no inventa desde cuándo.
+    expect(screen.queryByText(/dejó de cobrar alquiler/)).not.toBeInTheDocument();
   });
 });
