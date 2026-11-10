@@ -33,9 +33,9 @@ export function EstadoDecidible({ alquiler, pagado }: { alquiler: AlquilerDecidi
     return <span className="text-mini text-tinta-suave">{pagado === 0 && alquiler.devuelto === 0 ? "Sin pagos" : "—"}</span>;
   }
   return (
-    <span className="flex flex-col items-start gap-1 whitespace-normal">
+    <span className="flex max-w-full flex-col items-start gap-1 whitespace-normal">
       {destinos.map((destino) => (
-        <Pastilla key={destino} tono="neutro">
+        <Pastilla key={destino} tono="neutro" className="max-w-full whitespace-normal">
           {ETIQUETA_DE_DESTINO[destino]}
         </Pastilla>
       ))}

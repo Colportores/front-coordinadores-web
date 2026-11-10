@@ -22,9 +22,9 @@ const TONOS = {
 } as const;
 
 /** La pastilla de estado de una fila (✓ Pagado, ◔ Por validar…). El símbolo y el texto dicen lo mismo que el color. */
-export function Pastilla({ tono, children }: { tono: keyof typeof TONOS; children: ReactNode }) {
+export function Pastilla({ tono, children, className }: { tono: keyof typeof TONOS; children: ReactNode; className?: string }) {
   return (
-    <span className={cn("inline-flex w-max items-center gap-[5px] rounded-pastilla px-2 py-[3px] text-mini font-semibold", TONOS[tono])}>
+    <span className={cn("inline-flex w-max items-center gap-[5px] rounded-pastilla px-2 py-[3px] text-mini font-semibold", TONOS[tono], className)}>
       {children}
     </span>
   );

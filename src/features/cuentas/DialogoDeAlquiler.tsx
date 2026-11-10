@@ -71,7 +71,11 @@ export function DialogoDeAlquiler({
     const primero = enfocables[0];
     const ultimo = enfocables.at(-1);
     if (!primero || !ultimo) return;
-    if (evento.shiftKey && document.activeElement === primero) {
+    // Un clic en el texto deja el foco en la caja (`tabIndex=-1`): de ahí Tab entra por el primero y Shift+Tab por el último.
+    if (document.activeElement === caja.current) {
+      evento.preventDefault();
+      (evento.shiftKey ? ultimo : primero).focus();
+    } else if (evento.shiftKey && document.activeElement === primero) {
       evento.preventDefault();
       ultimo.focus();
     } else if (!evento.shiftKey && document.activeElement === ultimo) {
@@ -85,14 +89,26 @@ export function DialogoDeAlquiler({
 
   return (
     // El fondo no es un control: solo recibe las teclas (Esc y el ciclo de Tab) de lo que está dentro del diálogo.
-    <div role="presentation" className="fixed inset-0 z-50 grid place-items-center bg-tinta/45 p-4" onKeyDown={alTeclear}>
+    <div
+      role="presentation"
+      className="fixed inset-0 z-50 grid place-items-center bg-tinta/45 p-4"
+      onKeyDown={alTeclear}
+      onMouseDown={(evento) => {
+        // Un clic en el fondo no manda el foco al <body>: Esc tiene que seguir cerrando el diálogo.
+        if (evento.target === evento.currentTarget) {
+          evento.preventDefault();
+          caja.current?.focus();
+        }
+      }}
+    >
       <div
         ref={caja}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="titulo-decidir-alquiler"
         aria-describedby="texto-decidir-alquiler"
-        className="flex max-h-full w-full max-w-[480px] flex-col gap-3.5 overflow-auto rounded-[12px] bg-superficie px-[26px] py-6 shadow-[0_24px_60px_rgba(14,26,43,.3)]"
+        className="flex max-h-full w-full max-w-[480px] flex-col gap-3.5 overflow-auto rounded-[12px] focus:outline-none bg-superficie px-[26px] py-6 shadow-[0_24px_60px_rgba(14,26,43,.3)]"
       >
         <h2 id="titulo-decidir-alquiler" className="font-serif text-[21px] font-semibold text-balance text-tinta [overflow-wrap:anywhere]">
           {titulo}

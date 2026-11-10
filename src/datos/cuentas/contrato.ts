@@ -110,6 +110,11 @@ export interface DatosDeCuentas {
   ahora: string;
   /** Monto fijo de la campaña por colportor; se ve como deuda y no bloquea nada (C7). */
   alquilerPorColportor: number;
+  /**
+   * El día (AAAA-MM-DD) en que la campaña dejó de cobrar alquiler, si se sabe. Solo tiene sentido con `alquilerPorColportor`
+   * en 0; sin el dato el subtítulo no dice la fecha (41B·01). Hoy lo llena la fuente simulada; el servidor aún no lo trae.
+   */
+  alquilerDejoDeCobrarEl?: string;
   ciudades: CiudadDeCuentas[];
   colportores: ColportorDeCuentas[];
   /** Todos los tickets de la campaña, en cualquier estado. */

@@ -102,7 +102,7 @@ export function ColumnaDeCiudades({
               aria-pressed={elemento.clave === clave}
               onClick={() => alElegir(elemento.seleccion)}
               className={cn(
-                "flex min-h-9 cursor-pointer items-center justify-between gap-2 rounded-control px-3 py-[9px] text-left",
+                "flex min-h-9 cursor-pointer flex-wrap items-center justify-between gap-x-2 gap-y-0.5 rounded-control px-3 py-[9px] text-left",
                 CLASE_FOCO,
                 elemento.clave === clave ? CLASE_ELEGIDA : "hover:bg-superficie-calida",
               )}

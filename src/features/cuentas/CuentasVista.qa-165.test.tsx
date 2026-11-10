@@ -10,7 +10,7 @@ import { CuentasVista } from "@/features/cuentas/CuentasVista";
 /**
  * QA de la vista 41 «Alquiler por decidir» (front-coordinadores-web#132, PR 165). Lo que no cubren los tests del
  * implementador: textos literales del canvas, teclado, acciones superpuestas, falla a mitad y reentrada, datos límite y los
- * menores de la revisión que conviene arreglar (van con `skip` y la razón).
+ * menores de la revisión que se arreglaron en el PR.
  */
 
 const AHORA = new Date("2026-10-22T15:00:00.000Z");
@@ -178,7 +178,7 @@ describe("QA 165 · teclado y foco", () => {
     expect(d.getByRole("button", { name: "Sí, dejar a cuenta" })).toHaveFocus();
   });
 
-  it.skip("QA #165: un clic en el texto del diálogo (o en el fondo) deja el foco en <body> y Esc ya no cierra (confirmado en Chromium)", async () => {
+  it("QA #165: un clic en el texto del diálogo (o en el fondo) deja el foco en <body> y Esc ya no cierra (confirmado en Chromium)", async () => {
     const { usuario } = montar();
     await irAAlquilerDeRivera(usuario);
     const d = await abrir(usuario);
@@ -419,7 +419,7 @@ describe("QA 165 · accesibilidad: tamaño de los controles y anuncios", () => {
 });
 
 describe("QA 165 · menores de la revisión que conviene arreglar ya", () => {
-  it.skip("QA #165: el aviso «Sin conexión… no decidir» no sale si lo único por decidir es la fila propia (nada que decidir)", async () => {
+  it("QA #165: el aviso «Sin conexión… no decidir» no sale si lo único por decidir es la fila propia (nada que decidir)", async () => {
     const base = armarCuentasSimuladas(AHORA);
     // Solo queda por decidir la fila de la coordinadora (esVos): Santiago y Martín pasan a ser inscriptos sin baja.
     const datos: DatosDeCuentas = {
@@ -432,7 +432,7 @@ describe("QA 165 · menores de la revisión que conviene arreglar ya", () => {
     expect(screen.queryByText(/Sin conexión\. Podés ver el alquiler, pero no decidir/)).not.toBeInTheDocument();
   });
 
-  it.skip("QA #165: «VALIDADOS» de Tickets no cuenta los pagos devueltos (la tabla los marca «↩ Devuelto» y Depositado ya no los suma)", async () => {
+  it("QA #165: «VALIDADOS» de Tickets no cuenta los pagos devueltos (la tabla los marca «↩ Devuelto» y Depositado ya no los suma)", async () => {
     const { usuario } = montar();
     await usuario.click(screen.getByRole("button", { name: /^Rivera/ }));
     await usuario.click(screen.getByRole("tab", { name: /Tickets/ }));
@@ -447,7 +447,7 @@ describe("QA 165 · menores de la revisión que conviene arreglar ya", () => {
     expect(Number(/^VALIDADOS(\d+)/.exec(leer())?.[1])).toBe(antes - 2);
   });
 
-  it.skip("QA #165: 41A·07, la pastilla «→ A cuenta del próximo depósito» puede partirse en lugar de cortarse en la columna Estado (captura A07)", async () => {
+  it("QA #165: 41A·07, la pastilla «→ A cuenta del próximo depósito» puede partirse en lugar de cortarse en la columna Estado (captura A07)", async () => {
     const { usuario } = montar();
     await irAAlquilerDeRivera(usuario);
     const pastilla = screen.getAllByText("→ A cuenta del próximo depósito")[0];
@@ -455,7 +455,7 @@ describe("QA 165 · menores de la revisión que conviene arreglar ya", () => {
     expect(pastilla.className).toMatch(/max-w-full|whitespace-normal|break-words/);
   });
 
-  it.skip("QA #165: 41B·01, con la campaña sin alquiler el encabezado dice «no se cobra» como el canvas, no «$U 0 por colportor»", async () => {
+  it("QA #165: 41B·01, con la campaña sin alquiler el encabezado dice «no se cobra» como el canvas, no «$U 0 por colportor»", async () => {
     const base = armarCuentasSimuladas(AHORA);
     const { usuario } = montar({ datos: { ...base, alquilerPorColportor: 0 } });
     await irAAlquilerDeRivera(usuario);

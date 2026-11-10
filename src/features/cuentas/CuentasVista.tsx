@@ -213,8 +213,15 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
       return;
     }
     const nuevo = resultado.valor;
-    setDatos((previos) => aplicarAlquiler(previos, nuevo));
-    setAviso({ tipo: "exito", texto: `Alquiler de la campaña: ${formatMonto(nuevo)} por colportor, para todos los inscriptos.` });
+    const hoy = new Date().toISOString();
+    setDatos((previos) => aplicarAlquiler(previos, nuevo, hoy));
+    setAviso({
+      tipo: "exito",
+      texto:
+        nuevo === 0
+          ? "Alquiler de la campaña: no se cobra, para todos los inscriptos."
+          : `Alquiler de la campaña: ${formatMonto(nuevo)} por colportor, para todos los inscriptos.`,
+    });
     setEditandoAlquiler(false);
     focoPendiente.current = "editar-alquiler";
   }
@@ -379,7 +386,7 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
             </div>
           )}
 
-          {pestana === "alquiler" && !enLinea && filas.some((f) => f.alquiler.decide && f.alquiler.porDecidir > 0) && (
+          {pestana === "alquiler" && !enLinea && filas.some((f) => sePuedeDecidir(f.colportor, f.alquiler)) && (
             <AvisoDeAlquiler variante="sin-conexion" texto={TEXTO_SIN_CONEXION} />
           )}
           {pestana === "alquiler" && enLinea && avisoDeAlquiler && <AvisoDeAlquiler variante="por-decidir" texto={avisoDeAlquiler} />}

@@ -322,7 +322,7 @@ export function crearAccionesSimuladas(inicial?: DatosDeCuentas): AccionesCuenta
       if (!Number.isInteger(monto) || monto < 0) {
         return { ok: false, causa: "rechazado", mensaje: "El alquiler tiene que ser un monto entero, sin negativos." };
       }
-      if (datos) datos = aplicarAlquiler(datos, monto);
+      if (datos) datos = aplicarAlquiler(datos, monto, new Date().toISOString());
       return { ok: true, valor: monto };
     },
     async decidirAlquiler(colportorId: string, destino: DestinoDeAlquiler): Promise<ResultadoDeAccion<ResultadoDeDecision>> {
