@@ -10,6 +10,8 @@ import type * as ModuloValidar from "@/datos/cuentas/validar";
 import { armarValidacionSimulada } from "@/datos/cuentas/validar/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
 // El selector se reemplaza por uno que se puede controlar; en el sitio de prueba tiene que explotar si alguien lo usa:
 // ahí la fuente es siempre la simulada, aunque el día de mañana `index.ts` apunte a la real.
 vi.mock("@/datos/cuentas/validar", async (importOriginal) => {

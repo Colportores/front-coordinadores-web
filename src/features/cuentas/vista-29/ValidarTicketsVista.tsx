@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent } from "react";
 
 import type { AccionesValidarTickets, DatosDeValidacion, ItemPorValidar, ResultadoDeAccion } from "@/datos/cuentas/validar";
 import { useEnLinea } from "@/lib/en-linea";
 import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
-import { registrarEnvio } from "@/shell/trabajo-pendiente";
+import { esperarYSalir, estaEsperando, hayQueEsperar, registrarEnvio } from "@/shell/trabajo-pendiente";
 
 import { ColaDeTickets } from "./ColaDeTickets";
 import { PanelDelTicket } from "./PanelDelTicket";
@@ -274,6 +275,20 @@ export function ValidarTicketsVista({ datos, acciones }: { datos: DatosDeValidac
     }
   };
 
+  /**
+   * Volver a Cuentas espera lo que está a medio mandar (una validación dentro de su «Deshacer», un rechazo en camino), igual
+   * que la vista 27 y que cambiar de pestaña: si la vista se desmontara antes, un envío que falla no se vería. Si falla, se
+   * queda acá con el aviso a la vista.
+   */
+  const router = useRouter();
+  const alVolverACuentas = (evento: MouseEvent<HTMLAnchorElement>) => {
+    // Un clic con modificador abre otra pestaña y esta se queda como está.
+    if (evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) return;
+    if (!hayQueEsperar() && !estaEsperando()) return;
+    evento.preventDefault();
+    void esperarYSalir(() => router.push("/cuentas"));
+  };
+
   const posicion = (() => {
     if (!abierto || abierto.estado !== "PENDIENTE" || !inicialmentePendientes.has(abierto.id)) return null;
     const delTipo = cola.filter((x) => x.tipo === abierto.tipo && inicialmentePendientes.has(x.id));
@@ -289,7 +304,7 @@ export function ValidarTicketsVista({ datos, acciones }: { datos: DatosDeValidac
     <div ref={raiz} onKeyDown={teclas} className="flex min-h-0 flex-1 flex-col gap-3.5 bg-fondo px-[22px] pt-[18px] pb-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-[3px]">
-          <Link href="/cuentas" className="inline-flex min-h-6 w-max items-center text-chico font-semibold text-marca-media underline-offset-2 hover:underline">
+          <Link href="/cuentas" onClick={alVolverACuentas} className="inline-flex min-h-6 w-max items-center text-chico font-semibold text-marca-media underline-offset-2 hover:underline">
             ‹ Estado de cuenta del equipo
           </Link>
           <h2 className="font-serif text-[22px] font-semibold text-tinta">
@@ -342,7 +357,7 @@ export function ValidarTicketsVista({ datos, acciones }: { datos: DatosDeValidac
           <p role="status" className="text-nav text-tinta-2">
             No quedan tickets por validar
           </p>
-          <Link href="/cuentas" data-foco="volver" className={ENLACE}>
+          <Link href="/cuentas" onClick={alVolverACuentas} data-foco="volver" className={ENLACE}>
             Volver a Cuentas
           </Link>
         </div>
@@ -375,7 +390,7 @@ export function ValidarTicketsVista({ datos, acciones }: { datos: DatosDeValidac
                 <p role="status" className="text-nav text-tinta-2">
                   No quedan tickets por validar
                 </p>
-                <Link href="/cuentas" data-foco="volver" className={ENLACE}>
+                <Link href="/cuentas" onClick={alVolverACuentas} data-foco="volver" className={ENLACE}>
                   Volver a Cuentas
                 </Link>
               </div>

@@ -7,6 +7,8 @@ import { reiniciarTrabajoPendiente } from "@/shell/trabajo-pendiente";
 
 import { ValidarTicketsVista } from "./ValidarTicketsVista";
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
 /** axe en jsdom no mide contraste (no hay layout): el contraste va en la corrida con navegador real. */
 async function violaciones(raiz: Element) {
   const r = await axe.run(raiz, {
