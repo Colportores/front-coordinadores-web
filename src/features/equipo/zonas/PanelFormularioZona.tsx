@@ -43,6 +43,8 @@ interface Props {
   vistaPrevia: VistaPreviaZona | null;
   guardando: boolean;
   error: string | null;
+  /** Un aviso que no es un error ni frena nada: el panel corrió una esquina del borde (#179). */
+  nota?: string | null;
   onNombre: (nombre: string) => void;
   onTipoForma: (tipo: TipoForma) => void;
   onRadio: (radioM: number) => void;
@@ -81,6 +83,7 @@ export function PanelFormularioZona({
   vistaPrevia,
   guardando,
   error,
+  nota = null,
   onNombre,
   onTipoForma,
   onRadio,
@@ -286,6 +289,10 @@ export function PanelFormularioZona({
           Esta zona se superpone con «{vistaPrevia.superposicion.zonaNombre}» en el tramo marcado en rojo. Podés guardarla igual.
         </p>
       ) : null}
+      {/* Siempre montado, para que el lector de pantalla lo anuncie cuando aparece; vacío no ocupa lugar en la columna. */}
+      <div aria-live="polite" className={nota ? undefined : "-my-[7px]"}>
+        {nota ? <p className="rounded-control bg-fondo px-3 py-2 text-cuerpo font-medium text-tinta-2">{nota}</p> : null}
+      </div>
       {error ? (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-control bg-peligro-fondo px-3 py-2 text-cuerpo font-medium text-peligro">
           <p>{error}</p>
