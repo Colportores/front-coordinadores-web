@@ -35,6 +35,18 @@ export function avisoRol(c: CandidatoColportor): string | null {
   return c.rolCuenta ? `Esta cuenta es de ${AREA_ROL[c.rolCuenta]}, no de un colportor.` : null;
 }
 
+/**
+ * Los textos de la confirmación antes de añadir como colportor una cuenta de coordinación o de administración (decisión de
+ * Cristian, 11/11): dicen qué pasa y qué se puede hacer. `null` si la cuenta es de un colportor: se añade sin preguntar.
+ */
+export function confirmacionDeRol(c: CandidatoColportor, campania: string): { titulo: string; texto: string } | null {
+  if (!c.rolCuenta) return null;
+  return {
+    titulo: `¿Añadir a ${c.nombre} como colportor?`,
+    texto: `Esta cuenta es de ${AREA_ROL[c.rolCuenta]}, no de un colportor. ¿Querés añadirla igual como colportor de ${campania}?`,
+  };
+}
+
 export function iniciales(nombre: string): string {
   return nombre
     .split(/\s+/)

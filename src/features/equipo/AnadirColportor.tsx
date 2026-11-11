@@ -14,6 +14,7 @@ import type {
 import {
   avisoRol,
   ayudaBloqueo,
+  confirmacionDeRol,
   etiquetaRol,
   fechaCorta,
   iniciales,
@@ -22,6 +23,7 @@ import {
   recortarConPuntos,
 } from "@/features/equipo/candidatos";
 import { mensajeDeRechazo, type MotivoDeRechazo } from "@/auth/sesion-vencida";
+import { DialogoCuentaConRol } from "@/features/equipo/DialogoCuentaConRol";
 import { EnlaceEntrarDeNuevo } from "@/features/equipo/EnlaceEntrarDeNuevo";
 import { tieneFocoVisible } from "@/features/equipo/foco-visible";
 import { useBusquedaCandidatos } from "@/features/equipo/useBusquedaCandidatos";
@@ -343,6 +345,9 @@ function DetalleCuenta({ candidato, campania, anadido, onAnadir }: DetalleProps)
  *
  * La búsqueda es del servidor, de a 10 por página (la siguiente se pide al llegar al final de la lista), y «Añadir»
  * demora la inscripción 8 s para dejar «Deshacer» (decisiones de Cristian, 30/09): ver los dos hooks.
+ *
+ * Una cuenta de coordinación o de administración se puede añadir (HU-CAM-004, 02/10), pero lleva una etiqueta y «Añadir»
+ * pide confirmarlo antes (decisión de Cristian, 11/11): recién con «Añadir igual» sigue el camino de siempre.
  */
 export function AnadirColportor({
   datos,
@@ -374,6 +379,13 @@ export function AnadirColportor({
     () => new Map(),
   );
   const recibidasAhora = useRef(0);
+
+  /**
+   * La cuenta de coordinación o de administración que espera el «Añadir igual» del diálogo, y el botón desde el que se abrió
+   * (el de la fila o el del detalle): si se cancela, el foco vuelve ahí.
+   */
+  const [porConfirmar, setPorConfirmar] = useState<CandidatoColportor | null>(null);
+  const origenDelDialogo = useRef<HTMLElement | null>(null);
 
   const {
     consulta,
@@ -503,6 +515,8 @@ export function AnadirColportor({
 
   useEffect(() => {
     function alTeclear(evento: KeyboardEvent) {
+      // Con la confirmación abierta las teclas son del diálogo: Esc lo cancela y nada más (ni borra la búsqueda ni sale).
+      if (porConfirmar !== null) return;
       if (evento.key === "Escape") {
         // Con el foco en un aviso, Esc solo lo devuelve a donde estaba: el aviso sigue con su plazo y nada más cambia.
         const aviso = evento.target instanceof Element ? evento.target.closest<HTMLElement>("[data-aviso-id]") : null;
@@ -532,7 +546,7 @@ export function AnadirColportor({
     }
     document.addEventListener("keydown", alTeclear);
     return () => document.removeEventListener("keydown", alTeclear);
-  }, [consulta, setConsulta, avisos.length, confirmarTodas, salir, enfocarFila]);
+  }, [consulta, setConsulta, avisos.length, confirmarTodas, salir, enfocarFila, porConfirmar]);
 
   // La página siguiente se pide cuando el final de la lista entra en pantalla. Sin `IntersectionObserver` quedan
   // el «↓» del teclado y el aviso de abajo.
@@ -547,13 +561,47 @@ export function AnadirColportor({
     // `cargandoMas` y la cantidad vuelven a armar el observador: si el final sigue a la vista tras cargar, pide la que sigue.
   }, [hayMas, fallaMas, cargandoMas, resultados.length, cargarMas]);
 
-  function anadir(candidato: CandidatoColportor) {
+  /**
+   * `confirmada`: viene de «Añadir igual». Sin ella, una cuenta de coordinación o de administración no se añade todavía: se
+   * abre la confirmación (un segundo toque en «Añadir» mientras tanto no abre otra ni cambia nada).
+   */
+  function anadir(candidato: CandidatoColportor, confirmada = false) {
     if (motivoBloqueo(candidato) !== null) return;
+    if (candidato.rolCuenta && !confirmada) {
+      if (porConfirmar !== null || anadidos.some((a) => a.id === candidato.id)) return;
+      const activo = document.activeElement;
+      origenDelDialogo.current = activo instanceof HTMLElement && activo !== document.body ? activo : null;
+      setPorConfirmar(candidato);
+      return;
+    }
     setFallos((previos) => previos.filter((f) => f.id !== candidato.id));
     const nueva = programar({ id: candidato.id, nombre: candidato.nombre });
     // El botón se apaga al añadir y aparece el aviso con «Deshacer»: el foco va ahí en vez de caer al body (salvo que ya
-    // esté escribiendo en otro lado). Un doble toque no suma un segundo aviso ni mueve nada.
-    if (nueva && focoSigueEnAnadir(candidato.id)) avisoPorEnfocar.current = candidato.id;
+    // esté escribiendo en otro lado). Un doble toque no suma un segundo aviso ni mueve nada. Tras «Añadir igual» el foco
+    // estaba en el diálogo, que se cierra: también pasa al «Deshacer».
+    if (nueva && (confirmada || focoSigueEnAnadir(candidato.id))) avisoPorEnfocar.current = candidato.id;
+    else if (confirmada) enfocarFila(candidato.id);
+  }
+
+  /** «Añadir igual»: la cuenta sigue el camino de cualquier otra (aviso con «Deshacer» y envío a los 8 s). */
+  function confirmarRol() {
+    const candidato = porConfirmar;
+    // Un doble toque en «Añadir igual»: el segundo ya no encuentra nada que confirmar.
+    if (candidato === null) return;
+    setPorConfirmar(null);
+    origenDelDialogo.current = null;
+    anadir(candidato, true);
+  }
+
+  /** «Cancelar» o Esc: no se añade nada y el foco vuelve al «Añadir» que abrió el diálogo (o a la fila, si ya no está). */
+  function cancelarRol() {
+    const candidato = porConfirmar;
+    if (candidato === null) return;
+    setPorConfirmar(null);
+    const origen = origenDelDialogo.current;
+    origenDelDialogo.current = null;
+    if (origen?.isConnected) origen.focus();
+    else enfocarFila(candidato.id);
   }
 
   function alDeshacer(id: string) {
@@ -595,6 +643,8 @@ export function AnadirColportor({
 
   // El título repite lo buscado en mayúsculas: un texto pegado muy largo (una lista de emails) se acorta, y lo que sigue sin
   // espacios se parte, para que no empuje el título por debajo de la columna del detalle. El texto entero queda en el buscador.
+  const confirmacion = porConfirmar !== null ? confirmacionDeRol(porConfirmar, datos.campania) : null;
+
   const busqueda = recortarConPuntos(texto, MAX_CARACTERES_TITULO).toUpperCase();
   const titulo = !hayConsulta
     ? `PENDIENTES DE ASIGNACIÓN · ${resultados.length}`
@@ -781,6 +831,15 @@ export function AnadirColportor({
             <AvisoAnadido key={a.id} id={a.id} nombre={a.nombre} campania={datos.campania} onDeshacer={alDeshacer} onPausa={pausar} onReanudar={reanudar} />
           ))}
         </div>
+      ) : null}
+
+      {confirmacion !== null ? (
+        <DialogoCuentaConRol
+          titulo={confirmacion.titulo}
+          texto={confirmacion.texto}
+          alCancelar={cancelarRol}
+          alConfirmar={confirmarRol}
+        />
       ) : null}
     </div>
   );
