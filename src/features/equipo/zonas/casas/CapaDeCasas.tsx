@@ -1,5 +1,6 @@
 "use client";
 
+import { GRUPOS } from "@colportores/lib-mapa/tokens";
 import type { ExpressionSpecification } from "maplibre-gl";
 import { type KeyboardEvent, useMemo, useRef, useState } from "react";
 import { Layer, Marker, Source } from "react-map-gl/maplibre";
@@ -79,15 +80,15 @@ export function CapaDeCasas({ casas, zonas, tocables, estado }: Props) {
   }
   return (
     <>
-      <Source id={FUENTE_AGRUPADA} type="geojson" data={geojson} cluster clusterRadius={44} clusterMaxZoom={17}>
+      <Source id={FUENTE_AGRUPADA} type="geojson" data={geojson} cluster clusterRadius={GRUPOS.radio} clusterMaxZoom={GRUPOS.zoomMaximo}>
         <Layer
           id={CAPA_DE_GRUPOS}
           type="circle"
           filter={["has", "point_count"]}
           paint={{
-            "circle-color": "#0E1A2B",
+            "circle-color": GRUPOS.color,
             "circle-radius": ["step", ["get", "point_count"], 16, 10, 18, 50, 22],
-            "circle-stroke-color": "#FFFFFF",
+            "circle-stroke-color": GRUPOS.borde,
             "circle-stroke-width": 2,
           }}
         />

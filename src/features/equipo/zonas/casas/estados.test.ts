@@ -36,6 +36,20 @@ describe("estados de la casa", () => {
     ]);
   });
 
+  it("salen de los tokens de lib-mapa con los mismos colores del canvas; la franja clara de «Entrega y pago» es la AA del celular", () => {
+    expect(ESTADOS_VISUALES.map((e) => [e.clave, e.color, e.fondo, e.borde, e.texto])).toEqual([
+      ["SIN_VISITA", "#6B7688", "#FFFFFF", true, "#6B7688"],
+      ["SIN_CONTESTAR", "#6B7688", "#6B7688", false, "#FFFFFF"],
+      ["ENTREVISTA_PROGRAMADA", "#E0B43C", "#E0B43C", false, "#0E1A2B"],
+      ["ENTREVISTA_SIN_VENTA", "#1F6E3A", "#1F6E3A", false, "#FFFFFF"],
+      ["RECHAZO", "#A8312A", "#A8312A", false, "#FFFFFF"],
+      ["COBRANZA_PENDIENTE", "#13407A", "#13407A", false, "#FFFFFF"],
+      // Decisión del 10/11 (lib-mapa#9 P2): #4D76B1 (4,6:1 con el glifo blanco) en vez del #5C82B8 del canvas 24.
+      ["ENTREGA_Y_COBRANZA_PENDIENTE", "#13407A", "repeating-linear-gradient(135deg,#13407A 0 4px,#4D76B1 4px 7px)", false, "#FFFFFF"],
+      ["VENTA_COMPLETA", "#1F6E3A", "#1F6E3A", false, "#FFFFFF"],
+    ]);
+  });
+
   it("ninguno se distingue solo por el color: dos estados nunca comparten forma y glifo", () => {
     const firmas = ESTADOS_VISUALES.map((e) => `${e.forma}${e.glifo}`);
     expect(new Set(firmas).size).toBe(ESTADOS_VISUALES.length);

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DATOS_ZONAS_SIMULADO } from "@/datos/equipo/zonas/simulado";
 import { puntoADistancia } from "@/datos/equipo/zonas/geometria";
+import { colorDeBorde } from "@/datos/equipo/zonas/paleta";
 import { MapaZonasGl } from "@/features/equipo/zonas/MapaZonasGl";
 import type { DibujoEnMapa, PropsMapaZonas } from "@/features/equipo/zonas/tipos";
 
@@ -120,6 +121,20 @@ describe("MapaZonasGl", () => {
       montar();
       expect(doble.mapa?.initialViewState).toEqual({ longitude: CIUDAD.centro.lon, latitude: CIUDAD.centro.lat, zoom: CIUDAD.zoom });
       expect(doble.mapa?.cursor).toBeUndefined();
+    });
+
+    it("deja acercar hasta el zoom 19 de lib-mapa, el mismo del celular, para leer los números de puerta", () => {
+      montar();
+      expect(doble.mapa?.maxZoom).toBe(19);
+    });
+
+    it("dibuja el borde de cada zona con su color oscurecido hasta 3:1 (el relleno sigue con el color de la zona)", () => {
+      montar({ zonas: [{ ...CIUDAD.zonas[0], color: "#13407A" }, { ...CIUDAD.zonas[1], color: "#A98330" }] });
+      const props = (doble.fuentes.zonas as { features: { properties: { color: string; borde: string } }[] }).features.map((f) => f.properties);
+      expect(props[0]).toMatchObject({ color: "#13407A", borde: "#13407A" });
+      expect(props[1].color).toBe("#A98330");
+      expect(props[1].borde).toBe(colorDeBorde("#A98330"));
+      expect(props[1].borde).not.toBe("#A98330");
     });
 
     it("una ciudad sin calles ni zonas se dibuja igual", () => {

@@ -1,3 +1,5 @@
+import casosDeLaLibreria from "@colportores/lib-mapa/pruebas/catalogo/casos.json";
+import catalogoDeLaLibreria from "@colportores/lib-mapa/pruebas/catalogo/catalogo-de-ejemplo.json";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -12,12 +14,16 @@ const BUCKET = "https://abc.supabase.co/storage/v1/object/public/mapas";
 const URL_CATALOGO = `${BUCKET}/catalogo.json`;
 const MONTEVIDEO = "01a117a9-0619-7d34-bbfc-058f61d81448";
 
+const SHA = "581c301248397e2f6ad764adeb4c13f45a564bf129587731e1629e1c9935022a";
+const parte = (archivo: unknown, sobre: Record<string, unknown> = {}) => ({ archivo, tamano_bytes: 10_920_234, sha256: SHA, ...sobre });
+
 const paquete = (sobre: Record<string, unknown> = {}) => ({
   id: "ciudad-montevideo",
   nivel: "ciudad",
   ambito_id: MONTEVIDEO,
   nombre: "Montevideo",
-  partes: [{ archivo: "paquetes/ciudad/montevideo.581c30124839.pmtiles" }],
+  version: "581c301248397e2f6ad764adeb4c13f45a564bf129587731e1629e1c9935022a",
+  partes: [parte("paquetes/ciudad/montevideo.581c30124839.pmtiles")],
   ...sobre,
 });
 
@@ -68,7 +74,7 @@ describe("leerCatalogo", () => {
         paquete({ nivel: "departamento" }),
         paquete({ partes: [] }),
         paquete({ partes: [{ sha256: "x" }] }),
-        paquete({ ambito_id: "otra", nombre: "Salto" }),
+        paquete({ id: "ciudad-salto", ambito_id: "otra", nombre: "Salto" }),
       ]),
       URL_CATALOGO,
     );
@@ -78,9 +84,9 @@ describe("leerCatalogo", () => {
   it("no sigue una ruta que sale del bucket (otro servidor u otra carpeta)", () => {
     const leido = leerCatalogo(
       catalogo([
-        paquete({ ambito_id: "a", partes: [{ archivo: "https://malo.example/x.pmtiles" }] }),
-        paquete({ ambito_id: "b", partes: [{ archivo: "../../../otro/x.pmtiles" }] }),
-        paquete({ ambito_id: "c" }),
+        paquete({ id: "a", ambito_id: "a", partes: [parte("https://malo.example/x.pmtiles")] }),
+        paquete({ id: "b", ambito_id: "b", partes: [parte("../../../otro/x.pmtiles")] }),
+        paquete({ id: "c", ambito_id: "c" }),
       ]),
       URL_CATALOGO,
     );
@@ -96,6 +102,79 @@ describe("leerCatalogo", () => {
       expect(() => leerCatalogo(json, URL_CATALOGO)).toThrow(MapaBaseInvalido);
     },
   );
+});
+
+describe("leerCatalogo con las reglas del celular (lib-mapa#9 P5)", () => {
+  const ids = (paquetes: unknown[]) => leerCatalogo(catalogo(paquetes), URL_CATALOGO).paquetes.map((p) => p.ambitoId);
+
+  it.each([
+    "paquetes/ciudad/mvd.pmtiles?x=1",
+    "paquetes/ciudad/mvd.pmtiles#parte",
+    "./paquetes/ciudad/mvd.pmtiles",
+    "paquetes/./ciudad/mvd.pmtiles",
+    "paquetes/../paquetes/ciudad/mvd.pmtiles",
+    "/storage/v1/object/public/mapas/paquetes/ciudad/mvd.pmtiles",
+    "https://abc.supabase.co/storage/v1/object/public/mapas/paquetes/ciudad/mvd.pmtiles",
+    "//abc.supabase.co/storage/v1/object/public/mapas/paquetes/ciudad/mvd.pmtiles",
+    "paquetes\\ciudad\\mvd.pmtiles",
+    "",
+  ])("descarta el paquete con la ruta %j aunque quede dentro del bucket", (archivo) => {
+    expect(ids([paquete({ partes: [parte(archivo)] })])).toEqual([]);
+  });
+
+  it("descarta el id repetido: vale el primero", () => {
+    const leido = leerCatalogo(
+      catalogo([paquete(), paquete({ nombre: "Montevideo bis", ambito_id: "otra" }), paquete({ id: "ciudad-salto", ambito_id: "s" })]),
+      URL_CATALOGO,
+    );
+    expect(leido.paquetes.map((p) => [p.ambitoId, p.nombre])).toEqual([
+      [MONTEVIDEO, "Montevideo"],
+      ["s", "Montevideo"],
+    ]);
+  });
+
+  it.each([
+    ["sin id", { id: undefined }],
+    ["con un id que no es simple", { id: "ciudad/montevideo" }],
+    ["sin versión", { version: undefined }],
+    ["con la versión vacía", { version: "  " }],
+    ["con un nivel desconocido", { nivel: "barrio" }],
+    ["sin sha256", { partes: [parte("paquetes/ciudad/mvd.pmtiles", { sha256: undefined })] }],
+    ["con un sha256 corto", { partes: [parte("paquetes/ciudad/mvd.pmtiles", { sha256: "abc" })] }],
+    ["sin tamaño", { partes: [parte("paquetes/ciudad/mvd.pmtiles", { tamano_bytes: undefined })] }],
+    ["con tamaño 0", { partes: [parte("paquetes/ciudad/mvd.pmtiles", { tamano_bytes: 0 })] }],
+    ["con un tamaño no entero", { partes: [parte("paquetes/ciudad/mvd.pmtiles", { tamano_bytes: 1.5 })] }],
+  ])("descarta el paquete %s sin tirar el resto", (_, sobre) => {
+    expect(ids([paquete(sobre), paquete({ id: "ciudad-salto", ambito_id: "s" })])).toEqual(["s"]);
+  });
+
+  it("un paquete de departamento o de Uruguay cuenta para el id repetido pero no es el de una ciudad", () => {
+    expect(ids([paquete({ nivel: "departamento" }), paquete({ ambito_id: "otra" })])).toEqual([]);
+    expect(ids([paquete({ id: "uy", nivel: "uruguay", ambito_id: undefined }), paquete()])).toEqual([MONTEVIDEO]);
+  });
+
+  it.each([undefined, 2, "1", 0])("rechaza el catálogo entero con formato %j (no es el 1)", (version) => {
+    expect(() => leerCatalogo({ ...catalogo(), version }, URL_CATALOGO)).toThrow(MapaBaseInvalido);
+  });
+
+  it("rechaza el estilo con una ruta que no es simple", () => {
+    expect(() => leerCatalogo({ ...catalogo(), estilo: { url: "estilo/colportores.json?v=2" } }, URL_CATALOGO)).toThrow(MapaBaseInvalido);
+    expect(() => leerCatalogo({ ...catalogo(), estilo: { url: "./estilo/colportores.json" } }, URL_CATALOGO)).toThrow(MapaBaseInvalido);
+  });
+});
+
+describe("leerCatalogo contra los casos de lib-mapa (pruebas/catalogo/casos.json)", () => {
+  for (const caso of casosDeLaLibreria.casos) {
+    it(caso.nombre, () => {
+      const leido = leerCatalogo(catalogoDeLaLibreria, casosDeLaLibreria.urlDelCatalogo);
+      const paquete = paqueteDeCiudad(leido, caso.ambitoId);
+      expect(paquete === null ? null : { nombre: paquete.nombre, partes: paquete.partes }).toEqual(caso.esperado);
+    });
+  }
+
+  it("trae al menos los casos de la v1.0.0", () => {
+    expect(casosDeLaLibreria.casos.length).toBeGreaterThanOrEqual(10);
+  });
 });
 
 describe("paqueteDeCiudad", () => {
