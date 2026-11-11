@@ -7,6 +7,7 @@ import type { RespuestaDeInicio } from "@/auth/acciones";
 import { rutaDeAcceso, type MotivoDeAcceso } from "@/auth/guarda";
 import { TEXTOS_DE_ACCESO as T, textoSinAcceso } from "@/features/acceso/textos";
 import { guardarUltimoCorreo, leerUltimoCorreo, olvidarUltimoCorreo } from "@/features/acceso/ultimo-correo";
+import { contrasenaCorta, normalizarCorreo, problemaDeCorreo } from "@/features/acceso/validacion";
 import { cn } from "@/lib/utils";
 
 /**
@@ -26,6 +27,10 @@ import { cn } from "@/lib/utils";
  * Casos límite (no los dibuja el canvas, los pide el flujo): un envío a la vez aunque se aprieten dos veces el botón o Enter;
  * si la acción falla a mitad de camino el botón vuelve a habilitarse; atrás y adelante no dejan nada trabado (el estado es
  * de la pantalla y la sesión vive en el servidor); correos y contraseñas largos no rompen el diseño.
+ *
+ * Validación de los campos (#177, sin artboard; la regla es la del login del celular, ver `validacion.ts`): un correo mal
+ * armado o una contraseña más corta que el mínimo no se mandan. El aviso sale en el propio campo al salir de él con algo
+ * escrito o al querer entrar, se corrige solo mientras se escribe, y «Entrar» lleva el foco al primer campo que hay que revisar.
  *
  * Qué NO tiene, a propósito: «¿Olvidaste tu contraseña?» (el canvas lo dibuja sin destino y pregunta adónde lleva: hasta que se
  * decida no hay un enlace sin destino). Ver el archivo de pendientes del PR.
@@ -138,6 +143,26 @@ const sinSuscripcion = () => () => {};
 
 const CLASE_DE_ETIQUETA = "font-mono text-etiqueta tracking-[.14em] text-tinta-suave";
 
+/** El aviso del campo del correo (ya normalizado), o `null` si pasa o si todavía no hay nada escrito. */
+function avisoDelCorreo(correo: string): string | null {
+  if (correo === "") return null;
+  switch (problemaDeCorreo(correo)) {
+    case "caracter-no-permitido":
+      return T.correoConCaracterQueNoVa;
+    case "incompleto":
+      return T.correoIncompleto;
+    default:
+      return null;
+  }
+}
+
+/** El aviso del campo de la contraseña, o `null` si llega al mínimo o si todavía no hay nada escrito. */
+function avisoDeLaContrasena(contrasena: string): string | null {
+  return contrasena !== "" && contrasenaCorta(contrasena) ? T.contrasenaCorta : null;
+}
+
+const SIN_REVISAR = { correo: false, contrasena: false };
+
 export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, iniciar, cerrar, irA = (ruta) => window.location.assign(ruta) }: PropiedadesDeAcceso) {
   // 05 y 07 dejan el correo escrito (el canvas solo vacía la contraseña) si esta pestaña sabe con cuál se entró; nunca sale de la URL.
   const precargaElCorreo = motivo === "vencida" || motivo === "cerrada";
@@ -147,6 +172,9 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
   const [contrasena, setContrasena] = useState("");
   const [aviso, setAviso] = useState<Aviso | null>(avisoInicial(motivo));
   const [enviando, setEnviando] = useState(false);
+  // Qué campos ya se miraron (se salió de ellos con algo escrito, o se quiso entrar): recién ahí su aviso sale, y no mientras
+  // se escribe por primera vez.
+  const [revisado, setRevisado] = useState(SIN_REVISAR);
   // El artboard 04: la cuenta entró (o ya tenía sesión) pero no es de coordinador.
   // `suspendida` es la misma pantalla con otro texto: «Cuenta suspendida. Contactá al administrador.».
   const [sinAcceso, setSinAcceso] = useState<{ correo: string | null; suspendida: boolean } | null>(
@@ -160,10 +188,11 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
   const campoClave = useRef<HTMLInputElement>(null);
   const titulo = useRef<HTMLHeadingElement>(null);
   // Adónde va el foco después del próximo render: se pide junto con el cambio de estado y lo consume el efecto de abajo.
-  const focoPendiente = useRef<"correo" | "titulo" | null>(null);
+  const focoPendiente = useRef<"correo" | "contrasena" | "titulo" | null>(null);
 
   useEffect(() => {
     if (focoPendiente.current === "correo") campoCorreo.current?.focus();
+    if (focoPendiente.current === "contrasena") campoClave.current?.focus();
     if (focoPendiente.current === "titulo") titulo.current?.focus();
     focoPendiente.current = null;
   });
@@ -174,7 +203,11 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
     if (conCorreoPrecargado) campoClave.current?.focus();
   }, [conCorreoPrecargado]);
 
-  const completo = correo.trim() !== "" && contrasena !== "";
+  // Lo que se valida y se manda: sin invisibles, sin espacios alrededor y en minúsculas (la regla de HU-AUTH-001).
+  const correoNormalizado = normalizarCorreo(correo);
+  const completo = correoNormalizado !== "" && contrasena !== "";
+  const avisoDeCorreo = revisado.correo ? avisoDelCorreo(correoNormalizado) : null;
+  const avisoDeContrasena = revisado.contrasena ? avisoDeLaContrasena(contrasena) : null;
   // «Reintentar» tras un servicio caído que vino de la guarda de rutas (sin nada escrito) vuelve a pedir la pantalla de antes.
   const reintentaLaPantalla = aviso === "no-disponible" && !completo && !sinAcceso;
   const apagado = enviando || (!enLinea && !sinAcceso) || (!completo && !reintentaLaPantalla && !sinAcceso);
@@ -186,16 +219,26 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
       return;
     }
     if (!completo || !enLinea) return;
+    // Lo que no puede ser un correo o una contraseña no se manda: el aviso sale en su campo y el foco va al primero a revisar.
+    const correoInvalido = avisoDelCorreo(correoNormalizado) !== null;
+    const contrasenaInvalida = avisoDeLaContrasena(contrasena) !== null;
+    if (correoInvalido || contrasenaInvalida) {
+      setRevisado({ correo: true, contrasena: true });
+      // El «no son correctos» del intento anterior ya no habla de lo que está escrito.
+      if (aviso === "credenciales") setAviso(null);
+      focoPendiente.current = correoInvalido ? "correo" : "contrasena";
+      return;
+    }
     enCurso.current = true;
     setEnviando(true);
     setAviso(null);
     let entro = false;
     try {
-      const respuesta = await iniciar(correo, contrasena, siguiente);
+      const respuesta = await iniciar(correoNormalizado, contrasena, siguiente);
       switch (respuesta.tipo) {
         case "ok":
           entro = true;
-          guardarUltimoCorreo(correo.trim());
+          guardarUltimoCorreo(correoNormalizado);
           // Carga completa: la página siguiente se pide con la cookie nueva y el marco del panel.
           irA(respuesta.destino);
           return;
@@ -212,7 +255,7 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
           focoPendiente.current = "correo";
           return;
         case "sin-acceso":
-          setSinAcceso({ correo: correo.trim(), suspendida: false });
+          setSinAcceso({ correo: correoNormalizado, suspendida: false });
           setContrasena("");
           focoPendiente.current = "titulo";
           return;
@@ -257,6 +300,7 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
     olvidarUltimoCorreo();
     setCorreo("");
     setContrasena("");
+    setRevisado(SIN_REVISAR);
     focoPendiente.current = "correo";
     try {
       window.history.replaceState(null, "", rutaDeAcceso(null, siguiente));
@@ -272,7 +316,27 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
 
   // Sin red, el aviso que manda es ese; el mensaje bajo los campos (credenciales) se queda.
   const cartel = !enLinea && !sinAcceso ? datosDelAviso("sin-conexion") : aviso ? datosDelAviso(aviso) : null;
-  const errorDeCampo = aviso === "credenciales" ? T.credenciales : null;
+  // Con un aviso de formato a la vista, el de credenciales del intento anterior se calla: primero hay que corregir el campo.
+  const errorDeCampo = aviso === "credenciales" && !avisoDeCorreo && !avisoDeContrasena ? T.credenciales : null;
+
+  function alCambiarElCorreo(valor: string) {
+    setCorreo(valor);
+    // Vaciado el campo, se empieza de nuevo: el aviso no vuelve con la primera letra.
+    if (normalizarCorreo(valor) === "") setRevisado((antes) => (antes.correo ? { ...antes, correo: false } : antes));
+  }
+
+  function alCambiarLaContrasena(valor: string) {
+    setContrasena(valor);
+    if (valor === "") setRevisado((antes) => (antes.contrasena ? { ...antes, contrasena: false } : antes));
+  }
+
+  function alSalirDelCorreo() {
+    if (correoNormalizado !== "") setRevisado((antes) => (antes.correo ? antes : { ...antes, correo: true }));
+  }
+
+  function alSalirDeLaContrasena() {
+    if (contrasena !== "") setRevisado((antes) => (antes.contrasena ? antes : { ...antes, contrasena: true }));
+  }
 
   let pie: string | null = null;
   if (!sinAcceso) {
@@ -312,46 +376,65 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
           <form onSubmit={alEnviar} noValidate className="flex flex-col gap-[22px]">
             {sinAcceso ? null : (
               <div className="flex flex-col gap-[18px]">
-                <label className="flex flex-col gap-[7px]">
-                  <span className={CLASE_DE_ETIQUETA}>{T.correo}</span>
-                  <input
-                    ref={campoCorreo}
-                    type="email"
-                    name="correo"
-                    autoComplete="username"
-                    spellCheck={false}
-                    maxLength={254}
-                    placeholder={T.placeholderCorreo}
-                    value={correo}
-                    onChange={(evento) => setCorreo(evento.target.value)}
-                    disabled={enviando}
-                    aria-invalid={errorDeCampo ? true : undefined}
-                    aria-describedby={errorDeCampo ? "error-de-acceso" : undefined}
-                    className={cn(
-                      "min-w-0 rounded-control border bg-superficie px-3 py-[11px] text-[14px] text-tinta outline-none focus-visible:ring-2 focus-visible:ring-acento disabled:bg-superficie-suave disabled:text-tinta-suave",
-                      errorDeCampo ? "border-peligro" : "border-grafico-neutro",
-                    )}
-                  />
-                </label>
-                <label className="flex flex-col gap-[7px]">
-                  <span className={CLASE_DE_ETIQUETA}>{T.contrasena}</span>
-                  <input
-                    ref={campoClave}
-                    type="password"
-                    name="contrasena"
-                    autoComplete="current-password"
-                    placeholder={T.placeholderContrasena}
-                    value={contrasena}
-                    onChange={(evento) => setContrasena(evento.target.value)}
-                    disabled={enviando}
-                    aria-invalid={errorDeCampo ? true : undefined}
-                    aria-describedby={errorDeCampo ? "error-de-acceso" : undefined}
-                    className={cn(
-                      "min-w-0 rounded-control border bg-superficie px-3 py-[11px] text-[14px] text-tinta outline-none focus-visible:ring-2 focus-visible:ring-acento disabled:bg-superficie-suave disabled:text-tinta-suave",
-                      errorDeCampo ? "border-peligro" : "border-grafico-neutro",
-                    )}
-                  />
-                </label>
+                <div className="flex flex-col gap-[7px]">
+                  <label className="flex flex-col gap-[7px]">
+                    <span className={CLASE_DE_ETIQUETA}>{T.correo}</span>
+                    <input
+                      ref={campoCorreo}
+                      type="email"
+                      name="correo"
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      maxLength={254}
+                      required
+                      placeholder={T.placeholderCorreo}
+                      value={correo}
+                      onChange={(evento) => alCambiarElCorreo(evento.target.value)}
+                      onBlur={alSalirDelCorreo}
+                      disabled={enviando}
+                      aria-invalid={avisoDeCorreo || errorDeCampo ? true : undefined}
+                      aria-describedby={avisoDeCorreo ? "aviso-del-correo" : errorDeCampo ? "error-de-acceso" : undefined}
+                      className={cn(
+                        "min-w-0 rounded-control border bg-superficie px-3 py-[11px] text-[14px] text-tinta outline-none focus-visible:ring-2 focus-visible:ring-acento disabled:bg-superficie-suave disabled:text-tinta-suave",
+                        avisoDeCorreo || errorDeCampo ? "border-peligro" : "border-grafico-neutro",
+                      )}
+                    />
+                  </label>
+                  {avisoDeCorreo ? (
+                    <p id="aviso-del-correo" role="alert" className="text-cuerpo text-pretty text-peligro">
+                      {avisoDeCorreo}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex flex-col gap-[7px]">
+                  <label className="flex flex-col gap-[7px]">
+                    <span className={CLASE_DE_ETIQUETA}>{T.contrasena}</span>
+                    <input
+                      ref={campoClave}
+                      type="password"
+                      name="contrasena"
+                      autoComplete="current-password"
+                      required
+                      placeholder={T.placeholderContrasena}
+                      value={contrasena}
+                      onChange={(evento) => alCambiarLaContrasena(evento.target.value)}
+                      onBlur={alSalirDeLaContrasena}
+                      disabled={enviando}
+                      aria-invalid={avisoDeContrasena || errorDeCampo ? true : undefined}
+                      aria-describedby={avisoDeContrasena ? "aviso-de-la-contrasena" : errorDeCampo ? "error-de-acceso" : undefined}
+                      className={cn(
+                        "min-w-0 rounded-control border bg-superficie px-3 py-[11px] text-[14px] text-tinta outline-none focus-visible:ring-2 focus-visible:ring-acento disabled:bg-superficie-suave disabled:text-tinta-suave",
+                        avisoDeContrasena || errorDeCampo ? "border-peligro" : "border-grafico-neutro",
+                      )}
+                    />
+                  </label>
+                  {avisoDeContrasena ? (
+                    <p id="aviso-de-la-contrasena" role="alert" className="text-cuerpo text-pretty text-peligro">
+                      {avisoDeContrasena}
+                    </p>
+                  ) : null}
+                </div>
                 {errorDeCampo ? (
                   <p id="error-de-acceso" role="alert" className="-mt-2 text-cuerpo text-peligro">
                     {errorDeCampo}

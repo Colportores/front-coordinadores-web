@@ -43,6 +43,8 @@ docker compose -f compose.dev.yml up
 
 Las pestañas **Stock** y **Cuentas** muestran datos simulados hasta su conexión en V2: tienen flag propio (`NEXT_PUBLIC_PESTANA_STOCK`, `NEXT_PUBLIC_PESTANA_CUENTAS`) que, si no se define, sigue al modo dev. En staging y producción quedan ocultas: `src/proxy.ts` reescribe esas rutas a un 404 antes de renderizar (así ni el HTML ni el payload RSC llevan su contenido) y, con el flag apagado, la ruta no se prerenderiza (`LayoutPestanaConFlag`).
 
+En **Equipo**, el botón **Becas** (vista 33) solo aparece si la fuente trae las becas: con los datos simulados sí, conectado a Supabase no, porque falta la RPC del catálogo de carreras. `NEXT_PUBLIC_EQUIPO_BECAS=1` lo muestra siempre y `0` lo oculta siempre (`src/config/flags.ts`, `becasDeEquipoVisibles`).
+
 ### Equipo con datos reales de Supabase (solo desarrollo)
 
 Para la demo, la pestaña **Equipo** puede leer la campaña y los colportores reales de un proyecto de Supabase en vez de los simulados (issue #45). Es un puente de desarrollo con la cuenta de un coordinador cargada en el servidor: la conexión definitiva usa el login del coordinador (sección siguiente) y la RPC de cada pestaña.
@@ -64,10 +66,11 @@ Después `docker compose -f compose.dev.yml up` y abrí `/equipo`. El servidor i
 
 ### Ciudades y zonas con datos reales de Supabase (solo desarrollo)
 
-La pestaña **Ciudades** (vista 24, issue #40) usa el mismo puente y las mismas cuatro variables: con ellas lee y escribe por las RPC `ciudades_de_campania()`, `zonas_de_ciudad()`, `colportores_de_campania()`, `ciudades_del_catalogo()`, `agregar_ciudad_a_campania()`, `guardar_zona()`, `baja_zona()`, `asignar_zona()` y `quitar_zona()` (`src/datos/equipo/zonas/rpc.ts`). Se apaga sola igual que Equipo (sin variables, o en cualquier build de producción, queda la simulada).
+La pestaña **Ciudades** (vista 24, issue #40) usa el mismo puente y las mismas cuatro variables: con ellas lee y escribe por las RPC `ciudades_de_campania()`, `zonas_de_ciudad()`, `colportores_de_campania()`, `ciudades_del_catalogo()`, `agregar_ciudad_a_campania()`, `guardar_zona()`, `baja_zona()`, `asignar_zona()`, `quitar_zona()` y, para las zonas por esquinas, `esquina_mas_cercana()`, `tramo_por_calles()` y `poligono_por_calles()` (`src/datos/equipo/zonas/rpc.ts`). Se apaga sola igual que Equipo (sin variables, o en cualquier build de producción, queda la simulada).
 
 - **Campaña:** la primera de `campanias_del_coordinador()` (`src/datos/supabase/campania-provisoria.ts`); cómo se elige cuando el coordinador tiene varias está pendiente de decisión. Sin una campaña en curso ni por empezar, la vista lo dice en vez de mostrar el mapa.
-- **Lo que todavía no está conectado:** las zonas **por esquinas** (marcar una esquina, el borde por calles y guardarlas) esperan a `backend-supabase#25`; la **superposición** con otra zona y el aviso de **calle compartida** no los calcula ninguna RPC, así que no se muestran; el buscador de ciudades no trae provincia porque el catálogo de la base no la tiene.
+- **Zonas por esquinas (#179):** la esquina más cercana, el borde por calles y el guardado salen de las RPC de la migración 0036 (`backend-supabase#25`). Necesitan que la ciudad tenga las calles cargadas en la base (`scripts/db-importar-calles.sh` de backend-supabase): sin ellas la base contesta `CZ015` y la vista muestra ese aviso; la zona radial no las necesita. La **superposición** con otra zona y el aviso de **calle compartida** salen de `guardar_zona()` (`superposiciones`, `calles_compartidas`): se muestra una de cada una.
+- **Lo que todavía no está conectado:** el buscador de ciudades no trae provincia porque el catálogo de la base no la tiene.
 - **Colportores:** cada ciudad lista a todos los inscriptos de la campaña con su zona (la zona de un colportor es una por campaña, de la ciudad que sea).
 
 ## Acceso del coordinador y conexión a Supabase
