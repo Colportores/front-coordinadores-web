@@ -102,7 +102,7 @@ Nunca un dato simulado sin aviso. `AvisoVersionDePrueba` (la franja fija de arri
 
 El panel se publica para probarlo desde un navegador, **desde la rama `staging`** (o a mano desde `develop`) y **con datos simulados**: sin backend, sin claves, sin datos de personas.
 
-- **URL:** https://colportores.github.io/front-coordinadores-web/ (ya no se actualiza solo con cada push a `staging`: el despliegue automático de staging es el de Cloudflare Pages, `deploy-cloudflare.yml`; a mano: `gh workflow run staging.yml --ref staging`, que llama a `deploy-pages.yml`, o `gh workflow run deploy-pages.yml --ref develop`; no hay deploys desde feature, PR ni production).
+- **URL:** https://colportores.github.io/front-coordinadores-web/ (ya no se actualiza solo con cada push a `staging`: el despliegue automático de staging es el de Vercel, por su integración con Git: sin workflow ni secretos de GitHub, ver `docs/ci-cd.md`; a mano: `gh workflow run staging.yml --ref staging`, que llama a `deploy-pages.yml`, o `gh workflow run deploy-pages.yml --ref develop`; no hay deploys desde feature, PR ni production).
 - Es un sitio público, sin acceso restringido: lleva `noindex, nofollow` y un `robots.txt` que bloquea todo. El modo dev está prendido: todas las pestañas visibles y el estado de cada HU.
 - **Aviso fijo en cada pantalla** (`AvisoVersionDePrueba`, arriba del topbar, sin botón para cerrarlo): «Versión de prueba con datos simulados. Lo que hagas no se guarda: al recargar la página vuelve a los datos de ejemplo.» En este build (`NEXT_PUBLIC_DEPLOY_PAGES=1`) `build:pages` falla si alguna página no lo lleva. Fuera de Pages el mismo componente avisa cuando hay datos simulados a la vista (ver «Aviso de datos simulados» más abajo).
 - **Qué lo distingue del build normal:** export estático (`output: 'export'`) con `basePath` y `assetPrefix` `/front-coordinadores-web`, solo cuando corre `npm run build:pages` (`DEPLOY_PAGES=1`, ver `next.config.ts`). `next dev`, `npm run build` y el CI de siempre no cambian.
@@ -143,7 +143,7 @@ Ramas `develop → staging → production`. Los compilados y publicaciones de de
 
 | Workflow | Cuándo | Qué hace |
 |---|---|---|
-| `staging.yml` | solo a mano, desde `develop` o `staging` (ya no corre por push a `staging`: el único despliegue automático es `deploy-cloudflare.yml`) | llama a `deploy-pages.yml` (sitio de prueba en Pages, datos simulados) y a `demo-supabase-dev.yml` (artefacto `panel-supabase-dev`, conectado al Supabase **dev**), los dos como `workflow_call` |
+| `staging.yml` | solo a mano, desde `develop` o `staging` (ya no corre por push a `staging`: el único despliegue automático de staging es el de Vercel, por su integración con Git) | llama a `deploy-pages.yml` (sitio de prueba en Pages, datos simulados) y a `demo-supabase-dev.yml` (artefacto `panel-supabase-dev`, conectado al Supabase **dev**), los dos como `workflow_call` |
 | `production.yml` | push a `production` | `next build` con las variables del environment `production` y `PANEL_EXIGIR_SUPABASE=1`, y deploy a Vercel (ADR-015). Exige `APP_ENV=production`, rechaza la URL del proyecto dev y falla claro si falta algo: hoy no hay Supabase de producción (diciembre) |
 
 - Demo sin pasar por staging: `gh workflow run staging.yml --ref develop` (o `demo-supabase-dev.yml` / `deploy-pages.yml` por separado).
