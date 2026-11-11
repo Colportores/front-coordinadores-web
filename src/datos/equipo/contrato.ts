@@ -255,6 +255,12 @@ export type ResultadoAcompanamiento =
 /** Estado de la cuenta de un candidato (HU-CAM-004). `suspendida` no se puede añadir. */
 export type EstadoCuenta = "pendiente_asignacion" | "activa" | "suspendida";
 
+/**
+ * La cuenta no es de un colportor: es de coordinación (de cualquier campaña) o de administración. Se la puede añadir igual
+ * (HU-CAM-004, decisión del 02/10), pero la vista 23 lo advierte y pide confirmarlo (decisión de Cristian, 11/11).
+ */
+export type RolDeCuenta = "coordinador" | "administracion";
+
 /** Cuenta que el coordinador puede buscar para añadirla a su campaña. */
 export interface CandidatoColportor {
   id: string;
@@ -270,6 +276,11 @@ export interface CandidatoColportor {
   enOtraCampania: boolean;
   /** Fecha de creación de la cuenta, ISO `AAAA-MM-DD`. */
   cuentaCreada: string;
+  /**
+   * Solo si la cuenta es de coordinación o de administración (`rol_cuenta` de `buscar_candidatos()`, 0187). Sin el dato
+   * (una cuenta de colportor, o una base que todavía no lo manda) la fila no lleva etiqueta ni pide confirmación.
+   */
+  rolCuenta?: RolDeCuenta;
 }
 
 /** Colportor que ya está en la campaña; `zonaNombre` es `null` mientras no tenga zona. */

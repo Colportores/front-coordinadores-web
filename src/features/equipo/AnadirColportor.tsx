@@ -12,7 +12,9 @@ import type {
   ResultadoInscripcion,
 } from "@/datos/equipo/contrato";
 import {
+  avisoRol,
   ayudaBloqueo,
+  etiquetaRol,
   fechaCorta,
   iniciales,
   MAX_CARACTERES_TITULO,
@@ -89,6 +91,47 @@ function AvisoBloqueo({ texto }: { texto: string }) {
   );
 }
 
+/**
+ * Etiqueta de una cuenta de coordinación o de administración, junto al nombre (decisión de Cristian, 11/11). No depende del
+ * color: lleva el ícono «!» y el texto, y un borde que la distingue de la pastilla del estado. Para el lector de pantalla
+ * dice «Atención: cuenta de…»; los botones de la fila la toman como descripción (`aria-describedby`).
+ */
+function EtiquetaRol({ id, texto }: { id?: string; texto: string }) {
+  return (
+    <span
+      id={id}
+      data-etiqueta-rol
+      className="inline-flex items-center gap-[5px] rounded-pastilla border border-alerta bg-alerta-fondo py-[2px] pr-2 pl-[3px] text-mini font-semibold whitespace-nowrap text-alerta"
+    >
+      <span
+        aria-hidden
+        className="grid size-3.5 flex-none place-items-center rounded-full bg-alerta text-etiqueta leading-none font-bold text-superficie"
+      >
+        !
+      </span>
+      {/* El espacio va fuera del texto oculto: adentro, la descripción accesible lo recorta y pega las dos palabras. */}
+      <span className="sr-only">Atención: cuenta de</span> {texto}
+    </span>
+  );
+}
+
+/** La advertencia de la cuenta de coordinación o de administración en el detalle: avisa, no bloquea. */
+function AvisoRol({ id, texto }: { id: string; texto: string }) {
+  return (
+    <span id={id} role="note" className="flex items-start gap-[7px] text-cuerpo font-medium text-alerta">
+      <span
+        aria-hidden
+        className="grid size-4 flex-none place-items-center rounded-full bg-alerta text-etiqueta font-bold text-superficie"
+      >
+        !
+      </span>
+      {texto}
+    </span>
+  );
+}
+
+const idEtiquetaRol = (id: string) => `rol-de-cuenta-${id}`;
+
 const idTextoAviso = (id: string) => `aviso-anadido-${id}`;
 
 /**
@@ -163,6 +206,9 @@ interface FilaProps {
 function FilaCandidato({ candidato, elegido, activo, anadido, onElegir, onAnadir }: FilaProps) {
   const bloqueo = motivoBloqueo(candidato);
   const deshabilitado = bloqueo !== null || anadido;
+  const rol = etiquetaRol(candidato);
+  // Los dos botones de la fila tienen nombre propio (`aria-label`), que tapa su contenido: la etiqueta va como descripción.
+  const descritoPorRol = rol !== null ? idEtiquetaRol(candidato.id) : undefined;
 
   return (
     <li
@@ -181,6 +227,7 @@ function FilaCandidato({ candidato, elegido, activo, anadido, onElegir, onAnadir
         onClick={onElegir}
         aria-pressed={elegido}
         aria-label={`Elegir a ${candidato.nombre}`}
+        aria-describedby={descritoPorRol}
         className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-control text-left focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none"
       >
         <Avatar nombre={candidato.nombre} apagado={candidato.estadoCuenta === "suspendida"} />
@@ -188,6 +235,7 @@ function FilaCandidato({ candidato, elegido, activo, anadido, onElegir, onAnadir
           <span className="flex flex-wrap items-center gap-2">
             <span className="min-w-0 text-[13.5px] font-semibold break-words text-tinta">{candidato.nombre}</span>
             <PastillaEstado estado={candidato.estadoCuenta} />
+            {rol !== null ? <EtiquetaRol id={descritoPorRol} texto={rol} /> : null}
           </span>
           <span className="text-cuerpo break-all text-tinta-2">{candidato.email}</span>
           <span className="text-chico text-tinta-suave">
@@ -203,6 +251,7 @@ function FilaCandidato({ candidato, elegido, activo, anadido, onElegir, onAnadir
         onClick={onAnadir}
         data-anadir-id={candidato.id}
         aria-label={`Añadir a ${candidato.nombre}`}
+        aria-describedby={descritoPorRol}
         className={cn(
           "min-h-9 text-nav font-semibold",
           !elegido && "text-tinta-2",
@@ -234,6 +283,8 @@ interface DetalleProps {
 function DetalleCuenta({ candidato, campania, anadido, onAnadir }: DetalleProps) {
   const bloqueo = motivoBloqueo(candidato);
   const ayuda = ayudaBloqueo(candidato);
+  const rol = etiquetaRol(candidato);
+  const aviso = avisoRol(candidato);
 
   return (
     <section
@@ -251,17 +302,24 @@ function DetalleCuenta({ candidato, campania, anadido, onAnadir }: DetalleProps)
         <DatoDetalle etiqueta="Estado de la cuenta">
           <PastillaEstado estado={candidato.estadoCuenta} />
         </DatoDetalle>
+        {rol !== null ? (
+          <DatoDetalle etiqueta="Tipo de cuenta">
+            <EtiquetaRol texto={rol} />
+          </DatoDetalle>
+        ) : null}
         <DatoDetalle etiqueta="Campaña actual">{candidato.campaniaActual ?? "Sin campaña"}</DatoDetalle>
         <DatoDetalle etiqueta="Zona">Sin zona</DatoDetalle>
         <DatoDetalle etiqueta="Cuenta creada">{fechaCorta(candidato.cuentaCreada)}</DatoDetalle>
       </dl>
       {bloqueo ? <AvisoBloqueo texto={bloqueo} /> : null}
+      {aviso !== null ? <AvisoRol id={`aviso-rol-detalle-${candidato.id}`} texto={aviso} /> : null}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button
           type="button"
           disabled={bloqueo !== null || anadido}
           onClick={onAnadir}
           data-anadir-id={candidato.id}
+          aria-describedby={aviso !== null ? `aviso-rol-detalle-${candidato.id}` : undefined}
           // Con una campaña de nombre largo el texto corta línea en vez de desbordar la columna: en los espacios y, si el nombre
           // no los tiene, en medio de la palabra. `break-words` no alcanza acá: el botón es `inline-flex` y su texto es un ítem
           // flex que no baja de la palabra más larga; `wrap-anywhere` (`overflow-wrap: anywhere`) sí achica ese mínimo.

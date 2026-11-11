@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { CANDIDATOS_SIMULADOS } from "@/datos/equipo/simulado";
 import {
+  avisoRol,
   ayudaBloqueo,
+  etiquetaRol,
   fechaCorta,
   iniciales,
   MAX_CARACTERES_TITULO,
@@ -52,6 +54,28 @@ describe("candidatos", () => {
     it("la suspensión gana sobre la otra campaña, como en el servidor (`motivo_rechazo_inscripcion()`)", () => {
       const ambas = { ...porId("usr-mariana-olivera"), campaniaActual: "Otoño Norte", enOtraCampania: true };
       expect(motivoBloqueo(ambas)).toBe("Cuenta suspendida. Pedí a un administrador que la reactive para añadirla.");
+    });
+  });
+
+  describe("etiquetaRol y avisoRol (cuenta de coordinación o de administración, decisión del 11/11)", () => {
+    it("la cuenta de un colportor no lleva etiqueta ni aviso", () => {
+      expect(etiquetaRol(porId("usr-ana-martinez"))).toBeNull();
+      expect(avisoRol(porId("usr-ana-martinez"))).toBeNull();
+    });
+
+    it("la de coordinación dice «Coordinador» y avisa que no es de un colportor", () => {
+      expect(etiquetaRol(porId("usr-tomas-ibarra"))).toBe("Coordinador");
+      expect(avisoRol(porId("usr-tomas-ibarra"))).toBe("Esta cuenta es de coordinación, no de un colportor.");
+    });
+
+    it("la de administración dice «Administración»", () => {
+      expect(etiquetaRol(porId("usr-marta-rivas"))).toBe("Administración");
+      expect(avisoRol(porId("usr-marta-rivas"))).toBe("Esta cuenta es de administración, no de un colportor.");
+    });
+
+    it("el rol no bloquea: se puede añadir (HU-CAM-004, 02/10)", () => {
+      expect(motivoBloqueo(porId("usr-tomas-ibarra"))).toBeNull();
+      expect(motivoBloqueo(porId("usr-marta-rivas"))).toBeNull();
     });
   });
 
