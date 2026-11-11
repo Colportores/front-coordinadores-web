@@ -408,29 +408,38 @@ describe("zonas por esquinas: los rechazos de la base (#179)", () => {
     expect(acc.esquinaMasCercana).toHaveBeenCalledTimes(2);
   });
 
-  it("sin camino por las calles hasta una esquina: el aviso de la base, la esquina no se agrega y se puede elegir otra", async () => {
+  it("sin camino por las calles entre dos esquinas: el aviso de la base dice además cuáles son, no se borra ninguna y se puede cambiar una", async () => {
     let sinCamino = true;
     montar({
-      tramoPorCalles: vi.fn(async (c: string, a: Punto, b: Punto) => (sinCamino ? { rechazo: SIN_CAMINO } : fuenteZonasSimulada.tramoPorCalles(c, a, b))),
+      tramoPorCalles: vi.fn(async (c: string, a: Punto, b: Punto) =>
+        sinCamino ? { rechazo: SIN_CAMINO, sinCamino: true as const } : fuenteZonasSimulada.tramoPorCalles(c, a, b),
+      ),
     });
     await empezarPorEsquinas();
     await clicEnMapa(nodo(2, 3));
 
     await clicEnMapa(nodo(3, 3));
 
-    expect(screen.getByRole("alert")).toHaveTextContent(SIN_CAMINO);
-    expect(screen.getByText("ESQUINAS · 1")).toBeInTheDocument();
-    expect(mapa.props?.dibujo?.linea).toHaveLength(0);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      `${SIN_CAMINO} Son las esquinas 1 y 2: quitá una de las dos con su «×» en el mapa y marcá otra.`,
+    );
+    // Las esquinas siguen marcadas (#182) y el ícono de carga no queda prendido.
+    expect(screen.getByText("ESQUINAS · 2")).toBeInTheDocument();
+    expect(document.querySelector("[data-calculando-zona]")).toBeEmptyDOMElement();
 
+    // Se saca la esquina 2 con su «×» y se marca otra: el aviso se va.
     sinCamino = false;
-    await clicEnMapa(nodo(3, 3));
+    await act(async () => mapa.props?.onQuitarEsquina?.(1));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText("ESQUINAS · 1")).toBeInTheDocument();
+    await clicEnMapa(nodo(3, 4));
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByText("ESQUINAS · 2")).toBeInTheDocument();
     expect(mapa.props?.dibujo?.linea.length).toBeGreaterThan(1);
   });
 
-  it("«Quitar» con un tramo que la base rechaza muestra su aviso en vez de culpar a la conexión", async () => {
+  it("quitar una esquina con un tramo nuevo que la base rechaza muestra su aviso en vez de culpar a la conexión", async () => {
     let sinCamino = false;
     montar({
       tramoPorCalles: vi.fn(async (c: string, a: Punto, b: Punto) => (sinCamino ? { rechazo: SIN_CAMINO } : fuenteZonasSimulada.tramoPorCalles(c, a, b))),
@@ -439,8 +448,9 @@ describe("zonas por esquinas: los rechazos de la base (#179)", () => {
     for (const [v, h] of [[2, 3], [3, 3], [3, 4]]) await clicEnMapa(nodo(v, h));
     expect(screen.getByText("ESQUINAS · 3")).toBeInTheDocument();
 
+    // Sin la esquina del medio hace falta un tramo que todavía no se pidió, de la 1 a la que era la 3.
     sinCamino = true;
-    await userEvent.click(screen.getByRole("button", { name: "Quitar" }));
+    await act(async () => mapa.props?.onQuitarEsquina?.(1));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(SIN_CAMINO);
     expect(screen.queryByText(/Necesitás conexión/)).not.toBeInTheDocument();

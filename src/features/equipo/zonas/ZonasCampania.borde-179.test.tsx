@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Esquina, Punto, VistaPreviaZona } from "@/datos/equipo/zonas";
 import { DATOS_ZONAS_SIMULADO, fuenteZonasSimulada } from "@/datos/equipo/zonas/simulado";
-import { type AccionesZonas, TEXTO_BORDE_VUELVE, textoDeEsquinasCorridas, ZonasCampania } from "@/features/equipo/zonas/ZonasCampania";
+import { type AccionesZonas, textoBordeVuelve, textoDeEsquinasCorridas, ZonasCampania } from "@/features/equipo/zonas/ZonasCampania";
 import type { PropsMapaZonas } from "@/features/equipo/zonas/tipos";
 
 /**
@@ -200,7 +200,7 @@ describe("zonas por esquinas: el borde no va y vuelve por la misma cuadra (#179)
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("si la base rechaza la consulta del cruce, muestra su aviso y la esquina nueva no se agrega", async () => {
+  it("si la base rechaza la consulta del cruce, muestra su aviso y las esquinas quedan como se marcaron", async () => {
     const acc = await montarPorEsquinas(CON_VUELTA);
     await clicEnMapa(A);
     await clicEnMapa(B);
@@ -210,11 +210,11 @@ describe("zonas por esquinas: el borde no va y vuelve por la misma cuadra (#179)
     await clicEnMapa(C);
 
     expect(screen.getByRole("alert")).toHaveTextContent(rechazo);
-    expect(posiciones()).toEqual([A, B]);
+    expect(posiciones()).toEqual([A, B, C]);
     expect(screen.queryByText(new RegExp(MOTIVO))).not.toBeInTheDocument();
   });
 
-  it("si la red se cae al buscar el cruce, lo dice, no agrega la esquina y el clic siguiente funciona", async () => {
+  it("si la red se cae al buscar el cruce, lo dice, las esquinas quedan y «Reintentar» termina el cálculo", async () => {
     const acc = await montarPorEsquinas(CON_VUELTA);
     await clicEnMapa(A);
     await clicEnMapa(B);
@@ -222,17 +222,17 @@ describe("zonas por esquinas: el borde no va y vuelve por la misma cuadra (#179)
 
     await clicEnMapa(C);
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Necesitás conexión para marcar la esquina");
-    expect(posiciones()).toEqual([A, B]);
+    expect(screen.getByRole("alert")).toHaveTextContent("Necesitás conexión para calcular la zona");
+    expect(posiciones()).toEqual([A, B, C]);
 
-    await clicEnMapa(C);
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
+    await waitFor(() => expect(posiciones()).toEqual([A, p(1, 0), C]));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(posiciones()).toEqual([A, p(1, 0), C]);
     expect(screen.getByText(new RegExp(MOTIVO))).toBeInTheDocument();
   });
 
-  it("si con esa esquina el borde desanda todo el tramo anterior, no la agrega y dice qué hacer", async () => {
+  it("si en una esquina el borde desanda todo el tramo anterior, dice cuál es y qué hacer, sin borrar ninguna", async () => {
     await montarPorEsquinas({
       [clave(A, B)]: [A, p(1, 0), B],
       // De B a C pasando otra vez por A: el camino de A a B entero, de vuelta.
@@ -243,25 +243,31 @@ describe("zonas por esquinas: el borde no va y vuelve por la misma cuadra (#179)
 
     await clicEnMapa(C);
 
-    expect(screen.getByRole("alert")).toHaveTextContent(TEXTO_BORDE_VUELVE);
-    expect(posiciones()).toEqual([A, B]);
-    expect(screen.getByText("ESQUINAS · 2")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(textoBordeVuelve(2, 3));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "En la esquina 2 el borde vuelve por la misma calle por la que llegó. Quitá la esquina 2 o la 3 con su «×» en el mapa y marcá otra.",
+    );
+    expect(posiciones()).toEqual([A, B, C]);
+    expect(screen.getByText("ESQUINAS · 3")).toBeInTheDocument();
 
-    // Otra esquina, que no vuelve sobre nada, sí entra y el aviso se va.
+    // Con la «×» de la esquina 3 el aviso se va; otra esquina, que no vuelve sobre nada, entra sin aviso.
+    await act(async () => mapa.props?.onQuitarEsquina?.(2));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(posiciones()).toEqual([A, B]);
     await clicEnMapa(p(2, 3));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(posiciones()).toEqual([A, B, p(2, 3)]);
   });
 
-  it("si la esquina nueva cae sobre el tramo anterior (el borde volvería hasta ella), tampoco la agrega", async () => {
+  it("si la esquina nueva cae sobre el tramo anterior (el borde volvería hasta ella), también lo avisa", async () => {
     await montarPorEsquinas({ [clave(A, B)]: [A, p(1, 0), B], [clave(B, p(1, 0))]: [B, p(1, 0)] });
     await clicEnMapa(A);
     await clicEnMapa(B);
 
     await clicEnMapa(p(1, 0));
 
-    expect(screen.getByRole("alert")).toHaveTextContent(TEXTO_BORDE_VUELVE);
-    expect(posiciones()).toEqual([A, B]);
+    expect(screen.getByRole("alert")).toHaveTextContent(textoBordeVuelve(2, 3));
+    expect(posiciones()).toEqual([A, B, p(1, 0)]);
   });
 
   it("cancelar mientras se averiguan las calles de la esquina corrida no deja nada a medias", async () => {
@@ -273,7 +279,8 @@ describe("zonas por esquinas: el borde no va y vuelve por la misma cuadra (#179)
       .mockResolvedValueOnce(esquinaDe(C))
       .mockImplementationOnce(() => new Promise<Esquina>((listo) => (contestar = listo)));
     await clicEnMapa(C);
-    expect(posiciones()).toEqual([A, B]);
+    // La esquina ya está marcada; lo que sigue en vuelo es el cálculo del borde.
+    expect(posiciones()).toEqual([A, B, C]);
 
     await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     await act(async () => contestar(esquinaDe(p(1, 0))));
@@ -309,6 +316,7 @@ describe("textoDeEsquinasCorridas", () => {
     [[1], `Movimos la esquina 2 ${MOTIVO}.`],
     [[2], `Movimos la esquina 3 a «Rusia» ${MOTIVO}.`],
     [[0, 2], `Movimos las esquinas 1 y 3 ${MOTIVO}.`],
+    [[0, 1, 2], `Movimos las esquinas 1, 2 y 3 ${MOTIVO}.`],
   ])("%j → %s", (corridas, texto) => {
     expect(textoDeEsquinasCorridas(corridas, esquinas)).toBe(texto);
   });

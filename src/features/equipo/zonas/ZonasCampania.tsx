@@ -29,9 +29,16 @@ import { AvisoDeCasas, type AvisoDelMapa } from "@/features/equipo/zonas/casas/A
 import { horaEnMontevideo, sinOcultas } from "@/features/equipo/zonas/casas/estados";
 import { LeyendaDeCasas } from "@/features/equipo/zonas/casas/LeyendaDeCasas";
 import { useCasasDeCiudad } from "@/features/equipo/zonas/casas/useCasasDeCiudad";
+import { ESPERAS } from "@/features/equipo/zonas/esperas";
 import { MapaZonas } from "@/features/equipo/zonas/MapaZonas";
 import { PanelDetalleZona } from "@/features/equipo/zonas/PanelDetalleZona";
-import { formaCompleta, PanelFormularioZona, RADIO_INICIAL_M, textoColportoresSinZona } from "@/features/equipo/zonas/PanelFormularioZona";
+import {
+  formaCompleta,
+  PanelFormularioZona,
+  RADIO_INICIAL_M,
+  TEXTO_CALCULANDO,
+  textoColportoresSinZona,
+} from "@/features/equipo/zonas/PanelFormularioZona";
 import { PanelListaZonas } from "@/features/equipo/zonas/PanelListaZonas";
 import { type DibujoEnMapa, nombreEsquina, TEXTO_CUENTA_SUSPENDIDA } from "@/features/equipo/zonas/tipos";
 import { mensajeSinConexion } from "@/lib/mensajes";
@@ -50,24 +57,38 @@ export const TEXTO_SIN_CIUDADES = "Esta campaña todavía no tiene ciudades. Agr
 export const TEXTO_ESQUINAS_SIN_CONECTAR =
   "Las zonas por esquinas todavía no se pueden dibujar ni cambiar desde el panel: elegí «Radial» para dibujar la zona.";
 
+const QUE_HACER_CON_ESAS_ESQUINAS = "con su «×» en el mapa y marcá otra";
+
 /**
- * Lo que dice el formulario cuando la esquina que se acaba de marcar haría que el borde vuelva entero por donde llegó
- * (#179): no hay adónde correr la esquina, así que no se agrega.
+ * Lo que dice el formulario cuando, en una esquina, el borde vuelve entero por donde llegó (#179): no hay adónde correrla.
+ * Desde #182 la esquina ya está marcada cuando se calcula el borde, así que el aviso dice cuál es (`esquina`, su número)
+ * y cuál es la que le sigue: sacando cualquiera de las dos el borde deja de volver.
  */
-export const TEXTO_BORDE_VUELVE =
-  "Con esa esquina el borde vuelve por la misma calle por la que llegó. Elegí otra esquina, o tocá «Quitar» para sacar la anterior.";
+export function textoBordeVuelve(esquina: number, siguiente: number): string {
+  return `En la esquina ${esquina} el borde vuelve por la misma calle por la que llegó. Quitá la esquina ${esquina} o la ${siguiente} ${QUE_HACER_CON_ESAS_ESQUINAS}.`;
+}
+
+/**
+ * Lo que dice el formulario cuando no hay camino por las calles entre dos esquinas seguidas (#182): el aviso de la base
+ * (que las nombra por sus calles) y, después, cuáles son por su número y qué hacer con ellas.
+ */
+export function textoSinCamino(rechazo: string, desde: number, hasta: number): string {
+  return `${rechazo} Son las esquinas ${desde} y ${hasta}: quitá una de las dos ${QUE_HACER_CON_ESAS_ESQUINAS}.`;
+}
 
 /** A cuántos metros como mucho tiene que estar el cruce más cercano a un punto para que sea el cruce de ese punto (el metro de ADR-018). */
 const METROS_MISMA_ESQUINA = 1;
 
+const LISTA = new Intl.ListFormat("es", { type: "conjunction" });
+
 /**
- * El aviso de que el panel corrió una o dos esquinas para que el borde no vaya y vuelva por la misma cuadra (#179).
+ * El aviso de que el panel corrió esquinas para que el borde no vaya y vuelva por la misma cuadra (#179).
  * `corridas` son sus posiciones en `esquinas`; `null` si no se corrió ninguna.
  */
 export function textoDeEsquinasCorridas(corridas: number[], esquinas: Esquina[]): string | null {
   const motivo = "para que el borde no pase dos veces por la misma cuadra";
   if (corridas.length === 0) return null;
-  if (corridas.length > 1) return `Movimos las esquinas ${corridas.map((i) => i + 1).join(" y ")} ${motivo}.`;
+  if (corridas.length > 1) return `Movimos las esquinas ${LISTA.format(corridas.map((i) => String(i + 1)))} ${motivo}.`;
   const [posicion] = corridas;
   const esquina = esquinas[posicion];
   const adonde = esquina && (esquina.calleA !== "" || esquina.calleB !== "") ? ` a «${nombreEsquina(esquina)}»` : "";
@@ -106,6 +127,13 @@ interface EstadoDibujo {
   nota: string | null;
   /** El texto de `error` cuando la que falló fue la vista previa por la red: ese aviso trae «Reintentar». */
   fallaVistaPrevia: string | null;
+  /**
+   * La forma por esquinas cuyo borde ya se calculó, bien o mal (#182). Mientras no sea la forma vigente, falta calcular:
+   * se ve «Calculando la zona…». No es un interruptor que haya que apagar, así que no puede quedar trabado.
+   */
+  bordeDe: FormaZona | null;
+  /** Al editar, la forma tal como está guardada: mientras no se toque, solo se pide su vista previa. */
+  original: FormaZona | null;
 }
 
 type Panel =
@@ -142,6 +170,8 @@ function dibujoNuevo(): Panel {
     error: null,
     nota: null,
     fallaVistaPrevia: null,
+    bordeDe: null,
+    original: null,
   };
 }
 
@@ -163,11 +193,71 @@ function dibujoDeZona(zona: ZonaDeCiudad): Panel {
     error: null,
     nota: null,
     fallaVistaPrevia: null,
+    bordeDe: null,
+    original: forma,
   };
 }
 
 function aplanar(tramos: Punto[][]): Punto[] {
   return tramos.flat();
+}
+
+/** Una forma por esquinas con dos o más tiene un borde que calcular: los tramos por las calles y, cerrada, la vista previa. */
+function necesitaBorde(forma: FormaZona): boolean {
+  return forma.tipoForma === "ESQUINAS" && (forma.esquinas?.length ?? 0) >= 2;
+}
+
+const claveDeTramo = (desde: Punto, hasta: Punto) => `${desde.lon},${desde.lat}>${hasta.lon},${hasta.lat}`;
+
+/** Los pares de esquinas que une el borde: cada una con la siguiente y, con la forma cerrada, la última con la primera. */
+function paresDelBorde(esquinas: Esquina[], cerrada: boolean): [Esquina, Esquina][] {
+  const pares = esquinas.slice(1).map((e, i): [Esquina, Esquina] => [esquinas[i], e]);
+  if (cerrada && esquinas.length >= 3) pares.push([esquinas[esquinas.length - 1], esquinas[0]]);
+  return pares;
+}
+
+/**
+ * El borde de una forma con lo que ya se sabe: el tramo por las calles de cada par de esquinas que ya se pidió y, del que
+ * todavía no, la línea recta entre las dos. Es lo que se dibuja mientras el cálculo espera o corre (#182).
+ */
+function tramosDe(forma: FormaZona, conocidos: ReadonlyMap<string, Punto[]>): Punto[][] {
+  return paresDelBorde(forma.esquinas ?? [], forma.cerrada === true).map(
+    ([desde, hasta]) =>
+      conocidos.get(claveDeTramo(desde, hasta)) ?? [
+        { lon: desde.lon, lat: desde.lat },
+        { lon: hasta.lon, lat: hasta.lat },
+      ],
+  );
+}
+
+/**
+ * Si el camino que llega a una esquina y el que sale de ella van y vuelven por la misma cuadra (la base rechaza ese
+ * borde: «se cruza a sí mismo»), los dos caminos recortados y el cruce donde se separan, que pasa a ser la esquina.
+ * `null`: no hay nada que correr. O no comparten cuadra, o donde se separan no hay un cruce de calles (el más cercano es
+ * otro): ahí la base engancharía la esquina en otro lugar, así que queda como se marcó y, si el borde no sirve, lo dice
+ * ella al cerrar. `"vuelve"`: el borde desanda un tramo entero, no hay adónde correr la esquina. Un rechazo de la base
+ * va tal cual; una caída de la red es una excepción. `sinCruce` recuerda los puntos donde ya se vio que no hay cruce,
+ * para no volver a preguntarlo en cada cálculo.
+ */
+async function correrEsquina(
+  esquinaMasCercana: AccionesZonas["esquinaMasCercana"],
+  sinCruce: Set<string>,
+  ciudadId: string,
+  llega: Punto[],
+  sale: Punto[],
+): Promise<{ llega: Punto[]; sale: Punto[]; esquina: Esquina } | RechazoDelMapa | "vuelve" | null> {
+  const corte = recortarIdaYVuelta(llega, sale);
+  if (!corte) return null;
+  if (corte.llega.length < 2 || corte.sale.length < 2) return "vuelve";
+  const donde = `${corte.esquina.lon},${corte.esquina.lat}`;
+  if (sinCruce.has(donde)) return null;
+  const cruce = await esquinaMasCercana(ciudadId, corte.esquina);
+  if ("rechazo" in cruce) return cruce;
+  if (distanciaM(cruce, corte.esquina) > METROS_MISMA_ESQUINA) {
+    sinCruce.add(donde);
+    return null;
+  }
+  return { llega: corte.llega, sale: corte.sale, esquina: cruce };
 }
 
 interface Props {
@@ -203,9 +293,18 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const sesion = useRef(0);
   // La forma vigente, al día dentro de un mismo turno: los clics encolados la leen de acá y no de un render viejo.
   const formaVigente = useRef<FormaZona | null>(null);
-  // Los tramos del borde en curso, al día dentro de un mismo turno igual que la forma: un tramo entre cada par de esquinas.
-  const tramosVigentes = useRef<Punto[][]>([]);
-  // Los clics del mapa se atienden de a uno: dos seguidos no pisan la esquina ni el tramo del otro.
+  // Los tramos por las calles que ya contestó la base en este dibujo, por sus dos esquinas (#182): al marcar o quitar una
+  // esquina solo se piden los que faltan. Y los puntos donde ya se vio que no hay cruce adonde correr una esquina.
+  const tramosConocidos = useRef(new Map<string, Punto[]>());
+  const sinCruce = useRef(new Set<string>());
+  // Los cálculos del borde van de a uno (#182): el que sigue espera al que está en vuelo, que al ver que la forma ya es
+  // otra corta sin tocar nada.
+  const calculos = useRef<Promise<void>>(Promise.resolve());
+  // La forma cuyo borde ya quedó calculado: no se vuelve a calcular la misma.
+  const bordeCalculado = useRef<FormaZona | null>(null);
+  // Cambia cada vez que se cambia de tipo de forma: una esquina que venía en camino para el trazado anterior no entra al nuevo.
+  const trazado = useRef(0);
+  // Los clics del mapa se atienden de a uno: dos seguidos no pisan la esquina del otro.
   const cola = useRef<Promise<void>>(Promise.resolve());
   const guardandoAhora = useRef(false);
   const asignandoAhora = useRef(false);
@@ -224,6 +323,15 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const agregando = buscador?.ocupado === true;
   const forma = panel.tipo === "dibujo" ? panel.forma : null;
   const zonaEnEdicionId = panel.tipo === "dibujo" ? panel.zonaId : undefined;
+  const bordeDe = panel.tipo === "dibujo" ? panel.bordeDe : null;
+  const formaOriginal = panel.tipo === "dibujo" ? panel.original : null;
+  // Falta calcular el borde de la forma por esquinas que se ve (#182): sale de comparar, no de un interruptor.
+  const calculando =
+    panel.tipo === "dibujo" &&
+    !panel.guardando &&
+    esquinasDisponibles &&
+    necesitaBorde(panel.forma) &&
+    panel.forma !== panel.bordeDe;
 
   const casasDeLaCiudad = useCasasDeCiudad({
     ciudadId: ciudad?.id ?? "",
@@ -237,11 +345,129 @@ export function ZonasCampania({ datos, acciones }: Props) {
     setPanel((p) => (p.tipo === "dibujo" ? { ...p, ...cambio(p) } : p));
   }, []);
 
-  // La vista previa (ubicaciones incluidas, superposición) se pide al backend cada vez que la forma queda completa.
+  /**
+   * El cálculo de una zona por esquinas (#182), en segundo plano: los tramos por las calles que faltan (de a uno, y entre
+   * uno y otro mira si la forma sigue siendo la misma), las esquinas que hay que correr para que el borde no vaya y vuelva
+   * por una cuadra y, con la forma cerrada, la vista previa. Si mientras tanto se marcó o se quitó una esquina, corta sin
+   * tocar nada: esa forma nueva tiene su propio cálculo. Si falla, las esquinas quedan como están y el aviso dice qué hacer.
+   */
+  const calcularBorde = useCallback(
+    async (inicial: FormaZona, ciudadId: string, zonaId: string | undefined, soloVistaPrevia: boolean) => {
+      const vigente = () => formaVigente.current === inicial;
+      if (!vigente() || bordeCalculado.current === inicial) return;
+      const esquinas = [...(inicial.esquinas ?? [])];
+      const cerrada = inicial.cerrada === true && esquinas.length >= 3;
+      const terminar = (calculada: FormaZona, resto: Partial<EstadoDibujo>) => {
+        bordeCalculado.current = calculada;
+        formaVigente.current = calculada;
+        cambiarDibujo(() => ({
+          forma: calculada,
+          bordeDe: calculada,
+          tramos: soloVistaPrevia ? [] : tramosDe(calculada, tramosConocidos.current),
+          vistaPrevia: null,
+          fallaVistaPrevia: null,
+          error: null,
+          nota: null,
+          ...resto,
+        }));
+      };
+      try {
+        const corridas: number[] = [];
+        const conCorridas = (): FormaZona => (corridas.length > 0 ? { ...inicial, esquinas } : inicial);
+        const notaDeCorridas = () => textoDeEsquinasCorridas([...corridas].sort((a, b) => a - b), esquinas);
+        if (!soloVistaPrevia) {
+          const tramos: Punto[][] = [];
+          for (const [i, [desde, hasta]] of paresDelBorde(esquinas, cerrada).entries()) {
+            const clave = claveDeTramo(desde, hasta);
+            let tramo = tramosConocidos.current.get(clave);
+            if (!tramo) {
+              const respuesta = await acciones.tramoPorCalles(ciudadId, desde, hasta);
+              // El tramo sirve aunque la forma ya sea otra: el cálculo que sigue no lo vuelve a pedir.
+              if (!("rechazo" in respuesta)) tramosConocidos.current.set(clave, respuesta);
+              if (!vigente()) return;
+              // Sin camino por las calles entre esas dos (o sin calles): las esquinas quedan y el aviso dice cuáles son.
+              if ("rechazo" in respuesta) {
+                const error = respuesta.sinCamino
+                  ? textoSinCamino(respuesta.rechazo, i + 1, ((i + 1) % esquinas.length) + 1)
+                  : respuesta.rechazo;
+                terminar(inicial, { error });
+                return;
+              }
+              tramo = respuesta;
+            }
+            tramos.push(tramo);
+          }
+          // El borde no puede ir y volver por la misma cuadra (la base lo rechaza): la esquina donde pasa se corre al punto
+          // donde los dos caminos se separan. Las del medio en orden y, con la forma cerrada, la última y la primera.
+          const cantidad = esquinas.length;
+          const juntas = esquinas.map((_, j) => j).slice(1, -1);
+          if (cerrada) juntas.push(cantidad - 1, 0);
+          for (const j of juntas) {
+            const llega = (j - 1 + tramos.length) % tramos.length;
+            const corrida = await correrEsquina(acciones.esquinaMasCercana, sinCruce.current, ciudadId, tramos[llega], tramos[j]);
+            // Buscar el cruce es otra consulta: el coordinador pudo cancelar o cambiar la forma mientras tanto.
+            if (!vigente()) return;
+            if (corrida === null) continue;
+            const siguiente = (j + 1) % cantidad;
+            if (corrida === "vuelve") {
+              terminar(conCorridas(), { error: textoBordeVuelve(j + 1, siguiente + 1), nota: notaDeCorridas() });
+              return;
+            }
+            if ("rechazo" in corrida) {
+              terminar(conCorridas(), { error: corrida.rechazo, nota: notaDeCorridas() });
+              return;
+            }
+            tramos[llega] = corrida.llega;
+            tramos[j] = corrida.sale;
+            esquinas[j] = corrida.esquina;
+            tramosConocidos.current.set(claveDeTramo(esquinas[(j - 1 + cantidad) % cantidad], corrida.esquina), corrida.llega);
+            tramosConocidos.current.set(claveDeTramo(corrida.esquina, esquinas[siguiente]), corrida.sale);
+            corridas.push(j);
+          }
+        }
+        const calculada = conCorridas();
+        if (!cerrada) {
+          terminar(calculada, { nota: notaDeCorridas() });
+          return;
+        }
+        // La vista previa (ubicaciones incluidas, superposición) va al final, con las esquinas ya corregidas.
+        const previa = await acciones.vistaPreviaZona({ ciudadId, zonaId, forma: calculada });
+        if (!vigente()) return;
+        // La base la rechazó (el borde se cruza, la campaña terminó, no hay permiso): su texto dice qué hacer, y sin vista previa no se guarda.
+        terminar(calculada, "rechazo" in previa ? { error: previa.rechazo, nota: notaDeCorridas() } : { vistaPrevia: previa, nota: notaDeCorridas() });
+      } catch {
+        if (!vigente()) return;
+        // Una caída de la red no es un rechazo: se puede reintentar sin tocar las esquinas.
+        const mensaje = mensajeSinConexion("calcular la zona");
+        cambiarDibujo(() => ({ bordeDe: inicial, error: mensaje, fallaVistaPrevia: mensaje }));
+      }
+    },
+    [acciones, cambiarDibujo],
+  );
+
+  // Una zona por esquinas se calcula en segundo plano (#182): recién cuando el coordinador deja de marcar y de quitar
+  // esquinas por un rato, y de a un cálculo por vez. Al editar, la forma guardada solo pide su vista previa.
+  // La de una zona radial (ubicaciones incluidas, superposición) se pide al backend cada vez que la forma queda completa.
   useEffect(() => {
-    if (!forma || !ciudad || !formaCompleta(forma)) return;
-    // Sin las zonas por esquinas conectadas no hay vista previa que pedir: el formulario ya dice por qué (#167).
-    if (forma.tipoForma === "ESQUINAS" && !esquinasDisponibles) return;
+    if (!forma || !ciudad) return;
+    if (forma.tipoForma === "ESQUINAS") {
+      // Sin las zonas por esquinas conectadas no hay nada que pedir: el formulario ya dice por qué (#167).
+      if (!esquinasDisponibles || !necesitaBorde(forma) || forma === bordeDe) return;
+      const soloVistaPrevia = forma === formaOriginal && formaCompleta(forma);
+      const lanzar = () => {
+        calculos.current = calculos.current
+          .then(() => calcularBorde(forma, ciudad.id, zonaEnEdicionId, soloVistaPrevia))
+          .catch(() => undefined);
+      };
+      const espera = soloVistaPrevia ? MS_ESPERA_VISTA_PREVIA : ESPERAS.bordeMs;
+      if (espera <= 0) {
+        lanzar();
+        return;
+      }
+      const temporizador = setTimeout(lanzar, espera);
+      return () => clearTimeout(temporizador);
+    }
+    if (!formaCompleta(forma)) return;
     const version = ++versionVistaPrevia.current;
     const temporizador = setTimeout(() => {
       acciones
@@ -263,7 +489,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
         });
     }, MS_ESPERA_VISTA_PREVIA);
     return () => clearTimeout(temporizador);
-  }, [forma, ciudad, zonaEnEdicionId, acciones, cambiarDibujo, reintentosVistaPrevia, esquinasDisponibles]);
+  }, [forma, ciudad, zonaEnEdicionId, acciones, cambiarDibujo, reintentosVistaPrevia, esquinasDisponibles, bordeDe, formaOriginal, calcularBorde]);
 
   useEffect(
     () => () => {
@@ -379,9 +605,12 @@ export function ZonasCampania({ datos, acciones }: Props) {
     });
   }
 
-  /** «Reintentar» del aviso de la vista previa caída: la vuelve a pedir con la misma forma. */
+  /**
+   * «Reintentar» del aviso de la vista previa (o del cálculo de la zona por esquinas) caído por la red: lo vuelve a pedir
+   * con la misma forma y las mismas esquinas.
+   */
   function reintentarVistaPrevia() {
-    cambiarDibujo(() => ({ error: null, fallaVistaPrevia: null }));
+    cambiarDibujo(() => ({ error: null, fallaVistaPrevia: null, bordeDe: null }));
     setReintentosVistaPrevia((n) => n + 1);
   }
 
@@ -393,7 +622,10 @@ export function ZonasCampania({ datos, acciones }: Props) {
     clearTimeout(temporizadorNombre.current);
     hoverRechazado.current = false;
     formaVigente.current = null;
-    tramosVigentes.current = [];
+    bordeCalculado.current = null;
+    trazado.current++;
+    tramosConocidos.current.clear();
+    sinCruce.current.clear();
     setHover(null);
   }
 
@@ -446,35 +678,15 @@ export function ZonasCampania({ datos, acciones }: Props) {
     // Sin las zonas por esquinas conectadas, el aviso dice la causa real apenas se las elige (#167), y se va al volver a «Radial».
     const sinEsquinas = tipo === "ESQUINAS" && !esquinasDisponibles;
     const quitarAviso = !sinEsquinas && panel.tipo === "dibujo" && panel.error === TEXTO_ESQUINAS_SIN_CONECTAR;
-    tramosVigentes.current = [];
+    trazado.current++;
+    tramosConocidos.current.clear();
+    sinCruce.current.clear();
     actualizarForma(formaVacia(tipo), {
       tramos: [],
       nota: null,
       nombreCentro: null,
       ...(sinEsquinas ? { error: TEXTO_ESQUINAS_SIN_CONECTAR } : quitarAviso ? { error: null } : {}),
     });
-  }
-
-  /**
-   * Si el camino que llega a una esquina y el que sale de ella van y vuelven por la misma cuadra (la base rechaza ese
-   * borde: «se cruza a sí mismo»), los dos caminos recortados y el cruce donde se separan, que pasa a ser la esquina.
-   * `null`: no hay nada que correr. O no comparten cuadra, o donde se separan no hay un cruce de calles (el más cercano es
-   * otro): ahí la base engancharía la esquina en otro lugar, así que queda como se marcó y, si el borde no sirve, lo dice
-   * ella al cerrar. `"vuelve"`: el borde desanda un tramo entero, no hay adónde correr la esquina. Un rechazo de la base
-   * va tal cual; una caída de la red es una excepción.
-   */
-  async function correrEsquina(
-    ciudadId: string,
-    llega: Punto[],
-    sale: Punto[],
-  ): Promise<{ llega: Punto[]; sale: Punto[]; esquina: Esquina } | RechazoDelMapa | "vuelve" | null> {
-    const corte = recortarIdaYVuelta(llega, sale);
-    if (!corte) return null;
-    if (corte.llega.length < 2 || corte.sale.length < 2) return "vuelve";
-    const cruce = await acciones.esquinaMasCercana(ciudadId, corte.esquina);
-    if ("rechazo" in cruce) return cruce;
-    if (distanciaM(cruce, corte.esquina) > METROS_MISMA_ESQUINA) return null;
-    return { llega: corte.llega, sale: corte.sale, esquina: cruce };
   }
 
   /** Atiende un clic en el mapa mientras se dibuja. Corre dentro de la cola, de a un clic por vez. */
@@ -493,80 +705,29 @@ export function ZonasCampania({ datos, acciones }: Props) {
       cambiarDibujo(() => ({ error: TEXTO_ESQUINAS_SIN_CONECTAR }));
       return;
     }
-    const esquinas = inicial.esquinas ?? [];
+    const deTrazado = trazado.current;
     try {
       const esquina = await acciones.esquinaMasCercana(ciudad.id, punto);
+      // Mientras esperaba, el coordinador pudo cancelar, cambiar de ciudad o de tipo de forma: entonces este clic ya no vale.
+      // El dibujo mismo sí pudo cambiar (quitó una esquina, el cálculo corrió otra): la esquina se suma a como está ahora.
+      const actual = formaVigente.current;
+      if (deSesion !== sesion.current || deTrazado !== trazado.current) return;
+      if (!actual || actual.tipoForma !== "ESQUINAS" || actual.cerrada) return;
       // La base no la dio (la ciudad todavía no tiene calles cargadas, la campaña terminó): su aviso dice qué hacer.
       if ("rechazo" in esquina) {
-        if (deSesion === sesion.current) cambiarDibujo(() => ({ error: esquina.rechazo }));
+        cambiarDibujo(() => ({ error: esquina.rechazo }));
         return;
       }
+      const esquinas = actual.esquinas ?? [];
       const ultima = esquinas.at(-1);
       if (ultima && mismaEsquina(ultima, esquina)) return;
+      // Cerrar tocando la esquina 1.
       const cierra = esquinas.length >= 3 && mismaEsquina(esquinas[0], esquina);
       if (!cierra && esquinas.some((e) => mismaEsquina(e, esquina))) return;
-      // Cerrar tocando la esquina 1: el último tramo vuelve a la primera.
-      const tramo = cierra
-        ? await acciones.tramoPorCalles(ciudad.id, esquinas[esquinas.length - 1], esquinas[0])
-        : ultima
-          ? await acciones.tramoPorCalles(ciudad.id, ultima, esquina)
-          : null;
-      // Mientras esperaba, el coordinador pudo cancelar, cambiar de ciudad o de forma: entonces este clic ya no vale.
-      if (deSesion !== sesion.current || formaVigente.current !== inicial) return;
-      // Sin camino por las calles hasta esa esquina (o sin calles): la esquina no se agrega y el aviso dice cuál elegir.
-      if (tramo && "rechazo" in tramo) {
-        cambiarDibujo(() => ({ error: tramo.rechazo }));
-        return;
-      }
-      // El borde no puede ir y volver por la misma cuadra (la base lo rechaza): la esquina donde pasa se corre al punto
-      // donde los dos caminos se separan. Solo con los tramos al día (uno entre cada par de esquinas ya marcadas).
-      const antes = tramosVigentes.current;
-      const alDia = antes.length === esquinas.length - 1;
-      const nuevas = [...esquinas];
-      const tramos = [...antes];
-      const corridas: number[] = [];
-      let llegada = tramo;
-      if (llegada && alDia && tramos.length > 0) {
-        // La última esquina marcada (entre el camino que llegaba a ella y el que ahora sale) y, al cerrar, también la
-        // esquina 1 (entre el camino que vuelve a ella y el primero que salió).
-        const juntas: ("ultima" | "primera")[] = cierra ? ["ultima", "primera"] : ["ultima"];
-        for (const junta of juntas) {
-          const corrida: Awaited<ReturnType<typeof correrEsquina>> =
-            junta === "ultima"
-              ? await correrEsquina(ciudad.id, tramos[tramos.length - 1], llegada)
-              : await correrEsquina(ciudad.id, llegada, tramos[0]);
-          // Buscar el cruce es otra consulta: el coordinador pudo cancelar o cambiar de forma mientras tanto.
-          if (deSesion !== sesion.current || formaVigente.current !== inicial) return;
-          if (corrida === null) continue;
-          if (corrida === "vuelve") {
-            cambiarDibujo(() => ({ error: TEXTO_BORDE_VUELVE, nota: null }));
-            return;
-          }
-          if ("rechazo" in corrida) {
-            cambiarDibujo(() => ({ error: corrida.rechazo, nota: null }));
-            return;
-          }
-          if (junta === "ultima") {
-            tramos[tramos.length - 1] = corrida.llega;
-            llegada = corrida.sale;
-            nuevas[nuevas.length - 1] = corrida.esquina;
-            corridas.push(nuevas.length - 1);
-          } else {
-            llegada = corrida.llega;
-            tramos[0] = corrida.sale;
-            nuevas[0] = corrida.esquina;
-            corridas.unshift(0);
-          }
-        }
-      }
-      if (llegada) tramos.push(llegada);
-      if (!cierra) nuevas.push(esquina);
-      tramosVigentes.current = tramos;
-      actualizarForma(cierra ? { ...inicial, esquinas: nuevas, cerrada: true } : { ...inicial, esquinas: nuevas }, {
-        tramos,
-        error: null,
-        nota: textoDeEsquinasCorridas(corridas, nuevas),
-      });
+      // La esquina queda marcada ya (#182): el borde por las calles se calcula después, en segundo plano, cuando el
+      // coordinador deja de marcar. Hasta entonces el tramo nuevo se dibuja recto.
+      const nueva: FormaZona = cierra ? { ...actual, cerrada: true } : { ...actual, esquinas: [...esquinas, esquina] };
+      actualizarForma(nueva, { tramos: tramosDe(nueva, tramosConocidos.current), error: null });
       if (cierra) setHover(null);
     } catch {
       if (deSesion === sesion.current) cambiarDibujo(() => ({ error: mensajeSinConexion("marcar la esquina") }));
@@ -621,7 +782,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
   /**
    * Saca una esquina del dibujo. Sin `posicion` es el «Quitar» del formulario: saca la última y reabre la forma. Con
    * `posicion` es la «×» de esa esquina en el mapa (#182): saca esa, las demás se renumeran, y una forma cerrada sigue
-   * cerrada mientras le queden tres esquinas. En los dos casos el borde se vuelve a pedir con las esquinas que quedan.
+   * cerrada mientras le queden tres esquinas. La esquina se va al momento; el borde con las que quedan se calcula
+   * después, en segundo plano, y solo se piden los tramos que no se conocían.
    */
   function quitarEsquina(posicion?: number) {
     if (panel.tipo !== "dibujo" || !ciudad || guardandoAhora.current) return;
@@ -629,41 +791,18 @@ export function ZonasCampania({ datos, acciones }: Props) {
       cambiarDibujo(() => ({ error: TEXTO_ESQUINAS_SIN_CONECTAR }));
       return;
     }
-    // La esquina se busca por su lugar y no por su número: si antes de este turno se quitó otra, los números ya corrieron.
+    const actual = formaVigente.current;
+    if (!actual || actual.tipoForma !== "ESQUINAS") return;
+    // La esquina se busca por su lugar y no por su número: si en este mismo turno se quitó otra, los números ya corrieron.
     const elegida = posicion === undefined ? undefined : panel.forma.esquinas?.[posicion];
     if (posicion !== undefined && !elegida) return;
-    const deSesion = sesion.current;
-    encolar(async () => {
-      const inicial = formaVigente.current;
-      if (!inicial || inicial.tipoForma !== "ESQUINAS" || deSesion !== sesion.current) return;
-      const antes = inicial.esquinas ?? [];
-      const cual = elegida ? antes.findIndex((e) => mismaEsquina(e, elegida)) : antes.length - 1;
-      if (cual < 0) return;
-      const esquinas = antes.filter((_, i) => i !== cual);
-      const cerrada = elegida !== undefined && inicial.cerrada === true && esquinas.length >= 3;
-      const nueva: FormaZona = { tipoForma: "ESQUINAS", esquinas, cerrada };
-      tramosVigentes.current = [];
-      actualizarForma(nueva, { tramos: [], error: null, nota: null });
-      // Un tramo entre cada par de esquinas seguidas y, con la forma cerrada, el que vuelve a la esquina 1.
-      const pares = esquinas.slice(1).map((e, i): [Esquina, Esquina] => [esquinas[i], e]);
-      if (cerrada) pares.push([esquinas[esquinas.length - 1], esquinas[0]]);
-      try {
-        const respuestas = await Promise.all(pares.map(([desde, hasta]) => acciones.tramoPorCalles(ciudad.id, desde, hasta)));
-        if (deSesion !== sesion.current || formaVigente.current !== nueva) return;
-        const tramos: Punto[][] = [];
-        for (const respuesta of respuestas) {
-          if ("rechazo" in respuesta) {
-            cambiarDibujo(() => ({ error: respuesta.rechazo }));
-            return;
-          }
-          tramos.push(respuesta);
-        }
-        tramosVigentes.current = tramos;
-        cambiarDibujo(() => ({ tramos }));
-      } catch {
-        if (deSesion === sesion.current) cambiarDibujo(() => ({ error: mensajeSinConexion("quitar la esquina") }));
-      }
-    });
+    const antes = actual.esquinas ?? [];
+    const cual = elegida ? antes.findIndex((e) => mismaEsquina(e, elegida)) : antes.length - 1;
+    if (cual < 0) return;
+    const esquinas = antes.filter((_, i) => i !== cual);
+    const cerrada = elegida !== undefined && actual.cerrada === true && esquinas.length >= 3;
+    const nueva: FormaZona = { tipoForma: "ESQUINAS", esquinas, cerrada };
+    actualizarForma(nueva, { tramos: tramosDe(nueva, tramosConocidos.current), error: null, nota: null });
   }
 
   async function guardarZona() {
@@ -936,6 +1075,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
               guardando={panel.guardando}
               error={panel.error}
               nota={panel.nota}
+              calculando={calculando}
               onNombre={(nombre) => cambiarDibujo(() => ({ nombre }))}
               onTipoForma={cambiarTipoForma}
               onRadio={(radioM) => actualizarForma({ ...panel.forma, radioM })}
@@ -995,6 +1135,21 @@ export function ZonasCampania({ datos, acciones }: Props) {
             onQuitarEsquina={guardando || !esquinasDisponibles ? undefined : quitarEsquina}
           />
           {avisoDelMapa ? <AvisoDeCasas aviso={avisoDelMapa} /> : null}
+          {/* El coordinador mira el mapa mientras marca: el ícono de carga también va acá (#182). Lo anuncia el formulario. */}
+          {calculando ? (
+            <p
+              aria-hidden
+              data-calculando-en-mapa
+              // Debajo del aviso de las casas cuando lo hay: los dos van arriba.
+              className={cn(
+                "pointer-events-none absolute right-3 z-10 flex items-center gap-2 rounded-pastilla bg-superficie px-3 py-1.5 text-chico font-medium text-tinta-2 shadow",
+                avisoDelMapa ? "top-[88px]" : "top-3",
+              )}
+            >
+              <span className="size-3.5 rounded-full border-2 border-borde border-t-marca-media motion-safe:animate-spin" />
+              {TEXTO_CALCULANDO}
+            </p>
+          ) : null}
         </div>
       </div>
       )}

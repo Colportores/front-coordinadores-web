@@ -18,6 +18,10 @@ export const AYUDA_RADIAL = "Hacé clic en el mapa para poner el centro y arrast
 export const AYUDA_MOVER_CENTRO = "Para mover el centro, arrastralo o hacé clic en otro lugar del mapa.";
 export const AYUDA_ESQUINAS =
   "Hacé clic en las esquinas en orden. El borde sigue las calles; para cerrar, tocá la esquina 1.";
+/** Lo que se ve y se anuncia mientras el panel calcula el borde por las calles y la vista previa de la zona (#182). */
+export const TEXTO_CALCULANDO = "Calculando la zona…";
+/** Se suma a la ayuda del canvas cuando ya hay esquinas (#182; el canvas 24 no tiene un texto para esto). */
+export const AYUDA_QUITAR_ESQUINA = "Para sacar una esquina, tocá la «×» que tiene al lado en el mapa.";
 
 /** «Eliminar zona» (solo al editar): pide confirmación y deja sin zona a los colportores asignados. */
 export interface BajaZona {
@@ -45,6 +49,8 @@ interface Props {
   error: string | null;
   /** Un aviso que no es un error ni frena nada: el panel corrió una esquina del borde (#179). */
   nota?: string | null;
+  /** El panel está calculando el borde por las calles y la vista previa de la zona por esquinas (#182). */
+  calculando?: boolean;
   onNombre: (nombre: string) => void;
   onTipoForma: (tipo: TipoForma) => void;
   onRadio: (radioM: number) => void;
@@ -84,6 +90,7 @@ export function PanelFormularioZona({
   guardando,
   error,
   nota = null,
+  calculando = false,
   onNombre,
   onTipoForma,
   onRadio,
@@ -289,6 +296,16 @@ export function PanelFormularioZona({
           Esta zona se superpone con «{vistaPrevia.superposicion.zonaNombre}» en el tramo marcado en rojo. Podés guardarla igual.
         </p>
       ) : null}
+      {/* El cálculo de la zona por esquinas corre en segundo plano (#182): mientras tanto se pueden seguir marcando y
+          quitando esquinas. Siempre montado, para que el lector de pantalla lo anuncie; vacío no ocupa lugar. */}
+      <div aria-live="polite" data-calculando-zona className={calculando ? undefined : "-my-[7px]"}>
+        {calculando ? (
+          <p className="flex items-center gap-2 text-cuerpo text-tinta-2">
+            <span aria-hidden className="size-3.5 flex-none rounded-full border-2 border-borde border-t-marca-media motion-safe:animate-spin" />
+            {TEXTO_CALCULANDO}
+          </p>
+        ) : null}
+      </div>
       {/* Siempre montado, para que el lector de pantalla lo anuncie cuando aparece; vacío no ocupa lugar en la columna. */}
       <div aria-live="polite" className={nota ? undefined : "-my-[7px]"}>
         {nota ? <p className="rounded-control bg-fondo px-3 py-2 text-cuerpo font-medium text-tinta-2">{nota}</p> : null}
@@ -308,6 +325,7 @@ export function PanelFormularioZona({
         {forma.tipoForma === "RADIAL" ? AYUDA_RADIAL : AYUDA_ESQUINAS}
       </p>
       {forma.tipoForma === "RADIAL" && forma.centro ? <p className="-mt-2 text-chico text-tinta-suave">{AYUDA_MOVER_CENTRO}</p> : null}
+      {forma.tipoForma === "ESQUINAS" && esquinas.length > 0 ? <p className="-mt-2 text-chico text-tinta-suave">{AYUDA_QUITAR_ESQUINA}</p> : null}
 
       {baja?.confirmando ? (
         <div ref={confirmacion} tabIndex={-1} role="alertdialog" aria-label="Eliminar zona" className="outline-none focus-visible:ring-2 focus-visible:ring-acento flex flex-col gap-2.5 rounded-control border border-peligro bg-peligro-fondo px-3 py-3">

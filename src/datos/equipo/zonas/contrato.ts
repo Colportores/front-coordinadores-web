@@ -150,6 +150,11 @@ export interface VistaPreviaZona {
  */
 export interface RechazoDelMapa {
   rechazo: string;
+  /**
+   * El rechazo es que no hay camino por las calles entre las dos esquinas del tramo pedido (`CZ016`): la vista le suma
+   * al aviso cuáles son por su número (#182).
+   */
+  sinCamino?: true;
 }
 
 /** El rechazo de una vista previa: el mismo valor que el de una esquina o un tramo. */

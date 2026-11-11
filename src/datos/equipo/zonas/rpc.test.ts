@@ -464,7 +464,10 @@ describe("fuente de la vista 24 contra las RPC", () => {
     ])("%s vuelve como rechazo con el texto de la base", async (codigo, mensaje) => {
       const { cliente } = clienteCon({ tramo_por_calles: rechazo(codigo, mensaje) });
 
-      expect(await crearFuenteZonasRpc(cliente).tramoPorCalles(MVD, DESDE, HASTA)).toEqual({ rechazo: mensaje });
+      // Solo el «sin camino» va marcado: la vista le suma al aviso qué esquinas son (#182).
+      expect(await crearFuenteZonasRpc(cliente).tramoPorCalles(MVD, DESDE, HASTA)).toEqual(
+        codigo === "CZ016" ? { rechazo: mensaje, sinCamino: true } : { rechazo: mensaje },
+      );
     });
 
     it("un código desconocido da el texto genérico; la red caída sigue como excepción", async () => {

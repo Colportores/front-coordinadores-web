@@ -473,7 +473,11 @@ export function crearFuenteZonasRpc(
         });
         return aTramo(rpc, filas(rpc, puntos));
       } catch (error) {
-        if (esRechazo(error)) return { rechazo: textoDeRechazo(error, SIN_PERMISO_MAPA, TRAMO_RECHAZADO) };
+        if (esRechazo(error)) {
+          const rechazo = textoDeRechazo(error, SIN_PERMISO_MAPA, TRAMO_RECHAZADO);
+          // Sin camino entre esas dos esquinas: la vista dice además cuáles son por su número (#182).
+          return error.codigo === "CZ016" ? { rechazo, sinCamino: true } : { rechazo };
+        }
         throw error;
       }
     },
