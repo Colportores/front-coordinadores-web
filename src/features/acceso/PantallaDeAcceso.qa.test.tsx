@@ -125,14 +125,60 @@ describe("QA #18 · validación de las entradas", () => {
     expect(iniciar).not.toHaveBeenCalled();
   });
 
-  it("el correo con espacios en los bordes y acentos se manda sin ellos (el campo `type=email` los recorta) y sin tocar el resto", async () => {
+  it("el correo con espacios en los bordes y mayúsculas se manda recortado y en minúsculas (#177, la regla de HU-AUTH-001)", async () => {
     const { iniciar } = montar();
     const usuario = userEvent.setup();
-    await usuario.type(campoCorreo(), "  María.Pérez+panel@Correo.com  ");
-    await usuario.type(campoClave(), "x");
+    await usuario.type(campoCorreo(), "  Marta.Perez+panel@Correo.com  ");
+    await usuario.type(campoClave(), CLAVE);
     await usuario.keyboard("{Enter}");
     await waitFor(() => expect(iniciar).toHaveBeenCalledTimes(1));
-    expect(iniciar.mock.calls[0][0]).toBe("María.Pérez+panel@Correo.com");
+    expect(iniciar.mock.calls[0][0]).toBe("marta.perez+panel@correo.com");
+  });
+
+  it("#177 · un correo mal armado no se manda: el aviso sale en su campo, el foco vuelve a él y al corregirlo se va", async () => {
+    const { iniciar } = montar();
+    const usuario = userEvent.setup();
+    await usuario.type(campoCorreo(), "marta.perez@correo");
+    await usuario.type(campoClave(), CLAVE);
+    await usuario.keyboard("{Enter}");
+    expect(iniciar).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(T.correoIncompleto);
+    expect(campoCorreo()).toHaveAttribute("aria-invalid", "true");
+    expect(campoCorreo()).toHaveAttribute("aria-describedby", "aviso-del-correo");
+    expect(campoClave()).not.toHaveAttribute("aria-invalid");
+    await waitFor(() => expect(campoCorreo()).toHaveFocus());
+
+    await usuario.clear(campoCorreo());
+    await usuario.type(campoCorreo(), "maría@correo.com");
+    await usuario.keyboard("{Enter}");
+    expect(iniciar).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(T.correoConCaracterQueNoVa);
+
+    await usuario.clear(campoCorreo());
+    await usuario.type(campoCorreo(), CORREO);
+    expect(screen.queryByRole("alert")).toBeNull();
+    await usuario.keyboard("{Enter}");
+    await waitFor(() => expect(iniciar).toHaveBeenCalledWith(CORREO, CLAVE, "/inicio"));
+  });
+
+  it("#177 · una contraseña más corta que el mínimo no se manda: el aviso sale en su campo y el foco vuelve a él", async () => {
+    const { iniciar } = montar();
+    const usuario = userEvent.setup();
+    await usuario.type(campoCorreo(), CORREO);
+    await usuario.type(campoClave(), "1234567");
+    await usuario.click(boton());
+    expect(iniciar).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(T.contrasenaCorta);
+    expect(campoClave()).toHaveAttribute("aria-invalid", "true");
+    expect(campoClave()).toHaveAttribute("aria-describedby", "aviso-de-la-contrasena");
+    expect(campoCorreo()).not.toHaveAttribute("aria-invalid");
+    await waitFor(() => expect(campoClave()).toHaveFocus());
+
+    await usuario.clear(campoClave());
+    await usuario.type(campoClave(), "12345678");
+    expect(screen.queryByRole("alert")).toBeNull();
+    await usuario.click(boton());
+    await waitFor(() => expect(iniciar).toHaveBeenCalledWith(CORREO, "12345678", "/inicio"));
   });
 
   it("emoji, comillas y símbolos en la contraseña se mandan sin tocar; el campo no la muestra", async () => {
