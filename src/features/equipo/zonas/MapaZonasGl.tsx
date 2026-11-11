@@ -131,6 +131,47 @@ function CentroMovible({ centro, onMover }: { centro: Punto; onMover: (punto: Pu
   );
 }
 
+export const textoQuitarEsquina = (numero: number) => `Quitar la esquina ${numero}`;
+
+/**
+ * La «×» de una esquina del dibujo (#182): la quita a ella, no a la última. El oyente es nativo, como el del centro: el
+ * clic se frena en el botón, antes de que llegue al contenedor de MapLibre (ahí sería un clic en el mapa, otra esquina).
+ * `conFoco` dice si el botón tenía el foco: entonces, al irse la esquina, el foco pasa a la «×» que queda en su lugar.
+ */
+function BotonQuitarEsquina({ posicion, onQuitar }: { posicion: number; onQuitar: (posicion: number, conFoco: boolean) => void }) {
+  const boton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const nodo = boton.current;
+    if (!nodo) return;
+    const alHacerClic = (e: MouseEvent) => {
+      e.stopPropagation();
+      onQuitar(posicion, document.activeElement === nodo);
+    };
+    nodo.addEventListener("click", alHacerClic);
+    return () => nodo.removeEventListener("click", alHacerClic);
+  }, [posicion, onQuitar]);
+
+  return (
+    // 44 px de lado para tocarla (WCAG 2.5.5) aunque la «×» que se ve sea del tamaño del número. Queda al costado del
+    // número y no encima: tocar el número sigue siendo tocar la esquina (así se cierra la forma en la esquina 1).
+    <button
+      ref={boton}
+      type="button"
+      data-quitar-esquina={posicion}
+      aria-label={textoQuitarEsquina(posicion + 1)}
+      title={textoQuitarEsquina(posicion + 1)}
+      className="group absolute top-1/2 left-full flex size-11 -translate-y-1/2 cursor-pointer items-center justify-start pl-0.5 focus-visible:outline-none"
+    >
+      <span
+        aria-hidden
+        className="grid size-5 place-items-center rounded-full border border-tinta-2 bg-superficie text-chico leading-none font-bold text-tinta-2 shadow group-hover:border-peligro group-hover:bg-peligro-fondo group-hover:text-peligro group-focus-visible:ring-2 group-focus-visible:ring-acento"
+      >
+        ×
+      </span>
+    </button>
+  );
+}
+
 /**
  * Mapa de la vista 24. Con `dibujo` dibuja la forma en curso; sin él, el clic elige zonas.
  * Base: con Supabase, el estilo y el PMTiles de la ciudad del bucket `mapas` (ADR-011); sin él (sitio de prueba), o si la
@@ -148,6 +189,7 @@ export function MapaZonasGl({
   onMapaMove,
   onRadio,
   onCentro,
+  onQuitarEsquina,
 }: PropsMapaZonas) {
   const { base, reintentar } = useMapaBase(ciudad.catalogoId);
   // Cada vez que se rearma el mapa (otra ciudad, otro fondo, «Reintentar») es otro `Map`, con sus propios avisos.
@@ -232,6 +274,24 @@ export function MapaZonasGl({
     document.addEventListener("keydown", alTeclear);
     return () => document.removeEventListener("keydown", alTeclear);
   }, [casaElegida, cerrarTarjeta]);
+
+  // La «×» que se tocó desaparece con su esquina: si tenía el foco, pasa a la «×» que quedó con ese número (o a la última,
+  // o al mapa si no quedó ninguna) en vez de caer al <body>. Solo si el foco se perdió: nunca se lo saca a otra cosa.
+  const focoTrasQuitar = useRef<number | null>(null);
+  const esquinasDelDibujo = dibujo?.esquinas;
+  useEffect(() => {
+    const posicion = focoTrasQuitar.current;
+    if (posicion === null) return;
+    focoTrasQuitar.current = null;
+    if (document.activeElement && document.activeElement !== document.body) return;
+    const botones = contenedor?.querySelectorAll<HTMLElement>("[data-quitar-esquina]");
+    (botones?.[Math.min(posicion, (botones?.length ?? 0) - 1)] ?? contenedor)?.focus();
+  }, [esquinasDelDibujo, contenedor]);
+
+  function quitarEsquina(posicion: number, conFoco: boolean) {
+    focoTrasQuitar.current = conFoco ? posicion : null;
+    onQuitarEsquina?.(posicion);
+  }
 
   function alFallar(e: ErrorEvent) {
     if (/webgl/i.test(e.error?.message ?? "")) setSinWebgl(claveDelMapa);
@@ -359,8 +419,12 @@ export function MapaZonasGl({
 
       {dibujo?.esquinas.map((e, i) => (
         <Marker key={`${e.lon},${e.lat}`} longitude={e.lon} latitude={e.lat} anchor="center">
-          <span className="pointer-events-none grid size-5 place-items-center rounded-full border-2 border-superficie bg-marca-media text-etiqueta font-bold text-superficie">
-            {i + 1}
+          {/* El marcador mide lo que el número, así el ancla queda en la esquina exacta; la «×» cuelga al costado. */}
+          <span className="relative block">
+            <span className="pointer-events-none grid size-5 place-items-center rounded-full border-2 border-superficie bg-marca-media text-etiqueta font-bold text-superficie">
+              {i + 1}
+            </span>
+            {onQuitarEsquina ? <BotonQuitarEsquina posicion={i} onQuitar={quitarEsquina} /> : null}
           </span>
         </Marker>
       ))}

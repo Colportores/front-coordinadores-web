@@ -618,24 +618,37 @@ export function ZonasCampania({ datos, acciones }: Props) {
     if (soltado) temporizadorNombre.current = setTimeout(() => void nombrarCentro(punto), MS_ESPERA_NOMBRE_CENTRO);
   }
 
-  function quitarEsquina() {
-    if (panel.tipo !== "dibujo" || !ciudad) return;
+  /**
+   * Saca una esquina del dibujo. Sin `posicion` es el «Quitar» del formulario: saca la última y reabre la forma. Con
+   * `posicion` es la «×» de esa esquina en el mapa (#182): saca esa, las demás se renumeran, y una forma cerrada sigue
+   * cerrada mientras le queden tres esquinas. En los dos casos el borde se vuelve a pedir con las esquinas que quedan.
+   */
+  function quitarEsquina(posicion?: number) {
+    if (panel.tipo !== "dibujo" || !ciudad || guardandoAhora.current) return;
     if (!esquinasDisponibles) {
       cambiarDibujo(() => ({ error: TEXTO_ESQUINAS_SIN_CONECTAR }));
       return;
     }
+    // La esquina se busca por su lugar y no por su número: si antes de este turno se quitó otra, los números ya corrieron.
+    const elegida = posicion === undefined ? undefined : panel.forma.esquinas?.[posicion];
+    if (posicion !== undefined && !elegida) return;
     const deSesion = sesion.current;
     encolar(async () => {
       const inicial = formaVigente.current;
-      if (!inicial || deSesion !== sesion.current) return;
-      const esquinas = (inicial.esquinas ?? []).slice(0, -1);
-      const nueva: FormaZona = { tipoForma: "ESQUINAS", esquinas, cerrada: false };
+      if (!inicial || inicial.tipoForma !== "ESQUINAS" || deSesion !== sesion.current) return;
+      const antes = inicial.esquinas ?? [];
+      const cual = elegida ? antes.findIndex((e) => mismaEsquina(e, elegida)) : antes.length - 1;
+      if (cual < 0) return;
+      const esquinas = antes.filter((_, i) => i !== cual);
+      const cerrada = elegida !== undefined && inicial.cerrada === true && esquinas.length >= 3;
+      const nueva: FormaZona = { tipoForma: "ESQUINAS", esquinas, cerrada };
       tramosVigentes.current = [];
       actualizarForma(nueva, { tramos: [], error: null, nota: null });
+      // Un tramo entre cada par de esquinas seguidas y, con la forma cerrada, el que vuelve a la esquina 1.
+      const pares = esquinas.slice(1).map((e, i): [Esquina, Esquina] => [esquinas[i], e]);
+      if (cerrada) pares.push([esquinas[esquinas.length - 1], esquinas[0]]);
       try {
-        const respuestas = await Promise.all(
-          esquinas.slice(1).map((e, i) => acciones.tramoPorCalles(ciudad.id, esquinas[i], e)),
-        );
+        const respuestas = await Promise.all(pares.map(([desde, hasta]) => acciones.tramoPorCalles(ciudad.id, desde, hasta)));
         if (deSesion !== sesion.current || formaVigente.current !== nueva) return;
         const tramos: Punto[][] = [];
         for (const respuesta of respuestas) {
@@ -926,7 +939,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
               onNombre={(nombre) => cambiarDibujo(() => ({ nombre }))}
               onTipoForma={cambiarTipoForma}
               onRadio={(radioM) => actualizarForma({ ...panel.forma, radioM })}
-              onQuitarEsquina={quitarEsquina}
+              onQuitarEsquina={() => quitarEsquina()}
               onGuardar={() => void guardarZona()}
               onCancelar={cerrarDibujo}
               onReintentarVistaPrevia={
@@ -978,6 +991,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
             onRadio={(radioM) => forma && actualizarForma({ ...forma, radioM })}
             // Mientras guarda, el centro no se agarra: la zona que se mandó es la que queda.
             onCentro={guardando ? undefined : moverCentro}
+            // Cada esquina lleva su «×» (#182), salvo mientras guarda o si las zonas por esquinas no están conectadas.
+            onQuitarEsquina={guardando || !esquinasDisponibles ? undefined : quitarEsquina}
           />
           {avisoDelMapa ? <AvisoDeCasas aviso={avisoDelMapa} /> : null}
         </div>

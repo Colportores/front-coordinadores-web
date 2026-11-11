@@ -48,6 +48,11 @@ export interface PropsMapaZonas {
    * al soltarlo) o con las flechas del teclado (siempre `true`). Sin esta prop el centro no se puede mover desde el mapa.
    */
   onCentro?(punto: Punto, soltado: boolean): void;
+  /**
+   * Se tocó la «×» de una esquina del dibujo (#182): `posicion` es la suya en `dibujo.esquinas` (la esquina 1 es la 0).
+   * Sin esta prop las esquinas no llevan «×».
+   */
+  onQuitarEsquina?(posicion: number): void;
 }
 
 /** Lo que se le dice al coordinador de una cuenta suspendida: no se le puede asignar zona (decisión del 30/09, coord #20). */

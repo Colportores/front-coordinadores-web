@@ -389,4 +389,76 @@ describe("MapaZonasGl", () => {
       expect(doble.marcadores.some((m) => m.draggable)).toBe(false);
     });
   });
+
+  describe("quitar una esquina puntual (#182)", () => {
+    const ESQUINAS = [
+      { lon: -56.26, lat: -34.87, calleA: "Pororó", calleB: "Heredia" },
+      { lon: -56.25, lat: -34.87, calleA: "Pororó", calleB: "Bogotá" },
+      { lon: -56.25, lat: -34.86, calleA: "Rusia", calleB: "Bogotá" },
+    ];
+    const conEsquinas = (esquinas = ESQUINAS): DibujoEnMapa => ({ ...SIN_DIBUJO, esquinas });
+
+    it("cada esquina lleva su «×» con nombre propio, de 44 px, al costado del número", () => {
+      montar({ dibujo: conEsquinas(), onQuitarEsquina: vi.fn() });
+
+      for (const numero of [1, 2, 3]) {
+        const boton = screen.getByRole("button", { name: `Quitar la esquina ${numero}` });
+        expect(boton).toHaveClass("size-11");
+        expect(boton).toHaveAttribute("title", `Quitar la esquina ${numero}`);
+      }
+      // El número sigue sin atajar el clic: tocarlo es tocar la esquina (así se cierra la forma en la 1).
+      expect(screen.getByText("1")).toHaveClass("pointer-events-none");
+    });
+
+    it("la «×» avisa qué esquina se quita y el clic no llega al mapa", () => {
+      const props = montar({ dibujo: conEsquinas(), onQuitarEsquina: vi.fn() });
+      const enElMapa = vi.fn();
+      screen.getByTestId("mapa-gl").addEventListener("click", enElMapa);
+
+      fireEvent.click(screen.getByRole("button", { name: "Quitar la esquina 2" }));
+
+      expect(props.onQuitarEsquina).toHaveBeenCalledTimes(1);
+      expect(props.onQuitarEsquina).toHaveBeenCalledWith(1);
+      expect(enElMapa).not.toHaveBeenCalled();
+      expect(props.onMapaClick).not.toHaveBeenCalled();
+    });
+
+    it("sin `onQuitarEsquina` (mientras guarda) las esquinas no llevan «×»", () => {
+      montar({ dibujo: conEsquinas() });
+
+      expect(screen.queryByRole("button", { name: /Quitar la esquina/ })).not.toBeInTheDocument();
+      expect(screen.getByText("3")).toBeInTheDocument();
+    });
+
+    it("al irse la esquina, el foco pasa a la «×» que quedó con su número, y al mapa si no queda ninguna", () => {
+      const onQuitarEsquina = vi.fn();
+      const base = { ciudad: CIUDAD, zonas: CIUDAD.zonas, zonaElegidaId: null, onZonaClick: vi.fn(), onMapaClick: vi.fn(), onMapaMove: vi.fn(), onRadio: vi.fn(), onQuitarEsquina };
+      const { rerender } = render(<MapaZonasGl {...base} dibujo={conEsquinas()} />);
+
+      const ultima = screen.getByRole("button", { name: "Quitar la esquina 3" });
+      ultima.focus();
+      fireEvent.click(ultima);
+      rerender(<MapaZonasGl {...base} dibujo={conEsquinas(ESQUINAS.slice(0, 2))} />);
+
+      expect(screen.getByRole("button", { name: "Quitar la esquina 2" })).toHaveFocus();
+
+      fireEvent.click(screen.getByRole("button", { name: "Quitar la esquina 2" }));
+      rerender(<MapaZonasGl {...base} dibujo={conEsquinas(ESQUINAS.slice(0, 1))} />);
+      expect(screen.getByRole("button", { name: "Quitar la esquina 1" })).toHaveFocus();
+
+      fireEvent.click(screen.getByRole("button", { name: "Quitar la esquina 1" }));
+      rerender(<MapaZonasGl {...base} dibujo={conEsquinas([])} />);
+      expect(screen.getByTestId("mapa-gl").parentElement).toHaveFocus();
+    });
+
+    it("una «×» tocada sin foco (táctil) no se lleva el foco de donde esté", () => {
+      const base = { ciudad: CIUDAD, zonas: CIUDAD.zonas, zonaElegidaId: null, onZonaClick: vi.fn(), onMapaClick: vi.fn(), onMapaMove: vi.fn(), onRadio: vi.fn(), onQuitarEsquina: vi.fn() };
+      const { rerender } = render(<MapaZonasGl {...base} dibujo={conEsquinas()} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Quitar la esquina 1" }));
+      rerender(<MapaZonasGl {...base} dibujo={conEsquinas(ESQUINAS.slice(1))} />);
+
+      expect(document.body).toHaveFocus();
+    });
+  });
 });
