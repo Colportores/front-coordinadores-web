@@ -123,7 +123,7 @@ async function filasDeLaTabla(unidad: UnidadDeAvance) {
     porNombre.set(c.nombre, {
       colportor: c.nombre,
       carrera: b?.carrera?.nombre ?? null,
-      carreraSub: b?.carrera ? `elegida el ${diaYMes(b.carrera.elegidaEl)}` : undefined,
+      carreraSub: b?.carrera?.elegidaEl ? `elegida el ${diaYMes(b.carrera.elegidaEl)}` : undefined,
       apuntaA: b?.apuntaA ? ETIQUETA_DE_TIPO[b.apuntaA] : null,
       // El canvas no trae el « · N %» del final: se compara el resto.
       avance: avance.tipo === "con-meta" ? avance.texto.replace(/ · \d+ %$/, "") : avance.tipo === "sin-carrera" ? "Sin meta: falta la carrera" : "Sin meta: no apunta a ninguna beca",

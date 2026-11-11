@@ -529,7 +529,7 @@ export function TablaBecas({
                         {carrera ? (
                           <span className="flex min-w-0 flex-col">
                             <span className="wrap-anywhere">{carrera.nombre}</span>
-                            <span className="text-[10.5px] text-tinta-suave">elegida el {diaYMes(carrera.elegidaEl)}</span>
+                            {carrera.elegidaEl && <span className="text-[10.5px] text-tinta-suave">elegida el {diaYMes(carrera.elegidaEl)}</span>}
                             {beca?.metaRecalculadaEn && (
                               <>
                                 <span className="mt-0.5 text-[10.5px] font-semibold wrap-anywhere text-tinta-2">{textoDeCarreraCorregida(carrera.nombre)}</span>

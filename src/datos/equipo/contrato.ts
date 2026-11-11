@@ -130,8 +130,8 @@ export interface CarreraDelCatalogo {
 export interface CarreraElegida {
   id: string;
   nombre: string;
-  /** Día en que se eligió, `AAAA-MM-DD`. */
-  elegidaEl: string;
+  /** Día en que se eligió, `AAAA-MM-DD`; `null` si la base no lo guardó (una carrera cargada antes de la 0117). */
+  elegidaEl: string | null;
 }
 
 /** Lo que muestra la tabla «Becas» de un colportor (HU-BEC-004, HU-BEC-006). */
@@ -196,8 +196,8 @@ export interface DatosEquipoPorCiudad {
    */
   solicitudesPendientes: number;
   /**
-   * La pestaña «Becas» (V2: el backend se conecta después del 20/11). `null`: esta fuente todavía no trae las becas, la
-   * pestaña lo dice en vez de mostrar una tabla vacía.
+   * La pestaña «Becas». `null`: esta fuente no trae las becas (la base no publicó sus RPC o la campaña no las deja leer),
+   * la pestaña no se ofrece o lo dice en vez de mostrar una tabla vacía.
    */
   becas: DatosDeBecas | null;
 }

@@ -4,6 +4,7 @@ import type {
   CiudadDeEquipo,
   ColportorDeEquipo,
   DatosDeAcompanamiento,
+  DatosDeBecas,
   DatosEquipoPorCiudad,
   FuenteDatosEquipo,
   JornadaParaAcompanar,
@@ -15,6 +16,7 @@ import type {
   ZonaAnterior,
 } from "@/datos/equipo/contrato";
 import { LARGO_MAXIMO_NOTA } from "@/datos/equipo/contrato";
+import { asignarTipoDeBecaRpc, elegirCarreraRpc, leerBecas } from "@/datos/equipo/becas-rpc";
 import { campaniaProvisoriaConFechas } from "@/datos/supabase/campania-provisoria";
 import { causaDe, ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
 import {
@@ -44,7 +46,7 @@ import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
  * una sola cosa, `contado_desde`: desde cuándo se cuentan los días de quien nunca fue acompañado.
  *
  * El departamento de cada ciudad sale de `ciudades_de_campania()` (0066): una ciudad vieja sin cargar queda en `null`.
- * Lo que la base todavía no tiene y por eso queda sin conectar: las solicitudes para entrar a la campaña
+ * Las becas (catálogo, beca de cada uno, elegir carrera y tipo) salen de `becas-rpc.ts`. Lo que la base todavía no tiene y por eso queda sin conectar: las solicitudes para entrar a la campaña
  * (`solicitudesPendientes` es siempre 0). Ver los pendientes del PR.
  *
  * Los rechazos de la base (`JO001`…`JO005`, `CZ001`, `CZ011`, `42501`, `22023`) se traducen al texto para mostrar: las
@@ -188,9 +190,6 @@ type FuentePestana = Pick<
   "obtenerEquipoPorCiudad" | "acompanantesDelPanel" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
 >;
 
-/** Las becas (V2) todavía no tienen RPC (se conectan después del 20/11): la vista no ofrece guardarlas con esta fuente. */
-const BECAS_SIN_CONECTAR = "Las becas todavía no están conectadas a la base de datos, así que no se puede guardar este cambio.";
-
 export function crearFuentePestanaRpc(
   cliente: ClienteRpc,
   ahora: () => Date = () => new Date(),
@@ -216,18 +215,21 @@ export function crearFuentePestanaRpc(
             if (error instanceof ErrorSupabase && error.codigo === "CZ011") return [];
             throw error;
           }),
+          // Las becas (`becas-rpc.ts`): sin sus RPC publicadas o con la campaña terminada vienen en null (sin pestaña «Becas»).
+          leerBecas(cliente, campania.id),
         ]);
       } catch (error) {
         if (campaniaYaNoVigente(error)) return null;
         throw error;
       }
-      const [ciudadesCrudas, colportoresCrudos, historialCrudo, tablaCruda, yo, inscriptosCrudos] = respuestas as [
+      const [ciudadesCrudas, colportoresCrudos, historialCrudo, tablaCruda, yo, inscriptosCrudos, becas] = respuestas as [
         unknown,
         unknown,
         unknown,
         unknown,
         string | null,
         unknown,
+        DatosDeBecas | null,
       ];
 
       const rpcInscriptos = "colportores_de_campania";
@@ -289,16 +291,16 @@ export function crearFuentePestanaRpc(
         ciudades: Array.from(ciudades.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
         colportores,
         solicitudesPendientes: 0,
-        becas: null,
+        becas,
       };
     },
 
-    async elegirCarrera(): Promise<ResultadoBeca> {
-      return { ok: false, mensaje: BECAS_SIN_CONECTAR };
+    async elegirCarrera(campaniaId, colportorId, carreraId): Promise<ResultadoBeca> {
+      return elegirCarreraRpc(cliente, campaniaId, colportorId, carreraId);
     },
 
-    async asignarTipoDeBeca(): Promise<ResultadoBeca> {
-      return { ok: false, mensaje: BECAS_SIN_CONECTAR };
+    async asignarTipoDeBeca(campaniaId, colportorId, tipo): Promise<ResultadoBeca> {
+      return asignarTipoDeBecaRpc(cliente, campaniaId, colportorId, tipo);
     },
 
     async acompanantesDelPanel(campaniaId): Promise<ResultadoAcompanantes> {
