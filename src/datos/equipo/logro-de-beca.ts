@@ -29,15 +29,18 @@ export function metaEnMonto(beca: BecaDeColportor, carrera: CarreraDelCatalogo |
 
 /**
  * La mayor meta que alcanzó: la que marcó el servidor (`alcanzada`, que sigue aunque el tipo pase a «Sin beca») o la que
- * sale de comparar la compra a la CES de bonificables con el monto de las metas de su carrera, esto último solo si apunta a algún tipo. Sin tipo asignado
- * y sin nada marcado no hay logro: nadie alcanza una beca que nunca se le asignó.
+ * sale de comparar la compra a la CES de bonificables con los montos de las metas de su carrera, hasta el tipo al que apunta:
+ * quien apunta a completa puede tener ya la media alcanzada, pero quien apunta a media no alcanza la completa aunque su compra
+ * pase ese monto (no se le muestra «Completa alcanzada» de una beca que no tiene asignada, igual que `becas_de_campania()`
+ * 0149; Cristian, 11/11). Sin tipo asignado y sin nada marcado no hay logro:
+ * nadie alcanza una beca que nunca se le asignó.
  */
 export function logroDeBeca(beca: BecaDeColportor, carreras: readonly CarreraDelCatalogo[]): TipoDeBeca | null {
   if (!beca.carrera) return null;
   let calculado: TipoDeBeca | null = null;
   if (beca.apuntaA !== null) {
     const carrera = carreras.find((c) => c.id === beca.carrera?.id);
-    const completa = metaEnMonto(beca, carrera, "completa");
+    const completa = beca.apuntaA === "completa" ? metaEnMonto(beca, carrera, "completa") : null;
     const media = metaEnMonto(beca, carrera, "media");
     if (completa !== null && beca.avance.monto >= completa) calculado = "completa";
     else if (media !== null && beca.avance.monto >= media) calculado = "media";

@@ -354,7 +354,8 @@ export function esUnidadDeAvance(valor: unknown): valor is UnidadDeAvance {
   return valor === "libros" || valor === "ces";
 }
 
-export const ETIQUETA_DE_TIPO: Record<TipoDeBeca, string> = { media: "Media", completa: "Completa" };
+/** Se nombra la beca entera: un «Completa» suelto se leía como «cumplió la meta» (Cristian, 11/11). */
+export const ETIQUETA_DE_TIPO: Record<TipoDeBeca, string> = { media: "Media beca", completa: "Beca completa" };
 
 /** Las tres opciones de «Apunta a»: media, completa y «Sin beca» (`null`, como `tipo_beca` en el esquema). */
 export const OPCIONES_DE_TIPO: { tipo: TipoDeBeca | null; etiqueta: string }[] = [
