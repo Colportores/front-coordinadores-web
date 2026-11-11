@@ -51,7 +51,14 @@ const CATALOGO = {
   version: 1,
   estilo: { url: "estilo/colportores.json" },
   paquetes: [
-    { nivel: "ciudad", ambito_id: MONTEVIDEO, nombre: "Montevideo", partes: [{ archivo: "paquetes/ciudad/mvd.123.pmtiles" }] },
+    {
+      id: "ciudad-montevideo",
+      nivel: "ciudad",
+      ambito_id: MONTEVIDEO,
+      nombre: "Montevideo",
+      version: "1".repeat(64),
+      partes: [{ archivo: "paquetes/ciudad/mvd.123.pmtiles", tamano_bytes: 1024, sha256: "a".repeat(64) }],
+    },
   ],
 };
 const ESTILO = {

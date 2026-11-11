@@ -62,6 +62,18 @@ export function textoFechaDeTicket(iso: string, ahoraIso: string): string {
   return `${dos(p.dia)}/${dos(p.mes)}`;
 }
 
+/** Solo el día, «02/11», en hora de Montevideo. Con un instante ilegible, un guion largo. */
+export function textoDia(iso: string): string {
+  const p = partesEnMontevideo(iso);
+  return p ? `${dos(p.dia)}/${dos(p.mes)}` : "—";
+}
+
+/** El día y la hora, «04/11 14:20», en hora de Montevideo (lo que dice la fila de una decisión). */
+export function textoDiaYHora(iso: string): string {
+  const p = partesEnMontevideo(iso);
+  return p ? `${dos(p.dia)}/${dos(p.mes)} ${dos(p.hora)}:${dos(p.minuto)}` : "—";
+}
+
 /** Un instante `diasAtras` días antes del día de `ahoraIso`, a la hora indicada (hora de Montevideo). */
 export function instanteHaceDias(ahoraIso: string, diasAtras: number, hora: number, minuto: number): string {
   let dia = diaEnMontevideo(ahoraIso) ?? "1970-01-01";

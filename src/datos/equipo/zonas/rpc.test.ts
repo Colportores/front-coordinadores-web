@@ -113,6 +113,8 @@ describe("fuente de la vista 24 contra las RPC", () => {
       expect(datos).toEqual({
         campaniaId: CAMPANIA,
         campania: "Verano 2026",
+        // Las zonas por esquinas todavía no están conectadas: la vista lo dice, no culpa a la conexión (#167).
+        esquinasDisponibles: false,
         ciudades: [
           {
             id: MVD,

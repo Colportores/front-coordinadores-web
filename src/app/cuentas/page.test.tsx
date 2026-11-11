@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import PestanaCuentas from "@/app/cuentas/page";
-import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
 import { fuenteCuentas } from "@/datos/cuentas";
 import type * as ModuloCuentas from "@/datos/cuentas";
 import { armarCuentasSimuladas } from "@/datos/cuentas/simulado";
@@ -28,15 +27,13 @@ describe("PestanaCuentas", () => {
     expect(obtenerCuentas).toHaveBeenCalledWith();
   });
 
-  it("marca como no disponibles las acciones que dependen de la vista 29 (validar tickets)", async () => {
+  it("«Validar tickets» de la franja y del encabezado llevan a la vista 29 (#69)", async () => {
     obtenerCuentas.mockResolvedValue(armarCuentasSimuladas(new Date("2026-10-22T15:00:00.000Z")));
 
     render(<ProveedorModoDev activo={false}>{await PestanaCuentas()}</ProveedorModoDev>);
 
     for (const nombre of ["Validar tickets", "Validar tickets →"]) {
-      const boton = screen.getByRole("button", { name: nombre });
-      expect(boton).toHaveAttribute("aria-disabled", "true");
-      expect(boton).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
+      expect(screen.getByRole("link", { name: nombre })).toHaveAttribute("href", "/cuentas/validar-tickets");
     }
   });
 

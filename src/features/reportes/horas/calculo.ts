@@ -12,6 +12,7 @@ import {
   rotuloDelMes,
   sumarDias,
 } from "@/datos/reportes/fechas";
+import { conPuntosDeMiles } from "@/lib/texto";
 
 /**
  * Cuentas de la vista 32 (HU-REP-001 y HU-REP-002): de las horas y las ventas de cada día salen los períodos (días,
@@ -210,6 +211,13 @@ export interface Comparacion {
   rotulo: string;
   /** Contra qué se compara: «contra S6». Vacío si no hay período anterior. */
   contra: string;
+  /**
+   * Solo en semanas: aclara que el rótulo es la última semana completa («S1 · última semana completa»), para que no
+   * parezca un error mientras corre la S2 (#167, decisión del 10/11, P1). `undefined` en días y meses.
+   */
+  aclaracion?: string;
+  /** Solo en semanas, con una semana en curso: «La S2 está en curso: se compara cuando termine.» */
+  enCurso?: string;
   actual: Cifra;
   /** Cifra del período anterior; `null` si no existe. */
   base: Cifra | null;
@@ -247,13 +255,17 @@ export function compararCon(granularidad: Granularidad, agregar: Agregar, calend
   }
 
   if (granularidad === "semana") {
-    const completas = periodosDe("semana", calendario).filter((p) => !p.enCurso);
+    const semanas = periodosDe("semana", calendario);
+    const completas = semanas.filter((p) => !p.enCurso);
     const actual = completas.at(-1);
     if (actual === undefined) return null;
     const anterior = completas.at(-2);
+    const enCurso = semanas.find((p) => p.enCurso);
     return {
       rotulo: actual.rotulo,
       contra: anterior === undefined ? "" : `contra ${anterior.rotulo}`,
+      aclaracion: "última semana completa",
+      ...(enCurso ? { enCurso: `La ${enCurso.rotulo} está en curso: se compara cuando termine.` } : {}),
       actual: agregar(actual.dias),
       base: anterior === undefined ? null : agregar(anterior.dias),
     };
@@ -322,7 +334,7 @@ export function tendenciaEnPuntos(actual: Cifra, base: Cifra | null): Tendencia 
 
 /** Miles con punto: 1450 → «1.450». */
 export function formatearEntero(valor: number): string {
-  return String(Math.round(valor)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return conPuntosDeMiles(String(Math.round(valor)));
 }
 
 /** Una posición decimal con coma: 27.4 → «27,4». */

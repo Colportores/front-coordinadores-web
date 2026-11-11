@@ -1,4 +1,5 @@
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
+import { sinBarrasFinales } from "@/lib/texto";
 
 /**
  * El mapa de fondo del panel (ADR-011): un PMTiles de OpenStreetMap por ciudad, publicado en el bucket público `mapas` de
@@ -28,15 +29,38 @@ export interface CatalogoDeMapas {
 export const FUENTE_DE_TILES = "protomaps";
 
 export function urlDelCatalogo(supabaseUrl: string): string {
-  return `${supabaseUrl.replace(/\/+$/, "")}/storage/v1/object/public/mapas/catalogo.json`;
+  return `${sinBarrasFinales(supabaseUrl)}/storage/v1/object/public/mapas/catalogo.json`;
 }
 
 const esObjeto = (valor: unknown): valor is Record<string, unknown> =>
   typeof valor === "object" && valor !== null && !Array.isArray(valor);
 
+/** El formato de `catalogo.json` que entiende el panel (el campo `version` del catálogo). */
+export const FORMATO_DEL_CATALOGO = 1;
+
+const ID_VALIDO = /^[A-Za-z0-9_-]{1,80}$/;
+const SHA256_VALIDO = /^[0-9a-fA-F]{64}$/;
+const NIVELES = new Set(["ciudad", "departamento", "uruguay"]);
+
+/**
+ * Las reglas del celular (`catalogo_tiles_model.dart`), las mismas en las dos apps (decisión del 10/11, lib-mapa#9 P5): la ruta
+ * es relativa y simple. Nada de esquema (`https:`), `//host`, `/` al principio, `?`, `#` ni segmentos `.` o `..`.
+ */
+function esRutaSimple(ruta: string): boolean {
+  return (
+    ruta !== "" &&
+    !/^[A-Za-z][A-Za-z0-9+.-]*:/.test(ruta) &&
+    !ruta.startsWith("/") &&
+    !ruta.includes("?") &&
+    !ruta.includes("#") &&
+    !ruta.includes("\\") &&
+    !ruta.split("/").some((s) => s === "." || s === "..")
+  );
+}
+
 /** Una ruta del catálogo es relativa a la URL del catálogo y tiene que quedar en el mismo bucket: nada de salir a otro origen. */
 function resolver(ruta: unknown, urlCatalogo: string): string | null {
-  if (typeof ruta !== "string" || ruta === "") return null;
+  if (typeof ruta !== "string" || !esRutaSimple(ruta)) return null;
   try {
     const base = new URL(urlCatalogo);
     const url = new URL(ruta, base);
@@ -51,22 +75,45 @@ export function leerCatalogo(json: unknown, urlCatalogo: string): CatalogoDeMapa
   if (!esObjeto(json) || !Array.isArray(json.paquetes) || !esObjeto(json.estilo)) {
     throw new MapaBaseInvalido("El catálogo de mapas no trae `estilo` y `paquetes`.");
   }
+  // Un formato que el panel no conoce puede querer decir otra cosa con los mismos campos: no se adivina.
+  if (json.version !== FORMATO_DEL_CATALOGO) throw new MapaBaseInvalido("El catálogo de mapas tiene un formato que el panel no conoce.");
   const estiloUrl = resolver(json.estilo.url, urlCatalogo);
   if (estiloUrl === null) throw new MapaBaseInvalido("El catálogo de mapas no dice dónde está el estilo.");
 
   const paquetes: PaqueteDeMapa[] = [];
+  const vistos = new Set<string>();
   for (const crudo of json.paquetes) {
     // Un paquete mal armado se saltea: no tiene que dejar sin mapa a las ciudades que sí están bien.
-    if (!esObjeto(crudo) || crudo.nivel !== "ciudad" || typeof crudo.ambito_id !== "string" || !Array.isArray(crudo.partes)) continue;
-    const partes = crudo.partes.map((p) => (esObjeto(p) ? resolver(p.archivo, urlCatalogo) : null));
-    if (partes.length === 0 || partes.some((p) => p === null)) continue;
-    paquetes.push({
-      ambitoId: crudo.ambito_id,
-      nombre: typeof crudo.nombre === "string" ? crudo.nombre : "",
-      partes: partes as string[],
-    });
+    const leido = leerPaquete(crudo, urlCatalogo);
+    if (leido === null) continue;
+    // Dos paquetes con el mismo id: vale el primero, como en el celular.
+    if (vistos.has(leido.id)) continue;
+    vistos.add(leido.id);
+    if (leido.nivel === "ciudad") paquetes.push(leido.paquete);
   }
   return { estiloUrl, paquetes };
+}
+
+/** Un paquete del catálogo con todo lo que pide el contrato (id, nivel, ámbito, versión y partes con tamaño y sha256), o `null`. */
+function leerPaquete(crudo: unknown, urlCatalogo: string): { id: string; nivel: string; paquete: PaqueteDeMapa } | null {
+  if (!esObjeto(crudo) || typeof crudo.id !== "string" || !ID_VALIDO.test(crudo.id)) return null;
+  if (typeof crudo.nivel !== "string" || !NIVELES.has(crudo.nivel)) return null;
+  const ambitoId = typeof crudo.ambito_id === "string" ? crudo.ambito_id.trim() : "";
+  if (crudo.nivel !== "uruguay" && ambitoId === "") return null;
+  if (typeof crudo.version !== "string" || crudo.version.trim() === "") return null;
+  if (!Array.isArray(crudo.partes) || crudo.partes.length === 0) return null;
+  const partes: string[] = [];
+  for (const parte of crudo.partes) {
+    if (!esObjeto(parte)) return null;
+    if (!Number.isInteger(parte.tamano_bytes) || (parte.tamano_bytes as number) <= 0) return null;
+    if (typeof parte.sha256 !== "string" || !SHA256_VALIDO.test(parte.sha256)) return null;
+    // Si una sola parte es mala se descarta el paquete entero: no se dibuja media ciudad.
+    const url = resolver(parte.archivo, urlCatalogo);
+    if (url === null) return null;
+    partes.push(url);
+  }
+  const nombre = typeof crudo.nombre === "string" ? crudo.nombre.trim() : "";
+  return { id: crudo.id, nivel: crudo.nivel, paquete: { ambitoId, nombre, partes } };
 }
 
 export function paqueteDeCiudad(catalogo: CatalogoDeMapas, catalogoId: string): PaqueteDeMapa | null {

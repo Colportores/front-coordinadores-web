@@ -34,6 +34,19 @@ import { type DibujoEnMapa, nombreEsquina, TEXTO_CUENTA_SUSPENDIDA } from "@/fea
 import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
 
+/**
+ * Una campaña sin ciudades (#167): antes la vista quedaba en blanco. El texto sigue al de Inicio y Precios para el mismo caso
+ * («Esta campaña todavía no tiene ciudades. Agregalas…») y dice con qué botón.
+ */
+export const TEXTO_SIN_CIUDADES = "Esta campaña todavía no tiene ciudades. Agregalas con «+ Agregar ciudad» para dibujar sus zonas.";
+
+/**
+ * Lo que dice el formulario cuando la fuente todavía no puede dibujar zonas por esquinas (#167: antes culpaba a la conexión).
+ * Sigue el molde de los otros avisos de algo que todavía no se puede («… todavía no se puede …: <qué hacer>»).
+ */
+export const TEXTO_ESQUINAS_SIN_CONECTAR =
+  "Las zonas por esquinas todavía no se pueden dibujar ni cambiar desde el panel: elegí «Radial» para dibujar la zona.";
+
 /** Las operaciones que la vista le pide a la fuente de datos, ya atadas a la campaña por la página (server actions). */
 export interface AccionesZonas {
   esquinaMasCercana: FuenteDatosZonas["esquinaMasCercana"];
@@ -167,6 +180,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const [reintentosVistaPrevia, setReintentosVistaPrevia] = useState(0);
 
   const ciudad = ciudades.find((c) => c.id === ciudadId) ?? ciudades[0];
+  const esquinasDisponibles = datos.esquinasDisponibles !== false;
   const catalogoEnCampania = useMemo(() => new Set(ciudades.map((c) => c.catalogoId)), [ciudades]);
   const guardando = panel.tipo === "dibujo" && panel.guardando;
   const agregando = buscador?.ocupado === true;
@@ -188,6 +202,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
   // La vista previa (ubicaciones incluidas, superposición) se pide al backend cada vez que la forma queda completa.
   useEffect(() => {
     if (!forma || !ciudad || !formaCompleta(forma)) return;
+    // Sin las zonas por esquinas conectadas no hay vista previa que pedir: el formulario ya dice por qué (#167).
+    if (forma.tipoForma === "ESQUINAS" && !esquinasDisponibles) return;
     const version = ++versionVistaPrevia.current;
     const temporizador = setTimeout(() => {
       acciones
@@ -209,7 +225,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
         });
     }, MS_ESPERA_VISTA_PREVIA);
     return () => clearTimeout(temporizador);
-  }, [forma, ciudad, zonaEnEdicionId, acciones, cambiarDibujo, reintentosVistaPrevia]);
+  }, [forma, ciudad, zonaEnEdicionId, acciones, cambiarDibujo, reintentosVistaPrevia, esquinasDisponibles]);
 
   useEffect(() => () => clearTimeout(temporizadorHover.current), []);
 
@@ -285,16 +301,16 @@ export function ZonasCampania({ datos, acciones }: Props) {
     };
   }, [panel, hover]);
 
-  if (!ciudad) return null;
-
-  const zonas = ciudad.zonas;
+  // Una campaña sin ciudades no queda en blanco (#167): se ve el título, «+ Agregar ciudad» y el aviso de qué hacer.
+  const zonas = ciudad?.zonas ?? [];
   const zonaDetalle = panel.tipo === "detalle" ? zonas.find((z) => z.id === panel.zonaId) : undefined;
   const zonaEnEdicion = zonaEnEdicionId ? zonas.find((z) => z.id === zonaEnEdicionId) : undefined;
   const zonaElegidaId = zonaDetalle?.id ?? zonaEnEdicionId ?? null;
 
   /** El aviso de arriba del mapa (24P·04 a 24P·08): el más urgente primero, uno solo. */
-  const avisoDelMapa: AvisoDelMapa | null =
-    casasDeLaCiudad.fase === "error"
+  const avisoDelMapa: AvisoDelMapa | null = !ciudad
+    ? null
+    : casasDeLaCiudad.fase === "error"
       ? { tipo: "error", onReintentar: casasDeLaCiudad.reintentar }
       : casasDeLaCiudad.sinConexion && casasDeLaCiudad.actualizadoA
         ? { tipo: "sin-conexion", hora: horaEnMontevideo(casasDeLaCiudad.actualizadoA) }
@@ -360,6 +376,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   function empezarEdicion(zona: ZonaDeCiudad) {
     empezarDibujo(dibujoDeZona(zona));
     if (zona.tipoForma === "RADIAL" && zona.centro) void nombrarCentro(zona.centro);
+    if (zona.tipoForma === "ESQUINAS" && !esquinasDisponibles) cambiarDibujo(() => ({ error: TEXTO_ESQUINAS_SIN_CONECTAR }));
   }
 
   function cerrarDibujo() {
@@ -373,7 +390,14 @@ export function ZonasCampania({ datos, acciones }: Props) {
   function cambiarTipoForma(tipo: TipoForma) {
     if (forma?.tipoForma === tipo) return;
     setHover(null);
-    actualizarForma(formaVacia(tipo), { tramos: [], nombreCentro: null });
+    // Sin las zonas por esquinas conectadas, el aviso dice la causa real apenas se las elige (#167), y se va al volver a «Radial».
+    const sinEsquinas = tipo === "ESQUINAS" && !esquinasDisponibles;
+    const quitarAviso = !sinEsquinas && panel.tipo === "dibujo" && panel.error === TEXTO_ESQUINAS_SIN_CONECTAR;
+    actualizarForma(formaVacia(tipo), {
+      tramos: [],
+      nombreCentro: null,
+      ...(sinEsquinas ? { error: TEXTO_ESQUINAS_SIN_CONECTAR } : quitarAviso ? { error: null } : {}),
+    });
   }
 
   /** Atiende un clic en el mapa mientras se dibuja. Corre dentro de la cola, de a un clic por vez. */
@@ -386,6 +410,10 @@ export function ZonasCampania({ datos, acciones }: Props) {
       return;
     }
     if (inicial.cerrada) return;
+    if (!esquinasDisponibles) {
+      cambiarDibujo(() => ({ error: TEXTO_ESQUINAS_SIN_CONECTAR }));
+      return;
+    }
     const esquinas = inicial.esquinas ?? [];
     try {
       const esquina = await acciones.esquinaMasCercana(ciudad.id, punto);
@@ -420,7 +448,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   }
 
   function alMoverEnMapa(punto: Punto) {
-    if (panel.tipo !== "dibujo" || forma?.tipoForma !== "ESQUINAS" || forma.cerrada || !ciudad) return;
+    if (panel.tipo !== "dibujo" || forma?.tipoForma !== "ESQUINAS" || forma.cerrada || !ciudad || !esquinasDisponibles) return;
     clearTimeout(temporizadorHover.current);
     const version = ++versionHover.current;
     temporizadorHover.current = setTimeout(() => {
@@ -435,6 +463,10 @@ export function ZonasCampania({ datos, acciones }: Props) {
 
   function quitarEsquina() {
     if (panel.tipo !== "dibujo" || !ciudad) return;
+    if (!esquinasDisponibles) {
+      cambiarDibujo(() => ({ error: TEXTO_ESQUINAS_SIN_CONECTAR }));
+      return;
+    }
     const deSesion = sesion.current;
     encolar(async () => {
       const inicial = formaVigente.current;
@@ -455,6 +487,10 @@ export function ZonasCampania({ datos, acciones }: Props) {
 
   async function guardarZona() {
     if (panel.tipo !== "dibujo" || !ciudad || guardandoAhora.current) return;
+    if (panel.forma.tipoForma === "ESQUINAS" && !esquinasDisponibles) {
+      cambiarDibujo(() => ({ error: TEXTO_ESQUINAS_SIN_CONECTAR }));
+      return;
+    }
     guardandoAhora.current = true;
     const deSesion = sesion.current;
     cambiarDibujo(() => ({ guardando: true, error: null, fallaVistaPrevia: null }));
@@ -622,27 +658,29 @@ export function ZonasCampania({ datos, acciones }: Props) {
       <h2 className="font-serif text-[21px] font-semibold text-tinta">Zonas · {datos.campania}</h2>
 
       <div className="flex items-center gap-2">
-        <nav aria-label="Ciudades de la campaña" className="flex flex-wrap gap-2">
-          {ciudades.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              aria-current={c.id === ciudad.id ? "true" : undefined}
-              data-foco={c.id === ciudad.id ? "ciudad-elegida" : undefined}
-              disabled={guardando || agregando}
-              onClick={() => elegirCiudad(c.id)}
-              className={cn(
-                "flex cursor-pointer flex-col items-start rounded-control border px-3.5 py-1.5 text-left focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60",
-                c.id === ciudad.id
-                  ? "border-marca bg-marca-clara text-marca"
-                  : "border-borde bg-superficie text-tinta-2 hover:bg-fondo",
-              )}
-            >
-              <span className="text-nav font-semibold">{c.nombre}</span>
-              <span className="text-mini text-tinta-suave">{textoCantidadZonas(c.zonas.length)}</span>
-            </button>
-          ))}
-        </nav>
+        {ciudad ? (
+          <nav aria-label="Ciudades de la campaña" className="flex flex-wrap gap-2">
+            {ciudades.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                aria-current={c.id === ciudad.id ? "true" : undefined}
+                data-foco={c.id === ciudad.id ? "ciudad-elegida" : undefined}
+                disabled={guardando || agregando}
+                onClick={() => elegirCiudad(c.id)}
+                className={cn(
+                  "flex cursor-pointer flex-col items-start rounded-control border px-3.5 py-1.5 text-left focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60",
+                  c.id === ciudad.id
+                    ? "border-marca bg-marca-clara text-marca"
+                    : "border-borde bg-superficie text-tinta-2 hover:bg-fondo",
+                )}
+              >
+                <span className="text-nav font-semibold">{c.nombre}</span>
+                <span className="text-mini text-tinta-suave">{textoCantidadZonas(c.zonas.length)}</span>
+              </button>
+            ))}
+          </nav>
+        ) : null}
         <Button
           type="button"
           variant="outline"
@@ -678,6 +716,11 @@ export function ZonasCampania({ datos, acciones }: Props) {
         </p>
       ) : null}
 
+      {!ciudad ? (
+        <p data-foco="sin-ciudades" className="rounded-tarjeta border border-borde bg-superficie px-4 py-3 text-nav text-tinta">
+          {TEXTO_SIN_CIUDADES}
+        </p>
+      ) : (
       <div className="grid grid-cols-[360px_minmax(0,1fr)] items-start gap-4">
         <div className="flex max-h-[calc(100vh-var(--spacing-topbar)-var(--alto-aviso,0px)-230px)] min-h-[520px] flex-col gap-4 overflow-auto">
           {/* Sin zonas no hay casas que contar: la leyenda diría «0 casas» y la lista ya dice que no hay zonas. */}
@@ -768,6 +811,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
           {avisoDelMapa ? <AvisoDeCasas aviso={avisoDelMapa} /> : null}
         </div>
       </div>
+      )}
     </div>
   );
 }

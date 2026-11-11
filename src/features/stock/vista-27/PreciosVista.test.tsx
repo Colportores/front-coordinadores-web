@@ -99,7 +99,7 @@ describe("27G·01 · pestaña General", () => {
     expect(pestana(/^General$/)).toHaveAttribute("aria-selected", "true");
   });
 
-  it("alerta solo en General cuando un bonificable no tiene precio general", async () => {
+  it("alerta en General y en cada ciudad cuando un bonificable no tiene precio general (la de la ciudad: PreciosVista.sin-precio.test)", async () => {
     const datos = crearDatosDePreciosSimulados();
     datos.items = datos.items.map((i) => (i.clave === NH.clave ? { ...i, precioGeneral: null } : i));
     montar(datos);
@@ -107,7 +107,7 @@ describe("27G·01 · pestaña General", () => {
     expect(screen.getByRole("row", { name: /Nuestros Hijos/ })).toHaveTextContent("sin precio");
 
     await abrir(/^Las Piedras/);
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Nuestros Hijos es bonificable y no tiene precio en Las Piedras");
     expect(screen.getByRole("row", { name: /Nuestros Hijos/ })).toHaveTextContent("No se ofrece");
   });
 });

@@ -15,15 +15,16 @@ export interface ColumnaDeTabla {
 
 const TONOS = {
   exito: "bg-exito-fondo text-exito",
+  neutro: "bg-superficie-suave text-tinta-2",
   alerta: "bg-alerta-fondo text-alerta",
   peligro: "bg-peligro-fondo text-peligro",
   marca: "bg-marca-clara text-marca-media",
 } as const;
 
 /** La pastilla de estado de una fila (✓ Pagado, ◔ Por validar…). El símbolo y el texto dicen lo mismo que el color. */
-export function Pastilla({ tono, children }: { tono: keyof typeof TONOS; children: ReactNode }) {
+export function Pastilla({ tono, children, className }: { tono: keyof typeof TONOS; children: ReactNode; className?: string }) {
   return (
-    <span className={cn("inline-flex w-max items-center gap-[5px] rounded-pastilla px-2 py-[3px] text-mini font-semibold", TONOS[tono])}>
+    <span className={cn("inline-flex w-max items-center gap-[5px] rounded-pastilla px-2 py-[3px] text-mini font-semibold", TONOS[tono], className)}>
       {children}
     </span>
   );
@@ -102,6 +103,7 @@ export function TablaDeFilas({
   alOrdenar,
   celdas,
   textoVacio,
+  resaltada,
 }: {
   nombre: string;
   columnas: ColumnaDeTabla[];
@@ -113,6 +115,8 @@ export function TablaDeFilas({
   alOrdenar: (columna: ColumnaOrdenable) => void;
   celdas: (fila: FilaDeCuenta) => ReactNode[];
   textoVacio: string;
+  /** El id del colportor cuya fila se resalta (la que se está decidiendo o se acaba de decidir). */
+  resaltada?: string | null;
 }) {
   const grupos: Array<{ ciudad: CiudadDeCuentas; filas: FilaDeCuenta[] }> = [];
   for (const fila of filas) {
@@ -152,7 +156,11 @@ export function TablaDeFilas({
                 <div
                   key={fila.colportor.id}
                   role="row"
-                  className={cn("grid min-h-[46px] items-center gap-3 border-b border-borde-suave px-[18px] text-cuerpo", plantilla)}
+                  className={cn(
+                    "grid min-h-[46px] items-center gap-3 border-b border-borde-suave px-[18px] text-cuerpo",
+                    plantilla,
+                    resaltada === fila.colportor.id && "bg-[#F4F7FB] shadow-[inset_3px_0_0_var(--marca-media)]",
+                  )}
                 >
                   {celdas(fila).map((contenido, indice) => (
                     <span

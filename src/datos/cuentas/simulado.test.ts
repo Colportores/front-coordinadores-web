@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vitest";
 
 import { fuenteCuentasSimulada, armarCuentasSimuladas, crearAccionesSimuladas, ALQUILER_SIMULADO } from "@/datos/cuentas/simulado";
+import { TEXTO_ALQUILER_CON_PAGOS } from "@/features/cuentas/por-decidir";
 
 const AHORA = new Date("2026-10-22T15:00:00.000Z");
 
 describe("armarCuentasSimuladas", () => {
   const datos = armarCuentasSimuladas(AHORA);
 
-  it("arma tres ciudades y 25 colportores siempre igual", () => {
+  it("arma tres ciudades y 26 colportores siempre igual", () => {
     expect(datos.ciudades.map((c) => c.nombre)).toEqual(["Rivera", "Artigas", "Bella Unión"]);
-    expect(datos.colportores).toHaveLength(25);
+    expect(datos.colportores).toHaveLength(26);
     expect(armarCuentasSimuladas(AHORA)).toEqual(datos);
-    expect(new Set(datos.colportores.map((c) => c.id)).size).toBe(25);
+    expect(new Set(datos.colportores.map((c) => c.id)).size).toBe(26);
     expect(new Set(datos.tickets.map((t) => t.id)).size).toBe(datos.tickets.length);
   });
 
-  it("el alquiler pagado de cada colportor sale solo de depósitos validados con ese destino", () => {
-    for (const c of datos.colportores) {
+  it("el alquiler pagado de cada colportor inscripto sale solo de depósitos validados con ese destino", () => {
+    for (const c of datos.colportores.filter((x) => !x.baja)) {
       const pagado = datos.tickets
         .filter((t) => t.colportorId === c.id && t.destino === "alquiler" && t.estado === "VALIDADO")
         .reduce((total, t) => total + t.monto, 0);
@@ -47,18 +48,28 @@ describe("armarCuentasSimuladas", () => {
 
   it("la fuente arma la lectura a la hora del pedido", async () => {
     const lectura = await fuenteCuentasSimulada.obtenerCuentas();
-    expect(lectura.colportores).toHaveLength(25);
+    expect(lectura.colportores).toHaveLength(26);
     expect(Number.isNaN(Date.parse(lectura.ahora))).toBe(false);
   });
 });
 
 describe("crearAccionesSimuladas", () => {
-  const acciones = crearAccionesSimuladas();
+  const datos = armarCuentasSimuladas(AHORA);
+  const sinPagosDeAlquiler = { ...datos, tickets: datos.tickets.filter((t) => t.destino !== "alquiler") };
 
-  it("editarAlquiler acepta 0 y rechaza negativos y decimales", async () => {
+  it("editarAlquiler acepta 0 sin pagos de alquiler y rechaza negativos y decimales", async () => {
+    const acciones = crearAccionesSimuladas(sinPagosDeAlquiler);
     expect(await acciones.editarAlquiler(0)).toEqual({ ok: true, valor: 0 });
     expect(await acciones.editarAlquiler(20000)).toEqual({ ok: true, valor: 20000 });
     expect(await acciones.editarAlquiler(-1)).toMatchObject({ ok: false });
     expect(await acciones.editarAlquiler(1.5)).toMatchObject({ ok: false });
+  });
+
+  it("editarAlquiler con pagos de alquiler rechaza 0 con el aviso de la decisión «Alquiler a 0» y deja cambiar el monto", async () => {
+    const acciones = crearAccionesSimuladas(datos);
+    expect(await acciones.editarAlquiler(0)).toEqual({ ok: false, causa: "rechazado", mensaje: TEXTO_ALQUILER_CON_PAGOS });
+    expect(await acciones.editarAlquiler(20000)).toEqual({ ok: true, valor: 20000 });
+    // Sigue rechazando después de cambiar el monto: los pagos siguen ahí.
+    expect(await acciones.editarAlquiler(0)).toMatchObject({ ok: false, causa: "rechazado" });
   });
 });

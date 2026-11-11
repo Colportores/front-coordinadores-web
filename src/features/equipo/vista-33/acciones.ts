@@ -1,6 +1,7 @@
 import type {
   DatosDeAcompanamiento,
   ResultadoAcompanamiento,
+  ResultadoAcompanantes,
   ResultadoBeca,
   ResultadoJornadas,
   TipoDeBeca,
@@ -12,6 +13,11 @@ import type {
  * regla vuelve como `ok: false`; una falla de conexión, como excepción.
  */
 export interface AccionesEquipo {
+  /**
+   * Los coordinadores y administradores para «Quién lo acompañó». Opcional: sin ella (o si falla) el selector ofrece solo
+   * a los colportores de la campaña, como antes.
+   */
+  acompanantesDelPanel?(): Promise<ResultadoAcompanantes>;
   jornadasParaAcompanar(colportorId: string): Promise<ResultadoJornadas>;
   registrarAcompanamiento(jornadaId: string, datos?: DatosDeAcompanamiento): Promise<ResultadoAcompanamiento>;
   elegirCarrera(colportorId: string, carreraId: string): Promise<ResultadoBeca>;

@@ -171,8 +171,23 @@ export function bonificablesSinPrecioGeneral(datos: DatosDePrecios): ItemDePreci
 }
 
 /**
- * La alerta de la pestaña General (decisión del 04/11: la alerta de un producto sin precio general sale solo ahí, no en las
- * ciudades, hasta que Cristian conteste «Sin general»). Sin artboard: texto armado sobre el de 27G·05.
+ * Los bonificables que no se pueden vender en una ciudad: sin precio general y sin excepción ahí (27G·05). Cuenta solo lo
+ * guardado: un precio tipeado que todavía no se guardó no hace que los colportores puedan vender el producto.
+ */
+export function bonificablesSinPrecioEnCiudad(datos: DatosDePrecios, ciudadId: string): ItemDePrecio[] {
+  const excepciones = datos.excepciones[ciudadId] ?? {};
+  return bonificablesSinPrecioGeneral(datos).filter((i) => excepciones[i.clave] === undefined);
+}
+
+/** La insignia de la pestaña de una ciudad (27G·05): «Falta 1 precio», «Faltan 2 precios». */
+export function textoDeFaltaDePrecio(n: number): string | null {
+  if (n === 0) return null;
+  return n === 1 ? "Falta 1 precio" : `Faltan ${n} precios`;
+}
+
+/**
+ * La alerta de la pestaña General: un producto sin precio general no se vende en las ciudades que no le ponen una excepción.
+ * Sin artboard: texto armado sobre el de 27G·05.
  */
 export function textoDeAlertaSinPrecioGeneral(sinPrecio: ItemDePrecio[]): string | null {
   if (sinPrecio.length === 0) return null;
@@ -181,6 +196,20 @@ export function textoDeAlertaSinPrecioGeneral(sinPrecio: ItemDePrecio[]): string
   }
   const nombres = sinPrecio.map((i) => i.nombre).join(", ");
   return `${sinPrecio.length} productos bonificables no tienen precio general (${nombres}): los colportores no los pueden vender en una ciudad que no les ponga una excepción.`;
+}
+
+/**
+ * La alerta de la pestaña de una ciudad (27G·05; decisión de Cristian del 05/11, «Sin general»: sale en todas las ciudades de la
+ * campaña y dice qué hacer). La frase del producto es la del canvas; la de qué hacer, la de la decisión.
+ */
+export function textoDeAlertaSinPrecioEnCiudad(sinPrecio: ItemDePrecio[], ciudad: string): string | null {
+  if (sinPrecio.length === 0) return null;
+  const queHacer = `Cargá su precio en ${ciudad} o pedile el general a Administración.`;
+  if (sinPrecio.length === 1) {
+    return `${sinPrecio[0].nombre} es bonificable y no tiene precio en ${ciudad}: no tiene precio general ni excepción, así que los colportores no lo pueden vender ahí. ${queHacer}`;
+  }
+  const nombres = sinPrecio.map((i) => i.nombre).join(", ");
+  return `${sinPrecio.length} productos bonificables no tienen precio en ${ciudad} (${nombres}): no tienen precio general ni excepción, así que los colportores no los pueden vender ahí. Cargá el precio de cada uno en ${ciudad} o pedile el general a Administración.`;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -443,6 +472,8 @@ export interface PestanaDePrecios {
   nombre: string;
   /** «3 excepciones», «1 excepción»; `null` sin ninguna (y en General). */
   excepciones: string | null;
+  /** «Falta 1 precio» (27G·05): bonificables que la ciudad no puede vender; `null` sin ninguno (y en General). */
+  faltan: string | null;
   sinGuardar: number;
 }
 
@@ -453,11 +484,12 @@ export function textoDeExcepciones(n: number): string | null {
 
 export function armarPestanas(datos: DatosDePrecios, borradores: BorradoresPorCiudad): PestanaDePrecios[] {
   return [
-    { id: ID_PESTANA_GENERAL, nombre: "General", excepciones: null, sinGuardar: 0 },
+    { id: ID_PESTANA_GENERAL, nombre: "General", excepciones: null, faltan: null, sinGuardar: 0 },
     ...datos.ciudades.map((c) => ({
       id: c.id,
       nombre: c.nombre,
       excepciones: textoDeExcepciones(Object.keys(datos.excepciones[c.id] ?? {}).length),
+      faltan: textoDeFaltaDePrecio(bonificablesSinPrecioEnCiudad(datos, c.id).length),
       sinGuardar: resumirBorrador(datos, c.id, borradores[c.id] ?? {}).cambios.length,
     })),
   ];

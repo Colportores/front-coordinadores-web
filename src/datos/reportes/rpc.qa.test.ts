@@ -52,6 +52,7 @@ const base = (cambios: Record<string, unknown> = {}) =>
     campanias_del_coordinador: [{ id: CAMPANIA, nombre: "Primavera", fecha_inicio: "2026-09-01", fecha_fin: null }],
     ciudades_de_campania: [{ campania_ciudad_id: "cc-1", ciudad_id: RIVERA, nombre: "Rivera", departamento: "Rivera" }],
     horas_por_ciudad_y_colportor: [fila({})],
+    ventas_por_ciudad_y_colportor: [],
     zonas_por_colportor: [],
     ...cambios,
   });
@@ -129,6 +130,7 @@ describe("QA #60 · lectura partida por el tope de filas de PostgREST", () => {
       if (nombre === "campanias_del_coordinador") return [{ id: CAMPANIA, nombre: "P", fecha_inicio: "2026-09-01", fecha_fin: null }];
       if (nombre === "ciudades_de_campania") return [];
       if (nombre === "zonas_por_colportor") return [];
+      if (nombre === "ventas_por_ciudad_y_colportor") return [];
       pedidos.push([args.p_desde as string, args.p_hasta as string]);
       return todas
         .filter((f) => (f.periodo_inicio as string) >= (args.p_desde as string) && (f.periodo_inicio as string) <= (args.p_hasta as string))

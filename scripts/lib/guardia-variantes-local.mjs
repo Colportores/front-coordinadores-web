@@ -24,26 +24,66 @@ const CONDICION = 'process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1"';
 
 /** Directiva `"use server"` de módulo (primera línea) o dentro de una función (server action en línea). */
 export function esModuloDeServerActions(texto) {
-  return /^\s*(["'])use server\1\s*;?\s*$/m.test(texto);
+  return /^[ \t]*(["'])use server\1[ \t]*;?[ \t]*$/m.test(texto);
 }
 
 /** Los `import ... from "x"`, `import "x"` e `import("x")` de un texto, con su posición y si son dinámicos o solo de tipos. */
 export function importsDe(texto) {
   const encontrados = [];
-  const estaticos = /^[ \t]*import\s+(type\s+)?([^"';]*?)\s*from\s*(["'])([^"']+)\3|^[ \t]*import\s*(["'])([^"']+)\5/gm;
-  for (const m of texto.matchAll(estaticos)) {
-    encontrados.push({
-      especificador: m[4] ?? m[6],
-      dinamico: false,
-      soloTipos: Boolean(m[1]),
-      nombres: m[2] ?? "",
-      posicion: m.index,
-    });
+  // Sin una expresión regular para el cuerpo del import (su retroceso era super-lineal, Sonar S8786): se recorre el texto
+  // una vez, y la próxima comilla o `;` se guarda para que muchos `import` sin cierre no vuelvan a recorrer lo mismo.
+  let parada = -1;
+  const proximaParada = (desde) => {
+    if (parada >= desde) return parada;
+    parada = desde;
+    while (parada < texto.length && !'"\';'.includes(texto[parada])) parada += 1;
+    return parada;
+  };
+  for (const m of texto.matchAll(/^[ \t]*import(?=[\s"'])/gm)) {
+    const importado = leerImportEstatico(texto, m.index + m[0].length, proximaParada);
+    if (importado) encontrados.push({ ...importado, posicion: m.index });
   }
   for (const m of texto.matchAll(/\bimport\(\s*(["'])([^"']+)\1\s*\)/g)) {
     encontrados.push({ especificador: m[2], dinamico: true, soloTipos: false, nombres: "", posicion: m.index });
   }
   return encontrados;
+}
+
+const esBlanco = (caracter) => caracter !== undefined && /\s/.test(caracter);
+
+/** El especificador entre comillas que empieza en `texto[inicio]` (la comilla de apertura), o `null` si no está bien cerrado. */
+function especificadorDesde(texto, inicio) {
+  const comilla = texto[inicio];
+  const cierre = texto.indexOf(comilla, inicio + 1);
+  if (cierre === -1) return null;
+  const especificador = texto.slice(inicio + 1, cierre);
+  return especificador === "" || especificador.includes('"') || especificador.includes("'") ? null : especificador;
+}
+
+/** El resto de un `import` estático desde justo después de la palabra `import`; `null` si no es uno. */
+function leerImportEstatico(texto, desde, proximaParada) {
+  let i = desde;
+  while (esBlanco(texto[i])) i += 1;
+  const hubo = i > desde;
+  if (texto[i] === '"' || texto[i] === "'") {
+    const especificador = especificadorDesde(texto, i);
+    return especificador === null ? null : { especificador, dinamico: false, soloTipos: false, nombres: "" };
+  }
+  if (!hubo) return null;
+  let soloTipos = false;
+  if (texto.startsWith("type", i) && esBlanco(texto[i + 4])) {
+    soloTipos = true;
+    i += 4;
+    while (esBlanco(texto[i])) i += 1;
+  }
+  const parada = proximaParada(i);
+  if (parada >= texto.length || texto[parada] === ";") return null;
+  let fin = parada;
+  while (fin > i && esBlanco(texto[fin - 1])) fin -= 1;
+  if (fin - 4 < i || texto.slice(fin - 4, fin) !== "from") return null;
+  const especificador = especificadorDesde(texto, parada);
+  if (especificador === null) return null;
+  return { especificador, dinamico: false, soloTipos, nombres: texto.slice(i, fin - 4).trimEnd() };
 }
 
 /** Ruta de archivo (con `/`, relativa a la raíz del repo) a la que apunta un import, probando las extensiones; `null` si es de un paquete. */
@@ -83,7 +123,18 @@ function ramaDelSitioDePrueba(texto) {
 
 /** El texto sin comentarios (los comentarios nombran el selector y las funciones que justamente no se usan). */
 function sinComentarios(texto) {
-  return texto.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  // Los bloques `/* … */` con indexOf (la expresión con `[\s\S]*?` era cuadrática con muchos `/*` sin cierre); uno sin cierre queda como estaba.
+  const partes = [];
+  let desde = 0;
+  for (;;) {
+    const abre = texto.indexOf("/*", desde);
+    const cierra = abre === -1 ? -1 : texto.indexOf("*/", abre + 2);
+    if (cierra === -1) break;
+    partes.push(texto.slice(desde, abre));
+    desde = cierra + 2;
+  }
+  partes.push(texto.slice(desde));
+  return partes.join("").replace(/^[ \t]*\/\/.*$/gm, "");
 }
 
 const PROHIBIDO_EN_LA_RAMA = [

@@ -56,6 +56,8 @@ export interface ReporteArmado {
   periodo: string;
   /** El rótulo del período que se mira («S7»), o `null` si todavía no hay uno completo. */
   rotuloDelPeriodo: string | null;
+  /** En semanas, con una semana en curso: «La S2 está en curso: se compara cuando termine.» (#167). */
+  avisoDelPeriodo: string | null;
   /** Con un colportor elegido: la ciudad a la que se vuelve. */
   volverA: { nombre: string; ambito: Ambito } | null;
   tarjetas: TarjetaArmada[];
@@ -112,7 +114,10 @@ export function armarReporte(
   // Qué período se compara no depende de la cifra: sale de los días y las semanas del calendario.
   const comparacion = compararCon(granularidad, agregadores.horas, calendario);
   const rotuloActual = comparacion?.rotulo ?? null;
-  const frasePeriodo = comparacion ? [comparacion.rotulo, comparacion.contra].filter(Boolean).join(" ") : "";
+  // En semanas, «S1 · última semana completa contra S0»: la que está en curso no se compara (canvas 32, #167).
+  const frasePeriodo = comparacion
+    ? [[comparacion.rotulo, comparacion.aclaracion].filter(Boolean).join(" · "), comparacion.contra].filter(Boolean).join(" ")
+    : "";
 
   const ubicacion = textoDeUbicacion(resuelto);
 
@@ -199,6 +204,7 @@ export function armarReporte(
     subtitulo: [ubicacion, frasePeriodo].filter(Boolean).join(" · "),
     periodo: frasePeriodo,
     rotuloDelPeriodo: rotuloActual,
+    avisoDelPeriodo: comparacion?.enCurso ?? null,
     volverA: volverALaCiudad(resuelto),
     tarjetas,
     tabla: { descripcion, primeraColumna, columnas: cifras.map((c) => ({ clave: c.clave, encabezado: c.columna })), filas },
@@ -312,6 +318,7 @@ export function armarReporteDeRango(
       subtitulo: ubicacion,
       periodo: "",
       rotuloDelPeriodo: null,
+      avisoDelPeriodo: null,
       volverA: volverALaCiudad(resuelto),
       tarjetas: [],
       tabla: { descripcion: "Reporte del rango de fechas", primeraColumna: "COLPORTOR", columnas, filas: [] },
@@ -408,6 +415,7 @@ export function armarReporteDeRango(
     subtitulo: [ubicacion, periodo].filter(Boolean).join(" · "),
     periodo,
     rotuloDelPeriodo: `${fechaConAnio(validado.rango.desde)} al ${fechaConAnio(validado.rango.hasta)}`,
+    avisoDelPeriodo: null,
     volverA: volverALaCiudad(resuelto),
     tarjetas,
     tabla: { descripcion, primeraColumna, columnas, filas },

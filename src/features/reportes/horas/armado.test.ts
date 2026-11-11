@@ -22,7 +22,7 @@ describe("armarReporte · todas las ciudades", () => {
   it("semanas: la última completa (S2) contra la anterior, con el total de la campaña", () => {
     const r = armarReporte(datos, AMBITO_TODAS, "semana");
     expect(r.titulo).toBe("Todas las ciudades");
-    expect(r.subtitulo).toBe("4 colportores · S2 contra S1");
+    expect(r.subtitulo).toBe("4 colportores · S2 · última semana completa contra S1");
     expect(r.tarjetas[0]).toMatchObject({ valor: "122", nota: "S2 · contra S1", campania: "Campaña: 302" });
     expect(r.tarjetas[0].tendencia?.texto).toBe("▼ 12%");
     expect(r.volverA).toBeNull();
@@ -70,7 +70,7 @@ describe("armarReporte · ciudad, departamento y colportor", () => {
   it("una ciudad: el subtítulo trae su departamento y no repite el nombre de la ciudad en la tabla", () => {
     const r = armarReporte(datos, { tipo: "ciudad", ciudadId: "rivera" }, "semana");
     expect(r.titulo).toBe("Rivera");
-    expect(r.subtitulo).toBe("Departamento Rivera · 2 colportores · S2 contra S1");
+    expect(r.subtitulo).toBe("Departamento Rivera · 2 colportores · S2 · última semana completa contra S1");
     expect(r.tarjetas[0]).toMatchObject({ valor: "68", campania: "Campaña: 167" });
     expect(r.tarjetas[0].tendencia?.texto).toBe("▼ 19%");
     expect(r.tabla.filas.every((f) => f.tipo === "fila")).toBe(true);
@@ -79,7 +79,7 @@ describe("armarReporte · ciudad, departamento y colportor", () => {
   it("«Todo el departamento» suma sus ciudades, con una fila de encabezado por ciudad", () => {
     const r = armarReporte(datos, { tipo: "departamento", departamento: "Artigas" }, "semana");
     expect(r.titulo).toBe("Departamento Artigas");
-    expect(r.subtitulo).toBe("2 colportores · S2 contra S1");
+    expect(r.subtitulo).toBe("2 colportores · S2 · última semana completa contra S1");
     expect(r.tarjetas[0].valor).toBe("54");
     expect(r.tarjetas[0].tendencia?.texto).toBe("= 0%");
     expect(r.tabla.filas.filter((f) => f.tipo === "grupo").map((f) => f.nombre)).toEqual(["Artigas", "Bella Unión"]);
@@ -88,7 +88,7 @@ describe("armarReporte · ciudad, departamento y colportor", () => {
   it("un colportor: cifras con decimales, vuelta a su ciudad y una fila por semana comparada con la anterior", () => {
     const r = armarReporte(datos, { tipo: "colportor", colportorId: "ana" }, "semana");
     expect(r.titulo).toBe("Ana Silva");
-    expect(r.subtitulo).toBe("Rivera · Departamento Rivera · S2 contra S1");
+    expect(r.subtitulo).toBe("Rivera · Departamento Rivera · S2 · última semana completa contra S1");
     expect(r.volverA).toEqual({ nombre: "Rivera", ambito: { tipo: "ciudad", ciudadId: "rivera" } });
     expect(r.tarjetas[0].valor).toBe("36,0");
     expect(r.tabla.primeraColumna).toBe("SEMANA");
@@ -136,7 +136,7 @@ describe("armarReporte · casos límite", () => {
   it("sin ciudades: nada que mostrar, sin romper", () => {
     const vacio = { ...datos, ciudades: [] };
     const r = armarReporte(vacio, AMBITO_TODAS, "semana");
-    expect(r.subtitulo).toBe("0 colportores · S2 contra S1");
+    expect(r.subtitulo).toBe("0 colportores · S2 · última semana completa contra S1");
     expect(r.tarjetas[0].valor).toBe("—");
     expect(r.tarjetas[0].campania).toBe("Campaña: —");
     expect(r.tabla.filas).toEqual([]);
@@ -151,7 +151,7 @@ describe("armarReporte · casos límite", () => {
   it("una ciudad sin colportores", () => {
     const ciudadVacia = { ...datos, ciudades: [{ id: "x", nombre: "Tranqueras", departamento: "Rivera", colportores: [] }] };
     const r = armarReporte(ciudadVacia, { tipo: "ciudad", ciudadId: "x" }, "semana");
-    expect(r.subtitulo).toBe("Departamento Rivera · 0 colportores · S2 contra S1");
+    expect(r.subtitulo).toBe("Departamento Rivera · 0 colportores · S2 · última semana completa contra S1");
     expect(r.tabla.filas).toEqual([]);
   });
 

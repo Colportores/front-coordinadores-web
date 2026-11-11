@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { DatosHoras } from "@/datos/reportes/contrato";
+import { informeNoDisponible, type DescargarInforme } from "@/datos/reportes/informe";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +38,16 @@ const CIFRAS_DE_VENTAS = new Set(["presentaciones", "ventas", "porCobrar"]);
  * meses hay un rango de fechas libre («Rango») y se puede elegir uno o varios colportores del ámbito (issue #107). El % por
  * cobrar es V2 y no se muestra hasta que se conecte (`mostrarPorCobrar`).
  */
-export function ReporteHoras({ datos, mostrarPorCobrar = MOSTRAR_POR_COBRAR }: { datos: DatosHoras; mostrarPorCobrar?: boolean }) {
+export function ReporteHoras({
+  datos,
+  mostrarPorCobrar = MOSTRAR_POR_COBRAR,
+  descargarInforme = informeNoDisponible,
+}: {
+  datos: DatosHoras;
+  mostrarPorCobrar?: boolean;
+  /** Pide el «Informe PDF» al servidor (issue #84). Sin servidor detrás (sitio de prueba) avisa que no está disponible. */
+  descargarInforme?: DescargarInforme;
+}) {
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_TODAS);
   const [granularidad, setGranularidad] = useState<ModoDeReporte>("semana");
   const limites = useMemo(() => limitesDelRango(datos), [datos]);
@@ -74,10 +84,10 @@ export function ReporteHoras({ datos, mostrarPorCobrar = MOSTRAR_POR_COBRAR }: {
   const riel = useMemo(() => construirRiel(datos, base), [datos, base]);
   const { desde, hasta } = rango;
   const contextoDeExportacion = useMemo(
-    () => ({ granularidad, hoy: datos.hoy, rango: granularidad === "rango" ? { desde, hasta } : null }),
-    [granularidad, datos.hoy, desde, hasta],
+    () => ({ granularidad, hoy: datos.hoy, rango: granularidad === "rango" ? { desde, hasta } : null, ambito, elegidos: elegidosVigentes }),
+    [granularidad, datos.hoy, desde, hasta, ambito, elegidosVigentes],
   );
-  const exportacion = useExportacion(reporte, contextoDeExportacion);
+  const exportacion = useExportacion(reporte, contextoDeExportacion, descargarInforme);
 
   useEffect(() => {
     const clave = focoPendiente.current;
@@ -144,6 +154,7 @@ export function ReporteHoras({ datos, mostrarPorCobrar = MOSTRAR_POR_COBRAR }: {
             )}
             <h2 className="font-serif text-[22px] font-semibold wrap-anywhere text-tinta">{reporte.titulo}</h2>
             <p className="text-chico text-tinta-suave">{reporte.subtitulo}</p>
+            {reporte.avisoDelPeriodo && <p className="text-chico text-tinta-suave">{reporte.avisoDelPeriodo}</p>}
           </div>
           <div className="flex flex-none flex-col items-end gap-1.5">
             <div className="flex items-center gap-2">

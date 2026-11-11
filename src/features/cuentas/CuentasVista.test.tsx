@@ -2,7 +2,6 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
 import type { AccionesCuentas, DatosDeCuentas, ResultadoDeAccion, TicketDeCuentas } from "@/datos/cuentas";
 import { armarCuentasSimuladas, crearAccionesSimuladas } from "@/datos/cuentas/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
@@ -11,6 +10,8 @@ import { hayTrabajoPendiente } from "@/shell/trabajo-pendiente";
 
 const AHORA = new Date("2026-10-22T15:00:00.000Z");
 const datosBase = () => armarCuentasSimuladas(AHORA);
+/** La campaña sin ningún pago de alquiler: ahí el alquiler puede quedar en 0 (Cristian 10/11, «Alquiler a 0»). */
+const sinPagosDeAlquiler = (d: DatosDeCuentas): DatosDeCuentas => ({ ...d, tickets: d.tickets.filter((t) => t.destino !== "alquiler") });
 
 function diferida<T>() {
   let resolver!: (valor: T) => void;
@@ -56,7 +57,7 @@ describe("A01 · Casa editora · todas las ciudades", () => {
   it("abre en Casa editora con el título, el subtítulo y las cuatro cifras", () => {
     montar();
     expect(screen.getByRole("heading", { level: 2, name: "Todas las ciudades" })).toBeInTheDocument();
-    expect(screen.getByText(/^25 colportores · en Artigas y Bella Unión no hay banco: el coordinador retira el efectivo$/)).toBeInTheDocument();
+    expect(screen.getByText(/^26 colportores · en Artigas y Bella Unión no hay banco: el coordinador retira el efectivo$/)).toBeInTheDocument();
     expect(pestana(/Casa editora/)).toHaveAttribute("aria-selected", "true");
     for (const rotulo of ["DEUDA TOTAL", "DEPOSITADO", "EN MANO", "POR COBRAR"]) expect(cifra(rotulo)).toBeInTheDocument();
     expect(screen.getByText("con la casa editora")).toBeInTheDocument();
@@ -69,7 +70,7 @@ describe("A01 · Casa editora · todas las ciudades", () => {
       expect(within(tabla).getByRole("columnheader", { name: new RegExp(columna) })).toBeInTheDocument();
     }
     expect(within(tabla).getByText("Rivera")).toBeInTheDocument();
-    expect(within(tabla).getByText("10 colportores")).toBeInTheDocument();
+    expect(within(tabla).getByText("11 colportores")).toBeInTheDocument();
     expect(within(tabla).getByText("8 colportores")).toBeInTheDocument();
     expect(within(tabla).getByText("7 colportores")).toBeInTheDocument();
     expect(within(tabla).getByText("Gonzalo Méndez")).toBeInTheDocument();
@@ -80,16 +81,14 @@ describe("A01 · Casa editora · todas las ciudades", () => {
     expect(screen.getByText("2 tickets por validar", { selector: "b" })).toBeInTheDocument();
     expect(screen.getByText(/Sofía Cabral \$U 18\.500 \(hoy 09:15\)/)).toBeInTheDocument();
     expect(screen.getByText(/Lucía Fernández \$U 9\.000 \(ayer 18:30\)/)).toBeInTheDocument();
-    const validar = screen.getByRole("button", { name: "Validar tickets" });
-    expect(validar).toHaveAttribute("aria-disabled", "true");
-    expect(validar).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
+    expect(screen.getByRole("link", { name: "Validar tickets" })).toHaveAttribute("href", "/cuentas/validar-tickets");
   });
 
   it("el encabezado muestra el alquiler de la campaña con Editar y el paso a validar tickets", () => {
     montar();
     expect(screen.getByText(/Alquiler de la campaña:/)).toHaveTextContent("Alquiler de la campaña: $U 18.500 por colportor");
     expect(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Validar tickets →" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("link", { name: "Validar tickets →" })).toHaveAttribute("href", "/cuentas/validar-tickets");
   });
 
   it("la lista de ciudades es el filtro y cuenta los tickets por validar de cada una", () => {
@@ -104,15 +103,15 @@ describe("A01 · Casa editora · todas las ciudades", () => {
 });
 
 describe("A02 · Alquiler · Rivera", () => {
-  it("muestra el alquiler de los 10 colportores de Rivera, sin la nota de banco", async () => {
+  it("muestra el alquiler de los 11 colportores de Rivera, sin la nota de banco", async () => {
     const { usuario } = montar();
     await usuario.click(ciudad(/^Rivera/));
     await usuario.click(pestana(/Alquiler/));
 
     expect(screen.getByRole("heading", { level: 2, name: "Rivera" })).toBeInTheDocument();
-    expect(screen.getByText("10 colportores · Departamento Rivera")).toBeInTheDocument();
+    expect(screen.getByText("11 colportores · Departamento Rivera")).toBeInTheDocument();
     expect(cifra("ALQUILER DE LA CAMPAÑA")).toBeInTheDocument();
-    expect(screen.getByText("10 × $U 18.500")).toBeInTheDocument();
+    expect(screen.getByText("5 × $U 18.500")).toBeInTheDocument();
     expect(cifra("PAGADO")).toBeInTheDocument();
     expect(cifra("DEBEN")).toBeInTheDocument();
     expect(cifra("PAGARON TODO")).toBeInTheDocument();
@@ -121,7 +120,7 @@ describe("A02 · Alquiler · Rivera", () => {
     for (const columna of ["COLPORTOR", "ALQUILER", "PAGADO", "DEBE", "ÚLTIMO PAGO", "ESTADO"]) {
       expect(within(tabla).getByRole("columnheader", { name: new RegExp(`^${columna}`) })).toBeInTheDocument();
     }
-    expect(within(tabla).queryByText("10 colportores")).not.toBeInTheDocument();
+    expect(within(tabla).queryByText("11 colportores")).not.toBeInTheDocument();
   });
 
   it("cada colportor tiene su estado: pagado, pagó una parte o debe todo", async () => {
@@ -191,13 +190,23 @@ describe("A03 · Tickets · Artigas · ticket abierto", () => {
     expect(within(primera).getByRole("button", { name: "Validar el ticket de Sofía Cabral" })).toHaveAttribute("aria-disabled", "true");
   });
 
+  it("un depósito o retiro por validar lleva a la vista 29 con ese ticket abierto (#69)", async () => {
+    const { usuario } = montar();
+    await irATickets(usuario, /^Rivera/);
+    const tabla = within(screen.getByRole("table", { name: "Tickets" }));
+    expect(tabla.getByRole("link", { name: "Validar el ticket de Lucía Fernández" })).toHaveAttribute(
+      "href",
+      "/cuentas/validar-tickets?ticket=lucia-fernandez-por-validar",
+    );
+  });
+
   it("la pestaña Tickets cuenta los tickets de la selección y no muestra la franja de pendientes", async () => {
     const { usuario } = montar();
     await irATickets(usuario, /^Artigas/);
     const cantidad = within(screen.getByRole("table", { name: "Tickets" })).getAllByRole("button", { name: /^[▸▾]?\s?\S/ }).length;
     expect(cantidad).toBeGreaterThan(0);
     expect(pestana(/Tickets/)).toHaveTextContent(/Tickets\d+/);
-    expect(screen.queryByRole("button", { name: "Validar tickets" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Validar tickets" })).not.toBeInTheDocument();
   });
 
   it("abre un ticket y muestra foto, fecha, número, medio y para qué; lo cierra con otro toque", async () => {
@@ -517,7 +526,7 @@ describe("Editar el alquiler", () => {
     expect(acciones.editarAlquiler).toHaveBeenCalledWith(20000);
     expect(await screen.findByRole("status")).toHaveTextContent("Alquiler de la campaña: $U 20.000 por colportor, para todos los inscriptos.");
     expect(screen.getByText("$U 20.000", { selector: "b" })).toBeInTheDocument();
-    expect(screen.getByText("25 × $U 20.000")).toBeInTheDocument();
+    expect(screen.getByText("20 × $U 20.000")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Editar" })).toHaveFocus();
     expect(screen.queryByRole("form", { name: "Editar el alquiler de la campaña" })).not.toBeInTheDocument();
   });
@@ -530,15 +539,16 @@ describe("Editar el alquiler", () => {
     expect(screen.getByRole("button", { name: "Editar" })).toHaveFocus();
   });
 
-  it("acepta 0 (la campaña no cobra alquiler) y entonces nadie debe", async () => {
-    const { usuario } = montar();
+  it("sin pagos de alquiler acepta 0 (la campaña no cobra alquiler) y entonces nadie debe", async () => {
+    const { usuario, acciones } = montar({ datos: sinPagosDeAlquiler(datosBase()) });
     await usuario.click(pestana(/Alquiler/));
     const editor = await abrirEditor(usuario);
     await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
     await usuario.type(editor.getByLabelText(/Alquiler por colportor/), "0");
     await usuario.click(editor.getByRole("button", { name: "Guardar" }));
     await screen.findByRole("status");
-    expect(cifra("PAGARON TODO").closest("div")).toHaveTextContent("25de 25");
+    expect(acciones.editarAlquiler).toHaveBeenCalledWith(0);
+    expect(cifra("PAGARON TODO").closest("div")).toHaveTextContent("20de 20");
   });
 
   it.each([
@@ -547,7 +557,7 @@ describe("Editar el alquiler", () => {
     ["-5", /número entero de pesos/],
     ["1,5", /número entero de pesos/],
   ])("rechaza «%s» sin mandar nada y deja el foco en el campo", async (texto, mensaje) => {
-    const { usuario, acciones } = montar();
+    const { usuario, acciones } = montar({ datos: sinPagosDeAlquiler(datosBase()) });
     const editor = await abrirEditor(usuario);
     await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
     if (texto) await usuario.type(editor.getByLabelText(/Alquiler por colportor/), texto);
@@ -556,6 +566,91 @@ describe("Editar el alquiler", () => {
     expect(editor.getByLabelText(/Alquiler por colportor/)).toHaveFocus();
     expect(editor.getByLabelText(/Alquiler por colportor/)).toHaveAttribute("aria-invalid", "true");
     expect(acciones.editarAlquiler).not.toHaveBeenCalled();
+  });
+
+  describe("con pagos de alquiler en la campaña (Cristian 10/11, «Alquiler a 0»)", () => {
+    const AVISO = "Ya hay pagos de alquiler en esta campaña, así que no puede quedar sin alquiler. Podés cambiar el monto.";
+
+    it.each([
+      ["0", "0"],
+      ["vacío", ""],
+    ])("no deja guardar %s: lo explica junto al campo, sin borrar lo escrito ni mandar nada", async (_caso, texto) => {
+      const { usuario, acciones } = montar();
+      const editor = await abrirEditor(usuario);
+      const campo = editor.getByLabelText(/Alquiler por colportor/);
+      await usuario.clear(campo);
+      if (texto) await usuario.type(campo, texto);
+      await usuario.click(editor.getByRole("button", { name: "Guardar" }));
+
+      expect(editor.getByRole("alert")).toHaveTextContent(AVISO);
+      expect(campo).toHaveValue(texto);
+      expect(campo).toHaveFocus();
+      expect(campo).toHaveAttribute("aria-invalid", "true");
+      expect(acciones.editarAlquiler).not.toHaveBeenCalled();
+      expect(editor.getByRole("button", { name: "Guardar" })).not.toHaveAttribute("aria-disabled", "true");
+
+      // Al corregir, el aviso se va y otro monto se guarda.
+      await usuario.clear(campo);
+      await usuario.type(campo, "19000");
+      expect(editor.queryByRole("alert")).not.toBeInTheDocument();
+      await usuario.click(editor.getByRole("button", { name: "Guardar" }));
+      expect(acciones.editarAlquiler).toHaveBeenCalledWith(19000);
+      expect(await screen.findByRole("status")).toHaveTextContent("Alquiler de la campaña: $U 19.000 por colportor, para todos los inscriptos.");
+    });
+
+    it("un pago por validar alcanza para bloquear; uno rechazado o devuelto no", async () => {
+      const base = sinPagosDeAlquiler(datosBase());
+      const pago: TicketDeCuentas = {
+        id: "pago-169",
+        colportorId: base.colportores[0].id,
+        fecha: base.ahora,
+        monto: 5000,
+        medio: "deposito-banco",
+        destino: "alquiler",
+        estado: "PENDIENTE",
+        tieneFoto: true,
+      };
+      for (const [ticket, bloquea] of [
+        [pago, true],
+        [{ ...pago, estado: "RECHAZADO", motivoRechazo: "Foto ilegible" }, false],
+        [{ ...pago, estado: "VALIDADO", anulado: { en: base.ahora } }, false],
+      ] as const) {
+        const { usuario, acciones, unmount } = montar({ datos: { ...base, tickets: [...base.tickets, ticket] } });
+        const editor = await abrirEditor(usuario);
+        await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
+        await usuario.type(editor.getByLabelText(/Alquiler por colportor/), "0");
+        await usuario.click(editor.getByRole("button", { name: "Guardar" }));
+        if (bloquea) {
+          expect(editor.getByRole("alert")).toHaveTextContent(AVISO);
+          expect(acciones.editarAlquiler).not.toHaveBeenCalled();
+        } else {
+          expect(await screen.findByRole("status")).toHaveTextContent("Alquiler de la campaña: no se cobra");
+          expect(acciones.editarAlquiler).toHaveBeenCalledWith(0);
+        }
+        unmount();
+      }
+    });
+
+    it("si el servidor lo rechaza (otro coordinador o un pago que no se veía), muestra su aviso y deja lo escrito", async () => {
+      const datos = sinPagosDeAlquiler(datosBase());
+      const editarAlquiler = vi.fn().mockResolvedValue({ ok: false, causa: "rechazado", mensaje: AVISO });
+      const { usuario } = montar({ datos, acciones: { editarAlquiler } });
+      const editor = await abrirEditor(usuario);
+      await usuario.clear(editor.getByLabelText(/Alquiler por colportor/));
+      await usuario.type(editor.getByLabelText(/Alquiler por colportor/), "0");
+      await usuario.click(editor.getByRole("button", { name: "Guardar" }));
+
+      expect(await editor.findByRole("alert")).toHaveTextContent(AVISO);
+      expect(editarAlquiler).toHaveBeenCalledTimes(1);
+      expect(editor.getByLabelText(/Alquiler por colportor/)).toHaveValue("0");
+      expect(editor.getByRole("button", { name: "Guardar" })).not.toHaveAttribute("aria-disabled", "true");
+    });
+
+    it("con las acciones simuladas, el rechazo viene con el mismo texto", async () => {
+      const datos = datosBase();
+      const simuladas = crearAccionesSimuladas(datos);
+      expect(await simuladas.editarAlquiler(0)).toEqual({ ok: false, causa: "rechazado", mensaje: AVISO });
+    });
   });
 
   it("el doble toque en Guardar manda una sola vez; si falla, queda abierto y se puede reintentar", async () => {

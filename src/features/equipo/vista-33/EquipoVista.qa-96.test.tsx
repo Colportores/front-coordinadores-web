@@ -76,19 +76,19 @@ describe("QA #96 · nota con solo espacios", () => {
 });
 
 describe("QA #96 · texto de la base sin perder lo escrito", () => {
-  it("22023 (nota demasiado larga para el servidor): el texto de la base sale en la jornada, la nota y «Otro colportor» siguen y se puede reintentar", async () => {
+  it("22023 (nota demasiado larga para el servidor): el texto de la base sale en la jornada, la nota y «Otra persona» siguen y se puede reintentar", async () => {
     const acciones = crearAcciones();
     acciones.registrarAcompanamiento.mockResolvedValueOnce({ ok: false, mensaje: "La nota admite hasta 280 caracteres y esta tiene 400. Acortala; no pongas datos de clientes." });
     const { usuario } = await abrir(acciones);
-    await usuario.click(screen.getByRole("radio", { name: "Otro colportor" }));
-    await usuario.selectOptions(screen.getByRole("combobox", { name: "Colportor que acompañó" }), "Sofía Cabral");
+    await usuario.click(screen.getByRole("radio", { name: "Otra persona" }));
+    await usuario.selectOptions(screen.getByRole("combobox", { name: "Quién acompañó" }), "Sofía Cabral");
     await usuario.click(campoNota());
     await usuario.paste("x".repeat(400));
     await usuario.click(botonDe("mar 20/10"));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("La nota admite hasta 280 caracteres");
     expect(campoNota()).toHaveValue("x".repeat(400));
-    expect(screen.getByRole("combobox", { name: "Colportor que acompañó" })).toHaveValue("sofia");
+    expect(screen.getByRole("combobox", { name: "Quién acompañó" })).toHaveValue("sofia");
     expect(botonDe("mar 20/10")).toHaveAttribute("aria-disabled", "false");
 
     await usuario.click(botonDe("mar 20/10"));
@@ -124,11 +124,11 @@ describe("QA #96 · cerrar el panel", () => {
 });
 
 describe("QA #96 · lector de pantalla", () => {
-  it("«Yo» y «Otro colportor» forman un grupo con nombre «QUIÉN LO ACOMPAÑÓ» y las jornadas son una lista con nombre", async () => {
+  it("«Yo» y «Otra persona» forman un grupo con nombre «QUIÉN LO ACOMPAÑÓ» y las jornadas son una lista con nombre", async () => {
     await abrir();
     const grupo = screen.getByRole("group", { name: /QUIÉN LO ACOMPAÑÓ/ });
     expect(within(grupo).getByRole("radio", { name: "Yo" })).toBeChecked();
-    expect(within(grupo).getByRole("radio", { name: "Otro colportor" })).not.toBeChecked();
+    expect(within(grupo).getByRole("radio", { name: "Otra persona" })).not.toBeChecked();
     expect(screen.getByRole("list", { name: "Jornadas terminadas de Florencia Pintos" })).toBeInTheDocument();
   });
 });
