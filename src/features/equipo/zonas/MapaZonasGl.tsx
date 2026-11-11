@@ -2,6 +2,7 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
+import { ATRIBUCION, ZOOM } from "@colportores/lib-mapa/tokens";
 import type { Feature, FeatureCollection, LineString, Polygon } from "geojson";
 import { setWorkerUrl, type StyleSpecification } from "maplibre-gl";
 import { useEffect, useMemo, useState } from "react";
@@ -17,6 +18,7 @@ import Map, {
 
 import type { Punto, ZonaDeCiudad } from "@/datos/equipo/zonas";
 import { distanciaM, puntoADistancia, vertices } from "@/datos/equipo/zonas/geometria";
+import { colorDeBorde } from "@/datos/equipo/zonas/paleta";
 import { CAPA_DE_GRUPOS, CapaDeCasas } from "@/features/equipo/zonas/casas/CapaDeCasas";
 import { useCasasEnMapa } from "@/features/equipo/zonas/casas/useCasasEnMapa";
 import { AvisoDelMapaBase, type AvisoBase } from "@/features/equipo/zonas/mapa-base/AvisoDelMapaBase";
@@ -30,6 +32,12 @@ import type { PropsMapaZonas } from "@/features/equipo/zonas/tipos";
 setWorkerUrl(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/maplibre/maplibre-gl-worker.mjs`);
 // Los tiles de las calles son archivos PMTiles del bucket de mapas (ADR-011): `pmtiles://<url>` en el estilo.
 registrarPmtiles();
+
+/**
+ * Hasta dónde se deja acercar (token `zoom.maximo` de lib-mapa, el mismo que el celular): a 19 los números de puerta de OSM
+ * (desde z16) se leen con holgura, agrandando las teselas de z15.
+ */
+export const ZOOM_MAXIMO = ZOOM.maximo;
 
 /** Cuánto se espera a que el mapa termine de cargar antes de avisar que algo lo está frenando (el worker, la red). */
 export const ESPERA_DEL_MAPA_MS = 20_000;
@@ -127,7 +135,8 @@ export function MapaZonasGl({
         zonas.map(
           (z): Feature<Polygon> => ({
             type: "Feature",
-            properties: { id: z.id, color: z.color, elegida: z.id === zonaElegidaId },
+            // `borde`: el color de la zona oscurecido hasta 3:1 sobre el fondo del mapa (WCAG 1.4.11), con la regla de lib-mapa.
+            properties: { id: z.id, color: z.color, borde: colorDeBorde(z.color), elegida: z.id === zonaElegidaId },
             geometry: z.poligonoGeojson,
           }),
         ),
@@ -218,6 +227,7 @@ export function MapaZonasGl({
       key={claveDelMapa}
       initialViewState={{ longitude: ciudad.centro.lon, latitude: ciudad.centro.lat, zoom: ciudad.zoom }}
       mapStyle={base.fase === "listo" ? base.estilo : estilo}
+      maxZoom={ZOOM_MAXIMO}
       style={{ width: "100%", height: "100%" }}
       attributionControl={false}
       interactiveLayerIds={dibujo ? [] : casasEnMapa.agrupar ? [CAPA_DE_GRUPOS, "zonas-relleno"] : ["zonas-relleno"]}
@@ -231,7 +241,8 @@ export function MapaZonasGl({
       doubleClickZoom={!dibujo}
     >
       <NavigationControl showCompass={false} position="bottom-right" />
-      {base.fase === "listo" ? <AttributionControl position="bottom-right" /> : null}
+      {/* La atribución que pide la licencia de OpenStreetMap (ODbL), del token de lib-mapa: la misma que trae la fuente del estilo. */}
+      {base.fase === "listo" ? <AttributionControl position="bottom-right" customAttribution={ATRIBUCION.html} /> : null}
 
       <Source id="calles" type="geojson" data={callesGeojson}>
         <Layer id="calles-linea" type="line" paint={{ "line-color": colores.calle, "line-width": 6 }} />
@@ -246,7 +257,7 @@ export function MapaZonasGl({
         <Layer
           id="zonas-borde"
           type="line"
-          paint={{ "line-color": ["get", "color"], "line-width": ["case", ["get", "elegida"], 3, 2] }}
+          paint={{ "line-color": ["get", "borde"], "line-width": ["case", ["get", "elegida"], 3, 2] }}
         />
       </Source>
 

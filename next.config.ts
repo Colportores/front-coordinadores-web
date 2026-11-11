@@ -27,6 +27,9 @@ const buildDePages = process.env.DEPLOY_PAGES === "1";
 const buildDeDemo = demoSupabaseDevActivo();
 
 const nextConfig: NextConfig = {
+  // lib-mapa (tokens y regla del borde del mapa compartido con el celular) se instala desde GitHub por tag y trae fuentes
+  // TypeScript sin compilar: las compila Next, como las del panel.
+  transpilePackages: ["@colportores/lib-mapa"],
   ...(buildDeDemo
     ? {
         output: "standalone" as const,

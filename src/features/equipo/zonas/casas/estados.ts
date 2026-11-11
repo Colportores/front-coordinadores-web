@@ -1,3 +1,5 @@
+import { ESTADOS_DE_CASA } from "@colportores/lib-mapa/tokens";
+
 import type { CasaDeCiudad, EstadoDeCasa, TipoDeCasa } from "@/datos/equipo/zonas";
 
 /**
@@ -17,26 +19,34 @@ export interface EstadoVisual {
   glifo: string;
 }
 
-/** El orden de la leyenda del canvas: de la visita a la venta. */
-export const ESTADOS_VISUALES: readonly EstadoVisual[] = [
-  { clave: "SIN_VISITA", nombre: "Sin visita", forma: "circulo", color: "#6B7688", fondo: "#FFFFFF", borde: true, texto: "#6B7688", glifo: "" },
-  { clave: "SIN_CONTESTAR", nombre: "No contestó", forma: "circulo", color: "#6B7688", fondo: "#6B7688", borde: false, texto: "#FFFFFF", glifo: "–" },
-  { clave: "ENTREVISTA_PROGRAMADA", nombre: "Entrevista agendada", forma: "circulo", color: "#E0B43C", fondo: "#E0B43C", borde: false, texto: "#0E1A2B", glifo: "◷" },
-  { clave: "ENTREVISTA_SIN_VENTA", nombre: "Entrevista hecha", forma: "circulo", color: "#1F6E3A", fondo: "#1F6E3A", borde: false, texto: "#FFFFFF", glifo: "✓" },
-  { clave: "RECHAZO", nombre: "Rechazó", forma: "circulo", color: "#A8312A", fondo: "#A8312A", borde: false, texto: "#FFFFFF", glifo: "✕" },
-  { clave: "COBRANZA_PENDIENTE", nombre: "Cobranza pendiente", forma: "cuadrado", color: "#13407A", fondo: "#13407A", borde: false, texto: "#FFFFFF", glifo: "$" },
-  {
-    clave: "ENTREGA_Y_COBRANZA_PENDIENTE",
-    nombre: "Entrega y pago",
-    forma: "cuadrado",
-    color: "#13407A",
-    fondo: "repeating-linear-gradient(135deg,#13407A 0 4px,#5C82B8 4px 7px)",
-    borde: false,
-    texto: "#FFFFFF",
-    glifo: "⇢",
-  },
-  { clave: "VENTA_COMPLETA", nombre: "Venta completa", forma: "cuadrado", color: "#1F6E3A", fondo: "#1F6E3A", borde: false, texto: "#FFFFFF", glifo: "★" },
-];
+type TokenDeEstado = (typeof ESTADOS_DE_CASA)[number];
+
+/** Las franjas a 135° de «Entrega y pago»: `anchoOscura` px del relleno y `anchoClara` px de la clara (token `franjas`). */
+function fondoDe(token: TokenDeEstado): string {
+  const franjas = token.franjas;
+  if (franjas === null) return token.relleno;
+  const corte = franjas.anchoOscura;
+  const total = franjas.anchoOscura + franjas.anchoClara;
+  return `repeating-linear-gradient(${franjas.angulo}deg,${token.relleno} 0 ${corte}px,${franjas.clara} ${corte}px ${total}px)`;
+}
+
+/**
+ * El orden de la leyenda del canvas: de la visita a la venta. Los colores, formas y glifos salen de los tokens de `lib-mapa`
+ * (`estadosDeCasa`), los mismos que dibuja el celular.
+ */
+export const ESTADOS_VISUALES: readonly EstadoVisual[] = ESTADOS_DE_CASA.map(
+  (token): EstadoVisual => ({
+    clave: token.clave,
+    nombre: token.nombre,
+    forma: token.forma,
+    // «Sin visita» es el único con contorno: su color es el del borde, sobre un relleno blanco.
+    color: token.borde ?? token.relleno,
+    fondo: fondoDe(token),
+    borde: token.borde !== null,
+    texto: token.tinta,
+    glifo: token.glifo,
+  }),
+);
 
 const POR_CLAVE = new Map(ESTADOS_VISUALES.map((e) => [e.clave, e]));
 
