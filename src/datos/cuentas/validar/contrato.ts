@@ -45,7 +45,11 @@ export interface ItemPorValidar {
   esVos: boolean;
   /** La ciudad de su zona actual; `null` si no tiene zona. */
   ciudad: string | null;
-  monto: number;
+  /**
+   * En pesos. `null` si el ticket no tiene monto: la base lo permite (`ticket_monto_check`) y no lo deja validar (TV004);
+   * solo se puede rechazar con un motivo para que lo cargue de nuevo. Un retiro siempre tiene monto.
+   */
+  monto: number | null;
   concepto: ConceptoPorValidar;
   lugar?: LugarDelDeposito;
   /** Banco del depósito («BROU»). */
@@ -66,6 +70,11 @@ export interface ItemPorValidar {
   tieneFoto: boolean;
   /** `null` si el servidor no las pudo calcular (ya resuelto o sin permiso). */
   cifras: CifrasDelColportor | null;
+  /**
+   * La pregunta de las cifras se cayó (red, 5xx, 429): sin cifras, y el panel lo dice en su lugar en vez de callarlo (decisión
+   * P3 del QA de #173, 10/11). Se puede decidir igual: la base controla al guardar.
+   */
+  previaNoDisponible?: boolean;
 }
 
 export interface DatosDeValidacion {

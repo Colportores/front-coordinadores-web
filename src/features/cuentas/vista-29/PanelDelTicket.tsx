@@ -2,6 +2,7 @@
 
 import { useId, useState, type KeyboardEvent } from "react";
 
+import { mensajeDeRechazo, motivoDelRechazo } from "@/auth/sesion-vencida";
 import type { AccionesValidarTickets, ItemPorValidar } from "@/datos/cuentas/validar";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +13,11 @@ import {
   camposDelItem,
   contadorDelMotivo,
   esAccionable,
+  largoDelMotivo,
   previaDelItem,
+  avisoSinPrevia,
+  sePuedeValidar,
+  TEXTO_SIN_MONTO_PARA_VALIDAR,
   textoDeMotivoLargo,
   textoDeResuelto,
   textoInformativo,
@@ -76,8 +81,10 @@ function FotoDelTicket({ item, acciones }: { item: ItemPorValidar; acciones: Acc
           ? { tipo: "lista", url: r.valor }
           : { tipo: "error", texto: r.causa === "sin-conexion" ? "Necesitás conexión para ver la foto. Revisá la conexión y probá de nuevo." : (r.mensaje ?? "No pudimos traer la foto. Probá de nuevo.") },
       );
-    } catch {
-      setEstado({ tipo: "error", texto: "Necesitás conexión para ver la foto. Revisá la conexión y probá de nuevo." });
+    } catch (error) {
+      // El proxy cerró la sesión mientras la vista estaba abierta (#41): se dice eso, no «sin conexión».
+      const motivo = motivoDelRechazo(error);
+      setEstado({ tipo: "error", texto: motivo ? mensajeDeRechazo(motivo, "ver la foto") : "Necesitás conexión para ver la foto. Revisá la conexión y probá de nuevo." });
     }
   };
 
@@ -150,8 +157,12 @@ export function PanelDelTicket(p: PropsDelPanel) {
   const retiro = item.tipo === "retiro";
   const banda = bandaDelItem(item, p.ahoraIso);
   const previa = previaDelItem(item);
-  const largo = p.motivo.trim().length > MAXIMO_DEL_MOTIVO;
-  const avisoDelMotivo = largo ? textoDeMotivoLargo(p.motivo.trim().length) : errorDelMotivo;
+  const sinPrevia = previa ? null : avisoSinPrevia(item);
+  const largoDelEscrito = largoDelMotivo(p.motivo.trim());
+  const largo = largoDelEscrito > MAXIMO_DEL_MOTIVO;
+  const avisoDelMotivo = largo ? textoDeMotivoLargo(largoDelEscrito) : errorDelMotivo;
+  const sinMonto = accionable && !sePuedeValidar(item);
+  const idSinMonto = `${idMotivo}-sin-monto`;
   const apagado = !p.enLinea || p.ocupado !== null;
   const info = accionable ? textoInformativo(item, p.rechazando) : textoDeResuelto(item);
 
@@ -238,6 +249,13 @@ export function PanelDelTicket(p: PropsDelPanel) {
         </p>
       )}
 
+      {sinMonto && (
+        <p id={idSinMonto} className="flex items-start gap-2 rounded-control border border-alerta/40 bg-alerta-fondo px-3 py-2 text-chico text-alerta">
+          <span aria-hidden="true">△</span>
+          <span>{TEXTO_SIN_MONTO_PARA_VALIDAR}</span>
+        </p>
+      )}
+
       <FotoDelTicket key={item.id} item={item} acciones={p.acciones} />
 
       <Campos campos={camposDelItem(item, p.ahoraIso)} />
@@ -252,6 +270,13 @@ export function PanelDelTicket(p: PropsDelPanel) {
             </p>
           ))}
         </div>
+      )}
+
+      {sinPrevia && (
+        <p className="flex items-start gap-2 border-t border-borde-suave pt-2.5 text-chico text-tinta-2">
+          <span aria-hidden="true">△</span>
+          <span>{sinPrevia}</span>
+        </p>
       )}
 
       {item.estado === "RECHAZADO" && item.motivoRechazo && (
@@ -373,10 +398,11 @@ export function PanelDelTicket(p: PropsDelPanel) {
               <button
                 type="button"
                 data-foco="validar"
-                aria-disabled={apagado}
+                aria-disabled={apagado || sinMonto}
+                aria-describedby={sinMonto ? idSinMonto : undefined}
                 aria-keyshortcuts={retiro ? "C" : "V"}
                 onClick={() => {
-                  if (!apagado) p.alValidar();
+                  if (!apagado && !sinMonto) p.alValidar();
                 }}
                 className={cn(BOTON, "border-marca bg-marca text-superficie")}
               >

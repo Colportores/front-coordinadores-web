@@ -193,7 +193,7 @@ describe("el motivo del rechazo: validación de la entrada", () => {
   });
 
   // QA #69: el tope de 500 cuenta unidades UTF-16 (`String.length`), el servidor cuenta caracteres (`char_length`): 300 emojis son 600 unidades.
-  it.skip("QA #69: 300 emojis son 300 caracteres y entran en los 500 de la HU", async () => {
+  it("QA #69: 300 emojis son 300 caracteres y entran en los 500 de la HU", async () => {
     const { acciones: a } = montar();
     await abrir("Lucía Fernández");
     await tocar(boton(/^Rechazar/));

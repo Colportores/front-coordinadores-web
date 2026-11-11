@@ -21,6 +21,40 @@ export const MOTIVOS_RAPIDOS: Record<ItemPorValidar["tipo"], readonly string[]> 
   retiro: ["El monto no coincide", "No recibí el efectivo", "Está cargado dos veces"],
 };
 
+/** Un ticket sin monto (`monto` null) no se puede validar: la base lo rechaza con TV004. Se muestra así en la fila y el panel. */
+export const TEXTO_MONTO_NO_INFORMADO = "Monto no informado";
+
+/** Por qué «Validar» está apagado en un ticket sin monto: el texto de TV004 de la base (0129), que dice qué hacer. */
+export const TEXTO_SIN_MONTO_PARA_VALIDAR =
+  "El ticket no tiene monto, no hay nada para acreditar. Rechazalo con un motivo para que el colportor lo cargue de nuevo.";
+
+/** El monto como se lee («$U 9.000»), o «Monto no informado». */
+export function textoDelMonto(item: Pick<ItemPorValidar, "monto">): string {
+  return item.monto === null ? TEXTO_MONTO_NO_INFORMADO : formatMonto(item.monto);
+}
+
+/** Se puede validar (o confirmar): accionable y con monto. Sin monto solo se puede rechazar (no se ofrece algo que solo falla). */
+export function sePuedeValidar(item: ItemPorValidar): boolean {
+  return esAccionable(item) && item.monto !== null;
+}
+
+/**
+ * Cuántos caracteres tiene el motivo como los cuenta la base (`length()` de PostgreSQL: puntos de código), no en unidades
+ * UTF-16 de `String.length`: un emoji es uno, no dos.
+ */
+export function largoDelMotivo(texto: string): number {
+  return Array.from(texto).length;
+}
+
+/** En el lugar de las cifras, cuando su pregunta se cayó (decisión P3 del QA de #173, 10/11). */
+export const TEXTO_PREVIA_NO_DISPONIBLE =
+  "No pudimos calcular lo que tenía en mano y lo que debe. Podés decidir igual: la base controla al guardar.";
+
+/** El aviso que va en lugar de la previa, si su pregunta se cayó; `null` si no (o si no hay nada que decidir). */
+export function avisoSinPrevia(item: ItemPorValidar): string | null {
+  return item.previaNoDisponible && !item.cifras && sePuedeValidar(item) ? TEXTO_PREVIA_NO_DISPONIBLE : null;
+}
+
 /** Se puede validar o rechazar: está pendiente y no es de quien mira (nadie confirma ni rechaza lo suyo, 36R·06). */
 export function esAccionable(item: ItemPorValidar): boolean {
   return item.estado === "PENDIENTE" && !item.esVos;
@@ -109,7 +143,7 @@ export interface Campo {
 export function camposDelItem(item: ItemPorValidar, ahoraIso: string): Campo[] {
   const colportor = item.esVos ? `${item.colportorNombre} · vos` : item.colportorNombre;
   const comunes: Campo[] = [
-    { rotulo: "MONTO", valor: formatMonto(item.monto), grande: true },
+    { rotulo: "MONTO", valor: textoDelMonto(item), grande: true },
     { rotulo: "PARA QUÉ ES", valor: textoDeConcepto(item.concepto) },
   ];
   if (item.tipo === "retiro") {
@@ -148,7 +182,7 @@ export interface Previa {
  * si valida o confirma. Un depósito de casa editora mayor que la deuda queda a favor y se avisa sin frenar.
  */
 export function previaDelItem(item: ItemPorValidar): Previa | null {
-  if (!item.cifras || !esAccionable(item)) return null;
+  if (!item.cifras || !esAccionable(item) || item.monto === null) return null;
   const { enMano, deuda } = item.cifras;
   const despues = deuda - item.monto;
   const rotuloDeuda = item.concepto === "alquiler" ? "DEUDA DE ALQUILER" : "DEUDA CON LA CASA EDITORA";
@@ -184,7 +218,7 @@ export function textoInformativo(item: ItemPorValidar, rechazando: boolean): str
       ? `${nombre} va a ver este motivo en su teléfono. El retiro queda rechazado en el historial: no se edita ni se borra, no baja la deuda y no cuenta como depositado.`
       : null;
   }
-  if (item.tipo === "retiro") return `Confirmar acredita ${formatMonto(item.monto)} igual que un depósito validado. Rechazar no cambia la deuda.`;
+  if (item.tipo === "retiro") return `Confirmar acredita ${textoDelMonto(item)} igual que un depósito validado. Rechazar no cambia la deuda.`;
   return null;
 }
 
@@ -194,7 +228,8 @@ export type ResultadoDelMotivo = { ok: true; motivo: string } | { ok: false; err
 export function validarMotivo(texto: string, tipo: ItemPorValidar["tipo"]): ResultadoDelMotivo {
   const motivo = texto.trim();
   if (motivo === "") return { ok: false, error: tipo === "retiro" ? "Escribí el motivo para rechazar el retiro." : "Escribí el motivo para rechazar el ticket." };
-  if (motivo.length > MAXIMO_DEL_MOTIVO) return { ok: false, error: textoDeMotivoLargo(motivo.length) };
+  const largo = largoDelMotivo(motivo);
+  if (largo > MAXIMO_DEL_MOTIVO) return { ok: false, error: textoDeMotivoLargo(largo) };
   return { ok: true, motivo };
 }
 
@@ -204,7 +239,7 @@ export function textoDeMotivoLargo(n: number): string {
 
 /** El contador «N / 500». */
 export function contadorDelMotivo(texto: string): string {
-  return `${conPuntosDeMiles(String(texto.length))} / ${MAXIMO_DEL_MOTIVO}`;
+  return `${conPuntosDeMiles(String(largoDelMotivo(texto)))} / ${MAXIMO_DEL_MOTIVO}`;
 }
 
 /** El aviso de abajo tras decidir (29 A·03 y 36R·04 / 05). */

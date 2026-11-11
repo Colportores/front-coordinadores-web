@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent } from "react";
 
+import { mensajeDeRechazo, motivoDelRechazo } from "@/auth/sesion-vencida";
 import type { AccionesValidarTickets, DatosDeValidacion, ItemPorValidar, ResultadoDeAccion } from "@/datos/cuentas/validar";
 import { useEnLinea } from "@/lib/en-linea";
 import { mensajeSinConexion } from "@/lib/mensajes";
@@ -12,7 +13,7 @@ import { esperarYSalir, estaEsperando, hayQueEsperar, registrarEnvio } from "@/s
 
 import { ColaDeTickets } from "./ColaDeTickets";
 import { PanelDelTicket } from "./PanelDelTicket";
-import { conDecision, encabezadoDeCola, esAccionable, ordenarCola, siguienteAccionable, textoDeDecision } from "./modelo";
+import { conDecision, encabezadoDeCola, esAccionable, ordenarCola, sePuedeValidar, siguienteAccionable, textoDeDecision } from "./modelo";
 import { useValidacionesDiferidas } from "./useValidacionesDiferidas";
 
 interface Aviso {
@@ -58,6 +59,15 @@ function elegirAbierto(cola: readonly ItemPorValidar[], elegida: string | null |
   if (existe(elegida)) return elegida;
   if (elegida === undefined && existe(pedido)) return pedido;
   return cola.find(esAccionable)?.id ?? null;
+}
+
+/**
+ * Un envío que tiró: si el proxy cerró la sesión mientras la vista estaba abierta (#41), un rechazo que lo dice; si no, sin
+ * conexión (el servidor no contestó).
+ */
+function fallaDeEnvio(error: unknown, accion: string): Extract<ResultadoDeAccion<never>, { ok: false }> {
+  const motivo = motivoDelRechazo(error);
+  return motivo ? { ok: false, causa: "rechazado", mensaje: mensajeDeRechazo(motivo, accion) } : { ok: false, causa: "sin-conexion" };
 }
 
 function esCampoDeTexto(destino: EventTarget | null): boolean {
@@ -135,8 +145,8 @@ export function ValidarTicketsVista({ datos, acciones }: { datos: DatosDeValidac
       let r: ResultadoDeAccion<unknown>;
       try {
         r = await acciones.validar(item);
-      } catch {
-        r = { ok: false, causa: "sin-conexion" };
+      } catch (error) {
+        r = fallaDeEnvio(error, "validar el ticket");
       }
       if (r.ok) return true;
       setCola((previa) => conDecision(previa, item.id, { estado: "PENDIENTE" }));
@@ -185,8 +195,8 @@ export function ValidarTicketsVista({ datos, acciones }: { datos: DatosDeValidac
         let r: ResultadoDeAccion<{ resueltoEn: string }>;
         try {
           r = decision === "validar" ? await acciones.validar(item) : await acciones.rechazar(item, motivo);
-        } catch {
-          r = { ok: false, causa: "sin-conexion" };
+        } catch (error) {
+          r = fallaDeEnvio(error, decision === "validar" ? "confirmar" : "guardar el rechazo");
         }
         const que = item.tipo === "retiro" ? `el retiro de ${item.colportorNombre}` : `el ticket de ${item.colportorNombre}`;
         if (!r.ok) {
@@ -194,7 +204,10 @@ export function ValidarTicketsVista({ datos, acciones }: { datos: DatosDeValidac
             decision === "rechazar"
               ? r.causa === "rechazado" && r.mensaje
                 ? r.mensaje
-                : "No pudimos guardar el rechazo. El motivo sigue escrito: probá de nuevo."
+                : r.causa === "sin-conexion"
+                  ? // Decisión del 10/11 (P1 del QA de #168): sin conexión dice qué pasó y cómo seguir; lo demás, el 36R·07B.
+                    `Necesitás conexión para rechazar ${item.tipo === "retiro" ? "el retiro" : "el depósito"} de ${item.colportorNombre}. El motivo sigue escrito: revisá la conexión y probá de nuevo.`
+                  : "No pudimos guardar el rechazo. El motivo sigue escrito: probá de nuevo."
               : mensajeDeFalla(r, `confirmar ${que}`, "No pudimos guardar la confirmación. Probá de nuevo.");
           setErrores((previos) => ({ ...previos, [item.id]: texto }));
           if (ultimo.current.abiertoId === item.id) focoPendiente.current = decision === "rechazar" ? "confirmar-rechazo" : "validar";
@@ -231,7 +244,7 @@ export function ValidarTicketsVista({ datos, acciones }: { datos: DatosDeValidac
   };
 
   const validar = (item: ItemPorValidar) => {
-    if (!esAccionable(item) || !enLinea || enCursoRef.current.has(item.id)) return;
+    if (!sePuedeValidar(item) || !enLinea || enCursoRef.current.has(item.id)) return;
     if (item.tipo === "deposito") validarDeposito(item);
     else decidir(item, "validar");
   };

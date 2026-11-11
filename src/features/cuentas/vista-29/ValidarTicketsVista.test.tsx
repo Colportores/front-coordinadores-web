@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { marcaDeRechazo } from "@/auth/sesion-vencida";
 import type { AccionesValidarTickets, DatosDeValidacion, ItemPorValidar, Resolucion, ResultadoDeAccion } from "@/datos/cuentas/validar";
 import { armarValidacionSimulada } from "@/datos/cuentas/validar/simulado";
 import { hayTrabajoPendiente, reiniciarTrabajoPendiente } from "@/shell/trabajo-pendiente";
@@ -445,9 +446,21 @@ describe("36R · el retiro por el coordinador", () => {
     expect(a.rechazar).toHaveBeenCalledTimes(1);
   });
 
+  it("36R·07B sin conexión (decisión del 10/11, P1 del QA de #168): dice que falta la conexión y el motivo sigue escrito", async () => {
+    montar(simulados(), acciones({ rechazar: async () => ({ ok: false, causa: "sin-conexion" }) }));
+    await abrir("Lucía Benítez");
+    await tocar(boton(/^Rechazar/));
+    await escribir(motivo(), "No recibí el efectivo");
+    await tocar(boton("Confirmar rechazo"));
+    expect(within(panel()).getByRole("alert")).toHaveTextContent(
+      "Necesitás conexión para rechazar el retiro de Lucía Benítez. El motivo sigue escrito: revisá la conexión y probá de nuevo.",
+    );
+    expect(motivo()).toHaveValue("No recibí el efectivo");
+  });
+
   it("36R·07B: si no se guarda, el motivo sigue escrito y «Reintentar» vuelve a probar", async () => {
     let veces = 0;
-    const a = acciones({ rechazar: async () => (++veces === 1 ? { ok: false, causa: "sin-conexion" } : ok) });
+    const a = acciones({ rechazar: async () => (++veces === 1 ? { ok: false, causa: "rechazado" } : ok) });
     montar(simulados(), a);
     await abrir("Lucía Benítez");
     await tocar(boton(/^Rechazar/));
@@ -590,5 +603,134 @@ describe("cómo se llega y casos límite", () => {
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Tickets por validar · 60");
     expect(within(panel()).getByText(largo)).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(61);
+  });
+});
+
+describe("la sesión que el proxy cerró con la vista abierta (#41, #170)", () => {
+  /** Lo que llega de una server action cuando `src/proxy.ts` contesta 401 con su marca. */
+  const cerrada = (motivo: "vencida" | "sin-acceso") => async () => {
+    throw new Error(marcaDeRechazo(motivo));
+  };
+
+  it("validar un depósito: dice que la sesión venció, no «sin conexión», y el ticket sigue por validar", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: false });
+    montar(simulados(), acciones({ validar: cerrada("vencida") }));
+    await abrir("Lucía Fernández");
+    await tocar(boton(/^Validar/));
+    await act(async () => {
+      vi.advanceTimersByTime(MS_DESHACER);
+    });
+    expect(filaDe("Lucía Fernández")).toHaveAccessibleName(/Por validar$/);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "No se validó el ticket de Lucía Fernández: sigue por validar. Tu sesión venció. Volvé a entrar para seguir.",
+    );
+  });
+
+  it("confirmar un retiro sin acceso: pide volver a entrar y el botón vuelve a poder usarse", async () => {
+    montar(simulados(), acciones({ validar: cerrada("sin-acceso") }));
+    await abrir("Lucía Benítez");
+    await tocar(boton(/^Confirmar/));
+    expect(within(panel()).getByText("No se pudo confirmar. Volvé a entrar para seguir.")).toBeInTheDocument();
+    expect(boton(/^Confirmar/)).not.toHaveAttribute("aria-disabled", "true");
+    expect(filaDe("Lucía Benítez")).toHaveAccessibleName(/Por confirmar$/);
+  });
+
+  it("rechazar: el motivo sigue escrito y el aviso dice que la sesión venció", async () => {
+    montar(simulados(), acciones({ rechazar: cerrada("vencida") }));
+    await abrir("Lucía Benítez");
+    await tocar(boton(/^Rechazar/));
+    await escribir(motivo(), "Me entregaste otro monto");
+    await tocar(boton("Confirmar rechazo"));
+    expect(within(panel()).getByText("Tu sesión venció. Volvé a entrar para seguir.")).toBeInTheDocument();
+    expect(motivo()).toHaveValue("Me entregaste otro monto");
+  });
+
+  it("la foto: dice que la sesión venció", async () => {
+    montar(simulados(), acciones({ enlaceDeFoto: cerrada("vencida") }));
+    await abrir("Lucía Fernández");
+    await tocar(boton("Ver foto"));
+    expect(within(panel()).getByRole("alert")).toHaveTextContent("Tu sesión venció. Volvé a entrar para seguir.");
+  });
+
+  it("un error cualquiera (sin la marca del proxy) sigue siendo «sin conexión»", async () => {
+    montar(simulados(), acciones({ enlaceDeFoto: async () => Promise.reject(new TypeError("fetch failed")) }));
+    await abrir("Lucía Fernández");
+    await tocar(boton("Ver foto"));
+    expect(within(panel()).getByRole("alert")).toHaveTextContent("Necesitás conexión para ver la foto.");
+  });
+
+  it("un ?ticket= de Cuentas que la cola real no tiene (Cuentas sigue simulada) abre la cola sin error", () => {
+    window.history.replaceState(null, "", "/cuentas/validar-tickets?ticket=00000000-0000-4000-8000-000000000000");
+    montar();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Tickets por validar · 5");
+  });
+});
+
+describe("un ticket sin monto (la base lo permite; TV004) (#170, QA)", () => {
+  const conSinMonto = () => {
+    const datos = simulados();
+    datos.items = datos.items.map((x) => (x.id === "lucia-fernandez-por-validar" ? { ...x, monto: null, cifras: null } : x));
+    return datos;
+  };
+
+  it("la fila y el panel dicen «Monto no informado», «Validar» se apaga con su motivo y se puede rechazar", async () => {
+    const { acciones: a } = montar(conSinMonto());
+    expect(filaDe("Lucía Fernández")).toHaveAccessibleName(/Monto no informado/);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Tickets por validar · 5");
+    await abrir("Lucía Fernández");
+    expect(within(panel()).getAllByText("Monto no informado").length).toBeGreaterThan(0);
+    const validar = boton(/^Validar/);
+    expect(validar).toHaveAttribute("aria-disabled", "true");
+    expect(validar).toHaveAccessibleDescription(
+      "El ticket no tiene monto, no hay nada para acreditar. Rechazalo con un motivo para que el colportor lo cargue de nuevo.",
+    );
+    await tocar(validar);
+    await act(async () => fireEvent.keyDown(panel(), { key: "v" }));
+    expect(screen.queryByRole("button", { name: /^Deshacer/ })).not.toBeInTheDocument();
+    expect(a.validar).not.toHaveBeenCalled();
+
+    await tocar(boton(/^Rechazar/));
+    await escribir(motivo(), "Falta el monto");
+    await tocar(boton("Confirmar rechazo"));
+    expect(a.rechazar).toHaveBeenCalledWith(expect.objectContaining({ id: "lucia-fernandez-por-validar" }), "Falta el monto");
+  });
+
+  it("los demás tickets se siguen validando", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: false });
+    const { acciones: a } = montar(conSinMonto());
+    await abrir("Joaquín Duarte");
+    await tocar(boton(/^Validar/));
+    await act(async () => {
+      vi.advanceTimersByTime(MS_DESHACER);
+    });
+    expect(a.validar).toHaveBeenCalledWith(expect.objectContaining({ id: "joaquin-duarte-de-mas" }));
+  });
+});
+
+describe("una previa que no se pudo calcular (P3 del QA de #173)", () => {
+  it("en el lugar de las cifras dice que no se pudo calcular y deja decidir igual", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: false });
+    const datos = simulados();
+    datos.items = datos.items.map((x) => (x.id === "lucia-fernandez-por-validar" ? { ...x, cifras: null, previaNoDisponible: true } : x));
+    const { acciones: a } = montar(datos);
+    await abrir("Lucía Fernández");
+    expect(
+      within(panel()).getByText("No pudimos calcular lo que tenía en mano y lo que debe. Podés decidir igual: la base controla al guardar."),
+    ).toBeInTheDocument();
+    expect(within(panel()).queryByText("EN MANO SEGÚN LA APP")).not.toBeInTheDocument();
+    await tocar(boton(/^Validar/));
+    await act(async () => {
+      vi.advanceTimersByTime(MS_DESHACER);
+    });
+    expect(a.validar).toHaveBeenCalledWith(expect.objectContaining({ id: "lucia-fernandez-por-validar" }));
+  });
+
+  it("sin la marca (la base no las calcula, p. ej. campaña sin alquiler) no se avisa nada", async () => {
+    const datos = simulados();
+    datos.items = datos.items.map((x) => (x.id === "lucia-fernandez-por-validar" ? { ...x, cifras: null } : x));
+    montar(datos);
+    await abrir("Lucía Fernández");
+    expect(within(panel()).queryByText(/No pudimos calcular/)).not.toBeInTheDocument();
   });
 });

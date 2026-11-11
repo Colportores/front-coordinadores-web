@@ -1,4 +1,4 @@
-import { datosSimulados, pestanasSimuladasVisibles } from "@/config/datos-simulados";
+import { cuentasConValidarTicketsConectada, datosSimulados, pestanasSimuladasVisibles } from "@/config/datos-simulados";
 import { demoSupabaseDevActivo, sitioDePruebaActivo } from "@/config/flags";
 
 /**
@@ -60,6 +60,18 @@ function AvisoSinConexion() {
 function AvisoDePestanas() {
   const nombres = pestanasSimuladasVisibles();
   const lista = nombres.length > 1 ? `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}` : nombres.join("");
+  if (nombres.includes("Cuentas") && cuentasConValidarTicketsConectada()) {
+    // Decisión P4 del QA de #173 (10/11): la franja sigue y nombra la excepción, porque la 29 guarda de verdad.
+    const varias = nombres.length > 1;
+    return (
+      <p>
+        <strong className="font-semibold">{lista}: datos simulados, salvo Validar tickets.</strong>{" "}
+        {varias ? "Esas pestañas todavía no están conectadas" : "Esa pestaña todavía no está conectada"} a la base de datos: lo
+        que {varias ? "muestran" : "muestra"} es de ejemplo y lo que hagas en {varias ? "ellas" : "ella"} no se guarda. Validar
+        tickets sí está conectada: lo que validás o rechazás ahí se guarda.
+      </p>
+    );
+  }
   return (
     <p>
       <strong className="font-semibold">{lista}: datos simulados.</strong>{" "}
