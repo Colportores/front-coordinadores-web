@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { becasDeEquipoVisibles } from "@/config/flags";
 import type { AcompanamientoDeColportor, DatosEquipoPorCiudad } from "@/datos/equipo/contrato";
 import { cn } from "@/lib/utils";
 
@@ -93,6 +94,8 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
   const [unidad, elegirUnidad] = useUnidadDeAvance();
   const becas = useBecas(datos.becas, acciones);
   const vistaDeBecas = useVistaDeBecas();
+  // Sin las becas conectadas el botón «Becas» no se ofrece (`becasDeEquipoVisibles`): nadie llega a una pestaña que no anda.
+  const vistas = becasDeEquipoVisibles(datos.becas !== null) ? VISTAS : VISTAS.filter(({ valor }) => valor !== "becas");
   const raiz = useRef<HTMLDivElement>(null);
   // Al apagar el botón que tenía el foco (contraer la lista, cerrar el registro) el foco se devuelve a su par.
   const focoPendiente = useRef<string | null>(null);
@@ -217,7 +220,7 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
               </div>
             )}
             <div role="group" aria-label="Ver" className="flex overflow-hidden rounded-control border border-borde bg-superficie">
-              {VISTAS.map(({ valor, etiqueta }) => {
+              {vistas.map(({ valor, etiqueta }) => {
                 const activa = valor === vista;
                 return (
                   <button

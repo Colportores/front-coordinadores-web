@@ -63,3 +63,14 @@ function flagDePestana(pestana: Pestana): boolean | undefined {
 export function pestanaVisible(pestana: Pestana): boolean {
   return flagDePestana(pestana) ?? true;
 }
+
+/**
+ * Si Equipo ofrece la vista «Becas» (vista 33). Las becas todavía no están conectadas a la base: la fuente de las RPC no las
+ * trae (`DatosEquipoPorCiudad.becas` es `null`) porque falta la RPC del catálogo de carreras con sus metas. Por eso, si
+ * `NEXT_PUBLIC_EQUIPO_BECAS` no está definida, el botón solo aparece cuando la fuente trae las becas: se ve con los datos
+ * simulados (desarrollo, sitio de prueba) y no en staging ni producción, donde un coordinador real vería «no está conectada».
+ * Con la variable en `1` se ve siempre (con el aviso si no hay becas); en `0`, nunca. Pedido de Cristian, 11/11.
+ */
+export function becasDeEquipoVisibles(fuenteConBecas: boolean): boolean {
+  return leerBandera(process.env.NEXT_PUBLIC_EQUIPO_BECAS) ?? fuenteConBecas;
+}

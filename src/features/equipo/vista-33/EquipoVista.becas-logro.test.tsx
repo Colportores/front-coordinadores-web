@@ -230,6 +230,7 @@ describe("«Beca perman.»: en una campaña permanente no hay becas", () => {
   });
 
   it("sin las becas conectadas, la pestaña dice eso y no el aviso de permanente", async () => {
+    vi.stubEnv("NEXT_PUBLIC_EQUIPO_BECAS", "1");
     const { usuario } = mostrar({ ...datosDePrueba({ campaniaTipo: "PERMANENTE" }), becas: null });
     await irA(usuario, "Becas");
 
