@@ -14,6 +14,8 @@ export const RADIO_MIN_M = 1;
 export const RADIO_MAX_M = 3000;
 
 export const AYUDA_RADIAL = "Hacé clic en el mapa para poner el centro y arrastrá el punto del borde para cambiar el radio.";
+/** Se suma a la ayuda del canvas cuando ya hay centro (#179; el canvas 24 no tiene un texto para esto). */
+export const AYUDA_MOVER_CENTRO = "Para mover el centro, arrastralo o hacé clic en otro lugar del mapa.";
 export const AYUDA_ESQUINAS =
   "Hacé clic en las esquinas en orden. El borde sigue las calles; para cerrar, tocá la esquina 1.";
 
@@ -196,7 +198,8 @@ export function PanelFormularioZona({
             <Rotulo id="radio-zona">RADIO</Rotulo>
             <div className="flex items-center gap-3">
               {/* Deslizador del artboard 02 (decisión del 16/10): mismo valor que el campo y que el asa del mapa, de 1 a 3000 m
-                  de a 1 m. Con el foco, flechas, RePág/AvPág e Inicio/Fin los maneja el navegador. */}
+                  de a 1 m. Con el foco, flechas, RePág/AvPág e Inicio/Fin los maneja el navegador. Cada paso mientras se
+                  arrastra cambia el radio (#179): el círculo del mapa y el número lo siguen en vivo, sin esperar a soltarlo. */}
               <input
                 type="range"
                 aria-labelledby="radio-zona"
@@ -294,7 +297,10 @@ export function PanelFormularioZona({
         </div>
       ) : null}
 
-      <p className="text-chico text-tinta-suave">{forma.tipoForma === "RADIAL" ? AYUDA_RADIAL : AYUDA_ESQUINAS}</p>
+      <p className="text-chico text-tinta-suave">
+        {forma.tipoForma === "RADIAL" ? AYUDA_RADIAL : AYUDA_ESQUINAS}
+      </p>
+      {forma.tipoForma === "RADIAL" && forma.centro ? <p className="-mt-2 text-chico text-tinta-suave">{AYUDA_MOVER_CENTRO}</p> : null}
 
       {baja?.confirmando ? (
         <div ref={confirmacion} tabIndex={-1} role="alertdialog" aria-label="Eliminar zona" className="outline-none focus-visible:ring-2 focus-visible:ring-acento flex flex-col gap-2.5 rounded-control border border-peligro bg-peligro-fondo px-3 py-3">

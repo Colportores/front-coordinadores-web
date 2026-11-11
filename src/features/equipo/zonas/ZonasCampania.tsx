@@ -20,6 +20,7 @@ import type {
   VistaPreviaZona,
   ZonaDeCiudad,
 } from "@/datos/equipo/zonas";
+import { poligonoCircular } from "@/datos/equipo/zonas/geometria";
 import { colorParaZonaNueva } from "@/datos/equipo/zonas/paleta";
 import { BuscadorCiudad } from "@/features/equipo/zonas/BuscadorCiudad";
 import { AvisoDeCasas, type AvisoDelMapa } from "@/features/equipo/zonas/casas/AvisoDeCasas";
@@ -86,6 +87,8 @@ type Panel =
 
 const MS_ESPERA_HOVER = 120;
 const MS_ESPERA_VISTA_PREVIA = 150;
+/** Cuánto se espera, después de soltar el centro o de moverlo con una flecha, para preguntar qué esquina le queda más cerca. */
+const MS_ESPERA_NOMBRE_CENTRO = 250;
 
 const mismaEsquina = (a: Esquina, b: Esquina) => a.lon === b.lon && a.lat === b.lat;
 
@@ -162,6 +165,9 @@ export function ZonasCampania({ datos, acciones }: Props) {
   const agregandoAhora = useRef(false);
   const versionHover = useRef(0);
   const temporizadorHover = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // La base rechazó la esquina del puntero (la ciudad no tiene calles cargadas): no se vuelve a preguntar en cada movimiento.
+  const hoverRechazado = useRef(false);
+  const temporizadorNombre = useRef<ReturnType<typeof setTimeout>>(undefined);
   const versionVistaPrevia = useRef(0);
   // Cada vez que se empieza o se abandona un dibujo cambia la sesión: lo que vuelva de la fuente de datos de una sesión vieja se descarta.
   const sesion = useRef(0);
@@ -227,7 +233,13 @@ export function ZonasCampania({ datos, acciones }: Props) {
     return () => clearTimeout(temporizador);
   }, [forma, ciudad, zonaEnEdicionId, acciones, cambiarDibujo, reintentosVistaPrevia, esquinasDisponibles]);
 
-  useEffect(() => () => clearTimeout(temporizadorHover.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(temporizadorHover.current);
+      clearTimeout(temporizadorNombre.current);
+    },
+    [],
+  );
 
   const tipoPanel = panel.tipo;
   useEffect(() => {
@@ -259,6 +271,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
       if (!ciudad) return;
       try {
         const esquina = await acciones.esquinaMasCercana(ciudad.id, punto);
+        // Una ciudad sin calles cargadas no tiene esquina que nombrar: el centro igual sirve, la zona radial no las necesita.
+        if ("rechazo" in esquina) return;
         cambiarDibujo((d) =>
           d.forma.centro?.lon === punto.lon && d.forma.centro?.lat === punto.lat
             ? { nombreCentro: nombreEsquina(esquina) }
@@ -275,7 +289,10 @@ export function ZonasCampania({ datos, acciones }: Props) {
     if (panel.tipo !== "dibujo") return null;
     const { forma: f, tramos, vistaPrevia } = panel;
     return {
-      poligono: vistaPrevia?.poligonoGeojson ?? null,
+      // El círculo se dibuja acá mismo mientras el radio o el centro se mueven (#179): no espera a que conteste la base, que
+      // después manda el suyo (el mismo círculo) con las ubicaciones que incluye.
+      poligono:
+        vistaPrevia?.poligonoGeojson ?? (f.tipoForma === "RADIAL" && f.centro && f.radioM ? poligonoCircular(f.centro, f.radioM) : null),
       linea: f.cerrada && vistaPrevia ? [] : aplanar(tramos),
       esquinas: f.esquinas ?? [],
       centro: f.centro ?? null,
@@ -341,6 +358,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
     versionVistaPrevia.current++;
     versionHover.current++;
     clearTimeout(temporizadorHover.current);
+    clearTimeout(temporizadorNombre.current);
+    hoverRechazado.current = false;
     formaVigente.current = null;
     setHover(null);
   }
@@ -390,6 +409,7 @@ export function ZonasCampania({ datos, acciones }: Props) {
   function cambiarTipoForma(tipo: TipoForma) {
     if (forma?.tipoForma === tipo) return;
     setHover(null);
+    clearTimeout(temporizadorNombre.current);
     // Sin las zonas por esquinas conectadas, el aviso dice la causa real apenas se las elige (#167), y se va al volver a «Radial».
     const sinEsquinas = tipo === "ESQUINAS" && !esquinasDisponibles;
     const quitarAviso = !sinEsquinas && panel.tipo === "dibujo" && panel.error === TEXTO_ESQUINAS_SIN_CONECTAR;
@@ -405,8 +425,10 @@ export function ZonasCampania({ datos, acciones }: Props) {
     const inicial = formaVigente.current;
     if (!inicial || !ciudad || deSesion !== sesion.current) return;
     if (inicial.tipoForma === "RADIAL") {
+      clearTimeout(temporizadorNombre.current);
       actualizarForma({ tipoForma: "RADIAL", centro: punto, radioM: inicial.radioM ?? RADIO_INICIAL_M }, { nombreCentro: null });
-      await nombrarCentro(punto);
+      // Sin esperar el nombre: el clic siguiente (mover el centro a otro lugar) no queda en la cola detrás de esa consulta.
+      void nombrarCentro(punto);
       return;
     }
     if (inicial.cerrada) return;
@@ -417,6 +439,11 @@ export function ZonasCampania({ datos, acciones }: Props) {
     const esquinas = inicial.esquinas ?? [];
     try {
       const esquina = await acciones.esquinaMasCercana(ciudad.id, punto);
+      // La base no la dio (la ciudad todavía no tiene calles cargadas, la campaña terminó): su aviso dice qué hacer.
+      if ("rechazo" in esquina) {
+        if (deSesion === sesion.current) cambiarDibujo(() => ({ error: esquina.rechazo }));
+        return;
+      }
       const ultima = esquinas.at(-1);
       if (ultima && mismaEsquina(ultima, esquina)) return;
       const cierra = esquinas.length >= 3 && mismaEsquina(esquinas[0], esquina);
@@ -429,6 +456,11 @@ export function ZonasCampania({ datos, acciones }: Props) {
           : null;
       // Mientras esperaba, el coordinador pudo cancelar, cambiar de ciudad o de forma: entonces este clic ya no vale.
       if (deSesion !== sesion.current || formaVigente.current !== inicial) return;
+      // Sin camino por las calles hasta esa esquina (o sin calles): la esquina no se agrega y el aviso dice cuál elegir.
+      if (tramo && "rechazo" in tramo) {
+        cambiarDibujo(() => ({ error: tramo.rechazo }));
+        return;
+      }
       if (tramo) cambiarDibujo((d) => ({ tramos: [...d.tramos, tramo] }));
       actualizarForma(cierra ? { ...inicial, cerrada: true } : { ...inicial, esquinas: [...esquinas, esquina] }, { error: null });
       if (cierra) setHover(null);
@@ -449,16 +481,37 @@ export function ZonasCampania({ datos, acciones }: Props) {
 
   function alMoverEnMapa(punto: Punto) {
     if (panel.tipo !== "dibujo" || forma?.tipoForma !== "ESQUINAS" || forma.cerrada || !ciudad || !esquinasDisponibles) return;
+    if (hoverRechazado.current) return;
     clearTimeout(temporizadorHover.current);
     const version = ++versionHover.current;
+    const deSesion = sesion.current;
     temporizadorHover.current = setTimeout(() => {
       acciones
         .esquinaMasCercana(ciudad.id, punto)
         .then((esquina) => {
+          if ("rechazo" in esquina) {
+            // La etiqueta del puntero es una ayuda: sin ella se puede seguir. El aviso lo da el clic, con el texto de la base.
+            if (deSesion === sesion.current) hoverRechazado.current = true;
+            return;
+          }
           if (version === versionHover.current) setHover(esquina);
         })
         .catch(() => undefined);
     }, MS_ESPERA_HOVER);
+  }
+
+  /**
+   * El centro de la zona radial movido a mano (#179): arrastrándolo en el mapa o con las flechas. El círculo lo sigue en
+   * vivo; la esquina que le queda más cerca (el nombre del formulario) se pregunta recién cuando deja de moverse.
+   */
+  function moverCentro(punto: Punto, soltado: boolean) {
+    const actual = formaVigente.current;
+    if (panel.tipo !== "dibujo" || guardandoAhora.current || actual?.tipoForma !== "RADIAL" || !actual.centro) return;
+    clearTimeout(temporizadorNombre.current);
+    if (actual.centro.lon !== punto.lon || actual.centro.lat !== punto.lat) {
+      actualizarForma({ ...actual, centro: punto }, { nombreCentro: null });
+    }
+    if (soltado) temporizadorNombre.current = setTimeout(() => void nombrarCentro(punto), MS_ESPERA_NOMBRE_CENTRO);
   }
 
   function quitarEsquina() {
@@ -475,10 +528,19 @@ export function ZonasCampania({ datos, acciones }: Props) {
       const nueva: FormaZona = { tipoForma: "ESQUINAS", esquinas, cerrada: false };
       actualizarForma(nueva, { tramos: [], error: null });
       try {
-        const tramos = await Promise.all(
+        const respuestas = await Promise.all(
           esquinas.slice(1).map((e, i) => acciones.tramoPorCalles(ciudad.id, esquinas[i], e)),
         );
-        if (deSesion === sesion.current && formaVigente.current === nueva) cambiarDibujo(() => ({ tramos }));
+        if (deSesion !== sesion.current || formaVigente.current !== nueva) return;
+        const tramos: Punto[][] = [];
+        for (const respuesta of respuestas) {
+          if ("rechazo" in respuesta) {
+            cambiarDibujo(() => ({ error: respuesta.rechazo }));
+            return;
+          }
+          tramos.push(respuesta);
+        }
+        cambiarDibujo(() => ({ tramos }));
       } catch {
         if (deSesion === sesion.current) cambiarDibujo(() => ({ error: mensajeSinConexion("quitar la esquina") }));
       }
@@ -807,6 +869,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
             onMapaClick={alHacerClicEnMapa}
             onMapaMove={alMoverEnMapa}
             onRadio={(radioM) => forma && actualizarForma({ ...forma, radioM })}
+            // Mientras guarda, el centro no se agarra: la zona que se mandó es la que queda.
+            onCentro={guardando ? undefined : moverCentro}
           />
           {avisoDelMapa ? <AvisoDeCasas aviso={avisoDelMapa} /> : null}
         </div>

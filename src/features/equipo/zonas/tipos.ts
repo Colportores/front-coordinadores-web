@@ -43,6 +43,11 @@ export interface PropsMapaZonas {
   onMapaClick(punto: Punto): void;
   onMapaMove(punto: Punto): void;
   onRadio(radioM: number): void;
+  /**
+   * El centro de la zona radial se movió a mano (#179): arrastrándolo (`soltado` es `false` mientras se arrastra y `true`
+   * al soltarlo) o con las flechas del teclado (siempre `true`). Sin esta prop el centro no se puede mover desde el mapa.
+   */
+  onCentro?(punto: Punto, soltado: boolean): void;
 }
 
 /** Lo que se le dice al coordinador de una cuenta suspendida: no se le puede asignar zona (decisión del 30/09, coord #20). */
