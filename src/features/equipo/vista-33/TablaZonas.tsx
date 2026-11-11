@@ -5,6 +5,10 @@ import { diaYMes } from "@/lib/dias";
 import { cn } from "@/lib/utils";
 
 import { pluralColportores, type AmbitoResuelto } from "./modelo";
+import { etiquetaQuitar, TEXTO_QUITAR } from "./quitar-de-campania";
+
+/** «Quitar de la campaña» de una fila (HU-CAM-005); sin ella la fila no ofrece el botón. */
+export type AlQuitarDeCampania = (colportor: { id: string; nombre: string }) => void;
 
 export const CLASE_BOTON_SECUNDARIO =
   "inline-flex min-h-8 items-center justify-center rounded-control border border-borde bg-superficie px-3 text-[11.5px] font-semibold whitespace-nowrap text-tinta-2 hover:bg-fondo focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento";
@@ -52,9 +56,10 @@ function ZonasAnteriores({ colportor }: { colportor: ColportorDeEquipo }) {
 
 /**
  * Pestaña «Zonas» de la vista 33 (HU-CAM-006): la zona de hoy de cada colportor, las que tuvo antes con sus fechas y
- * las casas que registró en todas ellas. «Cambiar zona» y «Asignar zona» llevan a la vista 24.
+ * las casas que registró en todas ellas. «Cambiar zona» y «Asignar zona» llevan a la vista 24; «Quitar de la campaña» abre la
+ * doble confirmación (HU-CAM-005) cuando la fuente lo sabe hacer.
  */
-export function TablaZonas({ resuelto }: { resuelto: AmbitoResuelto }) {
+export function TablaZonas({ resuelto, alQuitar }: { resuelto: AmbitoResuelto; alQuitar?: AlQuitarDeCampania }) {
   return (
     <table aria-label="Zonas de cada colportor" className="w-full table-fixed border-collapse">
       <colgroup>
@@ -62,7 +67,7 @@ export function TablaZonas({ resuelto }: { resuelto: AmbitoResuelto }) {
         <col className="w-[19%]" />
         <col />
         <col className="w-[13%]" />
-        <col className="w-[150px]" />
+        <col className={alQuitar ? "w-[310px]" : "w-[150px]"} />
       </colgroup>
       <thead className="sticky top-0 z-10 bg-superficie">
         <tr className="border-b border-borde text-etiqueta font-semibold tracking-[0.06em] text-tinta-suave">
@@ -85,14 +90,22 @@ export function TablaZonas({ resuelto }: { resuelto: AmbitoResuelto }) {
       </thead>
       <tbody>
         {resuelto.grupos.map((grupo) => (
-          <GrupoDeFilas key={grupo.clave} grupo={grupo} conCabecera={resuelto.conCabeceras} />
+          <GrupoDeFilas key={grupo.clave} grupo={grupo} conCabecera={resuelto.conCabeceras} alQuitar={alQuitar} />
         ))}
       </tbody>
     </table>
   );
 }
 
-function GrupoDeFilas({ grupo, conCabecera }: { grupo: AmbitoResuelto["grupos"][number]; conCabecera: boolean }) {
+function GrupoDeFilas({
+  grupo,
+  conCabecera,
+  alQuitar,
+}: {
+  grupo: AmbitoResuelto["grupos"][number];
+  conCabecera: boolean;
+  alQuitar?: AlQuitarDeCampania;
+}) {
   return (
     <>
       {conCabecera && <CabeceraDeGrupo nombre={grupo.nombre} cantidad={pluralColportores(grupo.colportores.length)} columnas={5} />}
@@ -114,15 +127,28 @@ function GrupoDeFilas({ grupo, conCabecera }: { grupo: AmbitoResuelto["grupos"][
             </span>
           </td>
           <td className="px-[18px] py-2.5 text-right align-middle">
-            {c.zonaActual === null ? (
-              <Link href="/ciudades" aria-label={`Asignar zona a ${c.nombre}`} className={CLASE_BOTON_PRIMARIO}>
-                Asignar zona
-              </Link>
-            ) : (
-              <Link href="/ciudades" aria-label={`Cambiar zona de ${c.nombre}`} className={CLASE_BOTON_SECUNDARIO}>
-                Cambiar zona
-              </Link>
-            )}
+            <span className="flex flex-wrap items-center justify-end gap-2">
+              {alQuitar && (
+                <button
+                  type="button"
+                  data-foco={`quitar:${c.id}`}
+                  aria-label={etiquetaQuitar(c.nombre)}
+                  onClick={() => alQuitar({ id: c.id, nombre: c.nombre })}
+                  className={cn(CLASE_BOTON_SECUNDARIO, "cursor-pointer text-peligro")}
+                >
+                  {TEXTO_QUITAR}
+                </button>
+              )}
+              {c.zonaActual === null ? (
+                <Link href="/ciudades" aria-label={`Asignar zona a ${c.nombre}`} className={CLASE_BOTON_PRIMARIO}>
+                  Asignar zona
+                </Link>
+              ) : (
+                <Link href="/ciudades" aria-label={`Cambiar zona de ${c.nombre}`} className={CLASE_BOTON_SECUNDARIO}>
+                  Cambiar zona
+                </Link>
+              )}
+            </span>
           </td>
         </tr>
       ))}

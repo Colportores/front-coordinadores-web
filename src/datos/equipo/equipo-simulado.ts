@@ -196,14 +196,23 @@ function armar(): Armado {
 
 const SIN_JORNADA = "La jornada no existe o no es de un colportor de esta campaña. Recargá las jornadas y elegí otra.";
 const ACOMPANANTE_AJENO = "Ese colportor no está inscripto en esta campaña. Elegí a alguien de su equipo.";
+const NO_ESTA_EN_LA_CAMPANIA = "Esa persona no está inscripta en esta campaña. Recargá la página para ver el equipo como quedó.";
 const SU_PROPIA_JORNADA = "Un colportor no puede figurar como acompañante de su propia jornada. Elegí a otra persona.";
 
 /** Una fuente con su propio estado: registrar un acompañamiento cambia lo que ve la siguiente lectura. */
 export function crearEquipoSimulado(): Pick<
   FuenteDatosEquipo,
-  "obtenerEquipoPorCiudad" | "acompanantesDelPanel" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
-> {
+  | "obtenerEquipoPorCiudad"
+  | "acompanantesDelPanel"
+  | "jornadasParaAcompanar"
+  | "registrarAcompanamiento"
+  | "elegirCarrera"
+  | "asignarTipoDeBeca"
+> &
+  Required<Pick<FuenteDatosEquipo, "quitarDeCampania">> {
   const { base, jornadas } = armar();
+  // Los que se quitaron de la campaña (HU-CAM-005): dejan de figurar; no se borra nada de lo suyo.
+  const quitados = new Set<string>();
   const becas = crearBecasSimuladas(base, HOY_SIMULADO);
 
   const acompanamientosDe = (colportorId: string): AcompanamientoDeColportor[] =>
@@ -231,10 +240,11 @@ export function crearEquipoSimulado(): Pick<
         campaniaTipo: "VERANO",
         hoy: HOY_SIMULADO,
         ciudades: CIUDADES,
-        colportores: base.map((c) => ({ ...c, acompanamientos: acompanamientosDe(c.id) })),
+        colportores: base.filter((c) => !quitados.has(c.id)).map((c) => ({ ...c, acompanamientos: acompanamientosDe(c.id) })),
         // Sin flujo de «pedir entrar» (HU-CAM-009, después del 20/11): la franja «SOLICITUD» no aparece.
         solicitudesPendientes: 0,
         becas: becas.datos(),
+        sePuedeQuitar: true,
       };
     },
 
@@ -295,6 +305,14 @@ export function crearEquipoSimulado(): Pick<
 
     async asignarTipoDeBeca(_campaniaId, colportorId, tipo) {
       return becas.asignarTipoDeBeca(colportorId, tipo);
+    },
+
+    async quitarDeCampania(_campaniaId, colportorId) {
+      if (!base.some((c) => c.id === colportorId)) return { ok: false, mensaje: NO_ESTA_EN_LA_CAMPANIA };
+      // Un segundo pedido por el mismo (doble envío, otra pestaña) no es un error: ya quedó fuera.
+      if (quitados.has(colportorId)) return { ok: true, yaEstaba: true };
+      quitados.add(colportorId);
+      return { ok: true };
     },
   };
 }
