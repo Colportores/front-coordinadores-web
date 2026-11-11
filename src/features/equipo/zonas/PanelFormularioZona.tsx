@@ -14,6 +14,8 @@ export const RADIO_MIN_M = 1;
 export const RADIO_MAX_M = 3000;
 
 export const AYUDA_RADIAL = "Hacé clic en el mapa para poner el centro y arrastrá el punto del borde para cambiar el radio.";
+/** Se suma a la ayuda del canvas cuando ya hay centro (#179; el canvas 24 no tiene un texto para esto). */
+export const AYUDA_MOVER_CENTRO = "Para mover el centro, arrastralo o hacé clic en otro lugar del mapa.";
 export const AYUDA_ESQUINAS =
   "Hacé clic en las esquinas en orden. El borde sigue las calles; para cerrar, tocá la esquina 1.";
 
@@ -41,6 +43,8 @@ interface Props {
   vistaPrevia: VistaPreviaZona | null;
   guardando: boolean;
   error: string | null;
+  /** Un aviso que no es un error ni frena nada: el panel corrió una esquina del borde (#179). */
+  nota?: string | null;
   onNombre: (nombre: string) => void;
   onTipoForma: (tipo: TipoForma) => void;
   onRadio: (radioM: number) => void;
@@ -79,6 +83,7 @@ export function PanelFormularioZona({
   vistaPrevia,
   guardando,
   error,
+  nota = null,
   onNombre,
   onTipoForma,
   onRadio,
@@ -196,7 +201,8 @@ export function PanelFormularioZona({
             <Rotulo id="radio-zona">RADIO</Rotulo>
             <div className="flex items-center gap-3">
               {/* Deslizador del artboard 02 (decisión del 16/10): mismo valor que el campo y que el asa del mapa, de 1 a 3000 m
-                  de a 1 m. Con el foco, flechas, RePág/AvPág e Inicio/Fin los maneja el navegador. */}
+                  de a 1 m. Con el foco, flechas, RePág/AvPág e Inicio/Fin los maneja el navegador. Cada paso mientras se
+                  arrastra cambia el radio (#179): el círculo del mapa y el número lo siguen en vivo, sin esperar a soltarlo. */}
               <input
                 type="range"
                 aria-labelledby="radio-zona"
@@ -283,6 +289,10 @@ export function PanelFormularioZona({
           Esta zona se superpone con «{vistaPrevia.superposicion.zonaNombre}» en el tramo marcado en rojo. Podés guardarla igual.
         </p>
       ) : null}
+      {/* Siempre montado, para que el lector de pantalla lo anuncie cuando aparece; vacío no ocupa lugar en la columna. */}
+      <div aria-live="polite" className={nota ? undefined : "-my-[7px]"}>
+        {nota ? <p className="rounded-control bg-fondo px-3 py-2 text-cuerpo font-medium text-tinta-2">{nota}</p> : null}
+      </div>
       {error ? (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-control bg-peligro-fondo px-3 py-2 text-cuerpo font-medium text-peligro">
           <p>{error}</p>
@@ -294,7 +304,10 @@ export function PanelFormularioZona({
         </div>
       ) : null}
 
-      <p className="text-chico text-tinta-suave">{forma.tipoForma === "RADIAL" ? AYUDA_RADIAL : AYUDA_ESQUINAS}</p>
+      <p className="text-chico text-tinta-suave">
+        {forma.tipoForma === "RADIAL" ? AYUDA_RADIAL : AYUDA_ESQUINAS}
+      </p>
+      {forma.tipoForma === "RADIAL" && forma.centro ? <p className="-mt-2 text-chico text-tinta-suave">{AYUDA_MOVER_CENTRO}</p> : null}
 
       {baja?.confirmando ? (
         <div ref={confirmacion} tabIndex={-1} role="alertdialog" aria-label="Eliminar zona" className="outline-none focus-visible:ring-2 focus-visible:ring-acento flex flex-col gap-2.5 rounded-control border border-peligro bg-peligro-fondo px-3 py-3">

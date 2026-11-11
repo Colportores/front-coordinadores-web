@@ -425,10 +425,12 @@ function casasSimuladas(zona: ZonaDeCiudad): CasaDeCiudad[] {
   return casas;
 }
 
-/** La simulada siempre tiene campaña y nunca rechaza una vista previa: los tipos lo dicen para quien la usa directo. */
-type FuenteSimulada = Omit<FuenteDatosZonas, "obtenerZonas" | "vistaPreviaZona"> & {
+/** La simulada siempre tiene campaña y nunca rechaza una vista previa, una esquina ni un tramo: los tipos lo dicen para quien la usa directo. */
+type FuenteSimulada = Omit<FuenteDatosZonas, "obtenerZonas" | "vistaPreviaZona" | "esquinaMasCercana" | "tramoPorCalles"> & {
   obtenerZonas(): Promise<DatosZonas>;
   vistaPreviaZona(entrada: VistaPreviaEntrada): Promise<VistaPreviaZona>;
+  esquinaMasCercana(ciudadId: string, punto: Punto): Promise<Esquina>;
+  tramoPorCalles(ciudadId: string, desde: Punto, hasta: Punto): Promise<Punto[]>;
 };
 
 export const fuenteZonasSimulada: FuenteSimulada = {

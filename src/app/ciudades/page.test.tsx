@@ -77,8 +77,8 @@ describe("ZonasPagina", () => {
     const ciudad = DATOS_ZONAS_SIMULADO.ciudades[0];
     const origen = { lon: ciudad.centro.lon, lat: ciudad.centro.lat };
 
-    expect((await acciones.esquinaMasCercana(ciudad.id, origen)).calleA).toBeTruthy();
-    expect((await acciones.tramoPorCalles(ciudad.id, origen, origen)).length).toBeGreaterThan(0);
+    expect(await acciones.esquinaMasCercana(ciudad.id, origen)).toMatchObject({ calleA: expect.stringMatching(/./) });
+    expect(await acciones.tramoPorCalles(ciudad.id, origen, origen)).not.toHaveLength(0);
     expect(
       await acciones.vistaPreviaZona({ ciudadId: ciudad.id, forma: { tipoForma: "RADIAL", centro: origen, radioM: 200 } }),
     ).toMatchObject({ poligonoGeojson: { type: "Polygon" } });
