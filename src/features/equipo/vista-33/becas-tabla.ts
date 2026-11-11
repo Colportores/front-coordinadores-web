@@ -1,7 +1,7 @@
 import type { BecaDeColportor, CarreraDelCatalogo, ColportorDeEquipo } from "@/datos/equipo/contrato";
 import { logroDeBeca } from "@/datos/equipo/logro-de-beca";
 
-import type { AmbitoResuelto, UnidadDeAvance } from "./modelo";
+import { ETIQUETA_DE_TIPO, type AmbitoResuelto, type UnidadDeAvance } from "./modelo";
 
 /**
  * Estado, filtros y orden de la tabla «Becas» de la vista 33 (HU-BEC-004, HU-BEC-006). Todo puro: filtrar y ordenar no
@@ -62,8 +62,8 @@ export const BANDAS_DE_AVANCE: { valor: Exclude<FiltroDeAvance, "todos">; etique
 export type FiltroDeTipo = "todos" | "media" | "completa" | "sin-beca";
 
 export const OPCIONES_DE_FILTRO_DE_TIPO: { valor: Exclude<FiltroDeTipo, "todos">; etiqueta: string }[] = [
-  { valor: "media", etiqueta: "Media" },
-  { valor: "completa", etiqueta: "Completa" },
+  { valor: "media", etiqueta: ETIQUETA_DE_TIPO.media },
+  { valor: "completa", etiqueta: ETIQUETA_DE_TIPO.completa },
   { valor: "sin-beca", etiqueta: "Sin beca" },
 ];
 

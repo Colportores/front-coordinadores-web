@@ -33,11 +33,13 @@ describe("estadoDeBeca", () => {
     expect(estadoDeBeca(beca({ apuntaA: null, meta: null, avance: { libros: 500, monto: 500000 } }), carreras)).toBe("sin-beca");
   });
 
-  it("por debajo de la media, en progreso; desde la media, media alcanzada; desde la completa, completa alcanzada", () => {
+  it("por debajo de la media, en progreso; desde la media, media alcanzada; desde la completa, completa alcanzada solo si apunta a ella", () => {
     expect(estadoDeBeca(beca({ avance: { libros: 0, monto: 179999 } }), carreras)).toBe("en-progreso");
     expect(estadoDeBeca(beca({ avance: { libros: 0, monto: 180000 } }), carreras)).toBe("media");
     expect(estadoDeBeca(beca({ avance: { libros: 0, monto: 359999 } }), carreras)).toBe("media");
-    expect(estadoDeBeca(beca({ avance: { libros: 0, monto: 360000 } }), carreras)).toBe("completa");
+    // Apunta a media: pasar el monto de la completa no le da «Completa alcanzada» (Cristian, 11/11; igual que la base).
+    expect(estadoDeBeca(beca({ avance: { libros: 0, monto: 360000 } }), carreras)).toBe("media");
+    expect(estadoDeBeca(beca({ apuntaA: "completa", meta: { libros: 240, monto: 360000 }, avance: { libros: 0, monto: 360000 } }), carreras)).toBe("completa");
   });
 
   it("apuntando a completa con la media ya alcanzada, la media no se le quita", () => {
