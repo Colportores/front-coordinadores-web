@@ -292,6 +292,8 @@ export function crearFuentePestanaRpc(
         colportores,
         solicitudesPendientes: 0,
         becas,
+        // Sin `sePuedeQuitar` ni `quitarDeCampania`: la fila no ofrece «Quitar de la campaña» hasta que la base publique
+        // `quitar_de_campania()` (backend-supabase#273) y se acuerde con qué id se la llama (pendiente P1 de #184).
       };
     },
 
