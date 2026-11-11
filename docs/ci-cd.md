@@ -57,11 +57,10 @@ El trabajo de #147 son tres piezas: el **paso de SonarQube dentro de CI**, el wo
 2. **CI** corre en ese push y, solo ahí, sube el análisis a **SonarQube Cloud**. Los workflows **Staging** (GitHub
    Pages y demo con Supabase dev) y **Deploy Cloudflare (staging)** **ya no corren solos**: desde el 11/11 (#105) el
    único despliegue automático de staging es el de **Vercel**.
-3. **Vercel** reacciona al push por su propia integración con Git (la app de Vercel instalada en la organización), en
-   paralelo con el CI: no hay workflow en este repo ni secretos de GitHub para esto (el `VERCEL_TOKEN` de
-   `production.yml` es otra cosa y no interviene). Hace `next build` normal, con servidor: proxy, cookies de sesión y
-   server actions, a diferencia del export estático de Pages. Sus variables de entorno (URL y clave anónima de Supabase,
-   etc.) viven en el panel de Vercel, no en GitHub. El resultado queda como estado «Vercel» del commit.
+3. **Vercel** reacciona al push por su propia integración con Git, en paralelo con el CI: no hay workflow en este
+   repo ni secretos de GitHub para esto (el `VERCEL_TOKEN` de `production.yml` es otra cosa y no interviene). Qué
+   compila y con qué variables de entorno depende de la configuración del proyecto en el panel de Vercel (no verificable
+   desde el repo; el repo no tiene `vercel.json`). El resultado queda como estado «Vercel» del commit.
 4. **Lo que mira Cristian en Vercel** (no se ve desde el repo): Settings → Git → *Production Branch* (qué rama cuenta
    como producción de Vercel; por defecto es la rama por defecto del repo, hoy `staging`), si las demás ramas y los
    PR generan *Preview Deployments*, y Settings → Environment Variables (qué valores usa cada entorno).
