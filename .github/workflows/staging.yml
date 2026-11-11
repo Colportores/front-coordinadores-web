@@ -1,7 +1,8 @@
 name: Staging
 
-# Despliegues del panel que ya NO corren solos en cada push a `staging`: desde el 05/11 el único despliegue automático de
-# staging es el de Cloudflare Pages (deploy-cloudflare.yml, issue #147), para no tener varios deploys por cada merge.
+# Despliegues del panel que ya NO corren solos en cada push a `staging`: desde el 11/11 (#105) el único despliegue
+# automático de staging es el de Vercel, por su integración con Git (sin workflow ni secretos de GitHub), para no tener
+# varios deploys por cada merge. Cloudflare Pages (deploy-cloudflare.yml) también quedó solo manual.
 # Este workflow queda solo para correrlo a mano (workflow_dispatch) y llama a los dos que ya existían:
 # - deploy-pages.yml: el sitio de prueba en GitHub Pages (export estático, datos simulados).
 # - demo-supabase-dev.yml: el panel compilado con las variables de DEV (Supabase `ohdsavwpasfpapbyutrv`) como servidor

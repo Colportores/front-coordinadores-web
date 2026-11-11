@@ -4,6 +4,10 @@ Guía paso a paso para dejar listo el despliegue del panel en Cloudflare (issue 
 nombres. El repo es público; los valores se cargan directo en GitHub (o con `gh`) y no se escriben en archivos, commits,
 PRs ni capturas.
 
+> **Actualización del 11/11 (#105):** el despliegue automático de staging pasó a **Vercel** (integración Git, sin
+> secretos de GitHub). `deploy-cloudflare.yml` ya no corre por push a `staging`: queda solo para correrlo a mano
+> (Actions → Run workflow). Esta guía sigue valiendo para ese caso manual.
+>
 > **Decisión pendiente de Cristian antes de usar el workflow de despliegue.** El ADR-015 y `production.yml` dejan a
 > **Vercel** como hosting de producción, porque el panel necesita servidor (`src/proxy.ts`, cookies de sesión, server
 > actions). El pedido #147 es Cloudflare. Esta guía sirve para los dos caminos de Cloudflare (ver el paso 4), pero **no
