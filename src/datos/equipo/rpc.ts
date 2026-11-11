@@ -5,6 +5,7 @@ import {
   type EstadoCuenta,
   type FuenteDatosEquipo,
   type MiembroEquipo,
+  type RolDeCuenta,
   type ResultadoBusqueda,
   type ResultadoInscripcion,
 } from "@/datos/equipo/contrato";
@@ -41,6 +42,22 @@ const ESTADOS: Record<string, EstadoCuenta> = {
   SUSPENDIDA: "suspendida",
 };
 
+/** `rol_cuenta` de `buscar_candidatos()` (0187): solo estos dos valores marcan la cuenta. */
+const ROLES_DE_CUENTA: Record<string, RolDeCuenta> = {
+  COORDINADOR: "coordinador",
+  ADMIN: "administracion",
+};
+
+/**
+ * El rol de la cuenta, si es de coordinación o de administración. La columna puede no venir (una base anterior a la 0187,
+ * mientras se despliega) o traer un valor que el panel no conoce: en los dos casos la cuenta sale sin marca, como la de un
+ * colportor, y la vista sigue andando. Es un aviso, no una regla: no vale romper la lista por él.
+ */
+function rolDeCuenta(fila: Objeto): RolDeCuenta | undefined {
+  const valor = fila.rol_cuenta;
+  return typeof valor === "string" && Object.hasOwn(ROLES_DE_CUENTA, valor) ? ROLES_DE_CUENTA[valor] : undefined;
+}
+
 /** El día se cuenta en Montevideo, como en el backend (`hoy_montevideo()`): una cuenta creada a las 22:00 no cambia de día. */
 const DIA_EN_MONTEVIDEO = new Intl.DateTimeFormat("en-CA", {
   timeZone: "America/Montevideo",
@@ -60,13 +77,15 @@ function diaEnMontevideo(rpc: string, instante: string): string {
  * contra la campaña de destino (0058: una en curso y otra por empezar sí se pueden; `campania_actual` es solo la que está en
  * curso y no alcanza para decidirlo). La suspendida se deduce del estado de la cuenta. Las demás (email sin verificar, ya
  * inscripta) la base ya las deja fuera de la lista, y desde la migración 0028 la baja de esta campaña ya no bloquea (se
- * reactiva). Un motivo nuevo del backend vendría sin texto para mostrar: habría que sumarlo acá.
+ * reactiva). Un motivo nuevo del backend vendría sin texto para mostrar: habría que sumarlo acá. `rol_cuenta` (0187) no
+ * bloquea: solo marca la cuenta de coordinación o de administración (`rolDeCuenta`).
  */
 function aCandidato(fila: Objeto): CandidatoColportor {
   const rpc = "buscar_candidatos";
   const estado = ESTADOS[cadena(rpc, fila, "estado")];
   if (!estado) throw new RespuestaInesperada(rpc, `\`estado\` desconocido (${String(fila.estado)})`);
   const email = cadena(rpc, fila, "email");
+  const rolCuenta = rolDeCuenta(fila);
   return {
     id: cadena(rpc, fila, "usuario_id"),
     nombre: nombreVisible(cadena(rpc, fila, "nombre"), cadena(rpc, fila, "apellido"), email),
@@ -75,6 +94,8 @@ function aCandidato(fila: Objeto): CandidatoColportor {
     campaniaActual: cadenaONula(rpc, fila, "campania_actual"),
     enOtraCampania: cadenaONula(rpc, fila, "motivo_bloqueo") === "EN_OTRA_CAMPANIA",
     cuentaCreada: diaEnMontevideo(rpc, cadena(rpc, fila, "creada_en")),
+    // Sin rol no se agrega la clave: una cuenta de colportor queda igual que antes de la 0187.
+    ...(rolCuenta ? { rolCuenta } : {}),
   };
 }
 

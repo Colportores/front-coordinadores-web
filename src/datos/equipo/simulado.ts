@@ -75,6 +75,28 @@ export const CANDIDATOS_SIMULADOS: CandidatoColportor[] = [
     enOtraCampania: false,
     cuentaCreada: "2026-04-02",
   },
+  // Cuentas que no son de colportores (los mismos nombres que ofrece «¿Quién acompañó?» en la vista 33): se pueden añadir,
+  // con la etiqueta y la confirmación de la vista 23 (decisión del 11/11). Activas: salen en la búsqueda, no en los sugeridos.
+  {
+    id: "usr-tomas-ibarra",
+    nombre: "Tomás Ibarra",
+    email: "tomas.ibarra@example.com",
+    estadoCuenta: "activa",
+    campaniaActual: null,
+    enOtraCampania: false,
+    cuentaCreada: "2026-02-10",
+    rolCuenta: "coordinador",
+  },
+  {
+    id: "usr-marta-rivas",
+    nombre: "Marta Rivas",
+    email: "marta.rivas@example.com",
+    estadoCuenta: "activa",
+    campaniaActual: null,
+    enOtraCampania: false,
+    cuentaCreada: "2026-01-15",
+    rolCuenta: "administracion",
+  },
 ];
 
 const EQUIPO_ACTUAL_SIMULADO: MiembroEquipo[] = [

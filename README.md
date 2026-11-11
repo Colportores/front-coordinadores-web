@@ -43,7 +43,7 @@ docker compose -f compose.dev.yml up
 
 Las pestañas **Stock** y **Cuentas** muestran datos simulados hasta su conexión en V2: tienen flag propio (`NEXT_PUBLIC_PESTANA_STOCK`, `NEXT_PUBLIC_PESTANA_CUENTAS`) que, si no se define, sigue al modo dev. En staging y producción quedan ocultas: `src/proxy.ts` reescribe esas rutas a un 404 antes de renderizar (así ni el HTML ni el payload RSC llevan su contenido) y, con el flag apagado, la ruta no se prerenderiza (`LayoutPestanaConFlag`).
 
-En **Equipo**, el botón **Becas** (vista 33) solo aparece si la fuente trae las becas: con los datos simulados sí, conectado a Supabase no, porque falta la RPC del catálogo de carreras. `NEXT_PUBLIC_EQUIPO_BECAS=1` lo muestra siempre y `0` lo oculta siempre (`src/config/flags.ts`, `becasDeEquipoVisibles`).
+En **Equipo**, el botón **Becas** (vista 33) solo aparece si la fuente trae las becas: con los datos simulados siempre; conectado a Supabase, cuando la base tiene `carreras_de_beca()` y `becas_de_campania()` y la campaña no terminó (`src/datos/equipo/becas-rpc.ts`). `NEXT_PUBLIC_EQUIPO_BECAS=1` lo muestra siempre y `0` lo oculta siempre (`src/config/flags.ts`, `becasDeEquipoVisibles`).
 
 ### Equipo con datos reales de Supabase (solo desarrollo)
 

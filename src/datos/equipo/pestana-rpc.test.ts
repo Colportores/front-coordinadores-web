@@ -101,6 +101,9 @@ const completas = (cambios: Respuestas = {}): Respuestas => ({
   historial_de_acompaniamientos: [historial()],
   acompaniamientos_por_colportor: [tabla()],
   colportores_de_campania: [],
+  // Sin las RPC de becas publicadas (`becas-rpc.test.ts` prueba el mapeo): la vista queda sin pestaña «Becas».
+  carreras_de_beca: new ErrorSupabase("Could not find the function", 404, "PGRST202"),
+  becas_de_campania: new ErrorSupabase("Could not find the function", 404, "PGRST202"),
   ...cambios,
 });
 
@@ -138,7 +141,7 @@ describe("obtenerEquipoPorCiudad", () => {
         },
       ],
       solicitudesPendientes: 0,
-      // Las becas (V2) todavía no tienen RPC: la vista lo dice en vez de mostrar una tabla vacía.
+      // Sin las RPC de becas publicadas no hay becas: la vista no ofrece la pestaña.
       becas: null,
     });
     expect(llamarRpc).toHaveBeenCalledWith("zonas_por_colportor", { p_campania_id: CAMPANIA });
@@ -650,18 +653,63 @@ describe("registrarAcompanamiento", () => {
   });
 });
 
-describe("becas (V2, sin RPC todavía)", () => {
-  it("elegir la carrera o el tipo no llama a la base: avisa que las becas no están conectadas", async () => {
-    const { cliente, llamarRpc } = clienteCon({});
+describe("becas", () => {
+  const catalogo = [{ carrera_id: SANTIAGO, nombre: "Teología", meta_media: 100, meta_media_monto: 15000000, meta_completa: 200, meta_completa_monto: 30000000 }];
+  const beca = {
+    usuario_id: EMILIANO,
+    nombre: "Emiliano",
+    apellido: "Sosa",
+    carrera_id: SANTIAGO,
+    carrera_nombre: "Teología",
+    carrera_elegida_en: "2026-09-01T13:00:00+00:00",
+    tipo_beca: "MEDIA",
+    meta_libros: 100,
+    meta_monto_ces: 15000000,
+    meta_configurada: true,
+    meta_recalculada_en: null,
+    libros_bonificables: 40,
+    compra_ces: 6000050,
+    estado_beca: "EN_PROGRESO",
+    beca_alcanzada_tipo: null,
+  };
+
+  it("con las RPC publicadas, Equipo trae el catálogo y la beca de cada inscripto de la campaña", async () => {
+    const { cliente, llamarRpc } = clienteCon(completas({ carreras_de_beca: catalogo, becas_de_campania: [beca] }));
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.becas).toEqual({
+      carreras: [{ id: SANTIAGO, nombre: "Teología", metaMedia: { libros: 100, monto: 150000 }, metaCompleta: { libros: 200, monto: 300000 } }],
+      porColportor: {
+        [EMILIANO]: {
+          carrera: { id: SANTIAGO, nombre: "Teología", elegidaEl: "2026-09-01" },
+          apuntaA: "media",
+          meta: { libros: 100, monto: 150000 },
+          avance: { libros: 40, monto: 60000.5 },
+        },
+      },
+    });
+    expect(llamarRpc).toHaveBeenCalledWith("carreras_de_beca", { p_campania_id: CAMPANIA });
+    expect(llamarRpc).toHaveBeenCalledWith("becas_de_campania", { p_campania_id: CAMPANIA });
+  });
+
+  it("una campaña terminada (BC001) se sigue viendo, sin becas; una caída de las becas no se toma por «sin becas»", async () => {
+    const terminada = rechazo("BC001", "La campaña ya terminó y sus becas quedan como estaban.");
+    const { cliente } = clienteCon(completas({ carreras_de_beca: catalogo, becas_de_campania: terminada }));
+    expect((await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad())?.becas).toBeNull();
+
+    const caida = new ErrorSupabase("upstream", 503);
+    const conCaida = clienteCon(completas({ carreras_de_beca: catalogo, becas_de_campania: caida }));
+    await expect(crearFuentePestanaRpc(conCaida.cliente, AHORA).obtenerEquipoPorCiudad()).rejects.toBe(caida);
+  });
+
+  it("elegir la carrera y el tipo llaman a la base y devuelven la beca como quedó", async () => {
+    const { cliente, llamarRpc } = clienteCon({ elegir_carrera: [{ usuario_id: EMILIANO, carrera_id: SANTIAGO, cambio: true }], asignar_beca: [], becas_de_campania: [beca] });
     const fuente = crearFuentePestanaRpc(cliente);
 
-    const carrera = await fuente.elegirCarrera(CAMPANIA, EMILIANO, "sis");
-    const tipo = await fuente.asignarTipoDeBeca(CAMPANIA, EMILIANO, "media");
-
-    for (const respuesta of [carrera, tipo]) {
-      expect(respuesta).toMatchObject({ ok: false });
-      expect(respuesta.ok === false && respuesta.mensaje).toContain("Las becas todavía no están conectadas");
-    }
-    expect(llamarRpc).not.toHaveBeenCalled();
+    await expect(fuente.elegirCarrera(CAMPANIA, EMILIANO, SANTIAGO)).resolves.toMatchObject({ ok: true, beca: { apuntaA: "media" } });
+    await expect(fuente.asignarTipoDeBeca(CAMPANIA, EMILIANO, "media")).resolves.toMatchObject({ ok: true });
+    expect(llamarRpc).toHaveBeenCalledWith("elegir_carrera", { p_campania_id: CAMPANIA, p_usuario_id: EMILIANO, p_carrera_id: SANTIAGO });
+    expect(llamarRpc).toHaveBeenCalledWith("asignar_beca", { p_campania_id: CAMPANIA, p_usuarios: [EMILIANO], p_tipo: "MEDIA" });
   });
 });

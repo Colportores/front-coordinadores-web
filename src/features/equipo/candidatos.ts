@@ -16,6 +16,37 @@ export function ayudaBloqueo(c: CandidatoColportor): string | null {
   return null;
 }
 
+/** La etiqueta junto al nombre de una cuenta que no es de un colportor. */
+const ETIQUETA_ROL = { coordinador: "Coordinador", administracion: "Administración" } as const;
+
+/** El área de esa cuenta, para los avisos («Esta cuenta es de coordinación…»). */
+const AREA_ROL = { coordinador: "coordinación", administracion: "administración" } as const;
+
+/** «Coordinador» o «Administración» si la cuenta es de coordinación o de administración; `null` si es la de un colportor. */
+export function etiquetaRol(c: CandidatoColportor): string | null {
+  return c.rolCuenta ? ETIQUETA_ROL[c.rolCuenta] : null;
+}
+
+/**
+ * La advertencia de una cuenta de coordinación o de administración (decisión de Cristian, 11/11): no bloquea, se puede
+ * añadir igual (HU-CAM-004, 02/10). `null` si es la cuenta de un colportor.
+ */
+export function avisoRol(c: CandidatoColportor): string | null {
+  return c.rolCuenta ? `Esta cuenta es de ${AREA_ROL[c.rolCuenta]}, no de un colportor.` : null;
+}
+
+/**
+ * Los textos de la confirmación antes de añadir como colportor una cuenta de coordinación o de administración (decisión de
+ * Cristian, 11/11): dicen qué pasa y qué se puede hacer. `null` si la cuenta es de un colportor: se añade sin preguntar.
+ */
+export function confirmacionDeRol(c: CandidatoColportor, campania: string): { titulo: string; texto: string } | null {
+  if (!c.rolCuenta) return null;
+  return {
+    titulo: `¿Añadir a ${c.nombre} como colportor?`,
+    texto: `Esta cuenta es de ${AREA_ROL[c.rolCuenta]}, no de un colportor. ¿Querés añadirla igual como colportor de ${campania}?`,
+  };
+}
+
 export function iniciales(nombre: string): string {
   return nombre
     .split(/\s+/)

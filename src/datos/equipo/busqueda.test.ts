@@ -99,6 +99,12 @@ describe("búsqueda simulada (las reglas de `buscar_candidatos()`)", () => {
     it("sin texto no devuelve nada", () => {
       expect(ordenarBusqueda(CANDIDATOS_SIMULADOS, "  ")).toEqual([]);
     });
+
+    it("las cuentas de coordinación y de administración se buscan como cualquiera (no se filtra por rol) y no son sugeridos", () => {
+      expect(ordenarBusqueda(CANDIDATOS_SIMULADOS, "ibarra").map((c) => [c.nombre, c.rolCuenta])).toEqual([["Tomás Ibarra", "coordinador"]]);
+      expect(ordenarBusqueda(CANDIDATOS_SIMULADOS, "marta.rivas@").map((c) => [c.nombre, c.rolCuenta])).toEqual([["Marta Rivas", "administracion"]]);
+      expect(sugeridosDe(CANDIDATOS_SIMULADOS).some((c) => c.rolCuenta !== undefined)).toBe(false);
+    });
   });
 
   describe("paginaDeBusqueda", () => {

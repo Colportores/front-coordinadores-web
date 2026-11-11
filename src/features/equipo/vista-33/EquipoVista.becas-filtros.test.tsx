@@ -77,7 +77,7 @@ describe("Becas · «Sin beca» como tercera opción de «Apunta a»", () => {
     await irABecas(usuario);
 
     const grupo = screen.getByRole("group", { name: "A qué beca apunta Emiliano Sosa" });
-    expect(within(grupo).getAllByRole("button").map((b) => b.textContent)).toEqual(["Media", "Completa", "Sin beca"]);
+    expect(within(grupo).getAllByRole("button").map((b) => b.textContent)).toEqual(["Media beca", "Beca completa", "Sin beca"]);
   });
 
   it("dejar a alguien sin beca guarda null, queda marcado, sin meta y con el aviso para el lector", async () => {
