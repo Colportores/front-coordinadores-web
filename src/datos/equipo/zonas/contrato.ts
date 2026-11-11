@@ -104,9 +104,9 @@ export interface DatosZonas {
   campania: string;
   ciudades: CiudadDeCampania[];
   /**
-   * `false`: esta fuente todavía no puede dibujar zonas por esquinas (la esquina más cercana, el tramo por calles y
-   * guardar el borde no están conectados, front-coordinadores-web#40). La vista lo dice en vez de culpar a la conexión
-   * (#167). Ausente: se puede.
+   * `false`: esta fuente no puede dibujar zonas por esquinas. La vista lo dice en vez de culpar a la conexión (#167).
+   * Ausente: se puede. Desde #179 la fuente de las RPC ya las tiene conectadas y no lo manda; una ciudad sin calles
+   * cargadas no es esto: la base lo rechaza con su aviso (`CZ015`).
    */
   esquinasDisponibles?: boolean;
 }
@@ -143,12 +143,17 @@ export interface VistaPreviaZona {
 }
 
 /**
- * Respuesta a la vista previa cuando la base la rechaza (la campaña ya terminó, la ciudad se quitó, no hay permiso):
- * `rechazo` es el texto para mostrar. Una falla de conexión no es esto: la fuente tira la excepción.
+ * Lo que contesta la fuente cuando la base rechaza un pedido del dibujo (la campaña ya terminó, la ciudad se quitó, no
+ * hay permiso, la ciudad no tiene calles cargadas, no hay camino entre dos esquinas): `rechazo` es el texto para
+ * mostrar. Va como valor y no como excepción porque el servidor le borra el mensaje a una excepción antes de que llegue
+ * al navegador. Una falla de conexión no es esto: la fuente tira la excepción.
  */
-export interface VistaPreviaRechazada {
+export interface RechazoDelMapa {
   rechazo: string;
 }
+
+/** El rechazo de una vista previa: el mismo valor que el de una esquina o un tramo. */
+export type VistaPreviaRechazada = RechazoDelMapa;
 
 export interface GuardarZonaEntrada {
   ciudadId: string;
@@ -216,10 +221,10 @@ export interface CasaDeCiudad {
 export interface FuenteDatosZonas {
   /** `null` si el coordinador no tiene una campaña que no haya terminado: no hay zonas que mostrar. */
   obtenerZonas(): Promise<DatosZonas | null>;
-  /** Cruce de calles más cercano a un punto (backend-supabase#25). */
-  esquinaMasCercana(ciudadId: string, punto: Punto): Promise<Esquina>;
-  /** Tramo más corto por las calles entre dos esquinas (backend-supabase#25). */
-  tramoPorCalles(ciudadId: string, desde: Punto, hasta: Punto): Promise<Punto[]>;
+  /** Cruce de calles más cercano a un punto (`esquina_mas_cercana()`, backend-supabase#25). */
+  esquinaMasCercana(ciudadId: string, punto: Punto): Promise<Esquina | RechazoDelMapa>;
+  /** Tramo más corto por las calles entre dos esquinas (`tramo_por_calles()`, backend-supabase#25). */
+  tramoPorCalles(ciudadId: string, desde: Punto, hasta: Punto): Promise<Punto[] | RechazoDelMapa>;
   vistaPreviaZona(entrada: VistaPreviaEntrada): Promise<VistaPreviaZona | VistaPreviaRechazada>;
   guardarZona(entrada: GuardarZonaEntrada): Promise<ResultadoGuardarZona>;
   /** `asignar_zona`: pone o cambia la zona de un colportor inscripto. */

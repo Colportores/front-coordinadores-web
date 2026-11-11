@@ -6,8 +6,11 @@ import type {
   DatosZonas,
   EstadoDeCasa,
   Esquina,
+  FormaZona,
   FuenteDatosZonas,
   PoligonoGeojson,
+  Punto,
+  RechazoDelMapa,
   ResultadoAgregarCiudad,
   ResultadoAsignacion,
   ResultadoEliminarZona,
@@ -37,33 +40,26 @@ import {
 /**
  * Fuente de la vista 24 (HU-CAM-006) contra las RPC de Supabase (ADR-013): `campanias_del_coordinador()`,
  * `ciudades_de_campania()`, `zonas_de_ciudad()`, `colportores_de_campania()`, `ciudades_del_catalogo()`,
- * `agregar_ciudad_a_campania()`, `guardar_zona()` (también para la vista previa), `baja_zona()`, `asignar_zona()` y
- * `quitar_zona()`. Habla con un `ClienteRpc`, o sea con el JWT del coordinador; de dónde sale esa sesión no es cosa de
- * este archivo.
+ * `agregar_ciudad_a_campania()`, `guardar_zona()` (también para la vista previa), `baja_zona()`, `asignar_zona()`,
+ * `quitar_zona()` y, para las zonas por esquinas (#179, backend-supabase#25, migración 0036), `esquina_mas_cercana()`,
+ * `tramo_por_calles()` y `poligono_por_calles()`. Habla con un `ClienteRpc`, o sea con el JWT del coordinador; de dónde
+ * sale esa sesión no es cosa de este archivo.
  *
- * Acá se traducen los rechazos de la base (`CZ001`…`CZ014`, `42501`) al texto para mostrar: las pantallas no conocen
+ * Acá se traducen los rechazos de la base (`CZ001`…`CZ016`, `42501`) al texto para mostrar: las pantallas no conocen
  * códigos. Una falla de conexión, de servicio o de sesión no es un rechazo y sale como excepción (la vista la muestra
  * como «sin conexión»). **Ninguna falla se toma por una lista vacía.**
  *
- * Lo que todavía no está conectado (el backend ya lo tiene desde backend-supabase#25; conectarlo es
- * front-coordinadores-web#40): `esquinaMasCercana`, `tramoPorCalles` y, con ellas, guardar o mirar una zona por esquinas
- * (el borde por calles lo manda el cliente). Tiran `FuncionSinConectar`, y `obtenerZonas` lo avisa con
- * `esquinasDisponibles: false` para que la vista no lo confunda con una falla de conexión (#167). La superposición con otra zona y la calle compartida (`superposicion`, `comparteCalle`) tampoco
- * las calcula ninguna RPC: la vista previa las deja en `null`.
+ * Una zona por esquinas se guarda en dos pasos: `poligono_por_calles()` engancha cada esquina a su cruce y arma el borde
+ * por las calles, y `guardar_zona()` recibe ese borde y esas esquinas ya enganchadas (exige que el borde pase a 1 m o
+ * menos de cada una). Una ciudad sin calles cargadas contesta `CZ015` con su aviso; el panel no lo adivina antes.
+ * La superposición con otra zona y la calle compartida salen de `superposiciones` y `calles_compartidas` (0038, 0059):
+ * la vista muestra una de cada una, la primera de la lista de la base.
  */
 
 /** Cuántos caracteres de la búsqueda se mandan; el resto se descarta (el nombre de una ciudad no pasa de ahí). */
 const MAX_TEXTO_BUSQUEDA = 100;
 
-/** Una función que el panel todavía no puede llamar porque falta una RPC del backend. */
-export class FuncionSinConectar extends Error {
-  constructor(funcion: string, motivo: string) {
-    super(`${funcion} todavía no está conectada a Supabase: ${motivo}.`);
-    this.name = "FuncionSinConectar";
-  }
-}
-
-/** Los códigos de la familia del mapa y de la asignación (migraciones 0006, 0008, 0009, 0012 y 0033) cuyo `message` es el texto para mostrar. */
+/** Los códigos de la familia del mapa y de la asignación (migraciones 0006, 0008, 0009, 0012, 0033 y 0036) cuyo `message` es el texto para mostrar. */
 const CODIGOS_CON_TEXTO = new Set([
   "CZ001",
   "CZ002",
@@ -77,6 +73,9 @@ const CODIGOS_CON_TEXTO = new Set([
   "CZ012",
   "CZ013",
   "CZ014",
+  // 0036: la ciudad no tiene calles cargadas, y no hay camino por las calles entre dos esquinas.
+  "CZ015",
+  "CZ016",
 ]);
 
 // Los mismos textos que la base manda en el `message` de cada rechazo, por si uno llega sin mensaje o un id inválido
@@ -91,6 +90,8 @@ const COLPORTOR_FUERA_DE_CAMPANIA = "El colportor no está en esta campaña.";
 // Cuando la base rechaza con un código que el panel no conoce (o sin mensaje).
 const VISTA_PREVIA_RECHAZADA = "No se pudieron calcular las ubicaciones de la zona. Probá de nuevo más tarde.";
 const GUARDAR_RECHAZADO = "No se pudo guardar la zona. Probá de nuevo más tarde.";
+const ESQUINA_RECHAZADA = "No se pudo ubicar la esquina. Probá de nuevo más tarde.";
+const TRAMO_RECHAZADO = "No se pudo calcular el borde entre las esquinas. Probá de nuevo más tarde.";
 const ELIMINAR_RECHAZADO = "No se pudo eliminar la zona. Probá de nuevo más tarde.";
 const ASIGNAR_RECHAZADO = "No se pudo asignar la zona. Probá de nuevo más tarde.";
 const QUITAR_RECHAZADO = "No se pudo quitar la zona. Probá de nuevo más tarde.";
@@ -159,6 +160,107 @@ function aEsquinas(rpc: string, vertices: Objeto[]): Esquina[] {
     }))
     .sort((a, b) => a.orden - b.orden)
     .map((v) => v.esquina);
+}
+
+/** El cruce que contesta `esquina_mas_cercana()`; una calle sin nombre en OpenStreetMap (nula) queda `""`. */
+function aEsquina(rpc: string, fila: Objeto): Esquina {
+  return {
+    lon: numero(rpc, fila, "lon"),
+    lat: numero(rpc, fila, "lat"),
+    calleA: cadenaONula(rpc, fila, "calle_a") ?? "",
+    calleB: cadenaONula(rpc, fila, "calle_b") ?? "",
+  };
+}
+
+/** Los puntos de `tramo_por_calles()`, de una esquina a la otra por su `orden`. */
+function aTramo(rpc: string, puntos: Objeto[]): Punto[] {
+  return puntos
+    .map((p) => ({ orden: numero(rpc, p, "orden"), punto: { lon: numero(rpc, p, "lon"), lat: numero(rpc, p, "lat") } }))
+    .sort((a, b) => a.orden - b.orden)
+    .map((p) => p.punto);
+}
+
+/** El borde de una parte común (`interseccion`: un `Polygon` o un `MultiPolygon` de GeoJSON) como línea para pintar; vacío si no es eso. */
+function bordeDeInterseccion(valor: unknown): Punto[] {
+  if (!esObjeto(valor) || !Array.isArray(valor.coordinates)) return [];
+  const primero: unknown = valor.coordinates[0];
+  const anillo: unknown = valor.type === "Polygon" ? primero : valor.type === "MultiPolygon" && Array.isArray(primero) ? primero[0] : null;
+  if (!Array.isArray(anillo)) return [];
+  const puntos: Punto[] = [];
+  for (const posicion of anillo as unknown[]) {
+    if (!Array.isArray(posicion)) return [];
+    const [lon, lat] = posicion as unknown[];
+    if (typeof lon !== "number" || typeof lat !== "number" || !Number.isFinite(lon) || !Number.isFinite(lat)) return [];
+    puntos.push({ lon, lat });
+  }
+  return puntos;
+}
+
+/**
+ * La primera zona con la que se superpone, con el borde de la parte común para pintarlo en rojo (`superposiciones`,
+ * 0038). Solo avisa (S56): una entrada que no se entiende se saltea, no rompe la vista previa ni el guardado.
+ */
+function aSuperposicion(respuesta: Objeto): VistaPreviaZona["superposicion"] {
+  if (!Array.isArray(respuesta.superposiciones)) return null;
+  for (const entrada of respuesta.superposiciones as unknown[]) {
+    if (!esObjeto(entrada) || typeof entrada.nombre !== "string") continue;
+    const tramo = bordeDeInterseccion(entrada.interseccion);
+    if (tramo.length > 1) return { zonaNombre: entrada.nombre, tramo };
+  }
+  return null;
+}
+
+/**
+ * La primera calle con nombre que el borde comparte con otra zona (`calles_compartidas`, 0038 y 0059; `null` si la
+ * base no lo pudo calcular). Una calle sin nombre en OpenStreetMap no se muestra: el aviso nombra la calle.
+ */
+function aCalleCompartida(respuesta: Objeto): VistaPreviaZona["comparteCalle"] {
+  if (!Array.isArray(respuesta.calles_compartidas)) return null;
+  for (const entrada of respuesta.calles_compartidas as unknown[]) {
+    if (!esObjeto(entrada) || typeof entrada.nombre !== "string" || typeof entrada.calle !== "string" || entrada.calle === "") continue;
+    const punto = entrada.punto;
+    if (!esObjeto(punto) || punto.type !== "Point" || !Array.isArray(punto.coordinates)) continue;
+    const [lon, lat] = punto.coordinates as unknown[];
+    if (typeof lon !== "number" || typeof lat !== "number" || !Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+    return { calle: entrada.calle, zonaNombre: entrada.nombre, punto: { lon, lat } };
+  }
+  return null;
+}
+
+/**
+ * Lo que `guardar_zona()` necesita de la forma. Una radial, su centro y su radio. Una por esquinas, el borde por las
+ * calles que arma `poligono_por_calles()` y las esquinas tal como esa función las enganchó a sus cruces (no los clics:
+ * `guardar_zona()` exige que el borde pase a 1 m o menos de cada una), sin centro ni radio.
+ */
+async function argumentosDeForma(cliente: ClienteRpc, ciudadId: string, forma: FormaZona): Promise<Record<string, unknown>> {
+  if (forma.tipoForma === "RADIAL") {
+    return {
+      p_tipo_forma: "RADIAL",
+      p_centro_lat: forma.centro?.lat ?? null,
+      p_centro_lon: forma.centro?.lon ?? null,
+      p_radio_m: forma.radioM === undefined ? null : Math.round(forma.radioM),
+    };
+  }
+  const rpc = "poligono_por_calles";
+  const [fila] = filas(
+    rpc,
+    await cliente.llamarRpc(rpc, {
+      p_campania_ciudad_id: ciudadId,
+      p_esquinas: (forma.esquinas ?? []).map((e) => ({ lon: e.lon, lat: e.lat })),
+    }),
+  );
+  if (!fila) throw new RespuestaInesperada(rpc, "no devolvió el borde de la zona");
+  return {
+    p_tipo_forma: "ESQUINAS",
+    p_vertices: listaDeObjetos(rpc, fila, "esquinas").map((e) => ({
+      orden: numero(rpc, e, "orden"),
+      lon: numero(rpc, e, "lon"),
+      lat: numero(rpc, e, "lat"),
+      calle_a: cadenaONula(rpc, e, "calle_a"),
+      calle_b: cadenaONula(rpc, e, "calle_b"),
+    })),
+    p_poligono_geojson: aPoligono(rpc, fila.poligono_geojson),
+  };
 }
 
 /** Lo que `zonas_de_ciudad()` y la fila `zona` que devuelve `guardar_zona()` tienen en común. */
@@ -337,8 +439,6 @@ export function crearFuenteZonasRpc(
           campaniaId: campania.id,
           campania: campania.nombre,
           ciudades: await leerCiudades(cliente, campania.id),
-          // Las zonas por esquinas todavía no están conectadas (ver arriba, `FuncionSinConectar`): la vista lo dice (#167).
-          esquinasDisponibles: false,
         };
       } catch (error) {
         if (campaniaYaNoVigente(error)) return null;
@@ -346,19 +446,40 @@ export function crearFuenteZonasRpc(
       }
     },
 
-    async esquinaMasCercana() {
-      throw new FuncionSinConectar("La esquina más cercana", "falta el cruce de calles en el backend (backend-supabase#25)");
+    async esquinaMasCercana(ciudadId, punto): Promise<Esquina | RechazoDelMapa> {
+      if (!UUID.test(ciudadId)) return { rechazo: CIUDAD_FUERA_DE_CAMPANIA };
+      const rpc = "esquina_mas_cercana";
+      try {
+        // `returns table`: una lista con una sola fila, el cruce más cercano de la ciudad.
+        const [fila] = filas(rpc, await cliente.llamarRpc(rpc, { p_campania_ciudad_id: ciudadId, p_lon: punto.lon, p_lat: punto.lat }));
+        if (!fila) throw new RespuestaInesperada(rpc, "no devolvió ninguna esquina");
+        return aEsquina(rpc, fila);
+      } catch (error) {
+        if (esRechazo(error)) return { rechazo: textoDeRechazo(error, SIN_PERMISO_MAPA, ESQUINA_RECHAZADA) };
+        throw error;
+      }
     },
 
-    async tramoPorCalles() {
-      throw new FuncionSinConectar("El tramo por calles", "falta el recorrido por calles en el backend (backend-supabase#25)");
+    async tramoPorCalles(ciudadId, desde, hasta): Promise<Punto[] | RechazoDelMapa> {
+      if (!UUID.test(ciudadId)) return { rechazo: CIUDAD_FUERA_DE_CAMPANIA };
+      const rpc = "tramo_por_calles";
+      try {
+        const puntos = await cliente.llamarRpc(rpc, {
+          p_campania_ciudad_id: ciudadId,
+          p_desde_lon: desde.lon,
+          p_desde_lat: desde.lat,
+          p_hasta_lon: hasta.lon,
+          p_hasta_lat: hasta.lat,
+        });
+        return aTramo(rpc, filas(rpc, puntos));
+      } catch (error) {
+        if (esRechazo(error)) return { rechazo: textoDeRechazo(error, SIN_PERMISO_MAPA, TRAMO_RECHAZADO) };
+        throw error;
+      }
     },
 
     async vistaPreviaZona(entrada): Promise<VistaPreviaZona | VistaPreviaRechazada> {
       const { forma } = entrada;
-      if (forma.tipoForma === "ESQUINAS") {
-        throw new FuncionSinConectar("La vista previa de una zona por esquinas", "hace falta el borde por calles (backend-supabase#25)");
-      }
       if (!UUID.test(entrada.ciudadId)) return { rechazo: CIUDAD_FUERA_DE_CAMPANIA };
       if (entrada.zonaId !== undefined && !UUID.test(entrada.zonaId)) return { rechazo: ZONA_INEXISTENTE };
       try {
@@ -367,10 +488,7 @@ export function crearFuenteZonasRpc(
           await cliente.llamarRpc("guardar_zona", {
             p_campania_ciudad_id: entrada.ciudadId,
             p_nombre: nombreDeVistaPrevia(),
-            p_tipo_forma: "RADIAL",
-            p_centro_lat: forma.centro?.lat ?? null,
-            p_centro_lon: forma.centro?.lon ?? null,
-            p_radio_m: forma.radioM === undefined ? null : Math.round(forma.radioM),
+            ...(await argumentosDeForma(cliente, entrada.ciudadId, forma)),
             p_zona_id: entrada.zonaId ?? null,
             p_vista_previa: true,
           }),
@@ -379,9 +497,8 @@ export function crearFuenteZonasRpc(
         return {
           poligonoGeojson: aPoligono("guardar_zona", respuesta.poligono_geojson),
           ubicacionesIncluidas: numero("guardar_zona", respuesta, "ubicaciones_incluidas"),
-          // Ninguna RPC calcula la superposición ni la calle compartida (guardar_zona, 0024): no se inventan.
-          superposicion: null,
-          comparteCalle: null,
+          superposicion: aSuperposicion(respuesta),
+          comparteCalle: aCalleCompartida(respuesta),
         };
       } catch (error) {
         if (esRechazo(error)) return { rechazo: textoDeRechazo(error, SIN_PERMISO_MAPA, VISTA_PREVIA_RECHAZADA) };
@@ -391,9 +508,6 @@ export function crearFuenteZonasRpc(
 
     async guardarZona(entrada): Promise<ResultadoGuardarZona> {
       const { forma } = entrada;
-      if (forma.tipoForma === "ESQUINAS") {
-        throw new FuncionSinConectar("Guardar una zona por esquinas", "hace falta el borde por calles (backend-supabase#25)");
-      }
       // El id viene del navegador: si no es una ciudad o una zona, no hay a qué guardar.
       if (!UUID.test(entrada.ciudadId)) return { ok: false, mensaje: CIUDAD_FUERA_DE_CAMPANIA };
       if (entrada.zonaId !== undefined && !UUID.test(entrada.zonaId)) return { ok: false, mensaje: ZONA_INEXISTENTE };
@@ -404,12 +518,9 @@ export function crearFuenteZonasRpc(
           await cliente.llamarRpc(rpc, {
             p_campania_ciudad_id: entrada.ciudadId,
             p_nombre: entrada.nombre,
-            p_tipo_forma: "RADIAL",
             // Sin color válido va sin color: la base lo permite, y al editar una zona no se pisa el suyo con uno inventado.
             ...(esColorHex(entrada.color) ? { p_color: entrada.color } : {}),
-            p_centro_lat: forma.centro?.lat ?? null,
-            p_centro_lon: forma.centro?.lon ?? null,
-            p_radio_m: forma.radioM === undefined ? null : Math.round(forma.radioM),
+            ...(await argumentosDeForma(cliente, entrada.ciudadId, forma)),
             p_zona_id: entrada.zonaId ?? null,
           }),
         );
@@ -417,7 +528,8 @@ export function crearFuenteZonasRpc(
         // Los colportores de una zona que se edita no cambian al redibujarla: la vista conserva los que tenía.
         const zona = aZona(rpc, objeto(rpc, respuesta.zona), {
           idCampo: "id",
-          vertices: null,
+          // Las esquinas que quedaron guardadas (`zona_vertice`), con sus calles: son las de la zona en la lista y en el mapa.
+          vertices: forma.tipoForma === "ESQUINAS" ? listaDeObjetos(rpc, respuesta, "vertices") : null,
           colportores: [],
           ubicaciones: numero(rpc, respuesta, "ubicaciones_incluidas"),
         });

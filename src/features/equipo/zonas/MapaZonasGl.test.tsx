@@ -1,11 +1,11 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DATOS_ZONAS_SIMULADO } from "@/datos/equipo/zonas/simulado";
 import { puntoADistancia } from "@/datos/equipo/zonas/geometria";
 import { colorDeBorde } from "@/datos/equipo/zonas/paleta";
-import { MapaZonasGl } from "@/features/equipo/zonas/MapaZonasGl";
+import { AYUDA_CENTRO_MOVIBLE, MapaZonasGl, TEXTO_CENTRO_MOVIBLE } from "@/features/equipo/zonas/MapaZonasGl";
 import type { DibujoEnMapa, PropsMapaZonas } from "@/features/equipo/zonas/tipos";
 
 /** MapLibre necesita WebGL: en jsdom se reemplaza por un doble que deja ver lo que recibe. */
@@ -269,6 +269,123 @@ describe("MapaZonasGl", () => {
 
     it("sin centro elegido no hay asa de radio", () => {
       montar({ dibujo: SIN_DIBUJO });
+      expect(doble.marcadores.some((m) => m.draggable)).toBe(false);
+    });
+  });
+
+  describe("el centro de la zona radial se mueve (#179)", () => {
+    const centro = { lon: -56.25, lat: -34.87 };
+    const radial: DibujoEnMapa = { ...SIN_DIBUJO, centro, radioM: 400, rotuloCentro: { nombre: "Casabó", detalle: "400 m" } };
+    type Arrastre = (e: { lngLat: { lng: number; lat: number } }) => void;
+    const marcadorDelCentro = () => doble.marcadores.find((m) => m.longitude === centro.lon && m.latitude === centro.lat);
+
+    it("el centro es un marcador que se arrastra: avisa cada paso y, al soltarlo, dónde quedó", () => {
+      const onCentro = vi.fn();
+      montar({ dibujo: radial, onCentro });
+      const marcador = marcadorDelCentro();
+
+      expect(marcador?.draggable).toBe(true);
+      expect(marcador?.anchor).toBe("center");
+      act(() => (marcador?.onDrag as Arrastre)({ lngLat: { lng: -56.24, lat: -34.86 } }));
+      expect(onCentro).toHaveBeenLastCalledWith({ lon: -56.24, lat: -34.86 }, false);
+      act(() => (marcador?.onDragEnd as Arrastre)({ lngLat: { lng: -56.23, lat: -34.85 } }));
+      expect(onCentro).toHaveBeenLastCalledWith({ lon: -56.23, lat: -34.85 }, true);
+      expect(onCentro).toHaveBeenCalledTimes(2);
+    });
+
+    it("el punto es un botón con nombre y con la ayuda de cómo moverlo; el rótulo de la zona sigue a la vista", () => {
+      montar({ dibujo: radial, onCentro: vi.fn() });
+      const punto = screen.getByRole("button", { name: TEXTO_CENTRO_MOVIBLE });
+
+      expect(punto).toHaveAccessibleDescription(AYUDA_CENTRO_MOVIBLE);
+      expect(AYUDA_CENTRO_MOVIBLE).toMatch(/flechas del teclado/);
+      expect(screen.getByText("Casabó")).toBeInTheDocument();
+      expect(screen.getByText("400 m")).toBeInTheDocument();
+    });
+
+    it.each([
+      ["ArrowRight", false, 10, 0],
+      ["ArrowUp", false, 10, Math.PI / 2],
+      ["ArrowLeft", false, 10, Math.PI],
+      ["ArrowDown", false, 10, -Math.PI / 2],
+      ["ArrowRight", true, 100, 0],
+      ["ArrowDown", true, 100, -Math.PI / 2],
+    ] as const)("con el foco en el punto, %s (Mayús: %s) lo corre %i m", (tecla, mayus, metros, angulo) => {
+      const onCentro = vi.fn();
+      montar({ dibujo: radial, onCentro });
+      const punto = screen.getByRole("button", { name: TEXTO_CENTRO_MOVIBLE });
+
+      const seguido = fireEvent.keyDown(punto, { key: tecla, shiftKey: mayus });
+
+      const esperado = puntoADistancia(centro, metros, angulo);
+      expect(onCentro).toHaveBeenCalledTimes(1);
+      expect(onCentro.mock.calls[0][0].lon).toBeCloseTo(esperado.lon, 9);
+      expect(onCentro.mock.calls[0][0].lat).toBeCloseTo(esperado.lat, 9);
+      expect(onCentro.mock.calls[0][1]).toBe(true);
+      // La flecha es del punto: ni desplaza la página ni llega al mapa (que la usaría para moverse).
+      expect(seguido).toBe(false);
+    });
+
+    it("la flecha no sube hasta el contenedor del mapa, y las demás teclas (o con Ctrl) no mueven nada", () => {
+      const onCentro = vi.fn();
+      montar({ dibujo: radial, onCentro });
+      const punto = screen.getByRole("button", { name: TEXTO_CENTRO_MOVIBLE });
+      const enElMapa = vi.fn();
+      screen.getByTestId("mapa-gl").addEventListener("keydown", enElMapa);
+
+      fireEvent.keyDown(punto, { key: "ArrowLeft" });
+      expect(enElMapa).not.toHaveBeenCalled();
+      expect(onCentro).toHaveBeenCalledTimes(1);
+
+      fireEvent.keyDown(punto, { key: "Enter" });
+      fireEvent.keyDown(punto, { key: "a" });
+      fireEvent.keyDown(punto, { key: "ArrowLeft", ctrlKey: true });
+      expect(onCentro).toHaveBeenCalledTimes(1);
+      expect(enElMapa).toHaveBeenCalledTimes(3);
+    });
+
+    it("varias flechas seguidas parten cada una del centro que haya en ese momento", () => {
+      const onCentro = vi.fn();
+      const props = montar({ dibujo: radial, onCentro });
+      const corrido = puntoADistancia(centro, 10);
+      fireEvent.keyDown(screen.getByRole("button", { name: TEXTO_CENTRO_MOVIBLE }), { key: "ArrowRight" });
+
+      // La vista contesta con el centro nuevo, como hace `ZonasCampania`.
+      render(<MapaZonasGl {...props} dibujo={{ ...radial, centro: corrido }} />);
+      const puntos = screen.getAllByRole("button", { name: TEXTO_CENTRO_MOVIBLE });
+      fireEvent.keyDown(puntos[puntos.length - 1], { key: "ArrowRight" });
+
+      const esperado = puntoADistancia(corrido, 10);
+      expect(onCentro.mock.calls[1][0].lon).toBeCloseTo(esperado.lon, 9);
+    });
+
+    it("un clic sobre el centro o sobre el asa del radio no pasa al mapa: no corre el centro al píxel tocado", () => {
+      montar({ dibujo: radial, onCentro: vi.fn() });
+      const asa = doble.marcadores.find((m) => m.draggable && m !== marcadorDelCentro());
+
+      for (const marcador of [marcadorDelCentro(), asa]) {
+        const originalEvent = { stopPropagation: vi.fn() };
+        (marcador?.onClick as (e: { originalEvent: typeof originalEvent }) => void)({ originalEvent });
+        expect(originalEvent.stopPropagation).toHaveBeenCalledTimes(1);
+      }
+    });
+
+    it("sin `onCentro` el centro queda fijo, como antes: ni se arrastra ni es un botón", () => {
+      montar({ dibujo: radial });
+
+      expect(marcadorDelCentro()?.draggable).toBe(false);
+      expect(marcadorDelCentro()?.onDrag).toBeUndefined();
+      expect(screen.queryByRole("button", { name: TEXTO_CENTRO_MOVIBLE })).not.toBeInTheDocument();
+      expect(screen.getByText("Casabó")).toBeInTheDocument();
+    });
+
+    it("una zona por esquinas no tiene centro que mover", () => {
+      montar({
+        dibujo: { ...SIN_DIBUJO, esquinas: [{ lon: -56.25, lat: -34.87, calleA: "Pororó", calleB: "Heredia" }] },
+        onCentro: vi.fn(),
+      });
+
+      expect(screen.queryByRole("button", { name: TEXTO_CENTRO_MOVIBLE })).not.toBeInTheDocument();
       expect(doble.marcadores.some((m) => m.draggable)).toBe(false);
     });
   });
