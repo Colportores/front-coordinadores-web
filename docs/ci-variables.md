@@ -3,7 +3,9 @@
 Todo lo configurable de los workflows de despliegue sale de variables (`vars.*`) o secretos (`secrets.*`) de GitHub
 Actions, por **environment**. No hay valores secretos en el repo (es público): acá solo hay nombres y ejemplos.
 
-- **Staging** (`staging.yml` → `deploy-pages.yml` y `demo-supabase-dev.yml`, push a `staging` o corrida manual): usa el
+- **Staging en Vercel** (desde el 11/11, #105): lo despliega la integración de Vercel con el repo (Git), no un workflow:
+  **no usa secretos ni variables de GitHub**; sus variables de entorno se cargan en el panel de Vercel.
+- **Staging manual** (`staging.yml` → `deploy-pages.yml` y `demo-supabase-dev.yml`, solo corrida manual): usa el
   environment `staging`. Pages no necesita nada (datos simulados). El artefacto `panel-supabase-dev` toma
   `SUPABASE_URL` y `SUPABASE_ANON_KEY` del environment `staging` o, si no las define, de las variables del repo (hoy
   apuntan al proyecto dev). Si no hay ninguna, el job avisa qué cargar y se salta el build, sin romper el resto.
@@ -33,7 +35,7 @@ Un environment pisa a las variables del repo (Settings → Secrets and variables
 | `VERCEL_PROJECT_ID` | variable | production | `projectId` del proyecto de Vercel | production: sí | `prj_xxxxxxxxxxxx` |
 | `VERCEL_TOKEN` | secreto | production | Token de Vercel con acceso al proyecto | production: sí | (secreto) |
 | `PRODUCTION_DOMAIN` | variable | production | Dominio al que se asigna el deploy (`vercel alias set`), solo el host sin `https://`; tiene que estar agregado al proyecto en Vercel → Settings → Domains | no (queda la URL de Vercel) | `panel.ejemplo.org` |
-| `CLOUDFLARE_API_TOKEN` | secreto | staging, production | Token de API de Cloudflare con el mínimo de permisos. Guía en `docs/ci-cloudflare.md` (despliegue a Cloudflare pendiente de decisión, no reemplaza a Vercel) | solo si se despliega a Cloudflare | (secreto) |
+| `CLOUDFLARE_API_TOKEN` | secreto | staging, production | Token de API de Cloudflare con el mínimo de permisos. Guía en `docs/ci-cloudflare.md` (`deploy-cloudflare.yml` es solo manual desde el 11/11; staging despliega con Vercel) | solo si se corre a mano el despliegue a Cloudflare | (secreto) |
 | `CLOUDFLARE_ACCOUNT_ID` | variable | staging, production | Id de la cuenta de Cloudflare | ídem | `0123456789abcdef0123456789abcdef` |
 | `CLOUDFLARE_PROJECT_NAME` | variable | staging, production | Nombre del Worker o del proyecto de Pages | ídem | `panel-coordinadores-staging` |
 | `SONAR_TOKEN` | secreto | repositorio | Token de SonarQube Cloud. Sin él el análisis se salta. Guía en `docs/ci-sonarqube.md` | no | (secreto) |

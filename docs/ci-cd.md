@@ -14,11 +14,12 @@ Todo vive en `.github/workflows/`. En GitHub se ve en la pestaña **Actions** de
 | **CI** | `ci.yml` | En cada PR y en cada push a `develop`, `staging`, `production` | Lint, typecheck, tests **con cobertura**, build, build del sitio de prueba y, solo en el push a `staging`, **análisis de SonarQube Cloud** |
 | **Deploy Pages** | `deploy-pages.yml` | Solo a mano (o lo llama `staging.yml`, que también es solo manual) | Publica el sitio de prueba (datos simulados) en GitHub Pages |
 | **Staging** | `staging.yml` | Solo a mano | Llama a Deploy Pages y al artefacto de demo con Supabase dev |
-| **Deploy Cloudflare (staging)** | `deploy-cloudflare.yml` | Push a `staging` o a mano (sobre `develop` o `staging`) | Publica el mismo sitio de prueba en **Cloudflare Pages** |
+| **Deploy Cloudflare (staging)** | `deploy-cloudflare.yml` | Solo a mano (sobre `develop` o `staging`); desde el 11/11 (#105) ya no corre por push | Publica el mismo sitio de prueba en **Cloudflare Pages** |
+| *(sin workflow)* **Vercel** | integración de Vercel con el repo (Git), no hay archivo en `.github/workflows/` | Push a las ramas que Vercel tenga habilitadas (ver sección 4) | Build y despliegue de staging con `next build` (con servidor), configurado en el panel de Vercel; deja el estado «Vercel» en el commit |
 | **Production** | `production.yml` | Push a `production` o a mano | Despliegue de producción (Vercel, ADR-015); hoy falla a propósito sin sus variables |
 
-El trabajo de #147 son tres piezas: el **paso de SonarQube dentro de CI**, el workflow **Deploy Cloudflare (staging)** y
-las guías.
+El trabajo de #147 son tres piezas: el **paso de SonarQube dentro de CI**, el workflow **Deploy Cloudflare (staging)**
+(hoy solo manual, ver sección 4) y las guías.
 
 ## 2. Cómo ver todo en GitHub, paso a paso
 
@@ -35,8 +36,9 @@ las guías.
    columna derecha **Deployments** lista cada despliegue con su URL.
 6. **Correr un workflow a mano:** Actions → elegí el workflow → **Run workflow** → rama → **Run workflow** (solo los que
    tienen `workflow_dispatch`: Staging, Deploy Pages, Deploy Cloudflare, Production).
-7. **El resultado de Cloudflare:** en la corrida de Deploy Cloudflare, el resumen (*Summary*) muestra la URL
-   publicada; también en Deployments. Y en el panel de Cloudflare: Workers & Pages → el proyecto.
+7. **El resultado de Vercel (staging):** en el commit o el PR, el estado «Vercel» con el enlace a su panel
+   (`https://vercel.com/colportores/front-coordinadores-web/…`); la URL pública del despliegue está ahí. Si se corrió a
+   mano Deploy Cloudflare: el resumen (*Summary*) de la corrida y el panel de Cloudflare (Workers & Pages → el proyecto).
 8. **El resultado de Sonar:** en <https://sonarcloud.io> → organización → proyecto (sección 5).
 
 ## 3. Qué pasa en un PR (paso a paso)
@@ -52,17 +54,25 @@ las guías.
 ## 4. Qué pasa al pasar a staging (paso a paso)
 
 1. Se mergea `develop` → `staging` (push a `staging`).
-2. **CI** corre en ese push y, solo ahí, sube el análisis a **SonarQube Cloud**. El workflow **Staging** (GitHub Pages
-   y demo con Supabase dev) **ya no corre solo**: desde el 05/11 el único despliegue automático es el de Cloudflare.
-3. **Deploy Cloudflare (staging)** arranca en paralelo con el CI:
-   1. Valida que existan `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_PROJECT_NAME`. Por push, si falta
-      algo, avisa y se salta; a mano, falla diciendo cuál falta.
+2. **CI** corre en ese push y, solo ahí, sube el análisis a **SonarQube Cloud**. Los workflows **Staging** (GitHub
+   Pages y demo con Supabase dev) y **Deploy Cloudflare (staging)** **ya no corren solos**: desde el 11/11 (#105) el
+   único despliegue automático de staging es el de **Vercel**.
+3. **Vercel** reacciona al push por su propia integración con Git, en paralelo con el CI: no hay workflow en este
+   repo ni secretos de GitHub para esto (el `VERCEL_TOKEN` de `production.yml` es otra cosa y no interviene). Qué
+   compila y con qué variables de entorno depende de la configuración del proyecto en el panel de Vercel (no verificable
+   desde el repo; el repo no tiene `vercel.json`). El resultado queda como estado «Vercel» del commit.
+4. **Lo que mira Cristian en Vercel** (no se ve desde el repo): Settings → Git → *Production Branch* (qué rama cuenta
+   como producción de Vercel; por defecto es la rama por defecto del repo, hoy `staging`), si las demás ramas y los
+   PR generan *Preview Deployments*, y Settings → Environment Variables (qué valores usa cada entorno).
+5. **Deploy Cloudflare (staging)**, solo si se corre a mano (Actions → Run workflow, sobre `develop` o `staging`):
+   1. Valida que existan `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_PROJECT_NAME`; si falta algo,
+      falla diciendo cuál.
    2. Instala dependencias y corre `npm run build:pages` (con sus guardas: sin claves, `noindex`, aviso de datos
       simulados). **El token de Cloudflare no entra a este paso.**
    3. Arma la carpeta a publicar: el export va dentro de `/front-coordinadores-web/` (el `basePath` que necesita GitHub
       Pages) y la raíz redirige a esa carpeta.
-   4. Publica con `wrangler pages deploy` (carga directa). Recién acá se usa el token.
-4. El sitio queda en `https://<proyecto>.pages.dev/front-coordinadores-web/`.
+   4. Publica con `wrangler pages deploy` (carga directa). Recién acá se usa el token. El sitio queda en
+      `https://<proyecto>.pages.dev/front-coordinadores-web/`.
 
 El despliegue actual de GitHub Pages **no se toca**: los dos conviven.
 
@@ -177,7 +187,8 @@ carpeta `coverage/` está en `.gitignore`. `--maxWorkers=2` evita que el contene
 
 | Síntoma | Causa y arreglo |
 |---|---|
-| Deploy Cloudflare: «Faltan … CLOUDFLARE_…» | Falta un secreto o una variable: ver `ci-cloudflare.md` |
+| El estado «Vercel» del commit no aparece o está en rojo | Se mira en el panel de Vercel (el log del build está ahí, no en Actions); el repo no tiene un workflow de Vercel para staging |
+| Deploy Cloudflare (solo manual): «Faltan … CLOUDFLARE_…» | Falta un secreto o una variable: ver `ci-cloudflare.md` |
 | Deploy Cloudflare: error de autenticación (código 10000) | Token vencido o sin el permiso `Cloudflare Pages: Edit` |
 | Deploy Cloudflare: «Project not found» | El proyecto de Pages no existe o el nombre no coincide con `CLOUDFLARE_PROJECT_NAME` |
 | CI rojo solo en tests con «Timeout waiting for worker» | El runner o el contenedor se quedó sin recursos: se re-corre el job |
