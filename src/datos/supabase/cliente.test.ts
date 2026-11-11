@@ -167,3 +167,36 @@ describe("crearClienteSupabase", () => {
     await expect(cliente.consultar("a")).rejects.toThrow("Supabase respondió 502: Bad Gateway");
   });
 });
+
+describe("crearClienteSupabase · invocarFuncion (la foto de la vista 29 en el puente, #170)", () => {
+  it("manda el POST a la Edge Function con el token y devuelve la respuesta tal cual, también un error de la función", async () => {
+    const { fn, llamadas } = fetchFalso((l) =>
+      esLogin(l) ? sesion("token-1") : json({ error: { codigo: "foto_vencida", mensaje: "La foto venció." } }, 410),
+    );
+    const cliente = crearClienteSupabase(CONFIG, fn);
+
+    const respuesta = await cliente.invocarFuncion("foto-ticket", { accion: "ver", ticketId: "t1" });
+
+    expect(respuesta.status).toBe(410);
+    expect(await respuesta.json()).toEqual({ error: { codigo: "foto_vencida", mensaje: "La foto venció." } });
+    const llamada = llamadas[1];
+    expect(llamada.url).toBe("https://abc.supabase.co/functions/v1/foto-ticket");
+    expect(llamada.init.method).toBe("POST");
+    expect(JSON.parse(String(llamada.init.body))).toEqual({ accion: "ver", ticketId: "t1" });
+    expect(new Headers(llamada.init.headers).get("Authorization")).toBe("Bearer token-1");
+  });
+
+  it("con un 401 inicia otra sesión una sola vez y reintenta", async () => {
+    let logins = 0;
+    const { fn, llamadas } = fetchFalso((l) => {
+      if (esLogin(l)) return sesion(`token-${++logins}`);
+      return new Headers(l.init.headers).get("Authorization") === "Bearer token-1" ? json({}, 401) : json({ url: "https://r2/x" });
+    });
+    const cliente = crearClienteSupabase(CONFIG, fn);
+
+    const respuesta = await cliente.invocarFuncion("foto-ticket", { accion: "ver", ticketId: "t1" });
+
+    expect(respuesta.status).toBe(200);
+    expect(llamadas.filter(esLogin)).toHaveLength(2);
+  });
+});

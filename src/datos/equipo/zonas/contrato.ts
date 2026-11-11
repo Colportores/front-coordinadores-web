@@ -103,6 +103,12 @@ export interface DatosZonas {
   /** P. ej. "Verano 2026". */
   campania: string;
   ciudades: CiudadDeCampania[];
+  /**
+   * `false`: esta fuente no puede dibujar zonas por esquinas. La vista lo dice en vez de culpar a la conexión (#167).
+   * Ausente: se puede. Desde #179 la fuente de las RPC ya las tiene conectadas y no lo manda; una ciudad sin calles
+   * cargadas no es esto: la base lo rechaza con su aviso (`CZ015`).
+   */
+  esquinasDisponibles?: boolean;
 }
 
 /** Forma que el coordinador está dibujando (o editando). */
@@ -137,12 +143,22 @@ export interface VistaPreviaZona {
 }
 
 /**
- * Respuesta a la vista previa cuando la base la rechaza (la campaña ya terminó, la ciudad se quitó, no hay permiso):
- * `rechazo` es el texto para mostrar. Una falla de conexión no es esto: la fuente tira la excepción.
+ * Lo que contesta la fuente cuando la base rechaza un pedido del dibujo (la campaña ya terminó, la ciudad se quitó, no
+ * hay permiso, la ciudad no tiene calles cargadas, no hay camino entre dos esquinas): `rechazo` es el texto para
+ * mostrar. Va como valor y no como excepción porque el servidor le borra el mensaje a una excepción antes de que llegue
+ * al navegador. Una falla de conexión no es esto: la fuente tira la excepción.
  */
-export interface VistaPreviaRechazada {
+export interface RechazoDelMapa {
   rechazo: string;
+  /**
+   * El rechazo es que no hay camino por las calles entre las dos esquinas del tramo pedido (`CZ016`): la vista le suma
+   * al aviso cuáles son por su número (#182).
+   */
+  sinCamino?: true;
 }
+
+/** El rechazo de una vista previa: el mismo valor que el de una esquina o un tramo. */
+export type VistaPreviaRechazada = RechazoDelMapa;
 
 export interface GuardarZonaEntrada {
   ciudadId: string;
@@ -174,13 +190,46 @@ export interface CiudadDelCatalogo {
   departamento: string | null;
 }
 
+/**
+ * Estado de una casa en el mapa: los siete `color` de `house_status` (ADR-003, prioridad 1 a 7; decisión de Cristian
+ * «Cobro panel», 06/10) más `SIN_VISITA` para la que no tiene estado todavía (`estado` nulo en `casas_de_zona()`;
+ * decisión del 04/11, regla R7 del diseño 24P·01: «Sin visita», como en la vista 06 del celular). Nunca lleva montos
+ * ni personas: el color dice que falta cobrar o está pagado, no a quién ni cuánto.
+ */
+export type EstadoDeCasa =
+  | "SIN_VISITA"
+  | "SIN_CONTESTAR"
+  | "ENTREVISTA_PROGRAMADA"
+  | "ENTREVISTA_SIN_VENTA"
+  | "RECHAZO"
+  | "COBRANZA_PENDIENTE"
+  | "ENTREGA_Y_COBRANZA_PENDIENTE"
+  | "VENTA_COMPLETA";
+
+export type TipoDeCasa = "CASA" | "NEGOCIO" | "EDIFICIO";
+
+/**
+ * Un punto del mapa de la vista 24 (HU-CAM-006, `casas_de_zona()`, backend-supabase#72). `zonaIds` son las zonas de
+ * la ciudad que lo incluyen: las zonas se pueden superponer, así que una casa puede estar en más de una.
+ */
+export interface CasaDeCiudad {
+  id: string;
+  lon: number;
+  lat: number;
+  tipo: TipoDeCasa;
+  estado: EstadoDeCasa;
+  /** Cuándo cambió por última vez el estado de la casa (marca ISO de `house_status.updated_at`); `null` si no tiene estado («Sin visita»). */
+  ultimoCambio?: string | null;
+  zonaIds: string[];
+}
+
 export interface FuenteDatosZonas {
   /** `null` si el coordinador no tiene una campaña que no haya terminado: no hay zonas que mostrar. */
   obtenerZonas(): Promise<DatosZonas | null>;
-  /** Cruce de calles más cercano a un punto (backend-supabase#25). */
-  esquinaMasCercana(ciudadId: string, punto: Punto): Promise<Esquina>;
-  /** Tramo más corto por las calles entre dos esquinas (backend-supabase#25). */
-  tramoPorCalles(ciudadId: string, desde: Punto, hasta: Punto): Promise<Punto[]>;
+  /** Cruce de calles más cercano a un punto (`esquina_mas_cercana()`, backend-supabase#25). */
+  esquinaMasCercana(ciudadId: string, punto: Punto): Promise<Esquina | RechazoDelMapa>;
+  /** Tramo más corto por las calles entre dos esquinas (`tramo_por_calles()`, backend-supabase#25). */
+  tramoPorCalles(ciudadId: string, desde: Punto, hasta: Punto): Promise<Punto[] | RechazoDelMapa>;
   vistaPreviaZona(entrada: VistaPreviaEntrada): Promise<VistaPreviaZona | VistaPreviaRechazada>;
   guardarZona(entrada: GuardarZonaEntrada): Promise<ResultadoGuardarZona>;
   /** `asignar_zona`: pone o cambia la zona de un colportor inscripto. */
@@ -193,4 +242,9 @@ export interface FuenteDatosZonas {
   buscarCiudades(campaniaId: string, texto: string): Promise<CiudadDelCatalogo[]>;
   /** `agregar_ciudad_a_campania`. */
   agregarCiudad(campaniaId: string, catalogoId: string): Promise<ResultadoAgregarCiudad>;
+  /**
+   * Las casas de esas zonas con su estado, sin repetir las que caen en dos (`casas_de_zona()` pide de a una zona y de a
+   * páginas: la fuente junta todas). Una falla es una excepción: nunca se toma por «no hay casas».
+   */
+  casasDeZonas(campaniaId: string, zonaIds: string[]): Promise<CasaDeCiudad[]>;
 }

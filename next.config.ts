@@ -1,10 +1,13 @@
 import type { NextConfig } from "next";
 
-import { verificarEntornoSupabase } from "./src/datos/supabase/config-publica";
+import { demoSupabaseDevActivo } from "./src/config/flags";
+import { verificarEntornoDeProduccion, verificarEntornoSupabase } from "./src/datos/supabase/config-publica";
 
 // Next incrusta `NEXT_PUBLIC_*` en los archivos del navegador durante el build: una clave de servicio puesta
 // ahí (por error) tiene que frenar el arranque, no descubrirse después en un chunk publicado (#18).
 verificarEntornoSupabase(process.env);
+// En producción, sin variables de Supabase el build falla salvo que se pida el modo simulado (#101; se arma con PANEL_EXIGIR_SUPABASE).
+verificarEntornoDeProduccion(process.env);
 
 // En Docker el código entra por un bind mount desde Windows/macOS, que no
 // propaga eventos de archivos: el dev server tiene que sondear. Turbopack
@@ -18,7 +21,22 @@ const intervaloSondeo = Number(process.env.NEXT_WATCH_POLL_MS) || undefined;
 const BASE_PATH_PAGES = "/front-coordinadores-web";
 const buildDePages = process.env.DEPLOY_PAGES === "1";
 
+// Artefacto de pruebas de demo (Supabase dev, de uso interno): el panel conectado necesita servidor (proxy, cookies de sesión y
+// server actions), así que no se exporta: se compila como servidor autónomo (`output: "standalone"`) y se sube a Actions. Lo
+// prende `npm run build:demo-supabase` (scripts/build-demo-supabase.mjs) con NEXT_PUBLIC_DEMO_SUPABASE_DEV=1; ningún otro build.
+const buildDeDemo = demoSupabaseDevActivo();
+
 const nextConfig: NextConfig = {
+  // lib-mapa (tokens y regla del borde del mapa compartido con el celular) se instala desde GitHub por tag y trae fuentes
+  // TypeScript sin compilar: las compila Next, como las del panel.
+  transpilePackages: ["@colportores/lib-mapa"],
+  ...(buildDeDemo
+    ? {
+        output: "standalone" as const,
+        // Además de la meta `robots` del layout: que tampoco lo indexe nada que lea solo las cabeceras.
+        headers: async () => [{ source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] }],
+      }
+    : {}),
   ...(intervaloSondeo ? { watchOptions: { pollIntervalMs: intervaloSondeo } } : {}),
   ...(buildDePages
     ? {

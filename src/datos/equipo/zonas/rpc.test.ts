@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { FormaZona } from "@/datos/equipo/zonas/contrato";
 import { COLOR_ZONA_SIN_COLOR } from "@/datos/equipo/zonas/paleta";
-import { crearFuenteZonasRpc, FuncionSinConectar } from "@/datos/equipo/zonas/rpc";
+import { crearFuenteZonasRpc } from "@/datos/equipo/zonas/rpc";
 import { ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
 import { RespuestaInesperada } from "@/datos/supabase/respuesta";
 import { crearClienteRpc } from "@/datos/supabase/sdk";
@@ -353,14 +353,141 @@ describe("fuente de la vista 24 contra las RPC", () => {
     });
   });
 
-  describe("esquinaMasCercana y tramoPorCalles (backend-supabase#25)", () => {
-    it("todavía no están conectadas: avisan que falta el backend, sin inventar calles ni llamar a la base", async () => {
-      const { cliente, llamarRpc } = clienteCon({});
-      const fuente = crearFuenteZonasRpc(cliente);
+  describe("zonas por esquinas conectadas (#179)", () => {
+    it("la fuente ya no avisa que no puede dibujarlas", async () => {
+      const { cliente } = lecturas();
 
-      await expect(fuente.esquinaMasCercana(MVD, { lon: -56.2, lat: -34.9 })).rejects.toBeInstanceOf(FuncionSinConectar);
-      await expect(fuente.tramoPorCalles(MVD, { lon: -56.2, lat: -34.9 }, { lon: -56.3, lat: -34.8 })).rejects.toThrow(/backend-supabase#25/);
+      expect(await crearFuenteZonasRpc(cliente).obtenerZonas()).not.toHaveProperty("esquinasDisponibles");
+    });
+  });
+
+  describe("esquinaMasCercana (esquina_mas_cercana, backend-supabase#25)", () => {
+    const PUNTO = { lon: -56.2, lat: -34.9 };
+    const cruce = { lon: -56.2012345, lat: -34.9001234, calle_a: "Heredia", calle_b: "Pororó", distancia_m: 12.3 };
+
+    it("pide el cruce más cercano de la ciudad y lo devuelve con sus calles", async () => {
+      const { cliente, llamarRpc } = clienteCon({ esquina_mas_cercana: [cruce] });
+
+      expect(await crearFuenteZonasRpc(cliente).esquinaMasCercana(MVD, PUNTO)).toEqual({
+        lon: -56.2012345,
+        lat: -34.9001234,
+        calleA: "Heredia",
+        calleB: "Pororó",
+      });
+      expect(llamarRpc).toHaveBeenCalledWith("esquina_mas_cercana", { p_campania_ciudad_id: MVD, p_lon: -56.2, p_lat: -34.9 });
+    });
+
+    it("una calle sin nombre en OpenStreetMap queda vacía: no se inventa", async () => {
+      const { cliente } = clienteCon({ esquina_mas_cercana: [{ ...cruce, calle_a: null, calle_b: null }] });
+
+      expect(await crearFuenteZonasRpc(cliente).esquinaMasCercana(MVD, PUNTO)).toMatchObject({ calleA: "", calleB: "" });
+    });
+
+    it.each([
+      ["CZ015", "Todavía no están cargadas las calles de esta ciudad. Pedile a un administrador que las cargue y volvé a intentar."],
+      ["CZ011", "La campaña ya terminó y su mapa queda como estaba. Dibujá las zonas en una campaña activa o futura."],
+      ["CZ008", "El punto está fuera del mapa. Marcalo de nuevo."],
+    ])("%s vuelve como rechazo con el texto de la base, no como excepción", async (codigo, mensaje) => {
+      const { cliente } = clienteCon({ esquina_mas_cercana: rechazo(codigo, mensaje) });
+
+      expect(await crearFuenteZonasRpc(cliente).esquinaMasCercana(MVD, PUNTO)).toEqual({ rechazo: mensaje });
+    });
+
+    it("42501 dice quién puede cambiar el mapa; un código desconocido, un texto genérico que guía", async () => {
+      const permiso = clienteCon({ esquina_mas_cercana: rechazo("42501", "permission denied for function esquina_mas_cercana", 403) });
+      const raro = clienteCon({ esquina_mas_cercana: rechazo("PGRST202", "Could not find the function", 404) });
+
+      expect(await crearFuenteZonasRpc(permiso.cliente).esquinaMasCercana(MVD, PUNTO)).toEqual({
+        rechazo: "Solo el coordinador de la campaña o un administrador puede cambiar su mapa.",
+      });
+      expect(await crearFuenteZonasRpc(raro.cliente).esquinaMasCercana(MVD, PUNTO)).toEqual({
+        rechazo: "No se pudo ubicar la esquina. Probá de nuevo más tarde.",
+      });
+    });
+
+    it("una falla de conexión, de servicio o de sesión sigue como excepción", async () => {
+      for (const error of [new TypeError("fetch failed"), new ErrorSupabase("boom", 503), new ErrorSupabase("JWT expired", 401, "PGRST301")]) {
+        const { cliente } = clienteCon({ esquina_mas_cercana: error });
+        await expect(crearFuenteZonasRpc(cliente).esquinaMasCercana(MVD, PUNTO)).rejects.toBe(error);
+      }
+    });
+
+    it.each([
+      ["una lista vacía", []],
+      ["algo que no es una lista", cruce],
+      ["un cruce sin posición", [{ ...cruce, lon: null }]],
+      ["una calle que no es un texto", [{ ...cruce, calle_a: 7 }]],
+    ])("%s es una respuesta inesperada, no una esquina inventada", async (_caso, respuesta) => {
+      const { cliente } = clienteCon({ esquina_mas_cercana: respuesta });
+
+      await expect(crearFuenteZonasRpc(cliente).esquinaMasCercana(MVD, PUNTO)).rejects.toBeInstanceOf(RespuestaInesperada);
+    });
+
+    it("una ciudad que no es un UUID se rechaza sin llamar a la base", async () => {
+      const { cliente, llamarRpc } = clienteCon({});
+
+      expect(await crearFuenteZonasRpc(cliente).esquinaMasCercana("montevideo", PUNTO)).toMatchObject({ rechazo: expect.stringContaining("La ciudad no está en esta campaña") });
       expect(llamarRpc).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("tramoPorCalles (tramo_por_calles, backend-supabase#25)", () => {
+    const DESDE = { lon: -56.2, lat: -34.9 };
+    const HASTA = { lon: -56.3, lat: -34.8 };
+
+    it("pide el recorrido entre las dos esquinas y lo devuelve en orden, de una a la otra", async () => {
+      const { cliente, llamarRpc } = clienteCon({
+        tramo_por_calles: [
+          { orden: 2, lon: -56.25, lat: -34.85 },
+          { orden: 1, lon: -56.2, lat: -34.9 },
+          { orden: 3, lon: -56.3, lat: -34.8 },
+        ],
+      });
+
+      expect(await crearFuenteZonasRpc(cliente).tramoPorCalles(MVD, DESDE, HASTA)).toEqual([
+        { lon: -56.2, lat: -34.9 },
+        { lon: -56.25, lat: -34.85 },
+        { lon: -56.3, lat: -34.8 },
+      ]);
+      expect(llamarRpc).toHaveBeenCalledWith("tramo_por_calles", {
+        p_campania_ciudad_id: MVD,
+        p_desde_lon: -56.2,
+        p_desde_lat: -34.9,
+        p_hasta_lon: -56.3,
+        p_hasta_lat: -34.8,
+      });
+    });
+
+    it.each([
+      ["CZ016", "No hay un camino por las calles entre «Heredia y Pororó» y «Rusia». Elegí otra esquina que esté sobre la misma red de calles."],
+      ["CZ015", "Todavía no están cargadas las calles de esta ciudad. Pedile a un administrador que las cargue y volvé a intentar."],
+    ])("%s vuelve como rechazo con el texto de la base", async (codigo, mensaje) => {
+      const { cliente } = clienteCon({ tramo_por_calles: rechazo(codigo, mensaje) });
+
+      // Solo el «sin camino» va marcado: la vista le suma al aviso qué esquinas son (#182).
+      expect(await crearFuenteZonasRpc(cliente).tramoPorCalles(MVD, DESDE, HASTA)).toEqual(
+        codigo === "CZ016" ? { rechazo: mensaje, sinCamino: true } : { rechazo: mensaje },
+      );
+    });
+
+    it("un código desconocido da el texto genérico; la red caída sigue como excepción", async () => {
+      const raro = clienteCon({ tramo_por_calles: rechazo("57014", "canceling statement due to statement timeout") });
+      const caida = new TypeError("fetch failed");
+      const sinRed = clienteCon({ tramo_por_calles: caida });
+
+      expect(await crearFuenteZonasRpc(raro.cliente).tramoPorCalles(MVD, DESDE, HASTA)).toEqual({
+        rechazo: "No se pudo calcular el borde entre las esquinas. Probá de nuevo más tarde.",
+      });
+      await expect(crearFuenteZonasRpc(sinRed.cliente).tramoPorCalles(MVD, DESDE, HASTA)).rejects.toBe(caida);
+    });
+
+    it("un punto roto es una respuesta inesperada; una ciudad que no es un UUID no llega a la base", async () => {
+      const roto = clienteCon({ tramo_por_calles: [{ orden: 1, lon: "x", lat: -34.9 }] });
+      const sinLlamar = clienteCon({});
+
+      await expect(crearFuenteZonasRpc(roto.cliente).tramoPorCalles(MVD, DESDE, HASTA)).rejects.toBeInstanceOf(RespuestaInesperada);
+      expect(await crearFuenteZonasRpc(sinLlamar.cliente).tramoPorCalles("x", DESDE, HASTA)).toMatchObject({ rechazo: expect.any(String) });
+      expect(sinLlamar.llamarRpc).not.toHaveBeenCalled();
     });
   });
 
@@ -406,12 +533,41 @@ describe("fuente de la vista 24 contra las RPC", () => {
       expect(llamarRpc).toHaveBeenCalledWith("guardar_zona", expect.objectContaining({ p_zona_id: ZONA_RADIAL, p_radio_m: 401 }));
     });
 
-    it("nunca inventa una superposición ni una calle compartida: ninguna RPC las calcula", async () => {
-      const { cliente } = clienteCon({ guardar_zona: { ...respuestaPrevia, superposiciones: [{ zona: "X" }] } });
+    it("nunca inventa una superposición ni una calle compartida: lo que no se entiende se saltea", async () => {
+      const { cliente } = clienteCon({
+        guardar_zona: {
+          ...respuestaPrevia,
+          superposiciones: [{ zona: "X" }, { nombre: "Sin forma", interseccion: { type: "Point", coordinates: [1, 2] } }, "x"],
+          calles_compartidas: [{ nombre: "Belvedere", calle: null, punto: { type: "Point", coordinates: [-56.2, -34.9] } }, { calle: "Heredia" }],
+        },
+      });
 
       const previa = await crearFuenteZonasRpc(cliente).vistaPreviaZona({ ciudadId: MVD, forma: radial });
 
       expect(previa).toMatchObject({ superposicion: null, comparteCalle: null });
+    });
+
+    it("avisa con qué zona se superpone y da el borde de la parte común para pintarlo (superposiciones, 0038)", async () => {
+      const comun = { type: "Polygon", coordinates: [[[-56.26, -34.87], [-56.25, -34.87], [-56.25, -34.86], [-56.26, -34.87]]] };
+      const varias = { type: "MultiPolygon", coordinates: [[[[-56.2, -34.8], [-56.1, -34.8], [-56.1, -34.7], [-56.2, -34.8]]]] };
+      const una = clienteCon({ guardar_zona: { ...respuestaPrevia, superposiciones: [{ zona_id: ZONA_ESQUINAS, nombre: "Belvedere", interseccion: comun }], calles_compartidas: [] } });
+      const partida = clienteCon({ guardar_zona: { ...respuestaPrevia, superposiciones: [{ zona_id: ZONA_ESQUINAS, nombre: "Belvedere", interseccion: varias }] } });
+
+      expect(await crearFuenteZonasRpc(una.cliente).vistaPreviaZona({ ciudadId: MVD, forma: radial })).toMatchObject({
+        superposicion: {
+          zonaNombre: "Belvedere",
+          tramo: [
+            { lon: -56.26, lat: -34.87 },
+            { lon: -56.25, lat: -34.87 },
+            { lon: -56.25, lat: -34.86 },
+            { lon: -56.26, lat: -34.87 },
+          ],
+        },
+        comparteCalle: null,
+      });
+      expect(await crearFuenteZonasRpc(partida.cliente).vistaPreviaZona({ ciudadId: MVD, forma: radial })).toMatchObject({
+        superposicion: { zonaNombre: "Belvedere", tramo: expect.arrayContaining([{ lon: -56.2, lat: -34.8 }]) },
+      });
     });
 
     it.each([
@@ -445,12 +601,96 @@ describe("fuente de la vista 24 contra las RPC", () => {
       }
     });
 
-    it("por esquinas todavía no se puede (falta el borde por calles): avisa y no llama a la base", async () => {
-      const { cliente, llamarRpc } = clienteCon({});
-      const esquinas: FormaZona = { tipoForma: "ESQUINAS", esquinas: [], cerrada: true };
+    describe("por esquinas (#179)", () => {
+      const esquinas: FormaZona = {
+        tipoForma: "ESQUINAS",
+        esquinas: [
+          { lon: -56.26, lat: -34.87, calleA: "Heredia", calleB: "Pororó" },
+          { lon: -56.25, lat: -34.87, calleA: "Heredia", calleB: "Rusia" },
+          { lon: -56.25, lat: -34.86, calleA: "", calleB: "" },
+        ],
+        cerrada: true,
+      };
+      const enganchadas = [
+        { orden: 1, lon: -56.2600001, lat: -34.8700001, calle_a: "Heredia", calle_b: "Pororó" },
+        { orden: 2, lon: -56.2500001, lat: -34.8700001, calle_a: "Heredia", calle_b: "Rusia" },
+        { orden: 3, lon: -56.2500001, lat: -34.8600001, calle_a: null, calle_b: null },
+      ];
+      const borde = [{ poligono_geojson: CIRCULO, esquinas: enganchadas }];
 
-      await expect(crearFuenteZonasRpc(cliente).vistaPreviaZona({ ciudadId: MVD, forma: esquinas })).rejects.toBeInstanceOf(FuncionSinConectar);
-      expect(llamarRpc).not.toHaveBeenCalled();
+      it("arma el borde con poligono_por_calles y pide la vista previa con ese borde y las esquinas enganchadas, sin centro ni radio", async () => {
+        const { cliente, llamarRpc } = clienteCon({ poligono_por_calles: borde, guardar_zona: respuestaPrevia });
+
+        const previa = await crearFuenteZonasRpc(cliente).vistaPreviaZona({ ciudadId: MVD, zonaId: ZONA_ESQUINAS, forma: esquinas });
+
+        expect(previa).toEqual({ poligonoGeojson: CIRCULO, ubicacionesIncluidas: 27, superposicion: null, comparteCalle: null });
+        expect(llamarRpc).toHaveBeenNthCalledWith(1, "poligono_por_calles", {
+          p_campania_ciudad_id: MVD,
+          p_esquinas: [
+            { lon: -56.26, lat: -34.87 },
+            { lon: -56.25, lat: -34.87 },
+            { lon: -56.25, lat: -34.86 },
+          ],
+        });
+        expect(llamarRpc).toHaveBeenNthCalledWith(2, "guardar_zona", {
+          p_campania_ciudad_id: MVD,
+          p_nombre: expect.stringMatching(/^[0-9a-f-]{36}$/),
+          p_tipo_forma: "ESQUINAS",
+          p_vertices: enganchadas,
+          p_poligono_geojson: CIRCULO,
+          p_zona_id: ZONA_ESQUINAS,
+          p_vista_previa: true,
+        });
+      });
+
+      it("avisa la calle que comparte con otra zona, la primera que tenga nombre (calles_compartidas, 0059)", async () => {
+        const { cliente } = clienteCon({
+          poligono_por_calles: borde,
+          guardar_zona: {
+            ...respuestaPrevia,
+            superposiciones: [],
+            calles_compartidas: [
+              { zona_id: ZONA_RADIAL, nombre: "Paso de la Arena", calle: null, punto: { type: "Point", coordinates: [-56.3, -34.9] } },
+              { zona_id: ZONA_ESQUINAS, nombre: "Belvedere", calle: "Heredia", punto: { type: "Point", coordinates: [-56.255, -34.87] } },
+            ],
+          },
+        });
+
+        expect(await crearFuenteZonasRpc(cliente).vistaPreviaZona({ ciudadId: MVD, forma: esquinas })).toMatchObject({
+          superposicion: null,
+          comparteCalle: { calle: "Heredia", zonaNombre: "Belvedere", punto: { lon: -56.255, lat: -34.87 } },
+        });
+      });
+
+      it("si la base no pudo calcular las calles compartidas (null), no hay aviso y la vista previa sigue", async () => {
+        const { cliente } = clienteCon({ poligono_por_calles: borde, guardar_zona: { ...respuestaPrevia, superposiciones: [], calles_compartidas: null } });
+
+        expect(await crearFuenteZonasRpc(cliente).vistaPreviaZona({ ciudadId: MVD, forma: esquinas })).toMatchObject({ comparteCalle: null, ubicacionesIncluidas: 27 });
+      });
+
+      it.each([
+        ["CZ015", "Todavía no están cargadas las calles de esta ciudad. Pedile a un administrador que las cargue y volvé a intentar."],
+        ["CZ016", "No hay un camino por las calles entre «Heredia y Pororó» y «Rusia». Elegí otra esquina que esté sobre la misma red de calles."],
+        ["CZ008", "El borde por las calles no forma una zona: se cruza. Mové o quitá una esquina para que el recorrido no se cruce ni vuelva sobre una calle."],
+      ])("%s al armar el borde vuelve como rechazo con el texto de la base, sin pedir la vista previa", async (codigo, mensaje) => {
+        const { cliente, llamarRpc } = clienteCon({ poligono_por_calles: rechazo(codigo, mensaje) });
+
+        expect(await crearFuenteZonasRpc(cliente).vistaPreviaZona({ ciudadId: MVD, forma: esquinas })).toEqual({ rechazo: mensaje });
+        expect(llamarRpc).toHaveBeenCalledTimes(1);
+      });
+
+      it("un borde que no llega, o que llega roto, es una respuesta inesperada; la red caída, una excepción", async () => {
+        const vacio = clienteCon({ poligono_por_calles: [] });
+        const roto = clienteCon({ poligono_por_calles: [{ poligono_geojson: { type: "Point" }, esquinas: enganchadas }] });
+        const sinEsquinas = clienteCon({ poligono_por_calles: [{ poligono_geojson: CIRCULO, esquinas: null }] });
+        const caida = new TypeError("fetch failed");
+        const sinRed = clienteCon({ poligono_por_calles: caida });
+
+        for (const { cliente } of [vacio, roto, sinEsquinas]) {
+          await expect(crearFuenteZonasRpc(cliente).vistaPreviaZona({ ciudadId: MVD, forma: esquinas })).rejects.toBeInstanceOf(RespuestaInesperada);
+        }
+        await expect(crearFuenteZonasRpc(sinRed.cliente).vistaPreviaZona({ ciudadId: MVD, forma: esquinas })).rejects.toBe(caida);
+      });
     });
 
     it("un id que no es un UUID se rechaza sin llamar a la base", async () => {
@@ -595,12 +835,99 @@ describe("fuente de la vista 24 contra las RPC", () => {
       }
     });
 
-    it("por esquinas todavía no se puede guardar (falta el borde por calles): avisa y no llama a la base", async () => {
-      const { cliente, llamarRpc } = clienteCon({});
-      const esquinas: FormaZona = { tipoForma: "ESQUINAS", esquinas: [], cerrada: true };
+    describe("por esquinas (#179)", () => {
+      const esquinas: FormaZona = {
+        tipoForma: "ESQUINAS",
+        esquinas: [
+          { lon: -56.26, lat: -34.87, calleA: "Heredia", calleB: "Pororó" },
+          { lon: -56.25, lat: -34.87, calleA: "Heredia", calleB: "Rusia" },
+          { lon: -56.25, lat: -34.86, calleA: "", calleB: "" },
+        ],
+        cerrada: true,
+      };
+      const enganchadas = [
+        { orden: 1, lon: -56.2600001, lat: -34.8700001, calle_a: "Heredia", calle_b: "Pororó" },
+        { orden: 2, lon: -56.2500001, lat: -34.8700001, calle_a: "Heredia", calle_b: "Rusia" },
+        { orden: 3, lon: -56.2500001, lat: -34.8600001, calle_a: null, calle_b: null },
+      ];
+      const borde = [{ poligono_geojson: CIRCULO, esquinas: enganchadas }];
+      const guardadaPorEsquinas = {
+        guardada: true,
+        zona: {
+          id: ZONA_ESQUINAS,
+          nombre: "Santa Catalina",
+          campania_ciudad_id: MVD,
+          tipo_forma: "ESQUINAS",
+          centro_lat: null,
+          centro_lon: null,
+          radio_m: null,
+          poligono_geojson: CIRCULO,
+          color: "#A98330",
+          sync_version: 1,
+        },
+        // Las filas de `zona_vertice`, con sus columnas de más y sin orden garantizado.
+        vertices: [
+          { id: "v-2", zona_id: ZONA_ESQUINAS, ...enganchadas[1], created_by: DIEGO },
+          { id: "v-1", zona_id: ZONA_ESQUINAS, ...enganchadas[0], created_by: DIEGO },
+          { id: "v-3", zona_id: ZONA_ESQUINAS, ...enganchadas[2], created_by: DIEGO },
+        ],
+        poligono_geojson: CIRCULO,
+        ubicaciones_incluidas: 31,
+        superposiciones: [],
+        calles_compartidas: [],
+      };
 
-      await expect(crearFuenteZonasRpc(cliente).guardarZona({ ciudadId: MVD, nombre: "x", forma: esquinas })).rejects.toThrow(/backend-supabase#25/);
-      expect(llamarRpc).not.toHaveBeenCalled();
+      it("arma el borde, guarda con las esquinas enganchadas y devuelve la zona con sus esquinas en orden", async () => {
+        const { cliente, llamarRpc } = clienteCon({ poligono_por_calles: borde, guardar_zona: guardadaPorEsquinas });
+
+        const resultado = await crearFuenteZonasRpc(cliente).guardarZona({ ciudadId: MVD, nombre: "Santa Catalina", forma: esquinas, color: "#A98330" });
+
+        expect(resultado).toEqual({
+          ok: true,
+          zona: {
+            id: ZONA_ESQUINAS,
+            nombre: "Santa Catalina",
+            tipoForma: "ESQUINAS",
+            color: "#A98330",
+            esquinas: [
+              { lon: -56.2600001, lat: -34.8700001, calleA: "Heredia", calleB: "Pororó" },
+              { lon: -56.2500001, lat: -34.8700001, calleA: "Heredia", calleB: "Rusia" },
+              { lon: -56.2500001, lat: -34.8600001, calleA: "", calleB: "" },
+            ],
+            poligonoGeojson: CIRCULO,
+            colportores: [],
+            ubicacionesRegistradas: 31,
+          },
+        });
+        expect(llamarRpc).toHaveBeenNthCalledWith(1, "poligono_por_calles", expect.objectContaining({ p_campania_ciudad_id: MVD }));
+        expect(llamarRpc).toHaveBeenNthCalledWith(2, "guardar_zona", {
+          p_campania_ciudad_id: MVD,
+          p_nombre: "Santa Catalina",
+          p_color: "#A98330",
+          p_tipo_forma: "ESQUINAS",
+          p_vertices: enganchadas,
+          p_poligono_geojson: CIRCULO,
+          p_zona_id: null,
+        });
+      });
+
+      it("al editar manda la zona; si el borde se rechaza, vuelve el aviso de la base y no se guarda nada", async () => {
+        const edita = clienteCon({ poligono_por_calles: borde, guardar_zona: guardadaPorEsquinas });
+        const mensaje = "No hay un camino por las calles entre «Heredia y Pororó» y «Rusia». Elegí otra esquina que esté sobre la misma red de calles.";
+        const sinCamino = clienteCon({ poligono_por_calles: rechazo("CZ016", mensaje) });
+
+        await crearFuenteZonasRpc(edita.cliente).guardarZona({ ciudadId: MVD, zonaId: ZONA_ESQUINAS, nombre: "Santa Catalina", forma: esquinas });
+        expect(edita.llamarRpc).toHaveBeenLastCalledWith("guardar_zona", expect.objectContaining({ p_zona_id: ZONA_ESQUINAS }));
+
+        expect(await crearFuenteZonasRpc(sinCamino.cliente).guardarZona({ ciudadId: MVD, nombre: "x", forma: esquinas })).toEqual({ ok: false, mensaje });
+        expect(sinCamino.llamarRpc).toHaveBeenCalledTimes(1);
+      });
+
+      it("una zona por esquinas que vuelve sin sus esquinas es una respuesta inesperada, no una zona a medias", async () => {
+        const { cliente } = clienteCon({ poligono_por_calles: borde, guardar_zona: { ...guardadaPorEsquinas, vertices: null } });
+
+        await expect(crearFuenteZonasRpc(cliente).guardarZona({ ciudadId: MVD, nombre: "x", forma: esquinas })).rejects.toBeInstanceOf(RespuestaInesperada);
+      });
     });
 
     it("un id que no es un UUID se rechaza sin llamar a la base", async () => {

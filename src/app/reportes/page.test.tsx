@@ -14,7 +14,7 @@ describe("PestanaReportes (vista 32, HU-REP-001 y HU-REP-002)", () => {
 
     expect(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Todas las ciudades", level: 2 })).toBeInTheDocument();
-    expect(screen.getByText("25 colportores · S7 contra S6")).toBeInTheDocument();
+    expect(screen.getByText("25 colportores · S7 · última semana completa contra S6")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Semanas", pressed: true })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "HORAS" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "PRESENTACIONES" })).toBeInTheDocument();
@@ -39,6 +39,16 @@ describe("PestanaReportes (vista 32, HU-REP-001 y HU-REP-002)", () => {
     for (const nombre of ["Informe PDF", "Datos CSV"]) {
       expect(screen.getByRole("button", { name: nombre })).not.toHaveAttribute("aria-disabled");
     }
+  });
+
+  it("el informe PDF pasa por la server action; sin Supabase configurado avisa que no está disponible en vez de fallar", async () => {
+    const user = userEvent.setup();
+    render(<ProveedorModoDev activo={false}>{await PestanaReportes()}</ProveedorModoDev>);
+
+    await user.click(screen.getByRole("button", { name: "Informe PDF" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("lo arma el servidor del panel");
+    expect(screen.getByRole("button", { name: "Informe PDF" })).not.toHaveAttribute("aria-busy");
   });
 
   it("sin una campaña que consultar (la fuente devuelve null) lo dice, sin tabla ni selector", async () => {

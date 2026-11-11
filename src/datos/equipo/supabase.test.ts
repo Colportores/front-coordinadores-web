@@ -43,11 +43,18 @@ describe("fuenteEquipoSupabase", () => {
     const campania = "11111111-1111-4111-8111-111111111111";
     const jornada = "22222222-2222-4222-8222-222222222222";
     const llamarRpc = vi.fn(async (): Promise<unknown> => [
-      { jornada_id: jornada, colportor_id: "c", dia: "2026-10-02", acompaniante_id: "a", acompaniante_nombre: "Mariana", acompaniante_apellido: "Pérez", ya_estaba: false },
+      { jornada_id: jornada, colportor_id: "c", dia: "2026-10-02", acompaniante_id: "a", acompaniante_nombre: "Mariana", acompaniante_apellido: "Pérez", ya_estaba: false, acompaniamiento_origen: "COORDINADOR", acompaniamiento_nota: null },
     ]);
     const fuente = crearFuenteEquipoSupabase({ consultar: vi.fn(), llamarRpc } as unknown as ClienteSupabase);
 
-    expect(await fuente.registrarAcompanamiento(campania, jornada)).toEqual({ ok: true, dia: "2026-10-02", acompanante: "Mariana Pérez", yaEstaba: false });
+    expect(await fuente.registrarAcompanamiento(campania, jornada)).toEqual({
+      ok: true,
+      dia: "2026-10-02",
+      acompanante: "Mariana Pérez",
+      yaEstaba: false,
+      origen: "COORDINADOR",
+      nota: null,
+    });
     expect(llamarRpc).toHaveBeenCalledWith("agregar_acompaniamiento", { p_campania_id: campania, p_jornada_id: jornada });
   });
 });

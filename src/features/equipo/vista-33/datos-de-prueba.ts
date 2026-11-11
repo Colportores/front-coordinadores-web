@@ -1,4 +1,4 @@
-import type { ColportorDeEquipo, DatosEquipoPorCiudad } from "@/datos/equipo/contrato";
+import type { BecaDeColportor, ColportorDeEquipo, DatosDeBecas, DatosEquipoPorCiudad } from "@/datos/equipo/contrato";
 
 /** Hoy y el inicio de la campaña de los tests: 21/10/2026 es miércoles y la campaña empezó el martes 01/09 (50 días antes). */
 export const HOY = "2026-10-21";
@@ -11,7 +11,33 @@ export function colportor(datos: Partial<ColportorDeEquipo> & Pick<ColportorDeEq
     zonasAnteriores: [],
     casasRegistradas: 100,
     acompanamientos: [],
+    contadoDesde: INICIO,
     ...datos,
+  };
+}
+
+/** Sistemas: media = 120 libros o $U 180.000, completa el doble (como el canvas). «Contador» no tiene la meta cargada. */
+export function becasDePrueba(): DatosDeBecas {
+  const sistemas = { id: "sis", nombre: "Ingeniería en Sistemas", elegidaEl: "2026-09-01" };
+  const beca = (cambios: Partial<BecaDeColportor>): BecaDeColportor => ({
+    carrera: sistemas,
+    apuntaA: "media",
+    meta: { libros: 120, monto: 180000 },
+    avance: { libros: 64, monto: 90000 },
+    ...cambios,
+  });
+  return {
+    carreras: [
+      { id: "sis", nombre: "Ingeniería en Sistemas", metaMedia: { libros: 120, monto: 180000 }, metaCompleta: { libros: 240, monto: 360000 } },
+      { id: "teo", nombre: "Teología", metaMedia: { libros: 100, monto: 150000 }, metaCompleta: { libros: 200, monto: 300000 } },
+      { id: "cont", nombre: "Contador Público", metaMedia: null, metaCompleta: null },
+    ],
+    porColportor: {
+      emiliano: beca({}),
+      florencia: beca({ carrera: { id: "teo", nombre: "Teología", elegidaEl: "2026-09-01" }, apuntaA: "completa", meta: { libros: 200, monto: 300000 }, avance: { libros: 40, monto: 75000 } }),
+      sofia: beca({ apuntaA: null, meta: null, avance: { libros: 12, monto: 20000 } }),
+      federico: { carrera: null, apuntaA: null, meta: null, avance: { libros: 0, monto: 0 } },
+    },
   };
 }
 
@@ -25,6 +51,7 @@ export function datosDePrueba(cambios: Partial<DatosEquipoPorCiudad> = {}): Dato
     campania: "Primavera 2026",
     campaniaInicio: INICIO,
     campaniaFin: "2026-12-19",
+    campaniaTipo: "VERANO",
     hoy: HOY,
     ciudades: [
       { id: "riv", nombre: "Rivera", departamento: "Rivera" },
@@ -39,8 +66,8 @@ export function datosDePrueba(cambios: Partial<DatosEquipoPorCiudad> = {}): Dato
         zonasAnteriores: [{ nombre: "Bisso", desde: "2026-09-01", hasta: "2026-10-05", eliminada: false, inicial: false }],
         casasRegistradas: 340,
         acompanamientos: [
-          { jornadaId: "j-e2", dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true },
-          { jornadaId: "j-e1", dia: "2026-09-08", horas: 5, acompanante: "Tomás Ibarra", acompananteEsVos: false },
+          { jornadaId: "j-e2", dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: { esVos: true }, nota: "Trabajamos juntos el sector norte de la zona." },
+          { jornadaId: "j-e1", dia: "2026-09-08", horas: 5, acompanante: "Tomás Ibarra", acompananteEsVos: false, origen: "COLPORTOR", nota: null },
         ],
       }),
       colportor({ id: "florencia", nombre: "Florencia Pintos", casasRegistradas: 120 }),
@@ -54,12 +81,13 @@ export function datosDePrueba(cambios: Partial<DatosEquipoPorCiudad> = {}): Dato
           { nombre: "Cuaró", desde: "2026-09-21", hasta: "2026-10-11", eliminada: true, inicial: false },
         ],
         casasRegistradas: 410,
-        acompanamientos: [{ jornadaId: "j-s1", dia: "2026-10-12", horas: 6, acompanante: "Mariana Pérez", acompananteEsVos: true }],
+        acompanamientos: [{ jornadaId: "j-s1", dia: "2026-10-12", horas: 6, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: null, nota: null }],
       }),
       colportor({ id: "federico", nombre: "Federico Da Rosa", ciudadId: "bu", casasRegistradas: 75 }),
       colportor({ id: "rocio", nombre: "Rocío Benítez", ciudadId: null, zonaActual: null, casasRegistradas: 0 }),
     ],
     solicitudesPendientes: 1,
+    becas: becasDePrueba(),
     ...cambios,
   };
 }

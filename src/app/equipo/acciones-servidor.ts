@@ -11,13 +11,29 @@ import type { AccionesEquipo } from "@/features/equipo/vista-33/acciones";
  */
 export function crearAccionesEquipo(campaniaId: string): AccionesEquipo {
   return {
+    async acompanantesDelPanel() {
+      "use server";
+      return fuenteEquipo.acompanantesDelPanel(campaniaId);
+    },
     async jornadasParaAcompanar(colportorId) {
       "use server";
       return fuenteEquipo.jornadasParaAcompanar(campaniaId, colportorId);
     },
-    async registrarAcompanamiento(jornadaId) {
+    async registrarAcompanamiento(jornadaId, datos) {
       "use server";
-      return fuenteEquipo.registrarAcompanamiento(campaniaId, jornadaId);
+      return fuenteEquipo.registrarAcompanamiento(campaniaId, jornadaId, datos);
+    },
+    async elegirCarrera(colportorId, carreraId) {
+      "use server";
+      return fuenteEquipo.elegirCarrera(campaniaId, colportorId, carreraId);
+    },
+    async asignarTipoDeBeca(colportorId, tipo) {
+      "use server";
+      // El tipo viene del navegador: solo vale uno de los tres que ofrece la tabla («Sin beca» es null).
+      if (tipo !== null && tipo !== "media" && tipo !== "completa") {
+        return { ok: false, mensaje: "Ese tipo de beca no existe. Recargá la página y volvé a elegir." };
+      }
+      return fuenteEquipo.asignarTipoDeBeca(campaniaId, colportorId, tipo);
     },
   };
 }

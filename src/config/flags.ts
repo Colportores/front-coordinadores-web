@@ -36,6 +36,16 @@ export function sitioDePruebaActivo(): boolean {
   return leerBandera(process.env.NEXT_PUBLIC_DEPLOY_PAGES) ?? false;
 }
 
+/**
+ * `true` solo en el artefacto de pruebas de demo (`npm run build:demo-supabase`, `.github/workflows/demo-supabase-dev.yml`):
+ * el panel compilado y conectado al Supabase de desarrollo, de uso interno. Con él el panel lleva el aviso «Versión de prueba
+ * conectada a Supabase dev (datos de demostración)» en cada pantalla (también la de acceso), `noindex` y se compila como
+ * servidor autónomo (`output: "standalone"`, ver `next.config.ts`). Ningún otro build lo define. Ver README.
+ */
+export function demoSupabaseDevActivo(): boolean {
+  return leerBandera(process.env.NEXT_PUBLIC_DEMO_SUPABASE_DEV) ?? false;
+}
+
 export type Pestana ="inicio" | "equipo" | "ciudades" | "stock" | "cuentas" | "reportes";
 
 /** Pestañas con flag propio. Las demás están siempre visibles. */
@@ -52,4 +62,15 @@ function flagDePestana(pestana: Pestana): boolean | undefined {
 
 export function pestanaVisible(pestana: Pestana): boolean {
   return flagDePestana(pestana) ?? true;
+}
+
+/**
+ * Si Equipo ofrece la vista «Becas» (vista 33). Si `NEXT_PUBLIC_EQUIPO_BECAS` no está definida (staging y producción), el
+ * botón sigue a la fuente: aparece cuando trae las becas (los datos simulados, o las RPC `carreras_de_beca()` y
+ * `becas_de_campania()` publicadas, `datos/equipo/becas-rpc.ts`) y no aparece cuando vienen en null (la base no publicó
+ * esas RPC o la campaña no las deja leer), así nadie llega a una pestaña que no anda. Con la variable en `1` se ve siempre
+ * (con el aviso si no hay becas); en `0`, nunca. Pedido de Cristian, 11/11.
+ */
+export function becasDeEquipoVisibles(fuenteConBecas: boolean): boolean {
+  return leerBandera(process.env.NEXT_PUBLIC_EQUIPO_BECAS) ?? fuenteConBecas;
 }

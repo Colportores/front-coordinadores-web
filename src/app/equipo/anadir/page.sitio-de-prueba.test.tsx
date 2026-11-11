@@ -44,7 +44,7 @@ describe("AnadirColportorPagina en el build del sitio de prueba (export estátic
 
     render(<ProveedorModoDev activo={false}>{await AnadirColportorPagina()}</ProveedorModoDev>);
 
-    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso a la que añadir colportores.");
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso ni por empezar a la que añadir colportores.");
     expect(screen.queryByRole("textbox", { name: "Buscar por email o nombre" })).not.toBeInTheDocument();
   });
 

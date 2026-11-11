@@ -15,6 +15,8 @@ const ENTORNO_PERMITIDO = ["PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR",
 /** Lo que fija el build de Pages: datos simulados, todas las pestañas visibles, export estático. */
 export const VARIABLES_DEL_BUILD = Object.freeze({
   DEPLOY_PAGES: "1",
+  // El modo simulado explícito que el build de producción exige cuando falta Supabase (#101).
+  PANEL_DATOS_SIMULADOS: "1",
   NEXT_PUBLIC_MODO_DEV: "1",
   NEXT_TELEMETRY_DISABLED: "1",
 });
@@ -26,7 +28,7 @@ export function variablesProhibidas(env) {
       if (NOMBRES_PROHIBIDOS.test(nombre)) return true;
       return nombre.startsWith("NEXT_PUBLIC_") && !NEXT_PUBLIC_TOLERADAS.has(nombre);
     })
-    .sort();
+    .sort((a, b) => (a < b ? -1 : Number(a > b))); // orden por unidades de código, como el .sort() previo
 }
 
 /** Entorno con el que corre `next build`: lo permitido del entorno actual más lo que fija el build. */
@@ -49,7 +51,7 @@ export function archivosEnvProhibidos(nombresDeArchivos) {
 const PATRONES_EN_SALIDA = [
   { motivo: "un JWT (clave de Supabase o de sesión)", patron: /eyJ[A-Za-z0-9_-]{15,}\.eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{10,}/ },
   { motivo: "una clave de Supabase (sb_secret_/sb_publishable_)", patron: /\bsb_(secret|publishable)_[A-Za-z0-9_-]{8,}/ },
-  { motivo: "una URL de proyecto de Supabase", patron: /[a-z0-9-]+\.supabase\.(co|in)\b/i },
+  { motivo: "una URL de proyecto de Supabase", patron: /[a-z0-9-]{1,63}\.supabase\.(co|in)\b/i },
   // El nombre de la variable de la clave de servicio, no la palabra `service_role` suelta: esa la lleva, como texto
   // y sin ninguna clave, `src/datos/supabase/config-publica.ts` (rechaza las claves de servicio) cuando entra a un
   // archivo del navegador. Una clave de servicio de verdad la agarran el JWT y `sb_secret_`.

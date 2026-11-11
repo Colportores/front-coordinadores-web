@@ -56,7 +56,7 @@ describe("PestanaEquipo", () => {
     await usuario.click(within(lista).getAllByRole("button", { name: /^Registrar acompañamiento en la jornada/ })[0]);
 
     expect(await screen.findByText(/Acompañamiento registrado: jornada de Florencia Pintos/)).toBeInTheDocument();
-    expect(registrar).toHaveBeenCalledWith("campania-primavera-2026", expect.stringContaining("jor-col-florencia-pintos-"));
+    expect(registrar).toHaveBeenCalledWith("campania-primavera-2026", expect.stringContaining("jor-col-florencia-pintos-"), {});
   });
 
   it("las acciones del servidor llevan la campaña de la página, no la que mande el navegador", async () => {

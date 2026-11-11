@@ -1,10 +1,15 @@
 import type {
   AcompanamientoDeColportor,
+  CargadoPor,
   ColportorDeEquipo,
   DatosEquipoPorCiudad,
   FuenteDatosEquipo,
+  AcompananteDelPanel,
+  OrigenDeAcompanamiento,
   ZonaAnterior,
 } from "@/datos/equipo/contrato";
+import { crearBecasSimuladas } from "@/datos/equipo/becas-simuladas";
+import { LARGO_MAXIMO_NOTA } from "@/datos/equipo/contrato";
 import { diasEntre, sumarDias } from "@/lib/dias";
 
 /**
@@ -19,7 +24,18 @@ const INICIO = "2026-09-01";
 const FIN = "2026-12-19";
 /** El coordinador de la sesión del ejemplo: el que figura como acompañante al registrar uno. */
 export const COORDINADOR_SIMULADO = "Mariana Pérez";
+const COORDINADOR_ID = "usr-mariana-perez";
 const OTRO_COORDINADOR = "Tomás Ibarra";
+const OTRO_COORDINADOR_ID = "usr-tomas-ibarra";
+/** Coordinadores (de esta y de otras campañas) y administradores que el panel ofrece además de los colportores; sin quien tiene la sesión. */
+const ACOMPANANTES_DEL_PANEL: readonly AcompananteDelPanel[] = [
+  { id: OTRO_COORDINADOR_ID, nombre: OTRO_COORDINADOR },
+  { id: "usr-marta-rivas", nombre: "Marta Rivas" },
+  { id: "usr-alicia-benitez", nombre: "Alicia Benítez" },
+];
+
+/** Las notas de ejemplo del diseño (la vacía es «sin nota»). */
+const NOTAS = ["Buena presentación; practicar el cierre.", "Trabajamos juntos el sector norte de la zona.", "", "Le costó arrancar; mejoró a la tarde.", "Repasamos cómo ofrecer la colección.", ""];
 
 const CIUDADES = [
   { id: "riv", nombre: "Rivera", departamento: "Rivera" },
@@ -92,6 +108,12 @@ interface JornadaSimulada {
   dia: string;
   horas: number;
   acompanante: string | null;
+  /** Quién acompañó, por id: un coordinador o un colportor de la campaña. */
+  acompananteId: string | null;
+  origen: OrigenDeAcompanamiento | null;
+  /** Quién lo cargó desde el panel; `null` si lo marcó el colportor. */
+  cargadoPor: CargadoPor | null;
+  nota: string | null;
 }
 
 interface Armado {
@@ -121,6 +143,7 @@ function armar(): Armado {
         zonaActual: { id: `zona-${ciudad.id}-${i}`, nombre: ZONAS[ciudad.id][i], desde: ACTUAL_DESDE[nombre] ?? INICIO, desdeInicial: false },
         zonasAnteriores: anteriores,
         casasRegistradas: 120 + Math.floor(r() * 780),
+        contadoDesde: INICIO,
       });
 
       // Una jornada por día de trabajo (de lunes a sábado), con huecos; algunas con acompañamiento.
@@ -131,12 +154,27 @@ function armar(): Armado {
         const horas = Math.round((3.5 + r() * 3) * 10) / 10;
         const sorteo = r();
         const acompanado = fijos ? fijos.includes(dia) : sorteo < 0.07;
+        const acompanante = !acompanado ? null : fijos ? (dia === fijos[0] ? OTRO_COORDINADOR : COORDINADOR_SIMULADO) : r() < 0.7 ? COORDINADOR_SIMULADO : OTRO_COORDINADOR;
+        const jornadaId = `jor-${id}-${dia}`;
+        // El origen y la nota salen de un generador propio (el de la jornada): no mueven los sorteos de arriba.
+        const sorteos = generador(semillaDe(jornadaId));
+        // Los dos del diseño están fijos: el primero lo marcó el colportor y el segundo lo cargó la coordinación, con su nota.
+        const origen: OrigenDeAcompanamiento | null =
+          acompanante === null ? null : fijos ? (dia === fijos[0] ? "COLPORTOR" : "COORDINADOR") : sorteos() < 0.5 ? "COLPORTOR" : "COORDINADOR";
+        const nota = origen !== "COORDINADOR" ? null : fijos ? NOTAS[1] : NOTAS[Math.floor(sorteos() * NOTAS.length)] || null;
+        // Los cargados desde el panel: el del diseño, por «vos»; el resto, casi todos por «vos» y algunos por el otro coordinador.
+        const cargadoPor: CargadoPor | null =
+          origen !== "COORDINADOR" ? null : fijos || sorteos() < 0.75 ? { esVos: true } : { esVos: false, nombre: OTRO_COORDINADOR };
         jornadas.push({
-          id: `jor-${id}-${dia}`,
+          id: jornadaId,
           colportorId: id,
           dia,
           horas,
-          acompanante: !acompanado ? null : fijos ? (dia === fijos[0] ? OTRO_COORDINADOR : COORDINADOR_SIMULADO) : r() < 0.7 ? COORDINADOR_SIMULADO : OTRO_COORDINADOR,
+          acompanante,
+          acompananteId: acompanante === null ? null : acompanante === COORDINADOR_SIMULADO ? COORDINADOR_ID : OTRO_COORDINADOR_ID,
+          origen,
+          cargadoPor,
+          nota,
         });
       }
     });
@@ -150,18 +188,23 @@ function armar(): Armado {
     zonaActual: null,
     zonasAnteriores: [],
     casasRegistradas: 0,
+    // Se sumó hoy: nunca fue acompañado, y los días se cuentan desde que se sumó.
+    contadoDesde: HOY_SIMULADO,
   });
   return { base, jornadas };
 }
 
 const SIN_JORNADA = "La jornada no existe o no es de un colportor de esta campaña. Recargá las jornadas y elegí otra.";
+const ACOMPANANTE_AJENO = "Ese colportor no está inscripto en esta campaña. Elegí a alguien de su equipo.";
+const SU_PROPIA_JORNADA = "Un colportor no puede figurar como acompañante de su propia jornada. Elegí a otra persona.";
 
 /** Una fuente con su propio estado: registrar un acompañamiento cambia lo que ve la siguiente lectura. */
 export function crearEquipoSimulado(): Pick<
   FuenteDatosEquipo,
-  "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento"
+  "obtenerEquipoPorCiudad" | "acompanantesDelPanel" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
 > {
   const { base, jornadas } = armar();
+  const becas = crearBecasSimuladas(base, HOY_SIMULADO);
 
   const acompanamientosDe = (colportorId: string): AcompanamientoDeColportor[] =>
     jornadas
@@ -172,7 +215,10 @@ export function crearEquipoSimulado(): Pick<
         dia: j.dia,
         horas: j.horas,
         acompanante: j.acompanante as string,
-        acompananteEsVos: j.acompanante === COORDINADOR_SIMULADO,
+        acompananteEsVos: j.acompananteId === COORDINADOR_ID,
+        origen: j.origen,
+        cargadoPor: j.cargadoPor,
+        nota: j.nota,
       }));
 
   return {
@@ -182,12 +228,18 @@ export function crearEquipoSimulado(): Pick<
         campania: "Primavera 2026",
         campaniaInicio: INICIO,
         campaniaFin: FIN,
+        campaniaTipo: "VERANO",
         hoy: HOY_SIMULADO,
         ciudades: CIUDADES,
         colportores: base.map((c) => ({ ...c, acompanamientos: acompanamientosDe(c.id) })),
         // Sin flujo de «pedir entrar» (HU-CAM-009, después del 20/11): la franja «SOLICITUD» no aparece.
         solicitudesPendientes: 0,
+        becas: becas.datos(),
       };
+    },
+
+    async acompanantesDelPanel() {
+      return { ok: true, acompanantes: ACOMPANANTES_DEL_PANEL.map((a) => ({ ...a })) };
     },
 
     async jornadasParaAcompanar(_campaniaId, colportorId) {
@@ -197,25 +249,52 @@ export function crearEquipoSimulado(): Pick<
         jornadas: jornadas
           .filter((j) => j.colportorId === colportorId)
           .sort((a, b) => (a.dia < b.dia ? 1 : a.dia > b.dia ? -1 : 0))
-          .map((j) => ({ id: j.id, dia: j.dia, horas: j.horas, acompanante: j.acompanante, acompananteEsVos: j.acompanante === COORDINADOR_SIMULADO })),
+          .map((j) => ({ id: j.id, dia: j.dia, horas: j.horas, acompanante: j.acompanante, acompananteEsVos: j.acompananteId === COORDINADOR_ID })),
       };
     },
 
-    async registrarAcompanamiento(_campaniaId, jornadaId) {
+    async registrarAcompanamiento(_campaniaId, jornadaId, datos = {}) {
       const jornada = jornadas.find((j) => j.id === jornadaId);
       if (!jornada) return { ok: false, mensaje: SIN_JORNADA, recargar: true };
-      if (jornada.acompanante === COORDINADOR_SIMULADO) {
-        return { ok: true, dia: jornada.dia, acompanante: COORDINADOR_SIMULADO, yaEstaba: true };
+      // La misma forma de la nota que en el servidor: sin espacios en los extremos, vacía es sin nota.
+      const nota = (datos.nota ?? "").trim();
+      const largo = Array.from(nota).length;
+      if (largo > LARGO_MAXIMO_NOTA) {
+        return { ok: false, mensaje: `La nota admite hasta ${LARGO_MAXIMO_NOTA} caracteres y esta tiene ${largo}. Acortala; no pongas datos de clientes.` };
       }
-      if (jornada.acompanante !== null) {
+      const otro =
+        datos.acompananteId === undefined
+          ? undefined
+          : (base.find((c) => c.id === datos.acompananteId) ?? ACOMPANANTES_DEL_PANEL.find((a) => a.id === datos.acompananteId));
+      if (datos.acompananteId !== undefined && jornada.colportorId === datos.acompananteId) return { ok: false, mensaje: SU_PROPIA_JORNADA };
+      const acompananteId = otro ? otro.id : COORDINADOR_ID;
+      const acompanante = otro ? otro.nombre : COORDINADOR_SIMULADO;
+      // Ya registrada por la misma persona: no se toca nada, tampoco la nota.
+      if (jornada.acompananteId === acompananteId) {
+        return { ok: true, dia: jornada.dia, acompanante, yaEstaba: true, origen: jornada.origen, nota: jornada.nota };
+      }
+      if (jornada.acompananteId !== null) {
         return {
           ok: false,
           mensaje: `Esta jornada ya figura acompañada por ${jornada.acompanante}. El acompañamiento registrado no se cambia desde el panel.`,
           recargar: true,
         };
       }
-      jornada.acompanante = COORDINADOR_SIMULADO;
-      return { ok: true, dia: jornada.dia, acompanante: COORDINADOR_SIMULADO, yaEstaba: false };
+      if (datos.acompananteId !== undefined && !otro) return { ok: false, mensaje: ACOMPANANTE_AJENO };
+      jornada.acompananteId = acompananteId;
+      jornada.acompanante = acompanante;
+      jornada.origen = "COORDINADOR";
+      jornada.cargadoPor = { esVos: true };
+      jornada.nota = nota === "" ? null : nota;
+      return { ok: true, dia: jornada.dia, acompanante, yaEstaba: false, origen: "COORDINADOR", nota: jornada.nota };
+    },
+
+    async elegirCarrera(_campaniaId, colportorId, carreraId) {
+      return becas.elegirCarrera(colportorId, carreraId);
+    },
+
+    async asignarTipoDeBeca(_campaniaId, colportorId, tipo) {
+      return becas.asignarTipoDeBeca(colportorId, tipo);
     },
   };
 }

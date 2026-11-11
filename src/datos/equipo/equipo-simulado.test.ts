@@ -74,11 +74,87 @@ describe("fuente simulada de la vista 33", () => {
     if (!lista.ok) throw new Error("sin jornadas");
     const libre = lista.jornadas[0];
 
-    expect(await fuente.registrarAcompanamiento("c", libre.id)).toEqual({ ok: true, dia: libre.dia, acompanante: COORDINADOR_SIMULADO, yaEstaba: false });
-    expect(await fuente.registrarAcompanamiento("c", libre.id)).toEqual({ ok: true, dia: libre.dia, acompanante: COORDINADOR_SIMULADO, yaEstaba: true });
+    expect(await fuente.registrarAcompanamiento("c", libre.id)).toEqual({
+      ok: true,
+      dia: libre.dia,
+      acompanante: COORDINADOR_SIMULADO,
+      yaEstaba: false,
+      origen: "COORDINADOR",
+      nota: null,
+    });
+    expect(await fuente.registrarAcompanamiento("c", libre.id)).toEqual({
+      ok: true,
+      dia: libre.dia,
+      acompanante: COORDINADOR_SIMULADO,
+      yaEstaba: true,
+      origen: "COORDINADOR",
+      nota: null,
+    });
 
     const despues = (await datosDe(fuente)).colportores.find((c) => c.nombre === "Florencia Pintos");
-    expect(despues?.acompanamientos).toEqual([{ jornadaId: libre.id, dia: libre.dia, horas: expect.any(Number), acompanante: COORDINADOR_SIMULADO, acompananteEsVos: true }]);
+    expect(despues?.acompanamientos).toEqual([
+      { jornadaId: libre.id, dia: libre.dia, horas: expect.any(Number), acompanante: COORDINADOR_SIMULADO, acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: { esVos: true }, nota: null },
+    ]);
+  });
+
+  /** La primera jornada libre de Florencia (nadie la acompañó) y el resto de los colportores de la campaña. */
+  async function conJornadaLibre() {
+    const fuente = crearEquipoSimulado();
+    const datos = await datosDe(fuente);
+    const florencia = datos.colportores.find((c) => c.nombre === "Florencia Pintos");
+    const santiago = datos.colportores.find((c) => c.nombre === "Santiago Pereira");
+    const lista = await fuente.jornadasParaAcompanar("c", florencia?.id ?? "");
+    if (!lista.ok || !florencia || !santiago) throw new Error("falta el ejemplo");
+    return { fuente, florencia, santiago, libre: lista.jornadas[0] };
+  }
+
+  it("registrar a nombre de otro colportor, con una nota: queda con origen COORDINADOR y la nota recortada; ya no es «vos»", async () => {
+    const { fuente, florencia, santiago, libre } = await conJornadaLibre();
+
+    const r = await fuente.registrarAcompanamiento("c", libre.id, { acompananteId: santiago.id, nota: "  Trabajamos juntos el sector norte.  " });
+
+    expect(r).toEqual({ ok: true, dia: libre.dia, acompanante: "Santiago Pereira", yaEstaba: false, origen: "COORDINADOR", nota: "Trabajamos juntos el sector norte." });
+    const despues = (await datosDe(fuente)).colportores.find((c) => c.id === florencia.id);
+    expect(despues?.acompanamientos[0]).toMatchObject({ acompanante: "Santiago Pereira", acompananteEsVos: false, origen: "COORDINADOR", nota: "Trabajamos juntos el sector norte." });
+  });
+
+  it("repetir con la misma persona es «ya estaba» y la nota nueva no se guarda; con otra persona, no se pisa", async () => {
+    const { fuente, florencia, santiago, libre } = await conJornadaLibre();
+    await fuente.registrarAcompanamiento("c", libre.id, { acompananteId: santiago.id, nota: "La primera" });
+
+    expect(await fuente.registrarAcompanamiento("c", libre.id, { acompananteId: santiago.id, nota: "Otra" })).toMatchObject({ ok: true, yaEstaba: true, nota: "La primera" });
+    expect(await fuente.registrarAcompanamiento("c", libre.id)).toMatchObject({ ok: false, recargar: true });
+    const despues = (await datosDe(fuente)).colportores.find((c) => c.id === florencia.id);
+    expect(despues?.acompanamientos[0].nota).toBe("La primera");
+  });
+
+  it("un colportor no puede acompañar su propia jornada (JO004) ni alguien de afuera de la campaña (JO005)", async () => {
+    const { fuente, florencia, libre } = await conJornadaLibre();
+
+    expect(await fuente.registrarAcompanamiento("c", libre.id, { acompananteId: florencia.id })).toMatchObject({ ok: false, mensaje: expect.stringContaining("propia jornada") });
+    expect(await fuente.registrarAcompanamiento("c", libre.id, { acompananteId: "usr-de-afuera" })).toMatchObject({ ok: false, mensaje: expect.stringContaining("no está inscripto") });
+    const despues = (await datosDe(fuente)).colportores.find((c) => c.id === florencia.id);
+    expect(despues?.acompanamientos).toEqual([]);
+  });
+
+  it("una nota de más de 500 caracteres se rechaza y la jornada queda libre", async () => {
+    const { fuente, florencia, libre } = await conJornadaLibre();
+
+    expect(await fuente.registrarAcompanamiento("c", libre.id, { nota: "a".repeat(501) })).toMatchObject({ ok: false, mensaje: expect.stringContaining("hasta 500 caracteres y esta tiene 501") });
+    expect((await datosDe(fuente)).colportores.find((c) => c.id === florencia.id)?.acompanamientos).toEqual([]);
+  });
+
+  it("el diseño: Emiliano tiene uno que marcó el colportor y uno cargado desde el panel con su nota; quien se sumó hoy cuenta desde hoy", async () => {
+    const datos = await datosDe(crearEquipoSimulado());
+    const emiliano = datos.colportores.find((c) => c.nombre === "Emiliano Sosa");
+    const rocio = datos.colportores.find((c) => c.nombre === "Rocío Benítez");
+
+    expect(emiliano?.acompanamientos.map((a) => [a.dia, a.origen, a.cargadoPor, a.nota])).toEqual([
+      ["2026-10-02", "COORDINADOR", { esVos: true }, expect.any(String)],
+      ["2026-09-08", "COLPORTOR", null, null],
+    ]);
+    expect(emiliano?.contadoDesde).toBe("2026-09-01");
+    expect(rocio?.contadoDesde).toBe(datos.hoy);
   });
 
   it("no pisa el acompañamiento de otra persona y pide recargar", async () => {
@@ -108,5 +184,24 @@ describe("fuente simulada de la vista 33", () => {
 
     const enLaOtra = (await datosDe(otra)).colportores.find((c) => c.nombre === "Florencia Pintos");
     expect(enLaOtra?.acompanamientos).toEqual([]);
+  });
+});
+
+describe("coordinadores y administradores como acompañantes (#161)", () => {
+  it("la fuente los lista sin quien tiene la sesión, y se puede registrar a nombre de uno", async () => {
+    const fuente = crearEquipoSimulado();
+    const r = await fuente.acompanantesDelPanel("c");
+    if (!r.ok) throw new Error("la simulada siempre los lista");
+    expect(r.acompanantes.map((a) => a.nombre)).toEqual(["Tomás Ibarra", "Marta Rivas", "Alicia Benítez"]);
+
+    const datos = await datosDe(fuente);
+    const colportor = datos.colportores.find((c) => c.ciudadId !== null);
+    if (!colportor) throw new Error("hay colportores con ciudad");
+    const jornadas = await fuente.jornadasParaAcompanar("c", colportor.id);
+    const libre = jornadas.ok ? jornadas.jornadas.find((j) => j.acompanante === null) : undefined;
+    if (!libre) throw new Error("hay una jornada sin acompañar");
+    const marta = r.acompanantes.find((a) => a.nombre === "Marta Rivas");
+
+    expect(await fuente.registrarAcompanamiento("c", libre.id, { acompananteId: marta?.id })).toMatchObject({ ok: true, acompanante: "Marta Rivas", yaEstaba: false });
   });
 });

@@ -8,8 +8,8 @@ import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
 /**
  * Vista 33 (HU-JOR-004, HU-CAM-006): el equipo de la campaña por ciudad, con las zonas de cada colportor (la de hoy y las
- * anteriores) y sus acompañamientos (historial, días sin acompañar y registro sobre una jornada terminada). Las becas y
- * el límite de pedido son V2 (front-coordinadores-web#68).
+ * anteriores) y sus acompañamientos (historial, días sin acompañar y registro sobre una jornada terminada) y sus becas (V2: carrera, a qué apunta y avance, todo desde la fila). El límite de
+ * pedido por colportor espera una decisión y el retoque del diseño (front-coordinadores-web#68).
  */
 export default async function PestanaEquipo() {
   // Sitio de prueba (export estático, sin servidor): no hay server actions, así que la vista le habla a la fuente

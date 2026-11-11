@@ -66,7 +66,11 @@ export function BuscadorCiudad({ buscar, excluidas, ocupado, error, onElegir, on
     <section
       aria-label="Agregar ciudad"
       onKeyDown={(e) => {
-        if (e.key === "Escape" && !ocupado) onCerrar();
+        if (e.key === "Escape" && !ocupado) {
+          // Ese Esc cierra el buscador y nada más (no la tarjeta de una casa abierta en el mapa).
+          e.stopPropagation();
+          onCerrar();
+        }
       }}
       className="flex max-w-[460px] flex-col gap-2.5 rounded-tarjeta border border-borde bg-superficie px-4 py-3.5"
     >

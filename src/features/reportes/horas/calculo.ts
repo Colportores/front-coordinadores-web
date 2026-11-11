@@ -12,6 +12,7 @@ import {
   rotuloDelMes,
   sumarDias,
 } from "@/datos/reportes/fechas";
+import { conPuntosDeMiles } from "@/lib/texto";
 
 /**
  * Cuentas de la vista 32 (HU-REP-001 y HU-REP-002): de las horas y las ventas de cada día salen los períodos (días,
@@ -19,6 +20,9 @@ import {
  */
 
 export type Granularidad = "dia" | "semana" | "mes";
+
+/** Cómo se mira el reporte: por días, semanas o meses, o un rango de fechas libre (issue #107). */
+export type ModoDeReporte = Granularidad | "rango";
 
 /** Lo que se mide día por día. `monto` y `cobrado` son los dos números de los que sale el % por cobrar. */
 export type Medida = "horas" | "presentaciones" | "ventas" | "monto" | "cobrado";
@@ -37,17 +41,68 @@ export const DIAS_EN_VISTA_DIAS = 14;
 export interface Calendario {
   inicio: Fecha;
   hoy: Fecha;
-  /** Días de la campaña hasta hoy (o hasta su último día, si ya terminó), sin domingos (no se trabaja). */
+  /**
+   * Días de la campaña hasta hoy (o hasta su último día, si ya terminó): de lunes a sábado, y los domingos solo si tienen
+   * datos (el domingo no se trabaja, pero el teléfono deja cerrar una jornada y esas horas existen, issue #116).
+   */
   diasHabiles: Fecha[];
+  /**
+   * Domingos de `diasHabiles` en un ámbito con varios colportores: suman en la semana, el mes, el rango y el gráfico, pero
+   * no son «ayer» ni el día contra el que se compara (el resto no trabajó: saldría «sin datos»). Decisión del 28/10 (mapa
+   * §2, R4): con un solo colportor, el domingo con datos sí es «ayer» del lunes.
+   */
+  domingosAparte: ReadonlySet<Fecha>;
 }
 
-export function crearCalendario(inicio: Fecha, hoy: Fecha, fin: Fecha | null = null): Calendario {
+/**
+ * Los domingos en que alguno de los colportores tiene datos: horas, ventas o jornadas con acompañamiento. Un domingo sin
+ * datos no está: no es un «día sin datos» ni corta la tendencia.
+ */
+export function domingosConDatos(colportores: readonly DiasDeColportor[]): Set<Fecha> {
+  const domingos = new Set<Fecha>();
+  for (const colportor of colportores) for (const fecha of domingosDe(colportor)) domingos.add(fecha);
+  return domingos;
+}
+
+/**
+ * Los domingos que pueden ser «ayer» de un lunes: con un solo colportor, los suyos con datos; con varios, ninguno (el
+ * domingo de uno no es el día de los demás: «ayer» sigue siendo el sábado).
+ */
+export function domingosComparables(colportores: readonly DiasDeColportor[]): Set<Fecha> {
+  return colportores.length === 1 ? domingosConDatos(colportores) : new Set();
+}
+
+function domingosDe(colportor: DiasDeColportor): Set<Fecha> {
+  const domingos = new Set<Fecha>();
+  for (const porDia of [colportor.horasPorDia, colportor.ventasPorDia, colportor.acompaniadasPorDia]) {
+    for (const fecha of Object.keys(porDia ?? {})) if (diaDeSemana(fecha) === 0) domingos.add(fecha);
+  }
+  return domingos;
+}
+
+/**
+ * El calendario de la campaña; `conDatos` son los domingos con datos (ver `domingosConDatos`), que entran como cualquier
+ * día. `comparables` son los que además sirven de «ayer» y de día de comparación (por omisión, todos los que entran): en
+ * un ámbito con varios colportores, los domingos quedan «aparte» (ver `domingosComparables`).
+ */
+export function crearCalendario(
+  inicio: Fecha,
+  hoy: Fecha,
+  fin: Fecha | null = null,
+  conDatos: ReadonlySet<Fecha> = new Set(),
+  comparables: ReadonlySet<Fecha> = conDatos,
+): Calendario {
   const ultimo = fin !== null && fin < hoy ? fin : hoy;
   const diasHabiles: Fecha[] = [];
+  const domingosAparte = new Set<Fecha>();
   for (let d = inicio; d <= ultimo; d = sumarDias(d, 1)) {
     if (diaDeSemana(d) !== 0) diasHabiles.push(d);
+    else if (conDatos.has(d)) {
+      diasHabiles.push(d);
+      if (!comparables.has(d)) domingosAparte.add(d);
+    }
   }
-  return { inicio, hoy, diasHabiles };
+  return { inicio, hoy, diasHabiles, domingosAparte };
 }
 
 /** La cifra de un día: de un colportor, o la suma de varios. */
@@ -57,7 +112,7 @@ export type Serie = (fecha: Fecha) => Cifra;
 export type Agregar = (dias: Fecha[]) => Cifra;
 
 /** Lo que hace falta de un colportor para armar sus series. `ventasPorDia` puede faltar (solo horas). */
-export type DiasDeColportor = Pick<ColportorHoras, "horasPorDia"> & Partial<Pick<ColportorHoras, "ventasPorDia">>;
+export type DiasDeColportor = Pick<ColportorHoras, "horasPorDia"> & Partial<Pick<ColportorHoras, "ventasPorDia" | "acompaniadasPorDia">>;
 
 export function serieDeColportor(colportor: DiasDeColportor, medida: Medida = "horas"): Serie {
   if (medida === "horas") {
@@ -156,13 +211,20 @@ export interface Comparacion {
   rotulo: string;
   /** Contra qué se compara: «contra S6». Vacío si no hay período anterior. */
   contra: string;
+  /**
+   * Solo en semanas: aclara que el rótulo es la última semana completa («S1 · última semana completa»), para que no
+   * parezca un error mientras corre la S2 (#167, decisión del 10/11, P1). `undefined` en días y meses.
+   */
+  aclaracion?: string;
+  /** Solo en semanas, con una semana en curso: «La S2 está en curso: se compara cuando termine.» */
+  enCurso?: string;
   actual: Cifra;
   /** Cifra del período anterior; `null` si no existe. */
   base: Cifra | null;
 }
 
 function esAyer(fecha: Fecha, hoy: Fecha): boolean {
-  // Los domingos no se trabaja: el día anterior a un lunes es el sábado.
+  // Los domingos no se trabaja: el día anterior a un lunes es el sábado (salvo que el domingo tenga datos: entonces es él).
   return fecha === sumarDias(hoy, -1) || (diaDeSemana(hoy) === 1 && fecha === sumarDias(hoy, -2));
 }
 
@@ -177,10 +239,10 @@ export function compararPeriodos(granularidad: Granularidad, serie: Serie, calen
 
 /** Lo mismo que `compararPeriodos`, para una cifra que no es una suma de días (el % por cobrar). */
 export function compararCon(granularidad: Granularidad, agregar: Agregar, calendario: Calendario): Comparacion | null {
-  const { diasHabiles, hoy } = calendario;
+  const { diasHabiles, hoy, domingosAparte } = calendario;
 
   if (granularidad === "dia") {
-    const completos = diasHabiles.filter((d) => d !== hoy);
+    const completos = diasHabiles.filter((d) => d !== hoy && !domingosAparte.has(d));
     const actual = completos.at(-1);
     if (actual === undefined) return null;
     const anterior = completos.at(-2);
@@ -193,13 +255,17 @@ export function compararCon(granularidad: Granularidad, agregar: Agregar, calend
   }
 
   if (granularidad === "semana") {
-    const completas = periodosDe("semana", calendario).filter((p) => !p.enCurso);
+    const semanas = periodosDe("semana", calendario);
+    const completas = semanas.filter((p) => !p.enCurso);
     const actual = completas.at(-1);
     if (actual === undefined) return null;
     const anterior = completas.at(-2);
+    const enCurso = semanas.find((p) => p.enCurso);
     return {
       rotulo: actual.rotulo,
       contra: anterior === undefined ? "" : `contra ${anterior.rotulo}`,
+      aclaracion: "última semana completa",
+      ...(enCurso ? { enCurso: `La ${enCurso.rotulo} está en curso: se compara cuando termine.` } : {}),
       actual: agregar(actual.dias),
       base: anterior === undefined ? null : agregar(anterior.dias),
     };
@@ -268,7 +334,7 @@ export function tendenciaEnPuntos(actual: Cifra, base: Cifra | null): Tendencia 
 
 /** Miles con punto: 1450 → «1.450». */
 export function formatearEntero(valor: number): string {
-  return String(Math.round(valor)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return conPuntosDeMiles(String(Math.round(valor)));
 }
 
 /** Una posición decimal con coma: 27.4 → «27,4». */
@@ -280,10 +346,16 @@ export function formatearDecimal(valor: number): string {
 export type MedidaMostrada = "horas" | "presentaciones" | "ventas" | "monto" | "porCobrar";
 
 /**
+ * Las columnas y tarjetas del reporte: las cifras de siempre y las tres del rango libre (issue #107): los días en que el
+ * colportor trabajó, el promedio de horas por día trabajado y las jornadas con acompañamiento.
+ */
+export type ColumnaDeReporte = MedidaMostrada | "diasTrabajados" | "promedio" | "acompaniadas";
+
+/**
  * Cifra para mostrar: «—» sin datos. Las horas van enteras si son el total de varios colportores y con un decimal si
  * son de uno; los $U con «$U » y miles con punto; el % por cobrar con «%».
  */
-export function formatearCifra(cifra: Cifra, total: boolean, medida: MedidaMostrada = "horas"): string {
+export function formatearCifra(cifra: Cifra, total: boolean, medida: ColumnaDeReporte = "horas"): string {
   if (!cifra.hayDatos) return "—";
   switch (medida) {
     case "horas":
@@ -292,6 +364,8 @@ export function formatearCifra(cifra: Cifra, total: boolean, medida: MedidaMostr
       return `$U ${formatearEntero(cifra.valor)}`;
     case "porCobrar":
       return `${cifra.valor}%`;
+    case "promedio":
+      return formatearDecimal(cifra.valor);
     default:
       return formatearEntero(cifra.valor);
   }

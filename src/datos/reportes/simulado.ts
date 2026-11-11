@@ -8,6 +8,7 @@ import type {
   VentasDelDia,
 } from "@/datos/reportes/contrato";
 import { diaDeSemana, diasEntre, sumarDias } from "@/datos/reportes/fechas";
+import { generadorDeAzar } from "@/lib/azar";
 
 /** Datos de ejemplo del diseño ("Panel Coordinador", pestaña Reportes). */
 export const DATOS_REPORTES_SIMULADOS: DatosReportes = {
@@ -54,16 +55,6 @@ function hashDeTexto(texto: string): number {
   return h >>> 0;
 }
 
-function azar(semilla: number): () => number {
-  let s = semilla | 0;
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 /** Tendencia semanal de los colportores con una historia (baja, sube, se estanca). */
 const TENDENCIA: Record<string, number[]> = {
   "Emiliano Sosa": [1.05, 1, 0.95, 0.85, 0.78, 0.7, 0.6, 0.55],
@@ -84,12 +75,13 @@ function diasHabiles(inicio: Fecha, hoy: Fecha): Fecha[] {
 }
 
 function colportorSimulado(nombre: string, dias: Fecha[]): ColportorHoras {
-  const r = azar(hashDeTexto(nombre));
+  const r = generadorDeAzar(hashDeTexto(nombre));
   const base = (23 + r() * 8) / 6;
   const tendencia = TENDENCIA[nombre] ?? SIN_TENDENCIA;
   const sinDatosDesde = SIN_DATOS[nombre] ?? null;
   const horasPorDia: Record<Fecha, number> = {};
   const ventasPorDia: Record<Fecha, VentasDelDia> = {};
+  const acompaniadasPorDia: Record<Fecha, number> = {};
   const lunesBase = "2026-08-31";
   dias.forEach((fecha, i) => {
     const semana = Math.floor(diasEntre(lunesBase, fecha) / 7);
@@ -106,10 +98,13 @@ function colportorSimulado(nombre: string, dias: Fecha[]): ColportorHoras {
       semana < 4 ? 0.9 + r() * 0.08 : semana < 6 ? 0.74 + r() * 0.12 : semana === 6 ? 0.55 + r() * 0.15 : 0.35 + r() * 0.15;
     if (!sinDatos) {
       horasPorDia[fecha] = horas;
+      // Una de cada cinco jornadas con acompañante, repartida con un hash del nombre y el día (no gasta números del azar
+      // del canvas, así que las demás cifras no cambian).
+      acompaniadasPorDia[fecha] = hashDeTexto(`${nombre}|${fecha}`) % 5 === 0 ? 1 : 0;
       ventasPorDia[fecha] = { presentaciones, ventas, monto, cobrado: Math.round(monto * tasaCobrada) };
     }
   });
-  return { id: `col-${hashDeTexto(nombre).toString(36)}`, nombre, horasPorDia, ventasPorDia, sinDatosDesde };
+  return { id: `col-${hashDeTexto(nombre).toString(36)}`, nombre, horasPorDia, acompaniadasPorDia, ventasPorDia, sinDatosDesde };
 }
 
 const CIUDADES_SIMULADAS: { id: string; nombre: string; departamento: string; colportores: string[] }[] = [

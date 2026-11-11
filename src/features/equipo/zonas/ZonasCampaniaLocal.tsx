@@ -36,6 +36,7 @@ export function ZonasCampaniaLocal({ datos }: { datos: DatosZonas }) {
       eliminarZona: async (zonaId) => (await fuenteSimulada()).eliminarZona(datos.campaniaId, zonaId),
       buscarCiudades: async (texto) => (await fuenteSimulada()).buscarCiudades(datos.campaniaId, texto),
       agregarCiudad: async (catalogoId) => (await fuenteSimulada()).agregarCiudad(datos.campaniaId, catalogoId),
+      casasDeZonas: async (zonaIds) => (await fuenteSimulada()).casasDeZonas(datos.campaniaId, zonaIds),
     }),
     [datos.campaniaId],
   );

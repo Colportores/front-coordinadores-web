@@ -1,4 +1,4 @@
-import type { CiudadDeCampania, Esquina, PoligonoGeojson, Punto, ZonaDeCiudad } from "@/datos/equipo/zonas";
+import type { CasaDeCiudad, CiudadDeCampania, Esquina, PoligonoGeojson, Punto, ZonaDeCiudad } from "@/datos/equipo/zonas";
 
 /** Lo que el coordinador está dibujando, listo para pintarlo sobre el mapa. */
 export interface DibujoEnMapa {
@@ -19,16 +19,40 @@ export interface DibujoEnMapa {
   comparte: { punto: Punto; texto: string } | null;
 }
 
+/** Los puntos de las casas sobre el mapa (diseño 24P). */
+export interface CasasEnMapa {
+  /** Las de la ciudad, ya sin los estados que se destildaron en la leyenda. */
+  casas: CasaDeCiudad[];
+  /** La casa con la tarjeta abierta. */
+  elegidaId: string | null;
+  /** Elegir una casa abre su tarjeta; `null` la cierra. */
+  onElegir(casaId: string | null): void;
+  /** El mapa avisa si, por la cantidad a la vista, agrupó los puntos (la vista pone el aviso «Acercá el mapa…»). */
+  onAgrupadas(agrupadas: boolean): void;
+}
+
 export interface PropsMapaZonas {
   ciudad: CiudadDeCampania;
   zonas: ZonaDeCiudad[];
   zonaElegidaId: string | null;
   /** `null` cuando no se está dibujando: el clic elige zonas. */
   dibujo: DibujoEnMapa | null;
+  /** Sin esta prop el mapa no dibuja casas. */
+  casas?: CasasEnMapa;
   onZonaClick(zonaId: string): void;
   onMapaClick(punto: Punto): void;
   onMapaMove(punto: Punto): void;
   onRadio(radioM: number): void;
+  /**
+   * El centro de la zona radial se movió a mano (#179): arrastrándolo (`soltado` es `false` mientras se arrastra y `true`
+   * al soltarlo) o con las flechas del teclado (siempre `true`). Sin esta prop el centro no se puede mover desde el mapa.
+   */
+  onCentro?(punto: Punto, soltado: boolean): void;
+  /**
+   * Se tocó la «×» de una esquina del dibujo (#182): `posicion` es la suya en `dibujo.esquinas` (la esquina 1 es la 0).
+   * Sin esta prop las esquinas no llevan «×».
+   */
+  onQuitarEsquina?(posicion: number): void;
 }
 
 /** Lo que se le dice al coordinador de una cuenta suspendida: no se le puede asignar zona (decisión del 30/09, coord #20). */

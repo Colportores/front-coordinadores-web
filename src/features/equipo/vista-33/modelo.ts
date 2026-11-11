@@ -1,4 +1,14 @@
-import type { ColportorDeEquipo, DatosEquipoPorCiudad } from "@/datos/equipo/contrato";
+import {
+  DIAS_DE_GRACIA_ACOMPANAMIENTO,
+  type BecaDeColportor,
+  type CargadoPor,
+  type ColportorDeEquipo,
+  type DatosEquipoPorCiudad,
+  type MetaDeBeca,
+  type OrigenDeAcompanamiento,
+  type TipoDeBeca,
+} from "@/datos/equipo/contrato";
+import { formatMonto } from "@/features/cuentas/formato";
 import { diasEntre, lunesDe, sumarDias } from "@/lib/dias";
 
 /**
@@ -14,7 +24,7 @@ export type Ambito =
 
 export const AMBITO_TODAS: Ambito = { tipo: "todas" };
 
-export type VistaEquipo = "zonas" | "acompanamientos";
+export type VistaEquipo = "zonas" | "becas" | "acompanamientos";
 
 export function mismoAmbito(a: Ambito, b: Ambito): boolean {
   switch (a.tipo) {
@@ -131,7 +141,7 @@ export interface NodoLista {
   nombre: string;
   /** Colportores con zona en el ámbito. */
   cantidad: number;
-  /** Los que no tienen zona y figuran en el ámbito además de los anteriores. */
+  /** Los que no tienen zona: solo en «Todas las ciudades» (no son de ninguna ciudad); 0 en las ciudades y departamentos. */
   sinZona: number;
   seleccionado: boolean;
 }
@@ -151,12 +161,15 @@ export interface ModeloLista {
 
 export function construirLista(datos: DatosEquipoPorCiudad, resuelto: AmbitoResuelto): ModeloLista {
   const ninguna = sinZona(datos).length;
-  const nodo = (clave: string, ambito: Ambito, nombre: string, cantidad: number): NodoLista => ({
+  // Los que no tienen zona no son de ninguna ciudad: se cuentan una sola vez, en «Todas las ciudades». Repetirlos en cada
+  // ciudad y departamento («3 + 2 sin zona» en todas) parecía sumarlos en cada una (#167). La tabla de una ciudad los sigue
+  // mostrando al final, bajo «Sin zona asignada» («Ciudad colp.»).
+  const nodo = (clave: string, ambito: Ambito, nombre: string, cantidad: number, sinZonaDelNodo = 0): NodoLista => ({
     clave,
     ambito,
     nombre,
     cantidad,
-    sinZona: ninguna,
+    sinZona: sinZonaDelNodo,
     seleccionado: mismoAmbito(ambito, resuelto.ambito),
   });
   const cuantos = (idCiudad: string) => datos.colportores.filter((c) => c.ciudadId === idCiudad).length;
@@ -186,7 +199,7 @@ export function construirLista(datos: DatosEquipoPorCiudad, resuelto: AmbitoResu
     }
   }
 
-  return { todas: nodo("todas", AMBITO_TODAS, "Todas las ciudades", datos.colportores.length - ninguna), grupos };
+  return { todas: nodo("todas", AMBITO_TODAS, "Todas las ciudades", datos.colportores.length - ninguna, ninguna), grupos };
 }
 
 /** Un renglón de la lista contraída: solo la abreviatura. */
@@ -232,17 +245,28 @@ export function ultimoAcompanamiento(colportor: ColportorDeEquipo): string | nul
 }
 
 /**
- * Días corridos desde el último acompañamiento o, si nunca lo acompañaron, desde el inicio de la campaña. Es informativo:
- * sin umbral ni alerta. Una campaña que todavía no empezó da 0.
+ * Días corridos desde el último acompañamiento o, si nunca lo acompañaron, desde `contadoDesde`: el inicio de la campaña o
+ * el día en que el colportor se sumó (o volvió), el que sea más tarde. Es informativo: sin umbral ni alerta. Una campaña
+ * que todavía no empezó da 0.
  */
-export function diasSinAcompanar(colportor: ColportorDeEquipo, campaniaInicio: string, hoy: string): number {
-  return Math.max(0, diasEntre(ultimoAcompanamiento(colportor) ?? campaniaInicio, hoy));
+export function diasSinAcompanar(colportor: ColportorDeEquipo, hoy: string): number {
+  return Math.max(0, diasEntre(ultimoAcompanamiento(colportor) ?? colportor.contadoDesde, hoy));
+}
+
+/**
+ * El renglón de abajo de «Nunca»: «50 días desde el inicio» si se cuenta desde el inicio de la campaña, «20 días desde que
+ * se sumó» si el colportor llegó después (decisión «Días acomp.»; si volvió, es desde la vuelta).
+ */
+export function textoDesdeCuandoSeCuenta(colportor: ColportorDeEquipo, campaniaInicio: string, hoy: string): string {
+  const dias = diasSinAcompanar(colportor, hoy);
+  const desde = colportor.contadoDesde > campaniaInicio ? "desde que se sumó" : "desde el inicio";
+  return `${dias} ${dias === 1 ? "día" : "días"} ${desde}`;
 }
 
 /** Los que hace más días no acompaña nadie, primero; a igualdad, por nombre. */
-export function ordenarPorDiasSinAcompanar(colportores: ColportorDeEquipo[], campaniaInicio: string, hoy: string): ColportorDeEquipo[] {
+export function ordenarPorDiasSinAcompanar(colportores: ColportorDeEquipo[], hoy: string): ColportorDeEquipo[] {
   return colportores
-    .map((c) => ({ c, dias: diasSinAcompanar(c, campaniaInicio, hoy) }))
+    .map((c) => ({ c, dias: diasSinAcompanar(c, hoy) }))
     .sort((a, b) => b.dias - a.dias || porNombre(a.c.nombre, b.c.nombre))
     .map(({ c }) => c);
 }
@@ -287,4 +311,155 @@ export function textoHoras(horas: number | null): string {
 /** «Mariana Pérez (vos)» cuando quien acompañó es quien tiene la sesión, como en el canvas. */
 export function nombreDeAcompanante(nombre: string, esVos: boolean): string {
   return esVos ? `${nombre} (vos)` : nombre;
+}
+
+/**
+ * De dónde salió un acompañamiento, como en el diseño: «lo marcó en el celular», «cargado por vos» o «cargado por
+ * <nombre>». Si la base no dice quién lo cargó (filas anteriores a ese dato), «cargado desde el panel», que es cierto.
+ * Sin dato de origen no se inventa: `null`.
+ */
+export function textoDeOrigen(origen: OrigenDeAcompanamiento | null, cargadoPor?: CargadoPor | null): string | null {
+  if (origen === "COLPORTOR") return "lo marcó en el celular";
+  if (origen !== "COORDINADOR") return null;
+  if (cargadoPor?.esVos) return "cargado por vos";
+  if (cargadoPor && cargadoPor.nombre.trim() !== "") return `cargado por ${cargadoPor.nombre}`;
+  return "cargado desde el panel";
+}
+
+/**
+ * Pasaron más de 15 días del fin de la campaña (CZ011): ya no se registran acompañamientos y los que hay quedan como
+ * están. El día 15 todavía se acepta y el 16 no.
+ */
+export function plazoVencido(campaniaFin: string | null, hoy: string): boolean {
+  return campaniaFin !== null && diasEntre(campaniaFin, hoy) > DIAS_DE_GRACIA_ACOMPANAMIENTO;
+}
+
+/** Cuántos caracteres tiene un texto contados como los cuenta el servidor (letras, no unidades de UTF-16). */
+export function largoDeTexto(texto: string): number {
+  return Array.from(texto).length;
+}
+
+/** Corta un texto en `maximo` caracteres sin partir ninguno por la mitad. */
+export function cortarTexto(texto: string, maximo: number): string {
+  const letras = Array.from(texto);
+  return letras.length <= maximo ? texto : letras.slice(0, maximo).join("");
+}
+
+/** En qué medida se ve el avance de la beca: es la misma meta en libros bonificables o en compra a la CES. */
+export type UnidadDeAvance = "libros" | "ces";
+
+export const UNIDAD_POR_DEFECTO: UnidadDeAvance = "libros";
+
+export function esUnidadDeAvance(valor: unknown): valor is UnidadDeAvance {
+  return valor === "libros" || valor === "ces";
+}
+
+/** Se nombra la beca entera: un «Completa» suelto se leía como «cumplió la meta» (Cristian, 11/11). */
+export const ETIQUETA_DE_TIPO: Record<TipoDeBeca, string> = { media: "Media beca", completa: "Beca completa" };
+
+/** Las tres opciones de «Apunta a»: media, completa y «Sin beca» (`null`, como `tipo_beca` en el esquema). */
+export const OPCIONES_DE_TIPO: { tipo: TipoDeBeca | null; etiqueta: string }[] = [
+  { tipo: "media", etiqueta: ETIQUETA_DE_TIPO.media },
+  { tipo: "completa", etiqueta: ETIQUETA_DE_TIPO.completa },
+  { tipo: null, etiqueta: "Sin beca" },
+];
+
+/** Lo que muestra la columna de avance de un colportor en la tabla «Becas». */
+export type AvanceDeBeca =
+  | { tipo: "sin-carrera" }
+  | { tipo: "sin-tipo" }
+  | {
+      /** Sin beca, pero ya alcanzó una meta: se ve lo vendido, sin meta que medir («Logro beca»). */
+      tipo: "lograda";
+      /** «130 libros vendidos · alcanzó la beca completa». */
+      texto: string;
+    }
+  | {
+      tipo: "con-meta";
+      /** «64 de 120 libros · le faltan 56 · 53 %»; con la meta cumplida, «130 de 120 libros · meta alcanzada · 108 %». */
+      texto: string;
+      /** De 0 a 100, para el ancho de la barra. */
+      porcentaje: number;
+      alcanzada: boolean;
+    };
+
+function enMedida(meta: MetaDeBeca, unidad: UnidadDeAvance): number {
+  return unidad === "libros" ? meta.libros : meta.monto;
+}
+
+/** «1 libro», «120 libros». */
+function libros(cantidad: number): string {
+  return `${cantidad} ${cantidad === 1 ? "libro" : "libros"}`;
+}
+
+/**
+ * El avance de un colportor hacia su meta, en libros bonificables o en compra a la CES (`unidad`). «Meta alcanzada» se dice
+ * por la medida que se mira: con la compra a la CES coincide con el Estado de la fila; en libros, solo si los libros llegaron Y el Estado es
+ * alcanzada (`alcanzoLaBeca`): si los libros llegaron pero la compra a la CES no, dice «falta la compra a la CES» y la barra sigue como «En
+ * progreso» («Beca alcanz.», decisión del 29/10; un texto que dice «alcanzada» junto a «En progreso» miente). Sin carrera o sin
+ * tipo no hay meta («Sin meta: falta la carrera»); una meta en 0 tampoco se puede medir, así que cuenta como sin tipo.
+ */
+export function avanceDeBeca(beca: BecaDeColportor | undefined, unidad: UnidadDeAvance, alcanzoLaBeca: boolean): AvanceDeBeca {
+  if (!beca || !beca.carrera) return { tipo: "sin-carrera" };
+  const meta = beca.meta;
+  if (!meta || beca.apuntaA === null || enMedida(meta, unidad) <= 0) {
+    if (beca.apuntaA === null && beca.alcanzada) {
+      const vendido = unidad === "libros" ? `${beca.avance.libros} ${beca.avance.libros === 1 ? "libro vendido" : "libros vendidos"}` : `${formatMonto(beca.avance.monto)} de compra a la CES`;
+      return { tipo: "lograda", texto: `${vendido} · alcanzó ${beca.alcanzada === "completa" ? "la beca completa" : "la media beca"}` };
+    }
+    return { tipo: "sin-tipo" };
+  }
+  const logrado = enMedida(beca.avance, unidad);
+  const objetivo = enMedida(meta, unidad);
+  const falta = Math.max(0, objetivo - logrado);
+  const llegoLaMeta = falta === 0;
+  // En libros, llegar a la meta no alcanza la beca: sin el Estado alcanzada falta la compra a la CES.
+  const alcanzada = llegoLaMeta && (unidad !== "libros" || alcanzoLaBeca);
+  const cola = alcanzada ? "meta alcanzada" : llegoLaMeta ? "falta la compra a la CES" : `${falta === 1 ? "le falta" : "le faltan"} ${unidad === "libros" ? falta : formatMonto(falta)}`;
+  // El mismo redondeo y sin tope que el filtro y el orden por avance (`porcentajeDeAvance`): lo que se lee es lo que se filtra.
+  const porcentajeReal = Math.round((logrado / objetivo) * 100);
+  const texto =
+    unidad === "libros"
+      ? `${logrado} de ${libros(objetivo)} · ${cola} · ${porcentajeReal} %`
+      : `${formatMonto(logrado)} de ${formatMonto(objetivo)} · ${cola} · ${porcentajeReal} %`;
+  return { tipo: "con-meta", texto, porcentaje: Math.max(0, Math.min(100, porcentajeReal)), alcanzada };
+}
+
+/**
+ * «Rocío Benítez quedó sin beca: ya no tiene meta.»; si ya había alcanzado una, «…pero conserva la beca completa alcanzada.»
+ * (lo alcanzado no se pierde).
+ */
+export function avisoDeSinBeca(nombre: string, beca?: BecaDeColportor): string {
+  if (beca?.alcanzada) {
+    return `${nombre} quedó sin beca: ya no tiene meta, pero conserva ${beca.alcanzada === "completa" ? "la beca completa alcanzada" : "la media beca alcanzada"}.`;
+  }
+  return `${nombre} quedó sin beca: ya no tiene meta.`;
+}
+
+/**
+ * En una campaña permanente no hay becas («Beca perman.», Cristian 27/10). Es permanente la de `tipo` PERMANENTE, el mismo
+ * dato por el que el servidor rechaza (BC006); la fecha de fin no cuenta: la base no ata `fecha_fin` nula con ese tipo.
+ */
+export function esCampaniaPermanente(datos: Pick<DatosEquipoPorCiudad, "campaniaTipo">): boolean {
+  return datos.campaniaTipo === "PERMANENTE";
+}
+
+export const TEXTO_SIN_BECAS_EN_PERMANENTE =
+  "En una campaña permanente no hay becas. Para dar una media beca o una beca completa, el colportor tiene que estar en una campaña de verano o de invierno.";
+
+/** «Carrera corregida: meta de Teología» (`metaRecalculadaEn`, «Carrera corr»). */
+export function textoDeCarreraCorregida(carreraNombre: string): string {
+  return `Carrera corregida: meta de ${carreraNombre}`;
+}
+
+/** La meta que quedó tras corregir la carrera, en las dos medidas: «Meta nueva: 100 libros · $U 150.000 a la CES». */
+export function textoDeMetaNueva(meta: MetaDeBeca): string {
+  return `Meta nueva: ${libros(meta.libros)} · ${formatMonto(meta.monto)} a la CES`;
+}
+
+/** «Rocío Benítez ahora apunta a beca completa: meta de 240 libros y $U 360.000 a la CES.» */
+export function avisoDeBecaAsignada(nombre: string, beca: BecaDeColportor): string {
+  if (!beca.apuntaA || !beca.meta) return `Quedó guardado el cambio de ${nombre}.`;
+  const tipo = beca.apuntaA === "completa" ? "beca completa" : "media beca";
+  return `${nombre} ahora apunta a ${tipo}: meta de ${libros(beca.meta.libros)} y ${formatMonto(beca.meta.monto)} a la CES.`;
 }

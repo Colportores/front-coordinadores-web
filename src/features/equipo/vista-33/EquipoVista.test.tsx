@@ -13,7 +13,7 @@ const J2: JornadaParaAcompanar = { id: "j2", dia: "2026-10-19", horas: 4, acompa
 const J3: JornadaParaAcompanar = { id: "j3", dia: "2026-10-17", horas: 3.2, acompanante: null, acompananteEsVos: false };
 
 function ok(dia: string): ResultadoAcompanamiento {
-  return { ok: true, dia, acompanante: "Mariana Pérez", yaEstaba: false };
+  return { ok: true, dia, acompanante: "Mariana Pérez", yaEstaba: false, origen: null, nota: null };
 }
 
 function crearAcciones(jornadas: JornadaParaAcompanar[] = [J1, J2, J3]) {
@@ -21,7 +21,9 @@ function crearAcciones(jornadas: JornadaParaAcompanar[] = [J1, J2, J3]) {
   const registrarAcompanamiento = vi.fn<AccionesEquipo["registrarAcompanamiento"]>(async (id): Promise<ResultadoAcompanamiento> =>
     ok(jornadas.find((j) => j.id === id)?.dia ?? HOY),
   );
-  return { jornadasParaAcompanar, registrarAcompanamiento } satisfies AccionesEquipo;
+  const elegirCarrera = vi.fn<AccionesEquipo["elegirCarrera"]>(async () => ({ ok: false, mensaje: "Sin becas en este test." }));
+  const asignarTipoDeBeca = vi.fn<AccionesEquipo["asignarTipoDeBeca"]>(async () => ({ ok: false, mensaje: "Sin becas en este test." }));
+  return { jornadasParaAcompanar, registrarAcompanamiento, elegirCarrera, asignarTipoDeBeca } satisfies AccionesEquipo;
 }
 
 function mostrar(datos = datosDePrueba(), acciones: AccionesEquipo = crearAcciones()) {
@@ -53,10 +55,12 @@ describe("EquipoVista · la lista de ciudades", () => {
     expect(within(nav).getByRole("heading", { name: "DEPTO. ARTIGAS" })).toBeInTheDocument();
     expect(within(nav).getByRole("heading", { name: "DEPTO. RIVERA" })).toBeInTheDocument();
     expect(within(nav).getByRole("button", { name: "Todas las ciudades, 4 colportores y 1 sin zona" })).toHaveAttribute("aria-current", "true");
-    expect(within(nav).getByRole("button", { name: "Todo el departamento, 2 colportores y 1 sin zona" })).toBeInTheDocument();
-    expect(within(nav).getByRole("button", { name: "Rivera, 2 colportores y 1 sin zona" })).toBeInTheDocument();
-    expect(within(nav).getByRole("button", { name: "Bella Unión, 1 colportor y 1 sin zona" })).toBeInTheDocument();
-    // Los que no tienen zona se suman a cada renglón: no tienen uno propio.
+    expect(within(nav).getByRole("button", { name: "Todo el departamento, 2 colportores" })).toBeInTheDocument();
+    expect(within(nav).getByRole("button", { name: "Rivera, 2 colportores" })).toBeInTheDocument();
+    expect(within(nav).getByRole("button", { name: "Bella Unión, 1 colportor" })).toBeInTheDocument();
+    // Los que no tienen zona se cuentan una sola vez, en «Todas las ciudades» (#167): ni en cada ciudad ni con un renglón propio.
+    expect(within(nav).getByRole("button", { name: "Todas las ciudades, 4 colportores y 1 sin zona" })).toHaveTextContent("4 + 1 sin zona");
+    expect(within(nav).getByRole("button", { name: "Rivera, 2 colportores" })).not.toHaveTextContent("sin zona");
     expect(within(nav).queryByRole("button", { name: /^Sin zona asignada/ })).not.toBeInTheDocument();
   });
 
@@ -206,6 +210,36 @@ describe("EquipoVista · pendientes de acción", () => {
     expect(screen.getByText("3 personas pidieron entrar a la campaña")).toBeInTheDocument();
   });
 
+  it("una cuenta suspendida sin zona no es un pendiente (no se le puede asignar zona, #167), pero sigue en la tabla", async () => {
+    const datos = datosDePrueba({
+      solicitudesPendientes: 0,
+      colportores: [
+        colportor({ id: "a", nombre: "Ana Sosa", ciudadId: null, zonaActual: null }),
+        colportor({ id: "s", nombre: "Sergio Píriz", ciudadId: null, zonaActual: null, suspendido: true }),
+      ],
+    });
+    const { usuario } = mostrar(datos);
+
+    await irAAcompanamientos(usuario);
+
+    const pendientes = screen.getByRole("list", { name: "Pendientes de acción" });
+    expect(within(pendientes).getByText("Ana Sosa no tiene zona asignada")).toBeInTheDocument();
+    expect(within(pendientes).queryByText(/Sergio Píriz|2 colportores/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("Sergio Píriz").length).toBeGreaterThan(0);
+  });
+
+  it("si el único sin zona está suspendido, no hay franja", async () => {
+    const datos = datosDePrueba({
+      solicitudesPendientes: 0,
+      colportores: [colportor({ id: "s", nombre: "Sergio Píriz", ciudadId: null, zonaActual: null, suspendido: true })],
+    });
+    const { usuario } = mostrar(datos);
+
+    await irAAcompanamientos(usuario);
+
+    expect(screen.queryByRole("list", { name: "Pendientes de acción" })).not.toBeInTheDocument();
+  });
+
   it("sin nada pendiente no hay franja", () => {
     mostrar(datosDePrueba({ solicitudesPendientes: 0 }));
 
@@ -320,8 +354,8 @@ describe("EquipoVista · pestaña Acompañamientos", () => {
       hoy: "2026-09-02",
       colportores: [
         colportor({ id: "n", nombre: "Nunca Uno" }),
-        colportor({ id: "h", nombre: "Hoy Dos", acompanamientos: [{ jornadaId: "1", dia: "2026-09-02", horas: 1, acompanante: "X", acompananteEsVos: false }] }),
-        colportor({ id: "a", nombre: "Ayer Tres", acompanamientos: [{ jornadaId: "2", dia: "2026-09-01", horas: 1, acompanante: "X", acompananteEsVos: false }] }),
+        colportor({ id: "h", nombre: "Hoy Dos", acompanamientos: [{ jornadaId: "1", dia: "2026-09-02", horas: 1, acompanante: "X", acompananteEsVos: false, origen: null, nota: null }] }),
+        colportor({ id: "a", nombre: "Ayer Tres", acompanamientos: [{ jornadaId: "2", dia: "2026-09-01", horas: 1, acompanante: "X", acompananteEsVos: false, origen: null, nota: null }] }),
       ],
     });
     const { usuario } = mostrar(datos);
@@ -397,7 +431,7 @@ describe("EquipoVista · pestaña Acompañamientos", () => {
   it("una jornada todavía abierta figura «en curso»", async () => {
     const datos = datosDePrueba({
       colportores: [
-        colportor({ id: "a", nombre: "Abierta", acompanamientos: [{ jornadaId: "1", dia: HOY, horas: null, acompanante: "Mariana Pérez", acompananteEsVos: true }] }),
+        colportor({ id: "a", nombre: "Abierta", acompanamientos: [{ jornadaId: "1", dia: HOY, horas: null, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: null, nota: null }] }),
       ],
     });
     const { usuario } = mostrar(datos);
@@ -460,7 +494,7 @@ describe("EquipoVista · registrar un acompañamiento", () => {
     await usuario.click(botonDe("mar 20/10"));
 
     expect(acciones.registrarAcompanamiento).toHaveBeenCalledTimes(1);
-    expect(acciones.registrarAcompanamiento).toHaveBeenCalledWith("j1");
+    expect(acciones.registrarAcompanamiento).toHaveBeenCalledWith("j1", {});
     expect(await screen.findByText("Acompañamiento registrado: jornada de Florencia Pintos, mar 20/10.")).toBeInTheDocument();
     const florencia = within(fila(/^Florencia Pintos/));
     expect(florencia.getByText("ayer")).toBeInTheDocument();
@@ -571,7 +605,7 @@ describe("EquipoVista · registrar un acompañamiento", () => {
 
   it("si ya figuraba a nombre del coordinador lo dice y no suma otro acompañamiento", async () => {
     const acciones = crearAcciones();
-    acciones.registrarAcompanamiento.mockResolvedValueOnce({ ok: true, dia: "2026-10-20", acompanante: "Mariana Pérez", yaEstaba: true });
+    acciones.registrarAcompanamiento.mockResolvedValueOnce({ ok: true, dia: "2026-10-20", acompanante: "Mariana Pérez", yaEstaba: true, origen: null, nota: null });
     const { usuario } = await abrir("Florencia Pintos", acciones);
     await screen.findByRole("list", { name: /Jornadas terminadas/ });
 
@@ -737,6 +771,8 @@ describe("EquipoVista · datos límite", () => {
       horas: 4,
       acompanante: "Mariana Pérez",
       acompananteEsVos: true,
+      origen: null,
+      nota: null,
     }));
     const { usuario } = mostrar(datosDePrueba({ colportores: [colportor({ id: "m", nombre: "Muchos", acompanamientos: lista })] }));
     await irAAcompanamientos(usuario);

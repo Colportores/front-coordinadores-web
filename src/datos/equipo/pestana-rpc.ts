@@ -1,14 +1,22 @@
 import type {
   AcompanamientoDeColportor,
+  CargadoPor,
   CiudadDeEquipo,
   ColportorDeEquipo,
+  DatosDeAcompanamiento,
+  DatosDeBecas,
   DatosEquipoPorCiudad,
   FuenteDatosEquipo,
   JornadaParaAcompanar,
+  OrigenDeAcompanamiento,
   ResultadoAcompanamiento,
+  ResultadoAcompanantes,
+  ResultadoBeca,
   ResultadoJornadas,
   ZonaAnterior,
 } from "@/datos/equipo/contrato";
+import { LARGO_MAXIMO_NOTA } from "@/datos/equipo/contrato";
+import { asignarTipoDeBecaRpc, elegirCarreraRpc, leerBecas } from "@/datos/equipo/becas-rpc";
 import { campaniaProvisoriaConFechas } from "@/datos/supabase/campania-provisoria";
 import { causaDe, ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
 import {
@@ -28,18 +36,20 @@ import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
 /**
  * Fuente de la vista 33 (HU-JOR-004, HU-CAM-006) contra las RPC de Supabase (ADR-013): `campanias_del_coordinador()`,
  * `ciudades_de_campania()`, `zonas_por_colportor()` (la zona de hoy, las anteriores con sus fechas y las casas),
- * `historial_de_acompaniamientos()` (todos los acompañamientos de la campaña de una sola vez),
- * `jornadas_cerradas_de_colportor()` y `agregar_acompaniamiento()`. Habla con un `ClienteRpc`, o sea con el JWT del
- * coordinador.
+ * `historial_de_acompaniamientos()` (todos los acompañamientos de la campaña de una sola vez, con su origen, su nota y quién los cargó desde el panel),
+ * `acompaniamientos_por_colportor()` (solo por `contado_desde`), `jornadas_cerradas_de_colportor()` y
+ * `agregar_acompaniamiento()` (con otro colportor y una nota opcional, migración 0100). Habla con un `ClienteRpc`, o sea
+ * con el JWT del coordinador.
  *
  * Los «días sin acompañar» y el total de cada colportor no se piden a `acompaniamientos_por_colportor()`: salen del mismo
- * historial que se muestra en «Ver historial», así que la tabla y el historial no se pueden contradecir.
+ * historial que se muestra en «Ver historial», así que la tabla y el historial no se pueden contradecir. De esa RPC sale
+ * una sola cosa, `contado_desde`: desde cuándo se cuentan los días de quien nunca fue acompañado.
  *
  * El departamento de cada ciudad sale de `ciudades_de_campania()` (0066): una ciudad vieja sin cargar queda en `null`.
- * Lo que la base todavía no tiene y por eso queda sin conectar: la nota y el origen del dato de un acompañamiento,
- * elegir a otro colportor como acompañante y las solicitudes para entrar a la campaña (`solicitudesPendientes` es siempre 0). Ver los pendientes del PR.
+ * Las becas (catálogo, beca de cada uno, elegir carrera y tipo) salen de `becas-rpc.ts`. Lo que la base todavía no tiene y por eso queda sin conectar: las solicitudes para entrar a la campaña
+ * (`solicitudesPendientes` es siempre 0). Ver los pendientes del PR.
  *
- * Los rechazos de la base (`JO001`…`JO004`, `CZ001`, `CZ011`, `42501`, `22023`) se traducen al texto para mostrar: las
+ * Los rechazos de la base (`JO001`…`JO005`, `CZ001`, `CZ011`, `42501`, `22023`) se traducen al texto para mostrar: las
  * pantallas no conocen códigos. Una falla de conexión, de servicio o de sesión no es un rechazo y sale como excepción
  * (la vista la muestra como «sin conexión»). **Ninguna falla se toma por una lista vacía.**
  */
@@ -47,19 +57,31 @@ import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
 const CUENTA_SIN_NOMBRE = "Cuenta sin nombre";
 
 /** Los códigos cuyo `message` es el texto para mostrar (migraciones 0006, 0008, 0033 y 0043). */
-const CODIGOS_CON_TEXTO = new Set(["CZ001", "CZ011", "JO001", "JO002", "JO003", "JO004"]);
+const CODIGOS_CON_TEXTO = new Set(["CZ001", "CZ011", "JO001", "JO002", "JO003", "JO004", "JO005", "22023"]);
 
 // Los mismos textos que manda la base, por si un rechazo llega sin mensaje o un id inválido se frena antes de llamar.
 const SIN_PERMISO_JORNADAS = "Solo el coordinador de la campaña puede ver las jornadas de su equipo.";
 const SIN_PERMISO_REGISTRAR = "Solo el coordinador de la campaña puede registrar acompañamientos en ella.";
 const JORNADA_INEXISTENTE = "La jornada no existe o no es de un colportor de esta campaña. Recargá las jornadas y elegí otra.";
 const COLPORTOR_FUERA_DE_CAMPANIA = "El colportor no está en esta campaña.";
+const ACOMPANANTE_FUERA_DE_CAMPANIA = "Ese colportor no está inscripto en esta campaña. Elegí a alguien de su equipo.";
+const NOTA_LARGA = `La nota admite hasta ${LARGO_MAXIMO_NOTA} caracteres. Acortala; no pongas datos de clientes.`;
 const JORNADAS_RECHAZADAS = "No se pudieron traer las jornadas. Probá de nuevo más tarde.";
+const SIN_PERMISO_ACOMPANANTES = "Solo el coordinador de la campaña puede ver a quién anotar como acompañante.";
+const ACOMPANANTES_RECHAZADOS = "No se pudieron traer los coordinadores y administradores. Probá de nuevo más tarde.";
 const REGISTRO_RECHAZADO = "No se pudo registrar el acompañamiento. Probá de nuevo más tarde.";
 
 /** Un rechazo de la regla se traduce; una caída, un 5xx o una sesión vencida siguen como excepción. */
 function esRechazo(error: unknown): error is ErrorSupabase {
   return error instanceof ErrorSupabase && causaDe(error) === "rechazo";
+}
+
+/**
+ * La base todavía no tiene la función (PostgREST contesta 404 `PGRST202`; Postgres, `42883`): no es un permiso negado ni una
+ * caída, es que el backend aún no la publicó (backend-supabase#257).
+ */
+function laRpcNoExiste(error: unknown): boolean {
+  return error instanceof ErrorSupabase && (error.codigo === "PGRST202" || error.codigo === "42883");
 }
 
 /** La campaña se terminó o se dio de baja entre una llamada y la siguiente: ya no hay campaña que mostrar. */
@@ -75,6 +97,30 @@ function dia(rpc: string, fila: Objeto, campo: string): string {
 
 function horasONulas(rpc: string, fila: Objeto, campo: string): number | null {
   return fila[campo] === null || fila[campo] === undefined ? null : numero(rpc, fila, campo);
+}
+
+/** `COLPORTOR`, `COORDINADOR` o `null`; cualquier otra cosa es una respuesta que el panel no entiende. */
+function origenDe(rpc: string, fila: Objeto): OrigenDeAcompanamiento | null {
+  const valor = cadenaONula(rpc, fila, "acompaniamiento_origen");
+  if (valor === null || valor === "COLPORTOR" || valor === "COORDINADOR") return valor;
+  throw new RespuestaInesperada(rpc, `\`acompaniamiento_origen\` no es un origen conocido (${valor})`);
+}
+
+/**
+ * Quién cargó el acompañamiento (0116): el servidor manda el id y el nombre de quien lo registró desde el panel. Si es
+ * quien tiene la sesión, «vos»; si no, su nombre. Sin id (lo marcó el colportor o es anterior a la 0116) o sin nombre
+ * que mostrar, `null`: no se inventa quién fue.
+ */
+function cargadoPorDe(rpc: string, fila: Objeto, yo: string | null): CargadoPor | null {
+  const id = cadenaONula(rpc, fila, "acompaniamiento_cargado_por");
+  if (id === null) return null;
+  if (yo !== null && id === yo) return { esVos: true };
+  const nombre = nombreVisible(
+    cadenaONula(rpc, fila, "acompaniamiento_cargado_por_nombre") ?? "",
+    cadenaONula(rpc, fila, "acompaniamiento_cargado_por_apellido") ?? "",
+    "",
+  );
+  return nombre === "" ? null : { esVos: false, nombre };
 }
 
 function aAnterior(rpc: string, tramo: Objeto): ZonaAnterior {
@@ -104,6 +150,9 @@ function acompanamientosPorColportor(filasHistorial: Objeto[], yo: string | null
         CUENTA_SIN_NOMBRE,
       ),
       acompananteEsVos: yo !== null && cadenaONula(rpc, fila, "acompaniante_id") === yo,
+      origen: origenDe(rpc, fila),
+      cargadoPor: cargadoPorDe(rpc, fila, yo),
+      nota: cadenaONula(rpc, fila, "acompaniamiento_nota"),
     });
     porColportor.set(colportorId, lista);
   }
@@ -136,7 +185,10 @@ function textoDeRechazo(error: ErrorSupabase, sinPermiso: string, generico: stri
   return CODIGOS_CON_TEXTO.has(error.codigo) && error.message !== "" ? error.message : generico;
 }
 
-type FuentePestana = Pick<FuenteDatosEquipo, "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento">;
+type FuentePestana = Pick<
+  FuenteDatosEquipo,
+  "obtenerEquipoPorCiudad" | "acompanantesDelPanel" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
+>;
 
 export function crearFuentePestanaRpc(
   cliente: ClienteRpc,
@@ -155,19 +207,47 @@ export function crearFuentePestanaRpc(
           cliente.llamarRpc("ciudades_de_campania", argumentos),
           cliente.llamarRpc("zonas_por_colportor", argumentos),
           cliente.llamarRpc("historial_de_acompaniamientos", { ...argumentos, p_colportor_id: null }),
+          cliente.llamarRpc("acompaniamientos_por_colportor", argumentos),
           miId(cliente),
+          // Solo para saber quién tiene la cuenta suspendida: `zonas_por_colportor()` no lo trae (#167). Esta no lee una
+          // campaña terminada (`CZ011`), que Equipo sí muestra: ahí nadie queda marcado (no hay zonas que asignar).
+          cliente.llamarRpc("colportores_de_campania", argumentos).catch((error: unknown) => {
+            if (error instanceof ErrorSupabase && error.codigo === "CZ011") return [];
+            throw error;
+          }),
+          // Las becas (`becas-rpc.ts`): sin sus RPC publicadas o con la campaña terminada vienen en null (sin pestaña «Becas»).
+          leerBecas(cliente, campania.id),
         ]);
       } catch (error) {
         if (campaniaYaNoVigente(error)) return null;
         throw error;
       }
-      const [ciudadesCrudas, colportoresCrudos, historialCrudo, yo] = respuestas as [unknown, unknown, unknown, string | null];
+      const [ciudadesCrudas, colportoresCrudos, historialCrudo, tablaCruda, yo, inscriptosCrudos, becas] = respuestas as [
+        unknown,
+        unknown,
+        unknown,
+        unknown,
+        string | null,
+        unknown,
+        DatosDeBecas | null,
+      ];
+
+      const rpcInscriptos = "colportores_de_campania";
+      const suspendidos = new Set<string>();
+      for (const fila of filas(rpcInscriptos, inscriptosCrudos)) {
+        if (booleano(rpcInscriptos, fila, "suspendido")) suspendidos.add(cadena(rpcInscriptos, fila, "usuario_id"));
+      }
 
       const ciudades = new Map<string, CiudadDeEquipo>();
       for (const fila of filas("ciudades_de_campania", ciudadesCrudas)) {
         const id = cadena("ciudades_de_campania", fila, "ciudad_id");
         ciudades.set(id, { id, nombre: cadena("ciudades_de_campania", fila, "nombre"), departamento: cadenaONula("ciudades_de_campania", fila, "departamento") });
       }
+
+      // `contado_desde` de cada uno; a quien la tabla no trae se le cuenta desde el inicio de la campaña, como decía el diseño.
+      const rpcTabla = "acompaniamientos_por_colportor";
+      const contadoDesde = new Map<string, string>();
+      for (const fila of filas(rpcTabla, tablaCruda)) contadoDesde.set(cadena(rpcTabla, fila, "colportor_id"), dia(rpcTabla, fila, "contado_desde"));
 
       const acompanamientos = acompanamientosPorColportor(filas("historial_de_acompaniamientos", historialCrudo), yo);
       const rpc = "zonas_por_colportor";
@@ -196,6 +276,8 @@ export function crearFuentePestanaRpc(
           zonasAnteriores: listaDeObjetos(rpc, fila, "zonas_anteriores").map((tramo) => aAnterior(rpc, tramo)),
           casasRegistradas: numero(rpc, fila, "casas_registradas"),
           acompanamientos: acompanamientos.get(id) ?? [],
+          contadoDesde: contadoDesde.get(id) ?? campania.fechaInicio,
+          ...(suspendidos.has(id) ? { suspendido: true } : {}),
         };
       });
 
@@ -204,11 +286,43 @@ export function crearFuentePestanaRpc(
         campania: campania.nombre,
         campaniaInicio: campania.fechaInicio,
         campaniaFin: campania.fechaFin,
+        campaniaTipo: campania.tipo,
         hoy: hoyEnMontevideo(ahora()),
         ciudades: Array.from(ciudades.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
         colportores,
         solicitudesPendientes: 0,
+        becas,
       };
+    },
+
+    async elegirCarrera(campaniaId, colportorId, carreraId): Promise<ResultadoBeca> {
+      return elegirCarreraRpc(cliente, campaniaId, colportorId, carreraId);
+    },
+
+    async asignarTipoDeBeca(campaniaId, colportorId, tipo): Promise<ResultadoBeca> {
+      return asignarTipoDeBecaRpc(cliente, campaniaId, colportorId, tipo);
+    },
+
+    async acompanantesDelPanel(campaniaId): Promise<ResultadoAcompanantes> {
+      const rpc = "acompaniantes_del_panel";
+      try {
+        const [crudas, yo] = await Promise.all([cliente.llamarRpc(rpc, { p_campania_id: campaniaId }), miId(cliente)]);
+        const vistos = new Set<string>();
+        const acompanantes = [];
+        for (const fila of filas(rpc, crudas)) {
+          const id = cadena(rpc, fila, "usuario_id");
+          // Quien tiene la sesión es «Yo», no «otro»; y la base puede traer a la misma persona por más de un rol.
+          if (id === yo || vistos.has(id)) continue;
+          vistos.add(id);
+          acompanantes.push({ id, nombre: nombreVisible(cadenaONula(rpc, fila, "nombre") ?? "", cadenaONula(rpc, fila, "apellido") ?? "", CUENTA_SIN_NOMBRE) });
+        }
+        return { ok: true, acompanantes };
+      } catch (error) {
+        // Sin la RPC publicada el selector queda como antes (solo los colportores): no es un error que mostrarle a nadie.
+        if (laRpcNoExiste(error)) return { ok: true, acompanantes: [] };
+        if (esRechazo(error)) return { ok: false, mensaje: textoDeRechazo(error, SIN_PERMISO_ACOMPANANTES, ACOMPANANTES_RECHAZADOS) };
+        throw error;
+      }
     },
 
     async jornadasParaAcompanar(campaniaId, colportorId): Promise<ResultadoJornadas> {
@@ -226,11 +340,23 @@ export function crearFuentePestanaRpc(
       }
     },
 
-    async registrarAcompanamiento(campaniaId, jornadaId): Promise<ResultadoAcompanamiento> {
+    async registrarAcompanamiento(campaniaId, jornadaId, datos: DatosDeAcompanamiento = {}): Promise<ResultadoAcompanamiento> {
       if (!UUID.test(jornadaId)) return { ok: false, mensaje: JORNADA_INEXISTENTE, recargar: true };
+      // El id del acompañante viene del navegador: si no es una cuenta, no es nadie de la campaña.
+      if (datos.acompananteId !== undefined && !UUID.test(datos.acompananteId)) return { ok: false, mensaje: ACOMPANANTE_FUERA_DE_CAMPANIA };
+      // La nota se recorta acá igual que en el servidor; el tope se cuenta en caracteres, no en unidades de UTF-16.
+      const nota = datos.nota?.trim() ?? "";
+      if (Array.from(nota).length > LARGO_MAXIMO_NOTA) return { ok: false, mensaje: NOTA_LARGA };
       try {
         const rpc = "agregar_acompaniamiento";
-        const [fila] = filas(rpc, await cliente.llamarRpc(rpc, { p_campania_id: campaniaId, p_jornada_id: jornadaId }));
+        // Sin `p_acompaniante_id` es «Yo»; sin `p_nota`, sin nota. Se mandan solo si hay algo: la RPC de antes sigue andando igual.
+        const argumentos = {
+          p_campania_id: campaniaId,
+          p_jornada_id: jornadaId,
+          ...(datos.acompananteId !== undefined ? { p_acompaniante_id: datos.acompananteId } : {}),
+          ...(nota !== "" ? { p_nota: nota } : {}),
+        };
+        const [fila] = filas(rpc, await cliente.llamarRpc(rpc, argumentos));
         if (!fila) throw new RespuestaInesperada(rpc, "no devolvió el acompañamiento registrado");
         return {
           ok: true,
@@ -241,6 +367,8 @@ export function crearFuentePestanaRpc(
             CUENTA_SIN_NOMBRE,
           ),
           yaEstaba: booleano(rpc, fila, "ya_estaba"),
+          origen: origenDe(rpc, fila),
+          nota: cadenaONula(rpc, fila, "acompaniamiento_nota"),
         };
       } catch (error) {
         if (!esRechazo(error)) throw error;

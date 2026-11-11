@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { leerBandera, modoDevActivo, pestanaVisible, sitioDePruebaActivo } from "@/config/flags";
+import { demoSupabaseDevActivo, leerBandera, modoDevActivo, pestanaVisible, sitioDePruebaActivo } from "@/config/flags";
 import { pestanasVisibles } from "@/shell/pestanas";
 import { fijarFlags } from "@/test/flags";
 
@@ -23,6 +23,16 @@ describe("flags", () => {
       expect(sitioDePruebaActivo()).toBe(true);
       vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "0");
       expect(sitioDePruebaActivo()).toBe(false);
+    });
+  });
+
+  describe("demoSupabaseDevActivo", () => {
+    it("solo es verdadero en el artefacto de pruebas de demo (NEXT_PUBLIC_DEMO_SUPABASE_DEV=1)", () => {
+      expect(demoSupabaseDevActivo()).toBe(false);
+      vi.stubEnv("NEXT_PUBLIC_DEMO_SUPABASE_DEV", "1");
+      expect(demoSupabaseDevActivo()).toBe(true);
+      vi.stubEnv("NEXT_PUBLIC_DEMO_SUPABASE_DEV", "0");
+      expect(demoSupabaseDevActivo()).toBe(false);
     });
   });
 

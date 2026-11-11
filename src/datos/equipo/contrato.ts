@@ -35,6 +35,25 @@ export interface ZonaAnterior {
   inicial: boolean;
 }
 
+/**
+ * De dónde salió un acompañamiento (`jornada.acompaniamiento_origen`, lo pone el servidor): `COLPORTOR` si lo marcó el
+ * colportor en el celular, `COORDINADOR` si lo cargó la coordinación desde el panel. `null` en las jornadas anteriores a
+ * ese dato: no se sabe y no se inventa.
+ */
+export type OrigenDeAcompanamiento = "COLPORTOR" | "COORDINADOR";
+
+/**
+ * Quién cargó desde el panel un acompañamiento (`jornada.acompaniamiento_cargado_por`, lo pone el servidor con la sesión de
+ * quien lo registró): `esVos` si fue quien tiene la sesión; si no, el nombre de la otra persona.
+ */
+export type CargadoPor = { esVos: true } | { esVos: false; nombre: string };
+
+/** Cuántos caracteres admite la nota de un acompañamiento (el mismo tope que el servidor, decisión del 26/10). */
+export const LARGO_MAXIMO_NOTA = 500;
+
+/** Cuántos días después del fin de la campaña se puede todavía registrar un acompañamiento (CZ011 pasado ese plazo). */
+export const DIAS_DE_GRACIA_ACOMPANAMIENTO = 15;
+
 /** Una jornada acompañada de un colportor: la fila del historial de acompañamientos. */
 export interface AcompanamientoDeColportor {
   jornadaId: string;
@@ -46,6 +65,15 @@ export interface AcompanamientoDeColportor {
   acompanante: string;
   /** Quien acompañó es quien tiene la sesión: el panel lo escribe «Nombre (vos)». */
   acompananteEsVos: boolean;
+  /** De dónde salió el dato; `null` si no se sabe. */
+  origen: OrigenDeAcompanamiento | null;
+  /**
+   * Quién lo cargó desde el panel. Ausente o `null` si no se sabe (lo marcó el colportor, es anterior a ese dato o el
+   * cargador no tiene nombre): el panel entonces solo dice «cargado desde el panel».
+   */
+  cargadoPor?: CargadoPor | null;
+  /** La nota opcional de la coordinación (hasta `LARGO_MAXIMO_NOTA` caracteres); `null` si no hay. */
+  nota: string | null;
 }
 
 /** Un colportor inscripto en la campaña, con lo que muestran las dos tablas de la vista 33. */
@@ -54,14 +82,95 @@ export interface ColportorDeEquipo {
   nombre: string;
   /** Ciudad de su zona actual; `null` mientras no tenga zona. */
   ciudadId: string | null;
+  /**
+   * La cuenta está suspendida: no se le puede asignar zona (`asignar_zona` lo rechaza), así que sin zona no es un pendiente
+   * de acción (#167). Ausente o `false`: activa.
+   */
+  suspendido?: boolean;
   zonaActual: ZonaActualDeColportor | null;
   /** Del más viejo al más nuevo. */
   zonasAnteriores: ZonaAnterior[];
   /** Casas que cargó en las ciudades de la campaña, sin mirar la zona: las de una zona vieja siguen contando. */
   casasRegistradas: number;
-  /** El más nuevo primero. Los «días sin acompañar» se cuentan desde el primero o, si no hay, desde el inicio de la campaña. */
+  /** El más nuevo primero. */
   acompanamientos: AcompanamientoDeColportor[];
+  /**
+   * Desde cuándo se cuentan los «días sin acompañar» de quien nunca fue acompañado (`contado_desde`, `AAAA-MM-DD`): el
+   * inicio de la campaña o, si el colportor se sumó (o volvió) después, ese día. Quien tiene acompañamientos cuenta desde el último.
+   */
+  contadoDesde: string;
 }
+
+/** A qué beca apunta el colportor (HU-BEC-006): la meta que se le muestra depende de esto y de su carrera. */
+export type TipoDeBeca = "media" | "completa";
+
+/** Las dos medidas de una meta de beca: es la misma meta vista en libros bonificables y en compra a la casa editora. */
+export interface MetaDeBeca {
+  /** Libros bonificables. */
+  libros: number;
+  /**
+   * Compra a la casa editora (CES), en $U enteros (la base lo guarda en centavos; la fuente real lo convierte). En el avance
+   * suma solo los productos bonificables («Meta CES», 28/10); el estado de la beca se mide con este monto.
+   */
+  monto: number;
+}
+
+/**
+ * Una carrera del catálogo (`carrera` + `meta_beca`, HU-BEC-001). `null` en una de las metas: el administrador todavía no
+ * la cargó (la vista avisa «Falta configurar la meta de esta carrera»).
+ */
+export interface CarreraDelCatalogo {
+  id: string;
+  nombre: string;
+  metaMedia: MetaDeBeca | null;
+  metaCompleta: MetaDeBeca | null;
+}
+
+/** La carrera que el coordinador le eligió al colportor, una sola vez; si hubo un error la corrige el administrador. */
+export interface CarreraElegida {
+  id: string;
+  nombre: string;
+  /** Día en que se eligió, `AAAA-MM-DD`; `null` si la base no lo guardó (una carrera cargada antes de la 0117). */
+  elegidaEl: string | null;
+}
+
+/** Lo que muestra la tabla «Becas» de un colportor (HU-BEC-004, HU-BEC-006). */
+export interface BecaDeColportor {
+  carrera: CarreraElegida | null;
+  /** `null`: nadie le asignó todavía a qué apunta, así que no tiene meta. */
+  apuntaA: TipoDeBeca | null;
+  /** La meta que tiene hoy (copia de la de su carrera al asignar el tipo, S50); `null` sin carrera o sin tipo. */
+  meta: MetaDeBeca | null;
+  /** Lo que lleva: libros bonificables y compra a la CES (solo de productos bonificables). */
+  avance: MetaDeBeca;
+  /**
+   * La mayor meta que ya alcanzó (HU-BEC-002), la marca que guarda el servidor: sigue aunque el tipo pase a «Sin beca»
+   * («Logro beca», Cristian 27/10: lo alcanzado no se pierde). Ausente o `null`: no alcanzó ninguna.
+   */
+  alcanzada?: TipoDeBeca | null;
+  /**
+   * Cuándo se recalculó la meta porque Administración corrigió la carrera («Carrera corr», Cristian 27/10), timestamptz ISO:
+   * `meta_recalculada_en` de backend-supabase#202. Vuelve a `null` cuando la meta cambia otra vez, y mientras no sea `null`
+   * la fila avisa «Carrera corregida: meta de <carrera>». Ausente o `null`: no hay nada que avisar.
+   */
+  metaRecalculadaEn?: string | null;
+}
+
+/** Las becas de la campaña: el catálogo de carreras para elegir y la beca de cada colportor (por su id). */
+export interface DatosDeBecas {
+  carreras: CarreraDelCatalogo[];
+  /** Un colportor sin entrada no tiene carrera ni avance todavía. */
+  porColportor: Record<string, BecaDeColportor>;
+}
+
+/**
+ * Respuesta a elegir la carrera o el tipo de beca de un colportor: la beca como quedó. `sinMeta`: la carrera no tiene la
+ * meta cargada (hay que avisar al administrador); `recargar`: el colportor ya no figura en la campaña o la beca cambió
+ * (otra persona elegió la carrera): lo que se está viendo ya no es cierto.
+ */
+export type ResultadoBeca =
+  | { ok: true; beca: BecaDeColportor }
+  | { ok: false; mensaje: string; sinMeta?: boolean; recargar?: boolean };
 
 /** Los datos de la vista 33 de la campaña del coordinador. */
 export interface DatosEquipoPorCiudad {
@@ -71,6 +180,11 @@ export interface DatosEquipoPorCiudad {
   campaniaInicio: string;
   /** Fin de la campaña, `AAAA-MM-DD`; `null` si no tiene. */
   campaniaFin: string | null;
+  /**
+   * El tipo de la campaña como lo devuelve `campanias_del_coordinador()` (`VERANO`, `INVIERNO`, `PERMANENTE`…); `null` si la
+   * fuente no lo trae. En una `PERMANENTE` no hay becas (BC006, «Beca perman.»). No se deduce de `campaniaFin`.
+   */
+  campaniaTipo: string | null;
   /** El día de hoy en Montevideo, `AAAA-MM-DD`: lo pone el servidor, de ahí salen los «días sin acompañar». */
   hoy: string;
   ciudades: CiudadDeEquipo[];
@@ -81,6 +195,11 @@ export interface DatosEquipoPorCiudad {
    * campaña» (HU-CAM-009, después del 20/11): con 0 la franja «SOLICITUD» no aparece.
    */
   solicitudesPendientes: number;
+  /**
+   * La pestaña «Becas». `null`: esta fuente no trae las becas (la base no publicó sus RPC o la campaña no las deja leer),
+   * la pestaña no se ofrece o lo dice en vez de mostrar una tabla vacía.
+   */
+  becas: DatosDeBecas | null;
 }
 
 /** Una jornada terminada del colportor entre las que elegir para registrar un acompañamiento. */
@@ -98,16 +217,49 @@ export interface JornadaParaAcompanar {
 export type ResultadoJornadas = { ok: true; jornadas: JornadaParaAcompanar[] } | { ok: false; mensaje: string };
 
 /**
- * Respuesta a registrar un acompañamiento (`agregar_acompaniamiento()`). `yaEstaba`: ya figuraba a nombre del mismo
- * coordinador (un reintento o un doble toque): no se tocó nada. `recargar`: la jornada cambió y la lista que se está
- * viendo ya no es cierta.
+ * Quién acompañó y qué nota lleva al registrar un acompañamiento. Sin `acompananteId` es «Yo» (la coordinación de la
+ * sesión); con él, otro colportor inscripto en la misma campaña. `nota` ya viene recortada y sin pasar de
+ * `LARGO_MAXIMO_NOTA`; vacía o ausente es sin nota.
+ */
+export interface DatosDeAcompanamiento {
+  acompananteId?: string;
+  nota?: string;
+}
+
+/**
+ * Una persona que el coordinador puede anotar como acompañante además de los colportores de su campaña: un coordinador de
+ * cualquier campaña o un administrador activo (`acompaniantes_del_panel()`). Solo el id y el nombre: la base no manda
+ * correo, teléfono ni cédula.
+ */
+export interface AcompananteDelPanel {
+  id: string;
+  nombre: string;
+}
+
+/**
+ * Los coordinadores y administradores que se ofrecen en «Quién lo acompañó». Un rechazo de la regla vuelve como
+ * `ok: false`; una falla de conexión, como excepción. Una base que todavía no tiene la RPC devuelve la lista vacía:
+ * el panel sigue ofreciendo solo a los colportores, como antes.
+ */
+export type ResultadoAcompanantes = { ok: true; acompanantes: AcompananteDelPanel[] } | { ok: false; mensaje: string };
+
+/**
+ * Respuesta a registrar un acompañamiento (`agregar_acompaniamiento()`). `yaEstaba`: ya figuraba a nombre de esa misma
+ * persona (un reintento, un doble toque o el teléfono que la marcó antes): no se tocó nada, **tampoco la nota**; `origen`
+ * y `nota` son los que quedaron guardados. `recargar`: la jornada cambió y la lista que se está viendo ya no es cierta.
  */
 export type ResultadoAcompanamiento =
-  | { ok: true; dia: string; acompanante: string; yaEstaba: boolean }
+  | { ok: true; dia: string; acompanante: string; yaEstaba: boolean; origen: OrigenDeAcompanamiento | null; nota: string | null }
   | { ok: false; mensaje: string; recargar?: boolean };
 
 /** Estado de la cuenta de un candidato (HU-CAM-004). `suspendida` no se puede añadir. */
 export type EstadoCuenta = "pendiente_asignacion" | "activa" | "suspendida";
+
+/**
+ * La cuenta no es de un colportor: es de coordinación (de cualquier campaña) o de administración. Se la puede añadir igual
+ * (HU-CAM-004, decisión del 02/10), pero la vista 23 lo advierte y pide confirmarlo (decisión de Cristian, 11/11).
+ */
+export type RolDeCuenta = "coordinador" | "administracion";
 
 /** Cuenta que el coordinador puede buscar para añadirla a su campaña. */
 export interface CandidatoColportor {
@@ -115,10 +267,20 @@ export interface CandidatoColportor {
   nombre: string;
   email: string;
   estadoCuenta: EstadoCuenta;
-  /** Nombre de la campaña en la que ya está, o `null` si no está en ninguna. */
+  /** Nombre de la campaña en curso en la que ya está, o `null` si no está en ninguna. */
   campaniaActual: string | null;
+  /**
+   * La base no la deja añadir a esta campaña porque ya está en otra del mismo momento (`EN_OTRA_CAMPANIA`: las dos en curso
+   * o las dos por empezar, 0058). Estar en una campaña en curso no alcanza: se puede sumar a una que empieza después.
+   */
+  enOtraCampania: boolean;
   /** Fecha de creación de la cuenta, ISO `AAAA-MM-DD`. */
   cuentaCreada: string;
+  /**
+   * Solo si la cuenta es de coordinación o de administración (`rol_cuenta` de `buscar_candidatos()`, 0187). Sin el dato
+   * (una cuenta de colportor, o una base que todavía no lo manda) la fila no lleva etiqueta ni pide confirmación.
+   */
+  rolCuenta?: RolDeCuenta;
 }
 
 /** Colportor que ya está en la campaña; `zonaNombre` es `null` mientras no tenga zona. */
@@ -152,7 +314,7 @@ export type ResultadoBusqueda =
    * `reiniciar`: el cursor de la página ya no sirve (la cuenta de la que seguía no existe más); hay que buscar
    * de nuevo desde el principio, reintentar la misma página no arregla nada.
    */
-  | { ok: false; mensaje: string; reiniciar?: boolean };
+  | { ok: false; mensaje: string; reiniciar?: boolean; sesionVencida?: true };
 
 /**
  * Respuesta a inscribir (`inscribir_colportor()`). `mensaje` es el texto para mostrar. Si la cuenta ya está en otra
@@ -160,7 +322,7 @@ export type ResultadoBusqueda =
  */
 export type ResultadoInscripcion =
   | { ok: true }
-  | { ok: false; mensaje: string; campaniaEnConflicto?: { id: string; nombre: string } };
+  | { ok: false; mensaje: string; campaniaEnConflicto?: { id: string; nombre: string }; sesionVencida?: true };
 
 export interface FuenteDatosEquipo {
   /** `null`: el coordinador no tiene una campaña que no haya terminado. */
@@ -170,9 +332,28 @@ export interface FuenteDatosEquipo {
    * `ok: false`; una falla de conexión, como excepción.
    */
   jornadasParaAcompanar(campaniaId: string, colportorId: string): Promise<ResultadoJornadas>;
-  /** El coordinador de la sesión se anota como acompañante de esa jornada. */
-  registrarAcompanamiento(campaniaId: string, jornadaId: string): Promise<ResultadoAcompanamiento>;
-  /** `null`: el coordinador no tiene una campaña en curso a la que añadir colportores. */
+  /**
+   * Los coordinadores (de cualquier campaña) y los administradores que se pueden anotar como acompañantes, además de los
+   * colportores de la campaña. Sin quien tiene la sesión: ese es «Yo».
+   */
+  acompanantesDelPanel(campaniaId: string): Promise<ResultadoAcompanantes>;
+  /**
+   * Registra el acompañamiento de esa jornada: a nombre del coordinador de la sesión («Yo») o, con `acompananteId`, de otro
+   * colportor de la campaña, de un coordinador o de un administrador, con una nota opcional.
+   */
+  registrarAcompanamiento(campaniaId: string, jornadaId: string, datos?: DatosDeAcompanamiento): Promise<ResultadoAcompanamiento>;
+  /**
+   * El coordinador elige la carrera de un colportor de la campaña, del catálogo y una sola vez (HU-BEC-004). Si ya tiene
+   * una, no se cambia desde el panel. Un rechazo de la regla vuelve como `ok: false`; una falla de conexión, como excepción.
+   */
+  elegirCarrera(campaniaId: string, colportorId: string, carreraId: string): Promise<ResultadoBeca>;
+  /**
+   * Asigna a qué beca apunta el colportor (HU-BEC-006): fija su meta en libros y en monto con la de su carrera. `null` es
+   * «sin beca» (`tipo_beca` null en el esquema): lo deja sin meta. Cambiarlo no borra lo que ya alcanzó. Mismos rechazos y
+   * fallas que `elegirCarrera`.
+   */
+  asignarTipoDeBeca(campaniaId: string, colportorId: string, tipo: TipoDeBeca | null): Promise<ResultadoBeca>;
+  /** `null`: el coordinador no tiene una campaña en curso ni por empezar a la que añadir colportores. */
   obtenerAnadirColportor(): Promise<DatosAnadirColportor | null>;
   /**
    * Una página de cuentas que coinciden con `texto` (no vacío), primero las que empiezan con él y después por orden

@@ -7,6 +7,7 @@ import { RespuestaInesperada } from "@/datos/supabase/respuesta";
 const CAMPANIA = "11111111-1111-4111-8111-111111111111";
 const EMILIANO = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ROCIO = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const SANTIAGO = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const JORNADA = "22222222-2222-4222-8222-222222222222";
 const RIVERA = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const ARTIGAS = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
@@ -39,7 +40,23 @@ function zonas(parcial: Record<string, unknown> = {}) {
   };
 }
 
-/** Una fila de `historial_de_acompaniamientos()` (migración 0043). */
+/** Una fila de `acompaniamientos_por_colportor()` (migración 0100): de acá solo sale `contado_desde`. */
+function tabla(parcial: Record<string, unknown> = {}) {
+  return {
+    colportor_id: EMILIANO,
+    nombre: "Emiliano",
+    apellido: "Sosa",
+    ciudad_id: RIVERA,
+    ciudad_nombre: "Rivera",
+    acompaniamientos: 1,
+    ultimo_dia: "2026-10-02",
+    dias_sin_acompaniar: 19,
+    contado_desde: "2026-09-01",
+    ...parcial,
+  };
+}
+
+/** Una fila de `historial_de_acompaniamientos()` (migración 0043; el origen y la nota, 0100). */
 function historial(parcial: Record<string, unknown> = {}) {
   return {
     jornada_id: JORNADA,
@@ -52,6 +69,12 @@ function historial(parcial: Record<string, unknown> = {}) {
     acompaniante_id: "m",
     acompaniante_nombre: "Mariana",
     acompaniante_apellido: "Pérez",
+    acompaniamiento_origen: "COORDINADOR",
+    acompaniamiento_nota: null,
+    // Quién lo cargó desde el panel (0116, #173): sin dato en las filas anteriores.
+    acompaniamiento_cargado_por: null,
+    acompaniamiento_cargado_por_nombre: null,
+    acompaniamiento_cargado_por_apellido: null,
     ...parcial,
   };
 }
@@ -76,6 +99,11 @@ const completas = (cambios: Respuestas = {}): Respuestas => ({
   ciudades_de_campania: ciudades,
   zonas_por_colportor: [zonas()],
   historial_de_acompaniamientos: [historial()],
+  acompaniamientos_por_colportor: [tabla()],
+  colportores_de_campania: [],
+  // Sin las RPC de becas publicadas (`becas-rpc.test.ts` prueba el mapeo): la vista queda sin pestaña «Becas».
+  carreras_de_beca: new ErrorSupabase("Could not find the function", 404, "PGRST202"),
+  becas_de_campania: new ErrorSupabase("Could not find the function", 404, "PGRST202"),
   ...cambios,
 });
 
@@ -92,6 +120,7 @@ describe("obtenerEquipoPorCiudad", () => {
       campania: "Primavera 2026",
       campaniaInicio: "2026-09-01",
       campaniaFin: "2026-12-19",
+      campaniaTipo: "PRIMAVERA",
       hoy: "2026-10-21",
       ciudades: [
         { id: ARTIGAS, nombre: "Artigas", departamento: "Artigas" },
@@ -105,14 +134,96 @@ describe("obtenerEquipoPorCiudad", () => {
           zonaActual: { id: "z-1", nombre: "Santa Isabel", desde: "2026-10-06", desdeInicial: false },
           zonasAnteriores: [{ nombre: "Bisso", desde: "2026-09-01", hasta: "2026-10-05", eliminada: false, inicial: false }],
           casasRegistradas: 340,
-          acompanamientos: [{ jornadaId: JORNADA, dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true }],
+          acompanamientos: [
+            { jornadaId: JORNADA, dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: null, nota: null },
+          ],
+          contadoDesde: "2026-09-01",
         },
       ],
       solicitudesPendientes: 0,
+      // Sin las RPC de becas publicadas no hay becas: la vista no ofrece la pestaña.
+      becas: null,
     });
     expect(llamarRpc).toHaveBeenCalledWith("zonas_por_colportor", { p_campania_id: CAMPANIA });
     expect(llamarRpc).toHaveBeenCalledWith("historial_de_acompaniamientos", { p_campania_id: CAMPANIA, p_colportor_id: null });
     expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: CAMPANIA });
+    expect(llamarRpc).toHaveBeenCalledWith("acompaniamientos_por_colportor", { p_campania_id: CAMPANIA });
+  });
+
+  it("quién lo cargó (0116): «vos» si es quien tiene la sesión, el nombre si fue otra persona y nada si la base no lo dice", async () => {
+    const { cliente } = clienteCon(
+      completas({
+        historial_de_acompaniamientos: [
+          historial({ jornada_id: "j-4", dia: "2026-10-22", acompaniamiento_cargado_por: "m", acompaniamiento_cargado_por_nombre: "Mariana", acompaniamiento_cargado_por_apellido: "Pérez" }),
+          historial({ jornada_id: "j-3", dia: "2026-10-21", acompaniamiento_cargado_por: "t", acompaniamiento_cargado_por_nombre: "Tomás", acompaniamiento_cargado_por_apellido: "Ibarra" }),
+          // Quien lo cargó no tiene nombre ni apellido: no se inventa, queda como «cargado desde el panel».
+          historial({ jornada_id: "j-2", dia: "2026-10-02", acompaniamiento_cargado_por: "t", acompaniamiento_cargado_por_nombre: "", acompaniamiento_cargado_por_apellido: "" }),
+          // Lo marcó el colportor, o es anterior a la 0116.
+          historial({ jornada_id: "j-1", dia: "2026-09-08", acompaniamiento_origen: "COLPORTOR" }),
+          // Una base sin las columnas nuevas.
+          { ...historial({ jornada_id: "j-0", dia: "2026-09-01" }), acompaniamiento_cargado_por: undefined },
+        ],
+      }),
+    );
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.colportores[0].acompanamientos.map((a) => [a.jornadaId, a.cargadoPor])).toEqual([
+      ["j-4", { esVos: true }],
+      ["j-3", { esVos: false, nombre: "Tomás Ibarra" }],
+      ["j-2", null],
+      ["j-1", null],
+      ["j-0", null],
+    ]);
+  });
+
+  it("sin `mi_perfil` nadie es «vos»: quien lo cargó figura con su nombre", async () => {
+    const { cliente } = clienteCon(
+      completas({
+        mi_perfil: [],
+        historial_de_acompaniamientos: [historial({ acompaniamiento_cargado_por: "m", acompaniamiento_cargado_por_nombre: "Mariana", acompaniamiento_cargado_por_apellido: "Pérez" })],
+      }),
+    );
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.colportores[0].acompanamientos[0].cargadoPor).toEqual({ esVos: false, nombre: "Mariana Pérez" });
+  });
+
+  it("el origen y la nota de cada acompañamiento vienen del historial; una fila anterior al dato queda sin origen", async () => {
+    const respuestas = completas({
+      historial_de_acompaniamientos: [
+        historial({ jornada_id: "j-3", dia: "2026-10-21", acompaniamiento_origen: "COORDINADOR", acompaniamiento_nota: "Trabajamos juntos el sector norte." }),
+        historial({ jornada_id: "j-2", dia: "2026-10-02", acompaniamiento_origen: "COLPORTOR", acompaniamiento_nota: null }),
+        historial({ jornada_id: "j-1", dia: "2026-09-08", acompaniamiento_origen: null, acompaniamiento_nota: null }),
+      ],
+    });
+    const { cliente } = clienteCon(respuestas);
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.colportores[0].acompanamientos.map((a) => [a.jornadaId, a.origen, a.nota])).toEqual([
+      ["j-3", "COORDINADOR", "Trabajamos juntos el sector norte."],
+      ["j-2", "COLPORTOR", null],
+      ["j-1", null, null],
+    ]);
+  });
+
+  it("`contado_desde` sale de la tabla de acompañamientos; a quien la tabla no trae se le cuenta desde el inicio de la campaña", async () => {
+    const sinZona = zonas({ colportor_id: ROCIO, nombre: "Rocío", apellido: "Benítez", ciudad_id: null, ciudad_nombre: null, zona_id: null, zona_nombre: null, zona_desde: null, zona_desde_inicial: null, zonas_anteriores: [], casas_registradas: 0 });
+    const { cliente } = clienteCon(
+      completas({
+        zonas_por_colportor: [zonas(), sinZona],
+        acompaniamientos_por_colportor: [tabla({ contado_desde: "2026-10-01" })],
+      }),
+    );
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.colportores.map((c) => [c.nombre, c.contadoDesde])).toEqual([
+      ["Emiliano Sosa", "2026-10-01"],
+      ["Rocío Benítez", "2026-09-01"],
+    ]);
   });
 
   it("un colportor sin zona ni acompañamientos: sin ciudad, sin zona y lista vacía", async () => {
@@ -134,8 +245,43 @@ describe("obtenerEquipoPorCiudad", () => {
     const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
 
     expect(datos?.colportores).toEqual([
-      { id: ROCIO, nombre: "Rocío Benítez", ciudadId: null, zonaActual: null, zonasAnteriores: [], casasRegistradas: 0, acompanamientos: [] },
+      { id: ROCIO, nombre: "Rocío Benítez", ciudadId: null, zonaActual: null, zonasAnteriores: [], casasRegistradas: 0, acompanamientos: [], contadoDesde: "2026-09-01" },
     ]);
+  });
+
+  it("marca la cuenta suspendida con `colportores_de_campania()` (#167): sin zona no es un pendiente de acción", async () => {
+    const sinZona = zonas({ colportor_id: ROCIO, nombre: "Rocío", apellido: "Benítez", ciudad_id: null, ciudad_nombre: null, zona_id: null, zona_nombre: null, zona_desde: null, zona_desde_inicial: null, zonas_anteriores: [], casas_registradas: 0 });
+    const { cliente, llamarRpc } = clienteCon(
+      completas({
+        zonas_por_colportor: [zonas(), sinZona],
+        colportores_de_campania: [
+          { usuario_id: EMILIANO, nombre: "Emiliano", apellido: "Sosa", zona_id: "z-1", zona_nombre: "Santa Isabel", suspendido: false, email: "e@x.uy", estado: "ACTIVA" },
+          { usuario_id: ROCIO, nombre: "Rocío", apellido: "Benítez", zona_id: null, zona_nombre: null, suspendido: true, email: "r@x.uy", estado: "SUSPENDIDA" },
+        ],
+      }),
+    );
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(llamarRpc).toHaveBeenCalledWith("colportores_de_campania", { p_campania_id: CAMPANIA });
+    expect(datos?.colportores.map((c) => [c.nombre, c.suspendido ?? false])).toEqual([
+      ["Emiliano Sosa", false],
+      ["Rocío Benítez", true],
+    ]);
+  });
+
+  it("una campaña terminada se sigue leyendo aunque `colportores_de_campania()` la rechace (CZ011): nadie queda marcado", async () => {
+    const { cliente } = clienteCon(completas({ colportores_de_campania: rechazo("CZ011", "La campaña ya terminó.") }));
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.colportores.map((c) => c.suspendido ?? false)).toEqual([false]);
+  });
+
+  it("una falla al leer quién está suspendido sale como excepción (no se toma por «nadie suspendido»)", async () => {
+    const { cliente } = clienteCon(completas({ colportores_de_campania: new TypeError("fetch failed") }));
+
+    await expect(crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad()).rejects.toThrow("fetch failed");
   });
 
   it("junta los acompañamientos de cada colportor en el orden en que los manda la base y deja las horas nulas de una jornada abierta", async () => {
@@ -152,10 +298,10 @@ describe("obtenerEquipoPorCiudad", () => {
     const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
 
     expect(datos?.colportores[0].acompanamientos).toEqual([
-      { jornadaId: "j-3", dia: "2026-10-21", horas: null, acompanante: "Mariana Pérez", acompananteEsVos: true },
-      { jornadaId: "j-2", dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true },
+      { jornadaId: "j-3", dia: "2026-10-21", horas: null, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: null, nota: null },
+      { jornadaId: "j-2", dia: "2026-10-02", horas: 4.5, acompanante: "Mariana Pérez", acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: null, nota: null },
       // Sin nombre ni apellido, la fila no queda sin acompañante.
-      { jornadaId: "j-1", dia: "2026-09-08", horas: 4.5, acompanante: "Cuenta sin nombre", acompananteEsVos: true },
+      { jornadaId: "j-1", dia: "2026-09-08", horas: 4.5, acompanante: "Cuenta sin nombre", acompananteEsVos: true, origen: "COORDINADOR", cargadoPor: null, nota: null },
     ]);
   });
 
@@ -230,6 +376,8 @@ describe("obtenerEquipoPorCiudad", () => {
       { zonas_por_colportor: [zonas({ zonas_anteriores: [{ nombre: "Bisso" }] })] },
       { historial_de_acompaniamientos: [historial({ dia: "ayer" })] },
       { historial_de_acompaniamientos: [historial({ horas: "4" })] },
+      { historial_de_acompaniamientos: [historial({ acompaniamiento_origen: "OTRO" })] },
+      { acompaniamientos_por_colportor: [tabla({ contado_desde: "ayer" })] },
       { campanias_del_coordinador: [{ ...campania, fecha_inicio: "septiembre" }] },
       { campanias_del_coordinador: [{ ...campania, fecha_fin: "fin" }] },
     ];
@@ -237,6 +385,15 @@ describe("obtenerEquipoPorCiudad", () => {
       const { cliente } = clienteCon(completas(cambio));
       await expect(crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad()).rejects.toBeInstanceOf(RespuestaInesperada);
     }
+  });
+
+  it("el tipo de la campaña viaja tal cual, sin deducirlo de la fecha de fin", async () => {
+    const permanente = completas({ campanias_del_coordinador: [{ ...campania, tipo: "PERMANENTE" }] });
+    const sinFin = completas({ campanias_del_coordinador: [{ ...campania, tipo: "VERANO", fecha_fin: null }] });
+
+    expect((await crearFuentePestanaRpc(clienteCon(permanente).cliente, AHORA).obtenerEquipoPorCiudad())?.campaniaTipo).toBe("PERMANENTE");
+    const datos = await crearFuentePestanaRpc(clienteCon(sinFin).cliente, AHORA).obtenerEquipoPorCiudad();
+    expect(datos).toMatchObject({ campaniaTipo: "VERANO", campaniaFin: null });
   });
 
   it("una campaña sin fecha de fin la deja en null", async () => {
@@ -326,6 +483,8 @@ describe("registrarAcompanamiento", () => {
       acompaniante_nombre: "Mariana",
       acompaniante_apellido: "Pérez",
       ya_estaba: false,
+      acompaniamiento_origen: "COORDINADOR",
+      acompaniamiento_nota: null,
       ...parcial,
     },
   ];
@@ -335,8 +494,95 @@ describe("registrarAcompanamiento", () => {
 
     const r = await crearFuentePestanaRpc(cliente).registrarAcompanamiento(CAMPANIA, JORNADA);
 
-    expect(r).toEqual({ ok: true, dia: "2026-10-20", acompanante: "Mariana Pérez", yaEstaba: false });
+    expect(r).toEqual({ ok: true, dia: "2026-10-20", acompanante: "Mariana Pérez", yaEstaba: false, origen: "COORDINADOR", nota: null });
+    // «Yo» y sin nota: ni `p_acompaniante_id` ni `p_nota`, como antes de la 0100.
     expect(llamarRpc).toHaveBeenCalledWith("agregar_acompaniamiento", { p_campania_id: CAMPANIA, p_jornada_id: JORNADA });
+  });
+
+  it("con otro colportor y una nota los manda, la nota recortada, y devuelve el origen y la nota guardados", async () => {
+    const { cliente, llamarRpc } = clienteCon({
+      agregar_acompaniamiento: confirmacion({
+        acompaniante_id: SANTIAGO,
+        acompaniante_nombre: "Santiago",
+        acompaniante_apellido: "Pereira",
+        acompaniamiento_nota: "Trabajamos juntos el sector norte.",
+      }),
+    });
+
+    const r = await crearFuentePestanaRpc(cliente).registrarAcompanamiento(CAMPANIA, JORNADA, {
+      acompananteId: SANTIAGO,
+      nota: "  Trabajamos juntos el sector norte.\n ",
+    });
+
+    expect(r).toEqual({
+      ok: true,
+      dia: "2026-10-20",
+      acompanante: "Santiago Pereira",
+      yaEstaba: false,
+      origen: "COORDINADOR",
+      nota: "Trabajamos juntos el sector norte.",
+    });
+    expect(llamarRpc).toHaveBeenCalledWith("agregar_acompaniamiento", {
+      p_campania_id: CAMPANIA,
+      p_jornada_id: JORNADA,
+      p_acompaniante_id: SANTIAGO,
+      p_nota: "Trabajamos juntos el sector norte.",
+    });
+  });
+
+  it("una nota de solo espacios no se manda", async () => {
+    const { cliente, llamarRpc } = clienteCon({ agregar_acompaniamiento: confirmacion() });
+
+    await crearFuentePestanaRpc(cliente).registrarAcompanamiento(CAMPANIA, JORNADA, { nota: "   \n " });
+
+    expect(llamarRpc).toHaveBeenCalledWith("agregar_acompaniamiento", { p_campania_id: CAMPANIA, p_jornada_id: JORNADA });
+  });
+
+  it("si ya figuraba, devuelve el origen y la nota que quedaron guardados (la que se mandó no se guarda)", async () => {
+    const { cliente } = clienteCon({
+      agregar_acompaniamiento: confirmacion({ ya_estaba: true, acompaniamiento_origen: "COLPORTOR", acompaniamiento_nota: null }),
+    });
+
+    expect(await crearFuentePestanaRpc(cliente).registrarAcompanamiento(CAMPANIA, JORNADA, { nota: "Escrita tarde" })).toEqual({
+      ok: true,
+      dia: "2026-10-20",
+      acompanante: "Mariana Pérez",
+      yaEstaba: true,
+      origen: "COLPORTOR",
+      nota: null,
+    });
+  });
+
+  it("una nota de 500 caracteres pasa y una de 501 se frena antes de llamar (se cuentan letras, no unidades de UTF-16)", async () => {
+    const { cliente, llamarRpc } = clienteCon({ agregar_acompaniamiento: confirmacion() });
+    const fuente = crearFuentePestanaRpc(cliente);
+
+    // «🙂» ocupa dos unidades de UTF-16 pero es un solo carácter: 500 de ellos entran.
+    expect(await fuente.registrarAcompanamiento(CAMPANIA, JORNADA, { nota: "🙂".repeat(500) })).toMatchObject({ ok: true });
+    expect(llamarRpc).toHaveBeenCalledTimes(1);
+
+    const r = await fuente.registrarAcompanamiento(CAMPANIA, JORNADA, { nota: "a".repeat(501) });
+    expect(r).toEqual({ ok: false, mensaje: "La nota admite hasta 500 caracteres. Acortala; no pongas datos de clientes." });
+    expect(llamarRpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("un acompañante que no es una cuenta se frena antes de llamar", async () => {
+    const { cliente, llamarRpc } = clienteCon({});
+
+    const r = await crearFuentePestanaRpc(cliente).registrarAcompanamiento(CAMPANIA, JORNADA, { acompananteId: "no-es-uuid" });
+
+    expect(r).toEqual({ ok: false, mensaje: "Ese colportor no está inscripto en esta campaña. Elegí a alguien de su equipo." });
+    expect(llamarRpc).not.toHaveBeenCalled();
+  });
+
+  it("JO005 (ese colportor no está en la campaña) y el tope de la nota de la base (22023) muestran el texto de la base", async () => {
+    for (const [codigo, mensaje] of [
+      ["JO005", "Ese colportor no está inscripto en esta campaña. Elegí a alguien de su equipo."],
+      ["22023", "La nota admite hasta 280 caracteres y esta tiene 301. Acortala; no pongas datos de clientes."],
+    ]) {
+      const { cliente } = clienteCon({ agregar_acompaniamiento: rechazo(codigo, mensaje) });
+      expect(await crearFuentePestanaRpc(cliente).registrarAcompanamiento(CAMPANIA, JORNADA, { acompananteId: SANTIAGO })).toEqual({ ok: false, mensaje });
+    }
   });
 
   it("si ya figuraba a nombre del coordinador (un reintento) lo dice", async () => {
@@ -366,7 +612,7 @@ describe("registrarAcompanamiento", () => {
       mensaje: "Solo el coordinador de la campaña puede registrar acompañamientos en ella.",
     });
 
-    const desconocido = clienteCon({ agregar_acompaniamiento: rechazo("22023", "Elegí la jornada") });
+    const desconocido = clienteCon({ agregar_acompaniamiento: rechazo("P0001", "Algo raro") });
     expect(await crearFuentePestanaRpc(desconocido.cliente).registrarAcompanamiento(CAMPANIA, JORNADA)).toEqual({
       ok: false,
       mensaje: "No se pudo registrar el acompañamiento. Probá de nuevo más tarde.",
@@ -404,5 +650,66 @@ describe("registrarAcompanamiento", () => {
       const { cliente } = clienteCon({ agregar_acompaniamiento: respuesta });
       await expect(crearFuentePestanaRpc(cliente).registrarAcompanamiento(CAMPANIA, JORNADA)).rejects.toBeInstanceOf(RespuestaInesperada);
     }
+  });
+});
+
+describe("becas", () => {
+  const catalogo = [{ carrera_id: SANTIAGO, nombre: "Teología", meta_media: 100, meta_media_monto: 15000000, meta_completa: 200, meta_completa_monto: 30000000 }];
+  const beca = {
+    usuario_id: EMILIANO,
+    nombre: "Emiliano",
+    apellido: "Sosa",
+    carrera_id: SANTIAGO,
+    carrera_nombre: "Teología",
+    carrera_elegida_en: "2026-09-01T13:00:00+00:00",
+    tipo_beca: "MEDIA",
+    meta_libros: 100,
+    meta_monto_ces: 15000000,
+    meta_configurada: true,
+    meta_recalculada_en: null,
+    libros_bonificables: 40,
+    compra_ces: 6000050,
+    estado_beca: "EN_PROGRESO",
+    beca_alcanzada_tipo: null,
+  };
+
+  it("con las RPC publicadas, Equipo trae el catálogo y la beca de cada inscripto de la campaña", async () => {
+    const { cliente, llamarRpc } = clienteCon(completas({ carreras_de_beca: catalogo, becas_de_campania: [beca] }));
+
+    const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
+
+    expect(datos?.becas).toEqual({
+      carreras: [{ id: SANTIAGO, nombre: "Teología", metaMedia: { libros: 100, monto: 150000 }, metaCompleta: { libros: 200, monto: 300000 } }],
+      porColportor: {
+        [EMILIANO]: {
+          carrera: { id: SANTIAGO, nombre: "Teología", elegidaEl: "2026-09-01" },
+          apuntaA: "media",
+          meta: { libros: 100, monto: 150000 },
+          avance: { libros: 40, monto: 60000.5 },
+        },
+      },
+    });
+    expect(llamarRpc).toHaveBeenCalledWith("carreras_de_beca", { p_campania_id: CAMPANIA });
+    expect(llamarRpc).toHaveBeenCalledWith("becas_de_campania", { p_campania_id: CAMPANIA });
+  });
+
+  it("una campaña terminada (BC001) se sigue viendo, sin becas; una caída de las becas no se toma por «sin becas»", async () => {
+    const terminada = rechazo("BC001", "La campaña ya terminó y sus becas quedan como estaban.");
+    const { cliente } = clienteCon(completas({ carreras_de_beca: catalogo, becas_de_campania: terminada }));
+    expect((await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad())?.becas).toBeNull();
+
+    const caida = new ErrorSupabase("upstream", 503);
+    const conCaida = clienteCon(completas({ carreras_de_beca: catalogo, becas_de_campania: caida }));
+    await expect(crearFuentePestanaRpc(conCaida.cliente, AHORA).obtenerEquipoPorCiudad()).rejects.toBe(caida);
+  });
+
+  it("elegir la carrera y el tipo llaman a la base y devuelven la beca como quedó", async () => {
+    const { cliente, llamarRpc } = clienteCon({ elegir_carrera: [{ usuario_id: EMILIANO, carrera_id: SANTIAGO, cambio: true }], asignar_beca: [], becas_de_campania: [beca] });
+    const fuente = crearFuentePestanaRpc(cliente);
+
+    await expect(fuente.elegirCarrera(CAMPANIA, EMILIANO, SANTIAGO)).resolves.toMatchObject({ ok: true, beca: { apuntaA: "media" } });
+    await expect(fuente.asignarTipoDeBeca(CAMPANIA, EMILIANO, "media")).resolves.toMatchObject({ ok: true });
+    expect(llamarRpc).toHaveBeenCalledWith("elegir_carrera", { p_campania_id: CAMPANIA, p_usuario_id: EMILIANO, p_carrera_id: SANTIAGO });
+    expect(llamarRpc).toHaveBeenCalledWith("asignar_beca", { p_campania_id: CAMPANIA, p_usuarios: [EMILIANO], p_tipo: "MEDIA" });
   });
 });

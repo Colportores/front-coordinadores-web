@@ -47,8 +47,18 @@ export function esClaveDeServicio(clave: string): boolean {
 /** Los únicos hosts donde se acepta `http://`: el Supabase local de `supabase start`. */
 const HOSTS_LOCALES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
+/**
+ * Saca las barras del final sin expresión regular (Sonar S8786). Es una copia de `sinBarrasFinales` de `@/lib/texto`:
+ * este módulo lo carga `next.config.ts` antes de que exista el alias `@/`, así que no puede importarlo.
+ */
+function sinBarrasFinales(texto: string): string {
+  let fin = texto.length;
+  while (fin > 0 && texto[fin - 1] === "/") fin -= 1;
+  return texto.slice(0, fin);
+}
+
 function urlDelProyecto(valor: string | undefined): string | null {
-  const texto = valor?.trim().replace(/\/+$/, "");
+  const texto = typeof valor === "string" ? sinBarrasFinales(valor.trim()) : undefined;
   if (!texto) return null;
   try {
     const url = new URL(texto);
@@ -88,4 +98,38 @@ export function verificarEntornoSupabase(env: Entorno): void {
         "NEXT_PUBLIC_ viajaría en el navegador de todos y se saltea la RLS. Usá la clave publishable o anon del proyecto.",
     );
   }
+}
+
+const VALORES_VERDADEROS = new Set(["1", "true", "si", "sí", "on"]);
+const activa = (valor: string | undefined) => VALORES_VERDADEROS.has(valor?.trim().toLowerCase() ?? "");
+
+/**
+ * Corta el build de producción si faltan las variables de Supabase y nadie pidió el modo simulado (issue #101, decisión
+ * «Sin env» de Cristian, 27/10): en producción no se cae a datos de ejemplo por un descuido de configuración.
+ *
+ * - Se arma con `PANEL_EXIGIR_SUPABASE=1` (variable del servidor de build, sin `NEXT_PUBLIC_`). **Sin ella no hace nada**: hasta
+ *   que exista el Supabase de producción (diciembre) el build de staging y el CI siguen como siempre, con el aviso de datos
+ *   simulados (`src/config/datos-simulados.ts`). Cuando exista, se prende en el build de producción y no se toca el código.
+ * - El modo simulado se prende solo con una variable explícita: `PANEL_DATOS_SIMULADOS=1` o el build del sitio de prueba
+ *   (`DEPLOY_PAGES=1`; `build:pages` carga ambas).
+ * - Se llama desde `next.config.ts`, junto a `verificarEntornoSupabase`. El mensaje dice qué falta y qué hacer, nunca el valor.
+ */
+export function verificarEntornoDeProduccion(env: Entorno): void {
+  if (!activa(env.PANEL_EXIGIR_SUPABASE)) return;
+  if (activa(env.PANEL_DATOS_SIMULADOS) || env.DEPLOY_PAGES === "1") return;
+  if (leerConfigPublicaSupabase(env)) return;
+
+  const url = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const clave = env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const que = !url && !clave
+    ? "faltan NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY"
+    : !url
+      ? "falta NEXT_PUBLIC_SUPABASE_URL"
+      : !clave
+        ? "falta NEXT_PUBLIC_SUPABASE_ANON_KEY"
+        : "NEXT_PUBLIC_SUPABASE_URL no es una URL https:// válida (http:// solo vale para localhost) o la clave no se puede publicar";
+  throw new Error(
+    `El build de producción exige la conexión a Supabase (PANEL_EXIGIR_SUPABASE): ${que}. Cargalas o, si este build es una ` +
+      "demo con datos de ejemplo, prendé PANEL_DATOS_SIMULADOS=1.",
+  );
 }

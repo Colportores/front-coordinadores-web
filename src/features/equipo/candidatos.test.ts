@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { CANDIDATOS_SIMULADOS } from "@/datos/equipo/simulado";
 import {
+  avisoRol,
   ayudaBloqueo,
+  etiquetaRol,
   fechaCorta,
   iniciales,
   MAX_CARACTERES_TITULO,
@@ -36,9 +38,44 @@ describe("candidatos", () => {
       expect(ayudaBloqueo(porId("usr-rodrigo-silva"))).toBe("Pedile al coordinador de Otoño Norte que lo libere.");
     });
 
+    it("una cuenta en una campaña en curso no se bloquea si la base la deja añadir a esta (destino por empezar, 0058)", () => {
+      const repite = { ...porId("usr-rodrigo-silva"), enOtraCampania: false };
+      expect(repite.campaniaActual).toBe("Otoño Norte");
+      expect(motivoBloqueo(repite)).toBeNull();
+      expect(ayudaBloqueo(repite)).toBeNull();
+    });
+
+    it("bloqueada por otra campaña del mismo momento que la base no nombra: no inventa un nombre", () => {
+      const sinNombre = { ...porId("usr-rodrigo-silva"), campaniaActual: null, enOtraCampania: true };
+      expect(motivoBloqueo(sinNombre)).toBe("Está en otra campaña. Reasignar primero.");
+      expect(ayudaBloqueo(sinNombre)).toBe("Pedile al coordinador de la otra campaña que lo libere.");
+    });
+
     it("la suspensión gana sobre la otra campaña, como en el servidor (`motivo_rechazo_inscripcion()`)", () => {
-      const ambas = { ...porId("usr-mariana-olivera"), campaniaActual: "Otoño Norte" };
+      const ambas = { ...porId("usr-mariana-olivera"), campaniaActual: "Otoño Norte", enOtraCampania: true };
       expect(motivoBloqueo(ambas)).toBe("Cuenta suspendida. Pedí a un administrador que la reactive para añadirla.");
+    });
+  });
+
+  describe("etiquetaRol y avisoRol (cuenta de coordinación o de administración, decisión del 11/11)", () => {
+    it("la cuenta de un colportor no lleva etiqueta ni aviso", () => {
+      expect(etiquetaRol(porId("usr-ana-martinez"))).toBeNull();
+      expect(avisoRol(porId("usr-ana-martinez"))).toBeNull();
+    });
+
+    it("la de coordinación dice «Coordinador» y avisa que no es de un colportor", () => {
+      expect(etiquetaRol(porId("usr-tomas-ibarra"))).toBe("Coordinador");
+      expect(avisoRol(porId("usr-tomas-ibarra"))).toBe("Esta cuenta es de coordinación, no de un colportor.");
+    });
+
+    it("la de administración dice «Administración»", () => {
+      expect(etiquetaRol(porId("usr-marta-rivas"))).toBe("Administración");
+      expect(avisoRol(porId("usr-marta-rivas"))).toBe("Esta cuenta es de administración, no de un colportor.");
+    });
+
+    it("el rol no bloquea: se puede añadir (HU-CAM-004, 02/10)", () => {
+      expect(motivoBloqueo(porId("usr-tomas-ibarra"))).toBeNull();
+      expect(motivoBloqueo(porId("usr-marta-rivas"))).toBeNull();
     });
   });
 

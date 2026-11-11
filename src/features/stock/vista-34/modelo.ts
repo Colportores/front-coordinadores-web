@@ -1,4 +1,6 @@
+import { fechaYHoraEnMontevideo } from "@/lib/momento";
 import type { ColportorDeStock, DatosDeStock, ProductoDeStock, TipoDeProducto } from "@/datos/stock/contrato";
+import { conPuntosDeMiles } from "@/lib/texto";
 
 /**
  * Lo que arma la vista 34 (HU-STK-010) a partir de los datos: qué mira (todas las ciudades, un departamento, una ciudad
@@ -42,7 +44,7 @@ export function claveDeDepartamento(nombre: string): string {
 }
 
 export function formatearCantidad(n: number): string {
-  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return conPuntosDeMiles(String(Math.round(n)));
 }
 
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
@@ -58,10 +60,11 @@ export interface Cantidades {
   tiene: number;
   porEntregar: number;
   entregados: number;
+  devueltos: number;
   porCobrar: number;
 }
 
-const CERO: Cantidades = { tiene: 0, porEntregar: 0, entregados: 0, porCobrar: 0 };
+const CERO: Cantidades = { tiene: 0, porEntregar: 0, entregados: 0, devueltos: 0, porCobrar: 0 };
 
 /** Una cantidad que no es un entero positivo (negativa, NaN) cuenta como cero: no hay stock negativo que mostrar. */
 function cantidad(n: number): number {
@@ -73,7 +76,15 @@ export interface PersonaDeStock {
   nombre: string;
   ciudadId: string | null;
   ciudadNombre: string | null;
+  /** «Sincronizó el 22/10 a las 18:30», o «Todavía no sincronizó» si no llegó ningún dato de su teléfono. */
+  sincronizo: string;
   porProducto: ReadonlyMap<string, Cantidades>;
+}
+
+/** Lo que dice la fila del colportor de cuándo llegó su último dato (hora de Montevideo). */
+export function textoDeSincronizacion(ultimoDatoAt: string | null, ahora: Date = new Date()): string {
+  const cuando = fechaYHoraEnMontevideo(ultimoDatoAt, ahora);
+  return cuando === null ? "Todavía no sincronizó" : `Sincronizó el ${cuando}`;
 }
 
 export interface CiudadConGente {
@@ -140,7 +151,7 @@ function tiposDe(productos: ProductoDeStock[]): TipoDeUnidades[] {
   });
 }
 
-function personaDe(c: ColportorDeStock, ciudadNombre: string | null, ciudadId: string | null): PersonaDeStock {
+function personaDe(c: ColportorDeStock, ciudadNombre: string | null, ciudadId: string | null, ahora: Date): PersonaDeStock {
   const porProducto = new Map<string, Cantidades>();
   for (const e of c.existencias) {
     const antes = porProducto.get(e.productoId) ?? CERO;
@@ -148,15 +159,17 @@ function personaDe(c: ColportorDeStock, ciudadNombre: string | null, ciudadId: s
       tiene: antes.tiene + cantidad(e.tiene),
       porEntregar: antes.porEntregar + cantidad(e.porEntregar),
       entregados: antes.entregados + cantidad(e.entregados),
+      devueltos: antes.devueltos + cantidad(e.devueltos),
       porCobrar: antes.porCobrar + cantidad(e.porCobrar),
     });
   }
-  return { id: c.id, nombre: c.nombre, ciudadId, ciudadNombre, porProducto };
+  return { id: c.id, nombre: c.nombre, ciudadId, ciudadNombre, sincronizo: textoDeSincronizacion(c.ultimoDatoAt, ahora), porProducto };
 }
 
 const porNombre = (a: { nombre: string }, b: { nombre: string }) => ORDEN.compare(a.nombre, b.nombre);
 
-export function construirMundo(datos: DatosDeStock): Mundo {
+/** `ahora` solo decide si la fecha de «Sincronizó el …» lleva el año (cuando el dato no es del año en curso). */
+export function construirMundo(datos: DatosDeStock, ahora: Date = new Date()): Mundo {
   const ciudades: CiudadConGente[] = datos.ciudades.map((c) => ({
     id: c.id,
     nombre: c.nombre,
@@ -177,8 +190,8 @@ export function construirMundo(datos: DatosDeStock): Mundo {
     vistos.add(c.id);
     const ciudad = c.ciudadId === null ? undefined : ciudades.find((x) => x.id === c.ciudadId);
     // Una ciudad que no figura en la lista tampoco tiene a dónde ir: el colportor figura como «sin ciudad».
-    if (ciudad) ciudad.personas.push(personaDe(c, ciudad.nombre, ciudad.id));
-    else sinCiudad.push(personaDe(c, null, null));
+    if (ciudad) ciudad.personas.push(personaDe(c, ciudad.nombre, ciudad.id, ahora));
+    else sinCiudad.push(personaDe(c, null, null, ahora));
   }
   for (const c of ciudades) c.personas.sort(porNombre);
   sinCiudad.sort(porNombre);
@@ -202,6 +215,7 @@ export function cantidadesDe(persona: PersonaDeStock, unidad: Unidad): Cantidade
     suma.tiene += c.tiene;
     suma.porEntregar += c.porEntregar;
     suma.entregados += c.entregados;
+    suma.devueltos += c.devueltos;
     suma.porCobrar += c.porCobrar;
   }
   return suma;
@@ -214,6 +228,7 @@ export function sumar(personas: PersonaDeStock[], unidad: Unidad): Suma {
     total.tiene += c.tiene;
     total.porEntregar += c.porEntregar;
     total.entregados += c.entregados;
+    total.devueltos += c.devueltos;
     total.porCobrar += c.porCobrar;
     if (c.tiene > 0) total.poseedores++;
   }
@@ -487,9 +502,12 @@ export interface QuienTiene {
   id: string;
   /** «Sofía Cabral» o, si el ámbito junta varias ciudades, «Sofía Cabral · Artigas». */
   nombre: string;
+  /** «Sincronizó el 22/10 a las 18:30» (ver `PersonaDeStock`). */
+  sincronizo: string;
   tiene: number;
   porEntregar: number;
   entregados: number;
+  devueltos: number;
   porCobrar: number;
 }
 
@@ -502,6 +520,7 @@ export interface FilaDeUnidad {
   totalPersonas: number;
   porEntregar: number;
   entregados: number;
+  devueltos: number;
   porCobrar: number;
   estado: EstadoDeUnidad;
   quien: QuienTiene[];
@@ -532,6 +551,7 @@ export function construirTabla(mundo: Mundo, resuelto: AmbitoResuelto): GrupoDeF
           .map(({ p, c }) => ({
             id: p.id,
             nombre: resuelto.variosLugares ? `${p.nombre} · ${p.ciudadNombre ?? "Sin ciudad"}` : p.nombre,
+            sincronizo: p.sincronizo,
             ...c,
           }));
         return {
@@ -543,6 +563,7 @@ export function construirTabla(mundo: Mundo, resuelto: AmbitoResuelto): GrupoDeF
           totalPersonas: resuelto.personas.length,
           porEntregar: suma.porEntregar,
           entregados: suma.entregados,
+          devueltos: suma.devueltos,
           porCobrar: suma.porCobrar,
           estado: estadoDe(suma),
           quien,

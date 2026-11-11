@@ -12,13 +12,20 @@ import type {
   ResultadoInscripcion,
 } from "@/datos/equipo/contrato";
 import {
+  avisoRol,
   ayudaBloqueo,
+  confirmacionDeRol,
+  etiquetaRol,
   fechaCorta,
   iniciales,
   MAX_CARACTERES_TITULO,
   motivoBloqueo,
   recortarConPuntos,
 } from "@/features/equipo/candidatos";
+import { mensajeDeRechazo, type MotivoDeRechazo } from "@/auth/sesion-vencida";
+import { DialogoCuentaConRol } from "@/features/equipo/DialogoCuentaConRol";
+import { EnlaceEntrarDeNuevo } from "@/features/equipo/EnlaceEntrarDeNuevo";
+import { tieneFocoVisible } from "@/features/equipo/foco-visible";
 import { useBusquedaCandidatos } from "@/features/equipo/useBusquedaCandidatos";
 import {
   mensajeAnadirRechazado,
@@ -86,19 +93,67 @@ function AvisoBloqueo({ texto }: { texto: string }) {
   );
 }
 
+/**
+ * Etiqueta de una cuenta de coordinación o de administración, junto al nombre (decisión de Cristian, 11/11). No depende del
+ * color: lleva el ícono «!» y el texto, y un borde que la distingue de la pastilla del estado. Para el lector de pantalla
+ * dice «Atención: cuenta de…»; los botones de la fila la toman como descripción (`aria-describedby`).
+ */
+function EtiquetaRol({ id, texto }: { id?: string; texto: string }) {
+  return (
+    <span
+      id={id}
+      data-etiqueta-rol
+      className="inline-flex items-center gap-[5px] rounded-pastilla border border-alerta bg-alerta-fondo py-[2px] pr-2 pl-[3px] text-mini font-semibold whitespace-nowrap text-alerta"
+    >
+      <span
+        aria-hidden
+        className="grid size-3.5 flex-none place-items-center rounded-full bg-alerta text-etiqueta leading-none font-bold text-superficie"
+      >
+        !
+      </span>
+      {/* El espacio va fuera del texto oculto: adentro, la descripción accesible lo recorta y pega las dos palabras. */}
+      <span className="sr-only">Atención: cuenta de</span> {texto}
+    </span>
+  );
+}
+
+/** La advertencia de la cuenta de coordinación o de administración en el detalle: avisa, no bloquea. */
+function AvisoRol({ id, texto }: { id: string; texto: string }) {
+  return (
+    <span id={id} role="note" className="flex items-start gap-[7px] text-cuerpo font-medium text-alerta">
+      <span
+        aria-hidden
+        className="grid size-4 flex-none place-items-center rounded-full bg-alerta text-etiqueta font-bold text-superficie"
+      >
+        !
+      </span>
+      {texto}
+    </span>
+  );
+}
+
+const idEtiquetaRol = (id: string) => `rol-de-cuenta-${id}`;
+
 const idTextoAviso = (id: string) => `aviso-anadido-${id}`;
 
-/** Aviso con «Deshacer»: cada añadido tiene el suyo y su propio plazo de 8 s (lo cuenta `useInscripcionesDiferidas`). */
+/**
+ * Aviso con «Deshacer»: cada añadido tiene el suyo y su propio plazo de 8 s (lo cuenta `useInscripcionesDiferidas`).
+ * Mientras el foco de teclado o de lector está en su «Deshacer», el plazo no corre (decisión de Cristian, 21/10).
+ */
 function AvisoAnadido({
   id,
   nombre,
   campania,
   onDeshacer,
+  onPausa,
+  onReanudar,
 }: {
   id: string;
   nombre: string;
   campania: string;
   onDeshacer: (id: string) => void;
+  onPausa: (id: string) => void;
+  onReanudar: (id: string) => void;
 }) {
   return (
     <div
@@ -112,6 +167,10 @@ function AvisoAnadido({
       <button
         type="button"
         onClick={() => onDeshacer(id)}
+        onFocus={(e) => {
+          if (tieneFocoVisible(e.currentTarget)) onPausa(id);
+        }}
+        onBlur={() => onReanudar(id)}
         // El foco llega acá solo al aparecer el aviso (decisión del 16/10): el lector lee el texto del aviso y después «Deshacer».
         aria-describedby={idTextoAviso(id)}
         // Con Enter sostenido en «Añadir», el foco ya pasó a este botón: las repeticiones de la tecla no lo aprietan.
@@ -149,6 +208,9 @@ interface FilaProps {
 function FilaCandidato({ candidato, elegido, activo, anadido, onElegir, onAnadir }: FilaProps) {
   const bloqueo = motivoBloqueo(candidato);
   const deshabilitado = bloqueo !== null || anadido;
+  const rol = etiquetaRol(candidato);
+  // Los dos botones de la fila tienen nombre propio (`aria-label`), que tapa su contenido: la etiqueta va como descripción.
+  const descritoPorRol = rol !== null ? idEtiquetaRol(candidato.id) : undefined;
 
   return (
     <li
@@ -167,6 +229,7 @@ function FilaCandidato({ candidato, elegido, activo, anadido, onElegir, onAnadir
         onClick={onElegir}
         aria-pressed={elegido}
         aria-label={`Elegir a ${candidato.nombre}`}
+        aria-describedby={descritoPorRol}
         className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-control text-left focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none"
       >
         <Avatar nombre={candidato.nombre} apagado={candidato.estadoCuenta === "suspendida"} />
@@ -174,6 +237,7 @@ function FilaCandidato({ candidato, elegido, activo, anadido, onElegir, onAnadir
           <span className="flex flex-wrap items-center gap-2">
             <span className="min-w-0 text-[13.5px] font-semibold break-words text-tinta">{candidato.nombre}</span>
             <PastillaEstado estado={candidato.estadoCuenta} />
+            {rol !== null ? <EtiquetaRol id={descritoPorRol} texto={rol} /> : null}
           </span>
           <span className="text-cuerpo break-all text-tinta-2">{candidato.email}</span>
           <span className="text-chico text-tinta-suave">
@@ -189,6 +253,7 @@ function FilaCandidato({ candidato, elegido, activo, anadido, onElegir, onAnadir
         onClick={onAnadir}
         data-anadir-id={candidato.id}
         aria-label={`Añadir a ${candidato.nombre}`}
+        aria-describedby={descritoPorRol}
         className={cn(
           "min-h-9 text-nav font-semibold",
           !elegido && "text-tinta-2",
@@ -220,6 +285,8 @@ interface DetalleProps {
 function DetalleCuenta({ candidato, campania, anadido, onAnadir }: DetalleProps) {
   const bloqueo = motivoBloqueo(candidato);
   const ayuda = ayudaBloqueo(candidato);
+  const rol = etiquetaRol(candidato);
+  const aviso = avisoRol(candidato);
 
   return (
     <section
@@ -237,17 +304,24 @@ function DetalleCuenta({ candidato, campania, anadido, onAnadir }: DetalleProps)
         <DatoDetalle etiqueta="Estado de la cuenta">
           <PastillaEstado estado={candidato.estadoCuenta} />
         </DatoDetalle>
+        {rol !== null ? (
+          <DatoDetalle etiqueta="Tipo de cuenta">
+            <EtiquetaRol texto={rol} />
+          </DatoDetalle>
+        ) : null}
         <DatoDetalle etiqueta="Campaña actual">{candidato.campaniaActual ?? "Sin campaña"}</DatoDetalle>
         <DatoDetalle etiqueta="Zona">Sin zona</DatoDetalle>
         <DatoDetalle etiqueta="Cuenta creada">{fechaCorta(candidato.cuentaCreada)}</DatoDetalle>
       </dl>
       {bloqueo ? <AvisoBloqueo texto={bloqueo} /> : null}
+      {aviso !== null ? <AvisoRol id={`aviso-rol-detalle-${candidato.id}`} texto={aviso} /> : null}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button
           type="button"
           disabled={bloqueo !== null || anadido}
           onClick={onAnadir}
           data-anadir-id={candidato.id}
+          aria-describedby={aviso !== null ? `aviso-rol-detalle-${candidato.id}` : undefined}
           // Con una campaña de nombre largo el texto corta línea en vez de desbordar la columna: en los espacios y, si el nombre
           // no los tiene, en medio de la palabra. `break-words` no alcanza acá: el botón es `inline-flex` y su texto es un ítem
           // flex que no baja de la palabra más larga; `wrap-anywhere` (`overflow-wrap: anywhere`) sí achica ese mínimo.
@@ -271,6 +345,9 @@ function DetalleCuenta({ candidato, campania, anadido, onAnadir }: DetalleProps)
  *
  * La búsqueda es del servidor, de a 10 por página (la siguiente se pide al llegar al final de la lista), y «Añadir»
  * demora la inscripción 8 s para dejar «Deshacer» (decisiones de Cristian, 30/09): ver los dos hooks.
+ *
+ * Una cuenta de coordinación o de administración se puede añadir (HU-CAM-004, 02/10), pero lleva una etiqueta y «Añadir»
+ * pide confirmarlo antes (decisión de Cristian, 11/11): recién con «Añadir igual» sigue el camino de siempre.
  */
 export function AnadirColportor({
   datos,
@@ -288,7 +365,7 @@ export function AnadirColportor({
   const [elegidoId, setElegidoId] = useState<string | null>(null);
   const [indiceActivo, setIndiceActivo] = useState(-1);
   /** Inscripciones que no prosperaron, una por cuenta: no se pisan entre sí ni se borran al escribir. */
-  const [fallos, setFallos] = useState<{ id: string; mensaje: string }[]>([]);
+  const [fallos, setFallos] = useState<{ id: string; mensaje: string; acceso?: MotivoDeRechazo }[]>([]);
 
   /**
    * Cuentas que la base rechazó por estar en otra campaña (`CI007`) y la campaña que dijo: la fila pasa a mostrarse
@@ -303,6 +380,13 @@ export function AnadirColportor({
   );
   const recibidasAhora = useRef(0);
 
+  /**
+   * La cuenta de coordinación o de administración que espera el «Añadir igual» del diálogo, y el botón desde el que se abrió
+   * (el de la fila o el del detalle): si se cancela, el foco vuelve ahí.
+   */
+  const [porConfirmar, setPorConfirmar] = useState<CandidatoColportor | null>(null);
+  const origenDelDialogo = useRef<HTMLElement | null>(null);
+
   const {
     consulta,
     setConsulta,
@@ -315,6 +399,7 @@ export function AnadirColportor({
     cargandoMas,
     falla,
     fallaMas,
+    acceso,
     cargarMas,
     reintentar,
     reintentarMas,
@@ -343,6 +428,12 @@ export function AnadirColportor({
 
   // Una cuenta tiene a lo sumo un envío, y volver a añadirla borra su aviso: no hay dos avisos de la misma.
   const registrarFallo = useCallback((cuenta: Anadido, causa: CausaFallo) => {
+    if (causa.tipo === "acceso") {
+      // Siempre nombra a la cuenta: puede haber varias en la misma situación y ninguna se pierde sin que se sepa.
+      const mensaje = mensajeAnadirRechazado(cuenta.nombre, mensajeDeRechazo(causa.motivo));
+      setFallos((previos) => [...previos, { id: cuenta.id, mensaje, acceso: causa.motivo }]);
+      return;
+    }
     const mensaje =
       causa.tipo === "sin-conexion"
         ? mensajeAnadirSinConexion(cuenta.nombre)
@@ -367,7 +458,7 @@ export function AnadirColportor({
     [enfocarFila],
   );
 
-  const { anadidos, avisos, enviando, programar, deshacer, confirmarTodas } = useInscripcionesDiferidas({
+  const { anadidos, avisos, enviando, programar, deshacer, pausar, reanudar, confirmarTodas } = useInscripcionesDiferidas({
     inscribir,
     alFallar: registrarFallo,
     alVencerPlazo,
@@ -380,7 +471,7 @@ export function AnadirColportor({
         : encontrados.map((c) => {
             const marca = enOtraCampania.get(c.id);
             const vigente = marca !== undefined && (!hayConsulta || marca.recibidas === recibidas);
-            return vigente ? { ...c, campaniaActual: marca.campania } : c;
+            return vigente ? { ...c, campaniaActual: marca.campania, enOtraCampania: true } : c;
           }),
     [encontrados, enOtraCampania, recibidas, hayConsulta],
   );
@@ -424,6 +515,8 @@ export function AnadirColportor({
 
   useEffect(() => {
     function alTeclear(evento: KeyboardEvent) {
+      // Con la confirmación abierta las teclas son del diálogo: Esc lo cancela y nada más (ni borra la búsqueda ni sale).
+      if (porConfirmar !== null) return;
       if (evento.key === "Escape") {
         // Con el foco en un aviso, Esc solo lo devuelve a donde estaba: el aviso sigue con su plazo y nada más cambia.
         const aviso = evento.target instanceof Element ? evento.target.closest<HTMLElement>("[data-aviso-id]") : null;
@@ -453,7 +546,7 @@ export function AnadirColportor({
     }
     document.addEventListener("keydown", alTeclear);
     return () => document.removeEventListener("keydown", alTeclear);
-  }, [consulta, setConsulta, avisos.length, confirmarTodas, salir, enfocarFila]);
+  }, [consulta, setConsulta, avisos.length, confirmarTodas, salir, enfocarFila, porConfirmar]);
 
   // La página siguiente se pide cuando el final de la lista entra en pantalla. Sin `IntersectionObserver` quedan
   // el «↓» del teclado y el aviso de abajo.
@@ -468,13 +561,47 @@ export function AnadirColportor({
     // `cargandoMas` y la cantidad vuelven a armar el observador: si el final sigue a la vista tras cargar, pide la que sigue.
   }, [hayMas, fallaMas, cargandoMas, resultados.length, cargarMas]);
 
-  function anadir(candidato: CandidatoColportor) {
+  /**
+   * `confirmada`: viene de «Añadir igual». Sin ella, una cuenta de coordinación o de administración no se añade todavía: se
+   * abre la confirmación (un segundo toque en «Añadir» mientras tanto no abre otra ni cambia nada).
+   */
+  function anadir(candidato: CandidatoColportor, confirmada = false) {
     if (motivoBloqueo(candidato) !== null) return;
+    if (candidato.rolCuenta && !confirmada) {
+      if (porConfirmar !== null || anadidos.some((a) => a.id === candidato.id)) return;
+      const activo = document.activeElement;
+      origenDelDialogo.current = activo instanceof HTMLElement && activo !== document.body ? activo : null;
+      setPorConfirmar(candidato);
+      return;
+    }
     setFallos((previos) => previos.filter((f) => f.id !== candidato.id));
     const nueva = programar({ id: candidato.id, nombre: candidato.nombre });
     // El botón se apaga al añadir y aparece el aviso con «Deshacer»: el foco va ahí en vez de caer al body (salvo que ya
-    // esté escribiendo en otro lado). Un doble toque no suma un segundo aviso ni mueve nada.
-    if (nueva && focoSigueEnAnadir(candidato.id)) avisoPorEnfocar.current = candidato.id;
+    // esté escribiendo en otro lado). Un doble toque no suma un segundo aviso ni mueve nada. Tras «Añadir igual» el foco
+    // estaba en el diálogo, que se cierra: también pasa al «Deshacer».
+    if (nueva && (confirmada || focoSigueEnAnadir(candidato.id))) avisoPorEnfocar.current = candidato.id;
+    else if (confirmada) enfocarFila(candidato.id);
+  }
+
+  /** «Añadir igual»: la cuenta sigue el camino de cualquier otra (aviso con «Deshacer» y envío a los 8 s). */
+  function confirmarRol() {
+    const candidato = porConfirmar;
+    // Un doble toque en «Añadir igual»: el segundo ya no encuentra nada que confirmar.
+    if (candidato === null) return;
+    setPorConfirmar(null);
+    origenDelDialogo.current = null;
+    anadir(candidato, true);
+  }
+
+  /** «Cancelar» o Esc: no se añade nada y el foco vuelve al «Añadir» que abrió el diálogo (o a la fila, si ya no está). */
+  function cancelarRol() {
+    const candidato = porConfirmar;
+    if (candidato === null) return;
+    setPorConfirmar(null);
+    const origen = origenDelDialogo.current;
+    origenDelDialogo.current = null;
+    if (origen?.isConnected) origen.focus();
+    else enfocarFila(candidato.id);
   }
 
   function alDeshacer(id: string) {
@@ -516,6 +643,8 @@ export function AnadirColportor({
 
   // El título repite lo buscado en mayúsculas: un texto pegado muy largo (una lista de emails) se acorta, y lo que sigue sin
   // espacios se parte, para que no empuje el título por debajo de la columna del detalle. El texto entero queda en el buscador.
+  const confirmacion = porConfirmar !== null ? confirmacionDeRol(porConfirmar, datos.campania) : null;
+
   const busqueda = recortarConPuntos(texto, MAX_CARACTERES_TITULO).toUpperCase();
   const titulo = !hayConsulta
     ? `PENDIENTES DE ASIGNACIÓN · ${resultados.length}`
@@ -594,9 +723,13 @@ export function AnadirColportor({
             ) : falla !== null ? (
               <div role="alert" className="flex flex-col items-start gap-2 px-3.5 py-4 text-cuerpo font-medium text-peligro">
                 <p>{falla}</p>
-                <Button type="button" variant="outline" onClick={reintentar} className="text-nav font-semibold">
-                  Reintentar
-                </Button>
+                {acceso ? (
+                  <EnlaceEntrarDeNuevo motivo={acceso} />
+                ) : (
+                  <Button type="button" variant="outline" onClick={reintentar} className="text-nav font-semibold">
+                    Reintentar
+                  </Button>
+                )}
               </div>
             ) : resultados.length === 0 ? (
               <p className="px-3.5 py-4 text-cuerpo text-tinta-suave">
@@ -631,9 +764,13 @@ export function AnadirColportor({
                 {fallaMas !== null ? (
                   <div role="alert" className="flex flex-col items-start gap-2 px-3.5 py-3 text-cuerpo font-medium text-peligro">
                     <p>{fallaMas}</p>
-                    <Button type="button" variant="outline" onClick={reintentarMas} className="text-nav font-semibold">
-                      Reintentar
-                    </Button>
+                    {acceso ? (
+                      <EnlaceEntrarDeNuevo motivo={acceso} />
+                    ) : (
+                      <Button type="button" variant="outline" onClick={reintentarMas} className="text-nav font-semibold">
+                        Reintentar
+                      </Button>
+                    )}
                   </div>
                 ) : null}
               </>
@@ -643,13 +780,14 @@ export function AnadirColportor({
 
         <div className="flex flex-col gap-4">
           {fallos.map((f) => (
-            <p
+            <div
               key={f.id}
               role="alert"
-              className="rounded-tarjeta bg-peligro-fondo px-4 py-3 text-nav font-medium text-peligro"
+              className="flex flex-col items-start gap-2 rounded-tarjeta bg-peligro-fondo px-4 py-3 text-nav font-medium text-peligro"
             >
-              {f.mensaje}
-            </p>
+              <p>{f.mensaje}</p>
+              {f.acceso ? <EnlaceEntrarDeNuevo motivo={f.acceso} /> : null}
+            </div>
           ))}
           {elegido ? (
             <DetalleCuenta
@@ -690,9 +828,18 @@ export function AnadirColportor({
       {avisos.length > 0 ? (
         <div className="fixed bottom-6 left-1/2 z-20 flex -translate-x-1/2 flex-col items-stretch gap-2">
           {avisos.map((a) => (
-            <AvisoAnadido key={a.id} id={a.id} nombre={a.nombre} campania={datos.campania} onDeshacer={alDeshacer} />
+            <AvisoAnadido key={a.id} id={a.id} nombre={a.nombre} campania={datos.campania} onDeshacer={alDeshacer} onPausa={pausar} onReanudar={reanudar} />
           ))}
         </div>
+      ) : null}
+
+      {confirmacion !== null ? (
+        <DialogoCuentaConRol
+          titulo={confirmacion.titulo}
+          texto={confirmacion.texto}
+          alCancelar={cancelarRol}
+          alConfirmar={confirmarRol}
+        />
       ) : null}
     </div>
   );

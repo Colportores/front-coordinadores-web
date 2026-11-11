@@ -42,7 +42,7 @@ export function TarjetaDeCifra({
   return (
     <section aria-label={etiqueta} className="flex min-w-0 flex-col gap-2 rounded-tarjeta border border-borde bg-superficie px-4 pt-[13px] pb-2.5">
       <div className="flex flex-col gap-px">
-        <h3 className="truncate text-etiqueta font-semibold tracking-etiqueta text-tinta-suave">{etiqueta}</h3>
+        <h3 className="text-etiqueta font-semibold tracking-etiqueta wrap-anywhere text-tinta-suave">{etiqueta}</h3>
         <p className="flex flex-wrap items-baseline gap-2">
           <span className="font-serif text-[26px] font-semibold text-marca">{valor}</span>
           <span className="font-mono text-nav font-medium whitespace-nowrap text-tinta">
@@ -52,8 +52,10 @@ export function TarjetaDeCifra({
         <p className="truncate text-mini text-tinta-suave" title={nota}>
           {nota}
         </p>
-        <p className="font-mono text-[10.5px] text-tinta-2">{campania}</p>
+        {campania && <p className="font-mono text-[10.5px] text-tinta-2">{campania}</p>}
       </div>
+      {/* El rango libre no tiene períodos que dibujar: sin barras, la tarjeta es solo la cifra. */}
+      {barras.length > 0 && (
       <div role="img" aria-label={resumenDelGrafico} className="flex flex-col gap-2">
         <div aria-hidden="true" className="flex h-14 items-end gap-1 border-b border-grafico-neutro">
           {barras.map((barra, i) => (
@@ -77,6 +79,7 @@ export function TarjetaDeCifra({
           ))}
         </div>
       </div>
+      )}
     </section>
   );
 }

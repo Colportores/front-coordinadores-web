@@ -1,5 +1,5 @@
 import type { ReporteArmado } from "../horas/armado";
-import type { MedidaMostrada } from "../horas/calculo";
+import type { ColumnaDeReporte } from "../horas/calculo";
 
 /**
  * «Datos CSV» de la vista 32 (HU-REP-005): lo que está en la tabla de la pantalla —el ámbito y el período que se
@@ -11,8 +11,11 @@ import type { MedidaMostrada } from "../horas/calculo";
 export const BOM_UTF8 = "﻿";
 const FIN_DE_LINEA = "\r\n";
 
-const ENCABEZADO_DE_CIFRA: Record<MedidaMostrada, string> = {
+const ENCABEZADO_DE_CIFRA: Record<ColumnaDeReporte, string> = {
   horas: "Horas",
+  diasTrabajados: "Días trabajados",
+  promedio: "Promedio de horas por día trabajado",
+  acompaniadas: "Jornadas con acompañamiento",
   presentaciones: "Presentaciones",
   ventas: "Ventas",
   monto: "Monto ($U)",

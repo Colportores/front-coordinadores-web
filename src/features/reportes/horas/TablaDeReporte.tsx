@@ -1,11 +1,11 @@
 import { cn } from "@/lib/utils";
 
-import type { MedidaMostrada, Tendencia } from "./calculo";
+import type { ColumnaDeReporte, Tendencia } from "./calculo";
 import { TendenciaDeCifra } from "./TendenciaDeCifra";
 
 /** Una cifra de la tabla con su tendencia al lado. */
 export interface CeldaDeTabla {
-  clave: MedidaMostrada;
+  clave: ColumnaDeReporte;
   /** La cifra ya formateada; «—» si no hay datos. */
   valor: string;
   /** La cifra sin formato (para exportar); `null` si no hay datos. */
@@ -45,14 +45,19 @@ export function TablaDeReporte({
   /** Nombre accesible de la tabla. */
   descripcion: string;
   primeraColumna: string;
-  columnas: { clave: MedidaMostrada; encabezado: string }[];
+  columnas: { clave: ColumnaDeReporte; encabezado: string }[];
   filas: FilaDeTabla[];
   mensajeVacio: string;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-tarjeta border border-borde bg-superficie">
       {/* Con el desplazamiento horizontal el área tiene que poder alcanzarse con el teclado y decir qué es. */}
-      <div tabIndex={0} role="region" aria-label={descripcion} className="min-h-0 flex-1 overflow-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento">
+      <div
+        tabIndex={0} // NOSONAR S6845: región con desplazamiento; sin tabIndex el teclado no la alcanza (WCAG 2.1.1)
+        role="region"
+        aria-label={descripcion}
+        className="min-h-0 flex-1 overflow-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-acento"
+      >
         <table
           aria-label={descripcion}
           className="w-full table-fixed border-collapse"

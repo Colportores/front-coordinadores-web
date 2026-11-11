@@ -110,6 +110,7 @@ function acciones(sobre: Partial<AccionesZonas> = {}): AccionesZonas {
       { id: "cat-mercedes", nombre: "Mercedes", departamento: "Soriano" },
     ]),
     agregarCiudad: vi.fn(async () => ({ ok: false as const, mensaje: "no" })),
+    casasDeZonas: vi.fn(async () => []),
     ...sobre,
   };
 }
@@ -145,7 +146,8 @@ describe("ZonasCampania con lo que devuelve la fuente de las RPC", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(rechazo);
       expect(screen.getByRole("button", { name: "Guardar zona" })).toBeDisabled();
       expect(screen.queryByText(/Incluye/)).not.toBeInTheDocument();
-      expect(mapa.props?.dibujo?.poligono ?? null).toBeNull();
+      // El círculo que dibujó sigue en el mapa (#179: se dibuja sin esperar a la base); lo que no hay es zona que guardar.
+      expect(mapa.props?.dibujo?.poligono ?? null).not.toBeNull();
       expect(acc.guardarZona).not.toHaveBeenCalled();
     });
 
