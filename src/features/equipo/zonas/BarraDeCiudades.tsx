@@ -82,7 +82,9 @@ export function BarraDeCiudades({ ciudades, ciudadId, deshabilitado, onElegir }:
   }, [ciudadId, ciudades.length]);
 
   return (
-    <nav aria-label="Ciudades de la campaña" className="flex min-w-0 flex-1 flex-col gap-2">
+    // Sin buscador el nav toma su ancho natural: «+ Agregar ciudad» queda pegado a la última ciudad, como en el canvas 24. Con
+    // buscador ocupa la fila, para que el botón no salte de lugar mientras lo escrito achica la lista.
+    <nav aria-label="Ciudades de la campaña" className={cn("flex min-w-0 flex-col gap-2", conBuscador && "flex-1")}>
       {conBuscador ? (
         <div className="flex flex-col gap-1">
           <input

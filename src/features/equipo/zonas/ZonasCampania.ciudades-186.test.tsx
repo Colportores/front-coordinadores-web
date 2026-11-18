@@ -68,4 +68,23 @@ describe("ZonasCampania · barra de ciudades con 150 ciudades (#186)", () => {
     expect(nombres).toEqual(["Canelones", "Las Piedras", "Montevideo"]);
     expect(within(barra).getByRole("button", { current: true })).toHaveTextContent(DATOS_ZONAS_SIMULADO.ciudades[0]!.nombre);
   });
+
+  it("con pocas ciudades «+ Agregar ciudad» va pegado a la última y centrado, como en el canvas 24 (revisión de #189)", () => {
+    render(<ZonasCampania datos={DATOS_ZONAS_SIMULADO} acciones={acciones()} />);
+    const barra = screen.getByRole("navigation", { name: "Ciudades de la campaña" });
+    const fila = screen.getByTestId("fila-de-ciudades");
+
+    // El nav no se estira: el botón sigue a la última ciudad, no al borde derecho.
+    expect(barra).not.toHaveClass("flex-1");
+    expect(barra.nextElementSibling).toBe(screen.getByRole("button", { name: "+ Agregar ciudad" }));
+    expect(fila).toHaveClass("items-center");
+    expect(fila).not.toHaveClass("items-start");
+  });
+
+  it("con el buscador el nav ocupa la fila y el botón se alinea arriba, con el campo", () => {
+    render(<ZonasCampania datos={datosConMuchasCiudades()} acciones={acciones()} />);
+
+    expect(screen.getByRole("navigation", { name: "Ciudades de la campaña" })).toHaveClass("flex-1");
+    expect(screen.getByTestId("fila-de-ciudades")).toHaveClass("items-start");
+  });
 });

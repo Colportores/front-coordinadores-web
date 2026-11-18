@@ -24,7 +24,7 @@ import type {
 import { distanciaM, poligonoCircular } from "@/datos/equipo/zonas/geometria";
 import { colorParaZonaNueva } from "@/datos/equipo/zonas/paleta";
 import { recortarIdaYVuelta } from "@/features/equipo/zonas/borde";
-import { BarraDeCiudades } from "@/features/equipo/zonas/BarraDeCiudades";
+import { BarraDeCiudades, CIUDADES_PARA_BUSCAR } from "@/features/equipo/zonas/BarraDeCiudades";
 import { BuscadorCiudad } from "@/features/equipo/zonas/BuscadorCiudad";
 import { AvisoDeCasas, type AvisoDelMapa } from "@/features/equipo/zonas/casas/AvisoDeCasas";
 import { horaEnMontevideo, sinOcultas } from "@/features/equipo/zonas/casas/estados";
@@ -973,7 +973,8 @@ export function ZonasCampania({ datos, acciones }: Props) {
     <div ref={raiz} className="flex flex-col gap-3.5">
       <h2 className="font-serif text-[21px] font-semibold text-tinta">Zonas · {datos.campania}</h2>
 
-      <div className="flex items-start gap-2">
+      {/* Centrado como en el canvas 24; con el buscador arriba de los botones, «+ Agregar ciudad» se alinea con el campo. */}
+      <div data-testid="fila-de-ciudades" className={cn("flex gap-2", ciudades.length > CIUDADES_PARA_BUSCAR ? "items-start" : "items-center")}>
         {ciudad ? (
           <BarraDeCiudades ciudades={ciudades} ciudadId={ciudad.id} deshabilitado={guardando || agregando} onElegir={elegirCiudad} />
         ) : null}
