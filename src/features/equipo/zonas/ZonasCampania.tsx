@@ -24,6 +24,7 @@ import type {
 import { distanciaM, poligonoCircular } from "@/datos/equipo/zonas/geometria";
 import { colorParaZonaNueva } from "@/datos/equipo/zonas/paleta";
 import { recortarIdaYVuelta } from "@/features/equipo/zonas/borde";
+import { BarraDeCiudades } from "@/features/equipo/zonas/BarraDeCiudades";
 import { BuscadorCiudad } from "@/features/equipo/zonas/BuscadorCiudad";
 import { AvisoDeCasas, type AvisoDelMapa } from "@/features/equipo/zonas/casas/AvisoDeCasas";
 import { horaEnMontevideo, sinOcultas } from "@/features/equipo/zonas/casas/estados";
@@ -147,11 +148,6 @@ const MS_ESPERA_VISTA_PREVIA = 150;
 const MS_ESPERA_NOMBRE_CENTRO = 250;
 
 const mismaEsquina = (a: Esquina, b: Esquina) => a.lon === b.lon && a.lat === b.lat;
-
-function textoCantidadZonas(cantidad: number): string {
-  if (cantidad === 0) return "sin zonas";
-  return cantidad === 1 ? "1 zona" : `${cantidad} zonas`;
-}
 
 function formaVacia(tipoForma: TipoForma): FormaZona {
   return tipoForma === "RADIAL" ? { tipoForma } : { tipoForma, esquinas: [], cerrada: false };
@@ -977,29 +973,9 @@ export function ZonasCampania({ datos, acciones }: Props) {
     <div ref={raiz} className="flex flex-col gap-3.5">
       <h2 className="font-serif text-[21px] font-semibold text-tinta">Zonas · {datos.campania}</h2>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         {ciudad ? (
-          <nav aria-label="Ciudades de la campaña" className="flex flex-wrap gap-2">
-            {ciudades.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                aria-current={c.id === ciudad.id ? "true" : undefined}
-                data-foco={c.id === ciudad.id ? "ciudad-elegida" : undefined}
-                disabled={guardando || agregando}
-                onClick={() => elegirCiudad(c.id)}
-                className={cn(
-                  "flex cursor-pointer flex-col items-start rounded-control border px-3.5 py-1.5 text-left focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60",
-                  c.id === ciudad.id
-                    ? "border-marca bg-marca-clara text-marca"
-                    : "border-borde bg-superficie text-tinta-2 hover:bg-fondo",
-                )}
-              >
-                <span className="text-nav font-semibold">{c.nombre}</span>
-                <span className="text-mini text-tinta-suave">{textoCantidadZonas(c.zonas.length)}</span>
-              </button>
-            ))}
-          </nav>
+          <BarraDeCiudades ciudades={ciudades} ciudadId={ciudad.id} deshabilitado={guardando || agregando} onElegir={elegirCiudad} />
         ) : null}
         <Button
           type="button"
