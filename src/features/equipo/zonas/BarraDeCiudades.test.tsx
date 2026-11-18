@@ -9,6 +9,7 @@ import {
   CIUDADES_PARA_BUSCAR,
   ciudadesQueCoinciden,
   ETIQUETA_BUSCAR_CIUDAD,
+  ordenarCiudades,
   textoSinCoincidencias,
 } from "@/features/equipo/zonas/BarraDeCiudades";
 
@@ -174,5 +175,77 @@ describe("BarraDeCiudades · 150 ciudades", () => {
     expect((await axe.run(container, opciones)).violations).toEqual([]);
     await userEvent.type(screen.getByRole("searchbox"), "xyz");
     expect((await axe.run(container, opciones)).violations).toEqual([]);
+  });
+});
+
+describe("Orden de la barra · A-Z y, buscando, primero lo que empieza con lo escrito (decisión P4 de #186, 18/11)", () => {
+  const nombres = (cs: readonly CiudadDeCampania[]) => cs.map((c) => c.nombre);
+  const desordenadas = () =>
+    ["Treinta y Tres", "rocha", "Ciudad de la Costa", "Río Branco", "Artigas", "Colonia del Sacramento", "Las Piedras", "Costa Azul", "Ñangapiré"].map(
+      (n, i) => ciudad(i, n),
+    );
+
+  it("ordenarCiudades va A-Z sin mirar tildes ni mayúsculas, y no toca la lista que recibe", () => {
+    const ciudades = desordenadas();
+    const antes = nombres(ciudades);
+
+    expect(nombres(ordenarCiudades(ciudades))).toEqual([
+      "Artigas",
+      "Ciudad de la Costa",
+      "Colonia del Sacramento",
+      "Costa Azul",
+      "Las Piedras",
+      "Ñangapiré",
+      "Río Branco",
+      "rocha",
+      "Treinta y Tres",
+    ]);
+    expect(nombres(ciudades)).toEqual(antes);
+  });
+
+  it("dos ciudades con el mismo nombre quedan por id, siempre en el mismo orden", () => {
+    const a = ciudad(2, "Santa Lucía");
+    const b = ciudad(1, "Santa Lucia");
+    expect(ordenarCiudades([a, b]).map((c) => c.id)).toEqual(["c1", "c2"]);
+    expect(ordenarCiudades([b, a]).map((c) => c.id)).toEqual(["c1", "c2"]);
+  });
+
+  it("ciudadesQueCoinciden: primero las que empiezan con lo escrito, después las que lo contienen, cada grupo A-Z", () => {
+    expect(nombres(ciudadesQueCoinciden(desordenadas(), "COSTA"))).toEqual(["Costa Azul", "Ciudad de la Costa"]);
+    expect(nombres(ciudadesQueCoinciden(desordenadas(), "co"))).toEqual(["Colonia del Sacramento", "Costa Azul", "Ciudad de la Costa", "Río Branco"]);
+    expect(nombres(ciudadesQueCoinciden(desordenadas(), ""))).toEqual(nombres(ordenarCiudades(desordenadas())));
+  });
+
+  it("sin buscar, los botones van A-Z aunque la fuente mande otro orden (también con pocas ciudades)", () => {
+    montar(desordenadas().slice(0, 4), "c0");
+
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    expect(botonesDeCiudad().map((b) => b.querySelector("span")?.textContent)).toEqual([
+      "Ciudad de la Costa",
+      "Río Branco",
+      "rocha",
+      "Treinta y Tres",
+    ]);
+    // La elegida queda en su lugar A-Z, marcada.
+    expect(botonesDeCiudad()[3]).toHaveAttribute("aria-current", "true");
+  });
+
+  it("buscando, la elegida sigue primera; después las que empiezan y las que contienen, y Enter elige la primera que coincide", async () => {
+    const { onElegir } = montar(desordenadas(), "c0");
+
+    await userEvent.type(screen.getByRole("searchbox"), "co");
+
+    expect(botonesDeCiudad().map((b) => b.querySelector("span")?.textContent)).toEqual([
+      "Treinta y Tres",
+      "Colonia del Sacramento",
+      "Costa Azul",
+      "Ciudad de la Costa",
+      "Río Branco",
+    ]);
+    expect(botonesDeCiudad()[0]).toHaveAttribute("aria-current", "true");
+    expect(screen.getByText("4 de 9 ciudades")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByRole("searchbox"), "{Enter}");
+    expect(onElegir).toHaveBeenCalledWith("c5");
   });
 });

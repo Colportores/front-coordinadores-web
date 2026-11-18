@@ -59,4 +59,13 @@ describe("ZonasCampania · barra de ciudades con 150 ciudades (#186)", () => {
 
     expect(screen.queryByRole("searchbox", { name: ETIQUETA_BUSCAR_CIUDAD })).not.toBeInTheDocument();
   });
+
+  it("la barra va A-Z aunque la fuente mande otro orden, y la ciudad que se abre primero sigue siendo la misma (P4 de #186)", () => {
+    render(<ZonasCampania datos={DATOS_ZONAS_SIMULADO} acciones={acciones()} />);
+    const barra = screen.getByRole("navigation", { name: "Ciudades de la campaña" });
+
+    const nombres = within(barra).getAllByRole("button").map((b) => b.querySelector("span")?.textContent);
+    expect(nombres).toEqual(["Canelones", "Las Piedras", "Montevideo"]);
+    expect(within(barra).getByRole("button", { current: true })).toHaveTextContent(DATOS_ZONAS_SIMULADO.ciudades[0]!.nombre);
+  });
 });

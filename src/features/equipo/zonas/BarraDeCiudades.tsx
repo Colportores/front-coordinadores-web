@@ -24,11 +24,32 @@ function textoCantidadZonas(cantidad: number): string {
   return cantidad === 1 ? "1 zona" : `${cantidad} zonas`;
 }
 
-/** Búsqueda blanda: sin distinguir mayúsculas ni tildes, con coincidencia parcial en cualquier parte del nombre. */
+/** A-Z en castellano sin mirar tildes ni mayúsculas; mismo nombre, por id, para que el orden no salte entre cargas. */
+function compararCiudades(a: CiudadDeCampania, b: CiudadDeCampania): number {
+  return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
+
+/** Las ciudades en el orden de la barra: A-Z (decisión P4 de #186, 18/11), no el que manda la fuente. */
+export function ordenarCiudades(ciudades: readonly CiudadDeCampania[]): CiudadDeCampania[] {
+  return [...ciudades].sort(compararCiudades);
+}
+
+/**
+ * Búsqueda blanda: sin distinguir mayúsculas ni tildes, con coincidencia parcial en cualquier parte del nombre. Primero las que
+ * empiezan con lo escrito y después las que solo lo contienen, cada grupo A-Z (decisión P4 de #186). Vacío: todas, A-Z.
+ */
 export function ciudadesQueCoinciden(ciudades: readonly CiudadDeCampania[], texto: string): CiudadDeCampania[] {
+  const ordenadas = ordenarCiudades(ciudades);
   const buscado = normalizarBusqueda(texto);
-  if (buscado === "") return [...ciudades];
-  return ciudades.filter((c) => normalizarBusqueda(c.nombre).includes(buscado));
+  if (buscado === "") return ordenadas;
+  const empiezan: CiudadDeCampania[] = [];
+  const contienen: CiudadDeCampania[] = [];
+  for (const c of ordenadas) {
+    const nombre = normalizarBusqueda(c.nombre);
+    if (nombre.startsWith(buscado)) empiezan.push(c);
+    else if (nombre.includes(buscado)) contienen.push(c);
+  }
+  return [...empiezan, ...contienen];
 }
 
 interface Props {
@@ -50,7 +71,7 @@ export function BarraDeCiudades({ ciudades, ciudadId, deshabilitado, onElegir }:
   const conBuscador = ciudades.length > CIUDADES_PARA_BUSCAR;
   const buscando = conBuscador && texto.trim() !== "";
 
-  const coinciden = buscando ? ciudadesQueCoinciden(ciudades, texto) : [...ciudades];
+  const coinciden = ciudadesQueCoinciden(ciudades, buscando ? texto : "");
   // Buscando, la ciudad elegida va primera aunque no coincida: no se pierde de vista ni el foco que le pasa «+ Agregar ciudad».
   const elegida = ciudades.find((c) => c.id === ciudadId);
   const visibles = buscando && elegida ? [elegida, ...coinciden.filter((c) => c.id !== elegida.id)] : coinciden;
