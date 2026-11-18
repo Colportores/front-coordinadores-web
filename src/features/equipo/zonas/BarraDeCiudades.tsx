@@ -29,22 +29,22 @@ function compararCiudades(a: CiudadDeCampania, b: CiudadDeCampania): number {
   return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 }
 
-/** Las ciudades en el orden de la barra: A-Z (decisión P4 de #186, 18/11), no el que manda la fuente. */
+/** Las ciudades A-Z. Solo se usa para ordenar los resultados de una búsqueda: sin texto la barra respeta el orden de la fuente (P1 de la QA de #186, 18/11). */
 export function ordenarCiudades(ciudades: readonly CiudadDeCampania[]): CiudadDeCampania[] {
   return [...ciudades].sort(compararCiudades);
 }
 
 /**
  * Búsqueda blanda: sin distinguir mayúsculas ni tildes, con coincidencia parcial en cualquier parte del nombre. Primero las que
- * empiezan con lo escrito y después las que solo lo contienen, cada grupo A-Z (decisión P4 de #186). Vacío: todas, A-Z.
+ * empiezan con lo escrito y después las que solo lo contienen, cada grupo A-Z (decisión P4 de #186). Vacío: todas, en el orden de la
+ * fuente, como el canvas 24 · 01 (P1 de la QA de #186, 18/11).
  */
 export function ciudadesQueCoinciden(ciudades: readonly CiudadDeCampania[], texto: string): CiudadDeCampania[] {
-  const ordenadas = ordenarCiudades(ciudades);
   const buscado = normalizarBusqueda(texto);
-  if (buscado === "") return ordenadas;
+  if (buscado === "") return [...ciudades];
   const empiezan: CiudadDeCampania[] = [];
   const contienen: CiudadDeCampania[] = [];
-  for (const c of ordenadas) {
+  for (const c of ordenarCiudades(ciudades)) {
     const nombre = normalizarBusqueda(c.nombre);
     if (nombre.startsWith(buscado)) empiezan.push(c);
     else if (nombre.includes(buscado)) contienen.push(c);

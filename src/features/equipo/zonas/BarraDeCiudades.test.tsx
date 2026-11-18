@@ -178,7 +178,7 @@ describe("BarraDeCiudades · 150 ciudades", () => {
   });
 });
 
-describe("Orden de la barra · A-Z y, buscando, primero lo que empieza con lo escrito (decisión P4 de #186, 18/11)", () => {
+describe("Orden de la barra · sin texto el de la fuente; buscando, primero lo que empieza con lo escrito, A-Z (P4 de #186 y P1 de su QA, 18/11)", () => {
   const nombres = (cs: readonly CiudadDeCampania[]) => cs.map((c) => c.nombre);
   const desordenadas = () =>
     ["Treinta y Tres", "rocha", "Ciudad de la Costa", "Río Branco", "Artigas", "Colonia del Sacramento", "Las Piedras", "Costa Azul", "Ñangapiré"].map(
@@ -213,21 +213,28 @@ describe("Orden de la barra · A-Z y, buscando, primero lo que empieza con lo es
   it("ciudadesQueCoinciden: primero las que empiezan con lo escrito, después las que lo contienen, cada grupo A-Z", () => {
     expect(nombres(ciudadesQueCoinciden(desordenadas(), "COSTA"))).toEqual(["Costa Azul", "Ciudad de la Costa"]);
     expect(nombres(ciudadesQueCoinciden(desordenadas(), "co"))).toEqual(["Colonia del Sacramento", "Costa Azul", "Ciudad de la Costa", "Río Branco"]);
-    expect(nombres(ciudadesQueCoinciden(desordenadas(), ""))).toEqual(nombres(ordenarCiudades(desordenadas())));
+    // Sin texto no se reordena nada: el orden de la fuente, como el canvas 24 · 01.
+    expect(nombres(ciudadesQueCoinciden(desordenadas(), ""))).toEqual(nombres(desordenadas()));
+    expect(nombres(ciudadesQueCoinciden(desordenadas(), "   "))).toEqual(nombres(desordenadas()));
   });
 
-  it("sin buscar, los botones van A-Z aunque la fuente mande otro orden (también con pocas ciudades)", () => {
-    montar(desordenadas().slice(0, 4), "c0");
+  it("sin buscar, los botones van en el orden de la fuente, con pocas ciudades y con el campo vacío", async () => {
+    const { unmount } = montar(desordenadas().slice(0, 4), "c0");
 
     expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
     expect(botonesDeCiudad().map((b) => b.querySelector("span")?.textContent)).toEqual([
+      "Treinta y Tres",
+      "rocha",
       "Ciudad de la Costa",
       "Río Branco",
-      "rocha",
-      "Treinta y Tres",
     ]);
-    // La elegida queda en su lugar A-Z, marcada.
-    expect(botonesDeCiudad()[3]).toHaveAttribute("aria-current", "true");
+    expect(botonesDeCiudad()[0]).toHaveAttribute("aria-current", "true");
+    unmount();
+
+    // Con el campo: buscar reordena, y borrar con Esc devuelve el orden de la fuente.
+    montar(desordenadas(), "c0");
+    await userEvent.type(screen.getByRole("searchbox"), "co{Escape}");
+    expect(botonesDeCiudad().map((b) => b.querySelector("span")?.textContent)).toEqual(nombres(desordenadas()));
   });
 
   it("buscando, la elegida sigue primera; después las que empiezan y las que contienen, y Enter elige la primera que coincide", async () => {

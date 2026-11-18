@@ -219,7 +219,7 @@ describe("BarraDeCiudades · QA #186", () => {
     ).toHaveLength(0);
   });
 
-  // Menor de la QA: tras elegir buscando y borrar con Esc, la elegida vuelve a su lugar A-Z y queda fuera de la fila con scroll (Chromium, 150).
+  // Menor de la QA: tras elegir buscando y borrar con Esc, la elegida vuelve a su lugar en la barra y queda fuera de la fila con scroll (Chromium, 150).
   it.skip("QA #186: al borrar lo escrito con Esc, la ciudad elegida se trae a la vista dentro de la fila con scroll", async () => {
     const aMover = vi.fn();
     Element.prototype.scrollIntoView = aMover;
