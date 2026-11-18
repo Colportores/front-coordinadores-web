@@ -276,7 +276,7 @@ describe("pendientes de acción", () => {
     for (const seleccion of [TODAS, { tipo: "ciudad", id: "riv" } as const]) {
       const [tarjeta] = tarjetasPendientes(tablero, seleccion);
       expect(tarjeta).toMatchObject({ etiqueta: "EQUIPO", titulo: "Colportor sin zona asignada", detalle: "Rocío Benítez · se sumó hoy a las 11:02" });
-      expect(tarjeta.acciones).toEqual([{ texto: "Asignar zona", tono: "primaria", destino: { pestana: "ciudades", href: "/ciudades" } }]);
+      expect(tarjeta.acciones).toEqual([{ texto: "Asignar zona", tono: "primaria", destino: { pestana: "ciudades", href: "/ciudades?colportor=r" } }]);
     }
   });
 
@@ -294,11 +294,14 @@ describe("pendientes de acción", () => {
     };
     const [tarjeta] = tarjetasPendientes(tablero, TODAS);
     expect(tarjeta.titulo).toBe("3 colportores sin zona asignada");
+    const destino = (id: string) => ({ pestana: "ciudades", href: `/ciudades?colportor=${id}` });
     expect(tarjeta.personas).toEqual([
-      { id: "1", nombre: "Rocío Benítez", cuando: "se sumó hoy a las 11:02" },
-      { id: "2", nombre: "Ana Pérez", cuando: "se sumó ayer a las 18:30" },
-      { id: "3", nombre: "Luis Gómez", cuando: "se sumó el 14 oct a las 09:00" },
+      { id: "1", nombre: "Rocío Benítez", cuando: "se sumó hoy a las 11:02", destino: destino("1") },
+      { id: "2", nombre: "Ana Pérez", cuando: "se sumó ayer a las 18:30", destino: destino("2") },
+      { id: "3", nombre: "Luis Gómez", cuando: "se sumó el 14 oct a las 09:00", destino: destino("3") },
     ]);
+    // Cada persona trae su propia acción: la tarjeta no ofrece un botón general que no sabría a quién asignar (#187).
+    expect(tarjeta.acciones).toEqual([]);
     expect(tarjetasPendientes({ ...tablero, sinZona: [persona("4", "Baja", "2026-10-21T14:02:00.000Z", true)] }, TODAS)).toEqual([]);
   });
 });
