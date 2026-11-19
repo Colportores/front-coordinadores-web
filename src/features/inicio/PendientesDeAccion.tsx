@@ -10,12 +10,16 @@ const CLASE_ACCION = "inline-flex min-h-8 items-center rounded-control border px
 const CLASE_PRIMARIA = "border-marca bg-marca text-superficie";
 const CLASE_PELIGRO = "border-borde bg-superficie text-peligro";
 
-function Accion({ accion }: { accion: AccionDeTarjeta }) {
+function Accion({ accion, etiqueta }: { accion: AccionDeTarjeta; etiqueta?: string }) {
   const clases = cn(CLASE_ACCION, accion.tono === "primaria" ? CLASE_PRIMARIA : CLASE_PELIGRO);
   // Sin formulario diseñado (autorizar, rechazar) o con la pestaña apagada: el botón se ve atenuado y no hace nada.
   if (accion.destino && pestanaVisible(accion.destino.pestana)) {
     return (
-      <Link href={accion.destino.href} className={cn(clases, "focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none")}>
+      <Link
+        href={accion.destino.href}
+        aria-label={etiqueta}
+        className={cn(clases, "shrink-0 focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none")}
+      >
         {accion.texto}
       </Link>
     );
@@ -68,18 +72,28 @@ export function PendientesDeAccion({
             {tarjeta.personas && (
               <ul className="flex flex-col">
                 {tarjeta.personas.map((persona) => (
-                  <li key={persona.id} className="flex justify-between gap-2 border-b border-borde-suave py-1 text-[11.5px]">
-                    <b className="font-semibold [overflow-wrap:anywhere]">{persona.nombre}</b>
-                    <span className="shrink-0 text-tinta-2">{persona.cuando}</span>
+                  <li key={persona.id} className="flex items-center justify-between gap-2 border-b border-borde-suave py-1 text-[11.5px]">
+                    <span className="flex min-w-0 flex-col">
+                      <b className="font-semibold [overflow-wrap:anywhere]">{persona.nombre}</b>
+                      <span className="text-tinta-2">{persona.cuando}</span>
+                    </span>
+                    {persona.destino ? (
+                      <Accion
+                        accion={{ texto: "Asignar zona", tono: "primaria", destino: persona.destino }}
+                        etiqueta={`Asignar zona a ${persona.nombre}`}
+                      />
+                    ) : null}
                   </li>
                 ))}
               </ul>
             )}
-            <div className="flex flex-wrap items-center gap-2">
-              {tarjeta.acciones.map((accion) => (
-                <Accion key={accion.texto} accion={accion} />
-              ))}
-            </div>
+            {tarjeta.acciones.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {tarjeta.acciones.map((accion) => (
+                  <Accion key={accion.texto} accion={accion} />
+                ))}
+              </div>
+            ) : null}
           </article>
         ))}
         {tarjetas.length === 0 && <p className="text-chico text-tinta-suave">{vacio}</p>}
