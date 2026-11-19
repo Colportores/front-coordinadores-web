@@ -41,6 +41,7 @@ import {
   textoColportoresSinZona,
 } from "@/features/equipo/zonas/PanelFormularioZona";
 import { PanelListaZonas } from "@/features/equipo/zonas/PanelListaZonas";
+import { preseleccionDeColportor } from "@/features/equipo/zonas/preseleccion";
 import { type DibujoEnMapa, nombreEsquina, TEXTO_CUENTA_SUSPENDIDA } from "@/features/equipo/zonas/tipos";
 import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
@@ -259,16 +260,21 @@ async function correrEsquina(
 interface Props {
   datos: DatosZonas;
   acciones: AccionesZonas;
+  /** A quién se viene a asignarle zona (el «Asignar zona» de Inicio, #187). Se toma una sola vez, al abrir. */
+  colportorPreseleccionadoId?: string | null;
 }
 
 /**
  * Vista 24 (HU-CAM-006): zonas de la campaña. Lista y formularios a la izquierda,
  * mapa a la derecha. La geometría la calcula el backend; acá solo se pide y se dibuja.
  */
-export function ZonasCampania({ datos, acciones }: Props) {
+export function ZonasCampania({ datos, acciones, colportorPreseleccionadoId = null }: Props) {
+  const [preseleccion] = useState(() => preseleccionDeColportor(datos.ciudades, colportorPreseleccionadoId));
   const [ciudades, setCiudades] = useState<CiudadDeCampania[]>(datos.ciudades);
-  const [ciudadId, setCiudadId] = useState(datos.ciudades[0]?.id ?? "");
-  const [panel, setPanel] = useState<Panel>({ tipo: "lista", asignandoA: null });
+  const [ciudadId, setCiudadId] = useState(preseleccion.ciudadId ?? datos.ciudades[0]?.id ?? "");
+  const [panel, setPanel] = useState<Panel>({ tipo: "lista", asignandoA: preseleccion.asignandoA });
+  // Lo que no se pudo dejar elegido al llegar desde Inicio (no existe, ya tiene zona, suspendido): se ve hasta que se lo cierra.
+  const [avisoDeLlegada, setAvisoDeLlegada] = useState(preseleccion.aviso);
   const [aviso, setAviso] = useState<string | null>(null);
   const [hover, setHover] = useState<Esquina | null>(null);
   const [buscador, setBuscador] = useState<{ ocupado: boolean; error: string | null } | null>(null);
@@ -1005,6 +1011,15 @@ export function ZonasCampania({ datos, acciones }: Props) {
             raiz.current?.querySelector<HTMLElement>('[data-foco="agregar-ciudad"]')?.focus();
           }}
         />
+      ) : null}
+
+      {avisoDeLlegada ? (
+        <p aria-live="polite" data-foco="aviso-de-llegada" className="flex items-center justify-between gap-2 rounded-control bg-alerta-fondo px-3 py-2 text-cuerpo font-medium text-tinta-2">
+          <span className="min-w-0 wrap-anywhere">{avisoDeLlegada}</span>
+          <button type="button" onClick={() => setAvisoDeLlegada(null)} className="min-h-6 flex-none cursor-pointer font-semibold underline">
+            Entendido
+          </button>
+        </p>
       ) : null}
 
       {aviso ? (
