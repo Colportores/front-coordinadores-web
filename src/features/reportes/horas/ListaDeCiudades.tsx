@@ -1,5 +1,8 @@
 "use client";
 
+import { useRef } from "react";
+
+import { useMantenerVisible } from "@/lib/mantener-visible";
 import { cn } from "@/lib/utils";
 
 import type { Ambito, ItemRiel, ModeloLista, NodoLista } from "./ambito";
@@ -54,6 +57,8 @@ export function ListaDeCiudades({
   alElegir: (ambito: Ambito) => void;
   alContraer: () => void;
 }) {
+  const desplazable = useRef<HTMLDivElement>(null);
+  useMantenerVisible(desplazable, [lista.todas, ...lista.grupos.flatMap((g) => g.nodos)].find((n) => n.seleccionado)?.clave ?? "");
   return (
     <nav aria-label="Ciudades" className="flex min-h-0 min-w-0 flex-col border-r border-borde bg-superficie">
       <div className="flex items-center justify-between py-3 pr-3 pl-[18px]">
@@ -70,7 +75,7 @@ export function ListaDeCiudades({
           <span aria-hidden="true">«</span>
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto px-2.5 pb-3.5">
+      <div ref={desplazable} className="min-h-0 flex-1 overflow-auto px-2.5 pb-3.5">
         <ul className="flex flex-col gap-0.5">
           <Nodo nodo={lista.todas} nivel={0} alElegir={alElegir} />
         </ul>
@@ -103,8 +108,10 @@ export function RielDeCiudades({
   alElegir: (ambito: Ambito) => void;
   alExpandir: () => void;
 }) {
+  const riel = useRef<HTMLElement>(null);
+  useMantenerVisible(riel, items.find((i) => i.seleccionado)?.clave ?? "");
   return (
-    <nav aria-label="Ciudades" className="flex min-h-0 flex-col items-center gap-1.5 overflow-auto border-r border-borde bg-superficie py-3">
+    <nav ref={riel} aria-label="Ciudades" className="flex min-h-0 flex-col items-center gap-1.5 overflow-auto border-r border-borde bg-superficie py-3">
       <button
         type="button"
         data-foco="alternar"
