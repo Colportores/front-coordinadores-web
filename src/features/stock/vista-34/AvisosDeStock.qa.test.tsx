@@ -25,21 +25,22 @@ const aviso = (i: number): AvisoDeStock => ({
 const avisos = (n: number) => Array.from({ length: n }, (_, i) => aviso(i));
 
 describe("AvisosDeStock · cuenta de avisos (decisión P4)", () => {
-  it.skip("QA #192: con 30 avisos la franja dice «30 avisos» (hoy desplaza sin decir cuántos hay)", () => {
+  it("QA #192: con 30 avisos la franja dice «30 avisos» (hoy desplaza sin decir cuántos hay)", () => {
     render(<AvisosDeStock avisos={avisos(30)} alVerQuienTiene={() => {}} />);
     expect(screen.getByText("30 avisos")).toBeInTheDocument();
   });
 
-  it.skip("QA #192: con un solo aviso el título va en singular, «1 aviso»", () => {
+  it("QA #192: con un solo aviso el título va en singular, «1 aviso»", () => {
     render(<AvisosDeStock avisos={avisos(1)} alVerQuienTiene={() => {}} />);
     expect(screen.getByText("1 aviso")).toBeInTheDocument();
     expect(screen.queryByText("1 avisos")).not.toBeInTheDocument();
   });
 
-  it.skip("QA #192: la región desplazable es enfocable con teclado y su nombre accesible lleva la cuenta", () => {
+  it("QA #192: la región desplazable es enfocable con teclado y su descripción accesible lleva la cuenta", () => {
     render(<AvisosDeStock avisos={avisos(30)} alVerQuienTiene={() => {}} />);
-    const region = screen.getByRole("list", { name: /30 avisos/ });
+    const region = screen.getByRole("list", { name: "Avisos de stock" });
     expect(region).toHaveAttribute("tabindex", "0");
+    expect(region).toHaveAccessibleDescription("30 avisos");
   });
 
   it("sin avisos no se pinta nada (ni título ni franja vacía)", () => {
