@@ -1,4 +1,7 @@
+import { useRef } from "react";
+
 import { claveDe, jornadaTexto, horasTexto, type ElementoDeLista, type Seleccion } from "@/features/inicio/modelo";
+import { useMantenerVisible } from "@/lib/mantener-visible";
 import { cn } from "@/lib/utils";
 
 const CLASE_ALTERNAR =
@@ -54,6 +57,8 @@ export function ListaDeCiudades({
   alContraer: () => void;
 }) {
   const clave = claveDe(seleccionada);
+  const desplazable = useRef<HTMLDivElement>(null);
+  useMantenerVisible(desplazable, clave);
   return (
     <section id="columna-ciudades" aria-labelledby="titulo-ciudades" className="flex min-h-0 min-w-0 flex-col border-r border-borde bg-superficie">
       <div className="flex items-center justify-between py-3 pr-3 pl-[18px]">
@@ -69,7 +74,7 @@ export function ListaDeCiudades({
           onClick={alContraer}
         />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto px-2.5 pb-3.5">
+      <div ref={desplazable} className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto px-2.5 pb-3.5">
         {elementos.map((elemento) =>
           elemento.tipo === "grupo" ? (
             <p key={elemento.clave} className="px-2 pt-3.5 pb-1.5 font-mono text-etiqueta tracking-[0.14em] text-tinta-suave">
@@ -125,8 +130,10 @@ export function BarraDeCiudades({
   alExpandir: () => void;
 }) {
   const clave = claveDe(seleccionada);
+  const barra = useRef<HTMLElement>(null);
+  useMantenerVisible(barra, clave);
   return (
-    <section id="columna-ciudades" aria-label="Ciudades" className="flex min-h-0 flex-col items-center gap-1.5 overflow-auto border-r border-borde bg-superficie py-3">
+    <section ref={barra} id="columna-ciudades" aria-label="Ciudades" className="flex min-h-0 flex-col items-center gap-1.5 overflow-auto border-r border-borde bg-superficie py-3">
       <BotonAlternar
         etiqueta="Expandir ciudades"
         simbolo="»"
