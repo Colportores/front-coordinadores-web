@@ -116,6 +116,7 @@ describe("obtenerEquipoPorCiudad", () => {
     const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
 
     expect(datos).toEqual({
+      sePuedeQuitar: true,
       campaniaId: CAMPANIA,
       campania: "Primavera 2026",
       campaniaInicio: "2026-09-01",
