@@ -2,7 +2,9 @@
 
 import { useRef } from "react";
 
+import { BuscadorDeCiudades, SinCoincidenciasDeCiudades } from "@/components/BuscadorDeCiudades";
 import { useMantenerVisible } from "@/lib/mantener-visible";
+import { useBuscarEnColumna } from "@/lib/use-buscar-en-columna";
 import { cn } from "@/lib/utils";
 
 import type { Ambito, ItemRiel, ModeloLista, NodoLista } from "./ambito";
@@ -58,7 +60,10 @@ export function ListaDeCiudades({
   alContraer: () => void;
 }) {
   const desplazable = useRef<HTMLDivElement>(null);
-  useMantenerVisible(desplazable, [lista.todas, ...lista.grupos.flatMap((g) => g.nodos)].find((n) => n.seleccionado)?.clave ?? "");
+  const nodos = [lista.todas, ...lista.grupos.flatMap((g) => g.nodos)];
+  const elegida = nodos.find((n) => n.seleccionado || n.hijos.some((h) => h.seleccionado));
+  const busqueda = useBuscarEnColumna(nodos, (n) => n.ambito.tipo === "ciudad", elegida?.clave ?? "");
+  useMantenerVisible(desplazable, `${elegida?.clave ?? ""}:${busqueda.buscando}`);
   return (
     <nav aria-label="Ciudades" className="flex min-h-0 min-w-0 flex-col border-r border-borde bg-superficie">
       <div className="flex items-center justify-between py-3 pr-3 pl-[18px]">
@@ -75,24 +80,55 @@ export function ListaDeCiudades({
           <span aria-hidden="true">«</span>
         </button>
       </div>
+      {busqueda.conBuscador && (
+        <div className="px-2.5 pb-2">
+          <BuscadorDeCiudades
+            texto={busqueda.texto}
+            alCambiar={busqueda.setTexto}
+            total={busqueda.total}
+            coinciden={busqueda.coinciden.length}
+            buscando={busqueda.buscando}
+            alElegirPrimera={() => {
+              if (busqueda.coinciden[0]) alElegir(busqueda.coinciden[0].ambito);
+            }}
+          />
+        </div>
+      )}
       <div ref={desplazable} className="min-h-0 flex-1 overflow-auto px-2.5 pb-3.5">
-        <ul className="flex flex-col gap-0.5">
-          <Nodo nodo={lista.todas} nivel={0} alElegir={alElegir} />
-        </ul>
-        {lista.grupos.map((grupo) => (
-          <section key={grupo.clave} aria-label={grupo.titulo ?? undefined}>
-            {grupo.titulo && (
-              <h3 className="px-2 pt-3.5 pb-1.5 font-mono text-etiqueta font-normal tracking-etiqueta text-tinta-suave">
-                {grupo.titulo}
-              </h3>
-            )}
-            <ul className={cn("flex flex-col gap-0.5", !grupo.titulo && "pt-3.5")}>
-              {grupo.nodos.map((nodo) => (
+        {busqueda.buscando ? (
+          <>
+            <ul className="flex flex-col gap-0.5">
+              {busqueda.visibles.map((nodo) => (
                 <Nodo key={nodo.clave} nodo={nodo} nivel={0} alElegir={alElegir} />
               ))}
             </ul>
-          </section>
-        ))}
+            {busqueda.coinciden.length === 0 && (
+              <div className="pt-2">
+                <SinCoincidenciasDeCiudades texto={busqueda.texto} />
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <ul className="flex flex-col gap-0.5">
+              <Nodo nodo={lista.todas} nivel={0} alElegir={alElegir} />
+            </ul>
+            {lista.grupos.map((grupo) => (
+              <section key={grupo.clave} aria-label={grupo.titulo ?? undefined}>
+                {grupo.titulo && (
+                  <h3 className="px-2 pt-3.5 pb-1.5 font-mono text-etiqueta font-normal tracking-etiqueta text-tinta-suave">
+                    {grupo.titulo}
+                  </h3>
+                )}
+                <ul className={cn("flex flex-col gap-0.5", !grupo.titulo && "pt-3.5")}>
+                  {grupo.nodos.map((nodo) => (
+                    <Nodo key={nodo.clave} nodo={nodo} nivel={0} alElegir={alElegir} />
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </>
+        )}
       </div>
     </nav>
   );
