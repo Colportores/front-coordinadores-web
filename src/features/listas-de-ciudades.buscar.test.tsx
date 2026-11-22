@@ -164,13 +164,14 @@ const verNombres = (m: Montaje) =>
     .map((t) => /^(Paysandú|Villa Paysandú|Salto|San José de Mayo|Pueblo \d{3})/.exec(t)?.[1] ?? t);
 
 describe.each(vistas)("$vista · buscador de ciudades con 150", ({ m }) => {
-  it("con 150 ciudades hay un campo con etiqueta y el recuento, y se ven todas en el orden de la fuente", () => {
+  it("con 150 ciudades hay un campo con etiqueta y el recuento, y se ven todas", () => {
     m.montar({ elegida: null, alElegir: () => {} });
     expect(campo()).toHaveAttribute("placeholder", "Buscar ciudad…");
     expect(within(m.raiz()).getByText("150 ciudades")).toHaveAttribute("aria-live", "polite");
     const vistos = verNombres(m);
     expect(vistos).toHaveLength(TOTAL);
-    expect(vistos.slice(-4)).toEqual(ESPECIALES);
+    // Las agrupadas por departamento reparten las ciudades en grupos: lo que importa es que están las 150, sin filtrar.
+    expect([...vistos].sort()).toEqual([...nombres].sort());
   });
 
   it("buscar sin tildes ni mayúsculas: primero las que empiezan, después las que contienen; se anuncia la cantidad", async () => {
