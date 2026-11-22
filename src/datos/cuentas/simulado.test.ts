@@ -120,6 +120,15 @@ describe("crearAccionesSimuladas · anularCobro (vista 39)", () => {
     expect(await acciones.anularCobro(PASADO, "Monto equivocado")).toMatchObject({ ok: false, codigo: "fuera-de-plazo" });
   });
 
+  it("un cobro con la fecha ilegible no se anula (no se toma por dentro del plazo)", async () => {
+    const roto = {
+      ...datos,
+      tickets: datos.tickets.map((t) => (t.cobro?.id === VIGENTE ? { ...t, cobro: { ...t.cobro, fecha: "ayer" } } : t)),
+    };
+    const acciones = crearAccionesSimuladas(roto, () => AHORA.getTime());
+    expect(await acciones.anularCobro(VIGENTE, "Monto equivocado")).toMatchObject({ ok: false, codigo: "fuera-de-plazo" });
+  });
+
   it("el plazo se mide con la hora de la acción, no con la de la lectura: venció mientras confirmaba", async () => {
     let ahora = Date.parse("2026-10-24T10:20:00-03:00");
     const acciones = crearAccionesSimuladas(datos, () => ahora);

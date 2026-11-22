@@ -492,6 +492,23 @@ describe("39B·04 · sin conexión", () => {
 });
 
 describe("datos límite", () => {
+  it("un cobro con la fecha ilegible no tira la vista: el botón queda apagado con su razón y el detalle sigue abriendo", async () => {
+    const base = datosDeLaVista39();
+    const datos = {
+      ...base,
+      tickets: base.tickets.map((t) => (t.cobro && t.id === "florencia-pintos-cobro-vigente" ? { ...t, cobro: { ...t.cobro, fecha: "no es una fecha" } } : t)),
+    };
+    const { usuario, anularCobro } = montar({ datos });
+    await irATickets(usuario);
+    const detalle = await abrirDetalle(usuario, "Florencia Pintos");
+    const boton = within(detalle).getByRole("button", { name: "Anular cobro de Florencia Pintos" });
+    expect(boton).toHaveAttribute("aria-disabled", "true");
+    expect(boton).toHaveAccessibleDescription(/no se pudo leer la fecha en que se registró/);
+    await usuario.click(boton);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(anularCobro).not.toHaveBeenCalled();
+  });
+
   it("sin ningún cobro por anular no aparece la franja de sin conexión", async () => {
     const base = armarCuentasSimuladas(AHORA);
     const { usuario } = montar({ datos: { ...base, tickets: base.tickets.filter((t) => t.id === "lucia-fernandez-por-validar") } });

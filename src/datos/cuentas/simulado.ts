@@ -417,7 +417,8 @@ export function crearAccionesSimuladas(inicial?: DatosDeCuentas, ahora: () => nu
         };
       }
       if (ticket.cobro.anulado) return { ok: true, valor: { yaEstaba: true } };
-      if (ahora() > limiteDeAnulacion(ticket.cobro.fecha)) {
+      // Una fecha ilegible tampoco deja anular (como el panel).
+      if (!(ahora() <= limiteDeAnulacion(ticket.cobro.fecha))) {
         return { ok: false, causa: "rechazado", codigo: "fuera-de-plazo", mensaje: "Pasaron más de 72 h desde el cobro: ya no se puede anular." };
       }
       const escrito = detalle?.trim();

@@ -48,13 +48,25 @@ export const textoDeCobroRegistrado = (t: TicketDeCuentas) => (t.cobro ? conPunt
 
 export const TEXTO_ANULAR_COBRO = "Anular cobro";
 
-export function notaDeAnulacionDisponible(fechaDelCobro: string): string {
-  const limite = new Date(limiteDeAnulacion(fechaDelCobro)).toISOString();
-  return `Se puede anular hasta el ${conPunto(limite)} (${HORAS_DE_PLAZO} h después del cobro). Anular deja el cobro sin efecto y le avisa a la colportora.`;
+/** El límite como texto («22/10 · 10:20»), o `null` si la fecha del cobro no se entiende (nunca un error de fecha). */
+function limiteEnTexto(fechaDelCobro: string): string | null {
+  const limite = new Date(limiteDeAnulacion(fechaDelCobro));
+  return Number.isNaN(limite.getTime()) ? null : conPunto(limite.toISOString());
 }
 
+export function notaDeAnulacionDisponible(fechaDelCobro: string): string {
+  const hasta = limiteEnTexto(fechaDelCobro);
+  const plazo = hasta ? `Se puede anular hasta el ${hasta} (${HORAS_DE_PLAZO} h después del cobro). ` : "";
+  return `${plazo}Anular deja el cobro sin efecto y le avisa a la colportora.`;
+}
+
+/** Con la fecha del cobro ilegible no se sabe si está dentro del plazo: no se ofrece y se dice por qué. */
+export const NOTA_SIN_FECHA_DEL_COBRO = "No se puede anular este cobro: no se pudo leer la fecha en que se registró. Recargá la página.";
+
 export function notaFueraDePlazo(fechaDelCobro: string): string {
-  const [dia, hora] = textoDiaYHora(new Date(limiteDeAnulacion(fechaDelCobro)).toISOString()).split(" ");
+  const hasta = limiteEnTexto(fechaDelCobro);
+  if (!hasta) return NOTA_SIN_FECHA_DEL_COBRO;
+  const [dia, hora] = hasta.split(" · ");
   return `Pasaron más de ${HORAS_DE_PLAZO} h desde el cobro (${conPunto(fechaDelCobro)}). Se podía anular hasta el ${dia} a las ${hora}.`;
 }
 

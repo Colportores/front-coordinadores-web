@@ -9,6 +9,7 @@ import {
   notaDeAnulacionDisponible,
   notaDeCobroAnulado,
   notaFueraDePlazo,
+  NOTA_SIN_FECHA_DEL_COBRO,
   textoDeFallaAlAnular,
   textoDeMotivo,
   textoDeQuienAnulo,
@@ -84,6 +85,13 @@ describe("los textos del canvas 39", () => {
 
   it("pasado el plazo dice cuándo fue el cobro y hasta cuándo se podía", () => {
     expect(notaFueraDePlazo(COBRO)).toBe("Pasaron más de 72 h desde el cobro (19/10 · 10:20). Se podía anular hasta el 22/10 a las 10:20.");
+  });
+
+  it("con la fecha del cobro ilegible no falla: no se ofrece y dice por qué (QA ronda 1: antes tiraba un RangeError)", () => {
+    expect(() => notaFueraDePlazo("ayer")).not.toThrow();
+    expect(notaFueraDePlazo("ayer")).toBe("No se puede anular este cobro: no se pudo leer la fecha en que se registró. Recargá la página.");
+    expect(notaFueraDePlazo("")).toBe(NOTA_SIN_FECHA_DEL_COBRO);
+    expect(notaDeAnulacionDisponible("ayer")).toBe("Anular deja el cobro sin efecto y le avisa a la colportora.");
   });
 
   it("el diálogo dice el monto, quién, el medio y cuándo, y después qué cambia", () => {
