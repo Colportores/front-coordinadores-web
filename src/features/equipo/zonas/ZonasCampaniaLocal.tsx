@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 
 import type { DatosZonas, FuenteDatosZonas } from "@/datos/equipo/zonas";
-import { ZonasCampania, type AccionesZonas } from "@/features/equipo/zonas/ZonasCampania";
+import type { AccionesZonas } from "@/features/equipo/zonas/ZonasCampania";
+import { ZonasCampaniaDesdeUrl } from "@/features/equipo/zonas/ZonasCampaniaDesdeUrl";
 
 /**
  * Siempre la fuente SIMULADA, no el selector `fuenteZonas` (`@/datos/equipo/zonas`):
@@ -41,5 +42,5 @@ export function ZonasCampaniaLocal({ datos }: { datos: DatosZonas }) {
     [datos.campaniaId],
   );
 
-  return <ZonasCampania datos={datos} acciones={acciones} />;
+  return <ZonasCampaniaDesdeUrl datos={datos} acciones={acciones} />;
 }
