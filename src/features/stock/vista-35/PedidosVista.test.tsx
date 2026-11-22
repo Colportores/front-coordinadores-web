@@ -317,13 +317,22 @@ describe("autorizar", () => {
     expect(fila).toHaveTextContent("incluye este pedido");
   });
 
-  it("autoriza una transferencia", async () => {
-    const { acciones: a } = montar();
-    await userEvent.click(pestana(/^Transferencias/));
-    await userEvent.click(within(detalle("Transferencia T-18")).getByRole("button", { name: /^Autorizar/ }));
+  it("autoriza una transferencia: se ve autorizada con su «Deshacer» y sale a los 8 s (el detalle del plazo, en PedidosVista.deshacer.test)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { acciones: a } = montar();
+      await userEvent.click(pestana(/^Transferencias/));
+      await userEvent.click(within(detalle("Transferencia T-18")).getByRole("button", { name: /^Autorizar/ }));
 
-    expect(await screen.findByText("✓ Transferencia T-18 de Valentina Silva autorizada: la deuda de $U 2.900 pasó a Lucía.")).toBeInTheDocument();
-    expect(a.decidir).toHaveBeenCalledWith({ tipo: "transferencia", id: "transferencia-18", accion: "autorizar" });
+      expect(screen.getByText("Autorizaste la transferencia T-18 de Valentina Silva: la deuda de $U 2.900 pasa a Lucía.")).toBeInTheDocument();
+      expect(a.decidir).not.toHaveBeenCalled();
+      await act(async () => {
+        vi.advanceTimersByTime(8000);
+      });
+      expect(a.decidir).toHaveBeenCalledWith({ tipo: "transferencia", id: "transferencia-18", accion: "autorizar" });
+    } finally {
+      vi.useRealTimers();
+    }
     expect(within(within(detalle("Transferencia T-18")).getByRole("list", { name: "Estado de la transferencia" })).getByText(/^Autorizada/)).toHaveTextContent("Autorizada (hecho)");
   });
 
@@ -627,10 +636,18 @@ describe("rechazar", () => {
     await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Escribí el motivo para rechazar la transferencia.");
 
-    await userEvent.type(campo, "Sin stock");
-    await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
-    expect(await screen.findByText("✓ Transferencia T-18 de Valentina Silva rechazada: el colportor recibe el motivo.")).toBeInTheDocument();
-    expect(a.decidir).toHaveBeenCalledWith({ tipo: "transferencia", id: "transferencia-18", accion: "rechazar", motivo: "Sin stock" });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await userEvent.type(campo, "Sin stock");
+      await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
+      expect(screen.getByText("Rechazaste la transferencia T-18 de Valentina Silva: el colportor recibe el motivo.")).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(8000);
+      });
+      expect(a.decidir).toHaveBeenCalledWith({ tipo: "transferencia", id: "transferencia-18", accion: "rechazar", motivo: "Sin stock" });
+    } finally {
+      vi.useRealTimers();
+    }
     expect(within(within(detalle("Transferencia T-18")).getByRole("list", { name: "Estado de la transferencia" })).getByText(/^Rechazada/)).toHaveTextContent("Rechazada (hecho)");
   });
 });

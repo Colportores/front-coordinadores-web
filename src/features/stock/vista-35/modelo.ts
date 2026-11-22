@@ -715,3 +715,50 @@ export function textoDeDecision(s: Solicitud, accion: "autorizar" | "rechazar"):
   if (femenino) return `${que} autorizada: la deuda de ${money(s.total)} pasó a ${primerNombre(s.transferencia?.aNombre ?? "")}.`;
   return `${que} autorizado: se sumaron ${money(s.total)} a su deuda.`;
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// «Deshacer» de 8 s de las transferencias (HU-STK-005, decisión de Cristian del 27/10, «Deshacer tr.»; canvas 42A·04)
+// ---------------------------------------------------------------------------------------------------------------------
+
+/**
+ * Lo que la bandeja muestra durante los 8 s de «Deshacer», antes de que la decisión salga al servidor: la misma respuesta que
+ * daría una decisión aceptada, con el instante de ahora. Solo para transferencias.
+ */
+export function resolucionProvisional(s: Solicitud, accion: "autorizar" | "rechazar", motivo: string, instante: string): SolicitudResuelta {
+  return {
+    tipo: s.tipo,
+    id: s.id,
+    estado: accion === "autorizar" ? "AUTORIZADA" : "RECHAZADA",
+    resueltoEn: instante,
+    motivoDeRechazo: accion === "rechazar" ? motivo : null,
+  };
+}
+
+/**
+ * Vuelve una transferencia autorizada o rechazada a «por autorizar» (lo inverso de `aplicarResolucion`): si estaba autorizada,
+ * la deuda vuelve de quien recibió a quien dio; si estaba rechazada, se borra el motivo. Una que ya está por autorizar, o que no
+ * existe, no se toca. Solo mueve lo suyo: lo que se decidió en el medio con los mismos colportores queda como está.
+ */
+export function deshacerResolucion(datos: DatosDePedidos, tipo: TipoDeSolicitud, id: string): DatosDePedidos {
+  if (tipo !== "transferencia") return datos;
+  const transferencia = datos.transferencias.find((t) => t.id === id && t.estado !== "POR_AUTORIZAR");
+  if (!transferencia) return datos;
+  const transferencias: TransferenciaDeStock[] = datos.transferencias.map((t) => (t === transferencia ? { ...t, estado: "POR_AUTORIZAR", resueltaEn: null, motivoDeRechazo: null } : t));
+  if (transferencia.estado !== "AUTORIZADA") return { ...datos, transferencias };
+  const deuda = totalDe(lineasDe(transferencia.lineas));
+  const pedidos = conDeudaDe(conDeudaDe(datos.pedidos, transferencia.aId, -deuda), transferencia.deId, deuda);
+  return { ...datos, pedidos, transferencias };
+}
+
+/** El aviso con «Deshacer»: dice qué se decidió y cómo queda, en pasado y con lo que todavía no es firme en futuro. */
+export function textoDeDecisionDiferida(s: Solicitud, accion: "autorizar" | "rechazar"): string {
+  const de = s.transferencia?.deNombre ?? s.colportor;
+  const que = `la transferencia ${s.numero} de ${de}`;
+  if (accion === "rechazar") return `Rechazaste ${que}: el colportor recibe el motivo.`;
+  return `Autorizaste ${que}: la deuda de ${money(s.total)} pasa a ${primerNombre(s.transferencia?.aNombre ?? "")}.`;
+}
+
+/** Lo que cuenta el botón de «Deshacer» para el lector de pantalla, para distinguirlo de otros avisos abiertos. */
+export function nombreDeDeshacer(s: Solicitud, accion: "autorizar" | "rechazar"): string {
+  return `Deshacer · 8 s: ${accion === "autorizar" ? "autorización" : "rechazo"} de la transferencia ${s.numero}`;
+}

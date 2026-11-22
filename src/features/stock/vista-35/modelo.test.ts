@@ -14,16 +14,20 @@ import {
   construirMundo,
   contarPestanas,
   decisionDe,
+  deshacerResolucion,
   diaYMesDeInstante,
   estaEnPestana,
   etiquetaDe,
   MAXIMO_DEL_MOTIVO,
   money,
+  nombreDeDeshacer,
+  resolucionProvisional,
   resolverAmbito,
   solicitudesDe,
   superaElLimite,
   textoDeCuando,
   textoDeDecision,
+  textoDeDecisionDiferida,
   textoDePestanaVacia,
   validarMotivo,
 } from "./modelo";
@@ -391,5 +395,58 @@ describe("decidir", () => {
 
   it("money junta miles con punto", () => {
     expect(money(1234567)).toBe("$U 1.234.567");
+  });
+});
+
+describe("«Deshacer» de 8 s de las transferencias (#110)", () => {
+  const instante = "2026-10-22T21:00:00.000Z";
+  const t18 = () => datos().transferencias.find((x) => x.numero === "T-18")!;
+  const solicitud = (d: DatosDePedidos) => solicitudesDe(resolverAmbito(construirMundo(d), AMBITO_TODAS), "TRF").find((s) => s.numero === "T-18")!;
+  const deuda = (xs: DatosDePedidos, numero: string) => xs.pedidos.find((p) => p.numero === numero)!.cuenta.deuda;
+
+  it("la resolución provisional es la de una decisión aceptada, con el instante y el motivo", () => {
+    const s = solicitud(datos());
+    expect(resolucionProvisional(s, "autorizar", "", instante)).toEqual({ tipo: "transferencia", id: t18().id, estado: "AUTORIZADA", resueltoEn: instante, motivoDeRechazo: null });
+    expect(resolucionProvisional(s, "rechazar", "Sin stock", instante)).toMatchObject({ estado: "RECHAZADA", motivoDeRechazo: "Sin stock" });
+  });
+
+  it("deshacer una autorización devuelve la deuda y deja la transferencia por autorizar", () => {
+    const d = datos();
+    const s = solicitud(d);
+    const autorizada = aplicarResolucion(d, resolucionProvisional(s, "autorizar", "", instante));
+    const vuelta = deshacerResolucion(autorizada, "transferencia", t18().id);
+
+    expect(vuelta).toEqual(d);
+    expect(deuda(vuelta, "#224")).toBe(31_000);
+    expect(deuda(vuelta, "#230")).toBe(14_300);
+  });
+
+  it("deshacer un rechazo borra el motivo y no toca ninguna deuda", () => {
+    const d = datos();
+    const rechazada = aplicarResolucion(d, resolucionProvisional(solicitud(d), "rechazar", "Sin stock", instante));
+    expect(rechazada.transferencias.find((x) => x.id === t18().id)).toMatchObject({ estado: "RECHAZADA", motivoDeRechazo: "Sin stock" });
+    expect(deshacerResolucion(rechazada, "transferencia", t18().id)).toEqual(d);
+  });
+
+  it("solo mueve lo suyo: otra decisión sobre los mismos colportores en el medio se conserva", () => {
+    const d = datos();
+    const autorizada = aplicarResolucion(d, resolucionProvisional(solicitud(d), "autorizar", "", instante));
+    const conOtra = { ...autorizada, pedidos: autorizada.pedidos.map((p) => (p.numero === "#230" ? { ...p, cuenta: { ...p.cuenta, deuda: p.cuenta.deuda + 1_000 } } : p)) };
+    expect(deuda(deshacerResolucion(conOtra, "transferencia", t18().id), "#230")).toBe(14_300 + 1_000);
+  });
+
+  it("lo que está por autorizar, no existe o es un pedido no se toca", () => {
+    const d = datos();
+    expect(deshacerResolucion(d, "transferencia", t18().id)).toBe(d);
+    expect(deshacerResolucion(d, "transferencia", "no-existe")).toBe(d);
+    expect(deshacerResolucion(d, "pedido", d.pedidos[0].id)).toBe(d);
+  });
+
+  it("los textos del aviso dicen qué se decidió, a quién le pasa la deuda y qué botón es", () => {
+    const s = solicitud(datos());
+    expect(textoDeDecisionDiferida(s, "autorizar")).toBe("Autorizaste la transferencia T-18 de Valentina Silva: la deuda de $U 2.900 pasa a Lucía.");
+    expect(textoDeDecisionDiferida(s, "rechazar")).toBe("Rechazaste la transferencia T-18 de Valentina Silva: el colportor recibe el motivo.");
+    expect(nombreDeDeshacer(s, "autorizar")).toBe("Deshacer · 8 s: autorización de la transferencia T-18");
+    expect(nombreDeDeshacer(s, "rechazar")).toBe("Deshacer · 8 s: rechazo de la transferencia T-18");
   });
 });
