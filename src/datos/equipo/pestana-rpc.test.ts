@@ -144,10 +144,10 @@ describe("obtenerEquipoPorCiudad", () => {
       // Sin las RPC de becas publicadas no hay becas: la vista no ofrece la pestaña.
       becas: null,
     });
-    expect(llamarRpc).toHaveBeenCalledWith("zonas_por_colportor", { p_campania_id: CAMPANIA });
-    expect(llamarRpc).toHaveBeenCalledWith("historial_de_acompaniamientos", { p_campania_id: CAMPANIA, p_colportor_id: null });
-    expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: CAMPANIA });
-    expect(llamarRpc).toHaveBeenCalledWith("acompaniamientos_por_colportor", { p_campania_id: CAMPANIA });
+    expect(llamarRpc).toHaveBeenCalledWith("zonas_por_colportor", expect.objectContaining({ p_campania_id: CAMPANIA }));
+    expect(llamarRpc).toHaveBeenCalledWith("historial_de_acompaniamientos", expect.objectContaining({ p_campania_id: CAMPANIA, p_colportor_id: null }));
+    expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", expect.objectContaining({ p_campania_id: CAMPANIA }));
+    expect(llamarRpc).toHaveBeenCalledWith("acompaniamientos_por_colportor", expect.objectContaining({ p_campania_id: CAMPANIA }));
   });
 
   it("quién lo cargó (0116): «vos» si es quien tiene la sesión, el nombre si fue otra persona y nada si la base no lo dice", async () => {
@@ -263,7 +263,7 @@ describe("obtenerEquipoPorCiudad", () => {
 
     const datos = await crearFuentePestanaRpc(cliente, AHORA).obtenerEquipoPorCiudad();
 
-    expect(llamarRpc).toHaveBeenCalledWith("colportores_de_campania", { p_campania_id: CAMPANIA });
+    expect(llamarRpc).toHaveBeenCalledWith("colportores_de_campania", expect.objectContaining({ p_campania_id: CAMPANIA }));
     expect(datos?.colportores.map((c) => [c.nombre, c.suspendido ?? false])).toEqual([
       ["Emiliano Sosa", false],
       ["Rocío Benítez", true],
@@ -434,7 +434,7 @@ describe("jornadasParaAcompanar", () => {
         { id: "mia", dia: "2026-10-20", horas: 5.5, acompanante: "Mariana Pérez", acompananteEsVos: true },
       ],
     });
-    expect(llamarRpc).toHaveBeenCalledWith("jornadas_cerradas_de_colportor", { p_campania_id: CAMPANIA, p_colportor_id: EMILIANO });
+    expect(llamarRpc).toHaveBeenCalledWith("jornadas_cerradas_de_colportor", expect.objectContaining({ p_campania_id: CAMPANIA, p_colportor_id: EMILIANO }));
   });
 
   it("un colportor que no es de la campaña da la lista vacía", async () => {
@@ -690,7 +690,7 @@ describe("becas", () => {
       },
     });
     expect(llamarRpc).toHaveBeenCalledWith("carreras_de_beca", { p_campania_id: CAMPANIA });
-    expect(llamarRpc).toHaveBeenCalledWith("becas_de_campania", { p_campania_id: CAMPANIA });
+    expect(llamarRpc).toHaveBeenCalledWith("becas_de_campania", expect.objectContaining({ p_campania_id: CAMPANIA }));
   });
 
   it("una campaña terminada (BC001) se sigue viendo, sin becas; una caída de las becas no se toma por «sin becas»", async () => {

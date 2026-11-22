@@ -69,8 +69,8 @@ describe("fuente del shell contra las RPC", () => {
         { id: VERANO, nombre: "Verano 2027", ciudades: [], fechaInicio: "2027-01-04", fechaFin: "2027-03-31", estado: "por-empezar" },
       ]);
       expect(llamarRpc).toHaveBeenCalledWith("campanias_del_coordinador", {});
-      expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: PRIMAVERA });
-      expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: VERANO });
+      expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", expect.objectContaining({ p_campania_id: PRIMAVERA }));
+      expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", expect.objectContaining({ p_campania_id: VERANO }));
     });
 
     it("una campaña que empieza hoy ya está en curso; la que empieza mañana, no (el día se cuenta en Montevideo)", async () => {

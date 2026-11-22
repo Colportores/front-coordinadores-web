@@ -1,6 +1,7 @@
 import type { BecaDeColportor, CarreraDelCatalogo, DatosDeBecas, MetaDeBeca, ResultadoBeca, TipoDeBeca } from "@/datos/equipo/contrato";
 import { causaDe, ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
 import { cadena, cadenaONula, filas, numero, type Objeto, RespuestaInesperada, UUID } from "@/datos/supabase/respuesta";
+import { llamarRpcPorPaginas } from "@/datos/supabase/paginas";
 import { hoyEnMontevideo } from "@/lib/dias";
 
 /**
@@ -99,8 +100,8 @@ function aBeca(fila: Objeto): BecaDeColportor {
 }
 
 async function leerPorColportor(cliente: ClienteRpc, campaniaId: string): Promise<Record<string, BecaDeColportor>> {
-  const crudas = await cliente.llamarRpc(RPC_BECAS, { p_campania_id: campaniaId });
-  return Object.fromEntries(filas(RPC_BECAS, crudas).map((fila) => [cadena(RPC_BECAS, fila, "usuario_id"), aBeca(fila)]));
+  const crudas = await llamarRpcPorPaginas(cliente, RPC_BECAS, { p_campania_id: campaniaId });
+  return Object.fromEntries(crudas.map((fila) => [cadena(RPC_BECAS, fila, "usuario_id"), aBeca(fila)]));
 }
 
 /**

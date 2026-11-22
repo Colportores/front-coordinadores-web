@@ -10,6 +10,7 @@ import {
   type Objeto,
   RespuestaInesperada,
 } from "@/datos/supabase/respuesta";
+import { llamarRpcPorPaginas } from "@/datos/supabase/paginas";
 import { diasEntre, esDiaIso, hoyEnMontevideo, lunesDe, sumarDias } from "@/lib/dias";
 
 /**
@@ -96,7 +97,7 @@ function campaniaYaNoVigente(error: unknown): boolean {
 /** Los departamentos por id de ciudad. Una campaña terminada no deja leerlos (`CZ011`): sus ciudades quedan sin departamento. */
 async function departamentos(cliente: ClienteRpc, campaniaId: string): Promise<Map<string, string | null>> {
   try {
-    const ciudades = filas(RPC_CIUDADES, await cliente.llamarRpc(RPC_CIUDADES, { p_campania_id: campaniaId }));
+    const ciudades = await llamarRpcPorPaginas(cliente, RPC_CIUDADES, { p_campania_id: campaniaId });
     return new Map(ciudades.map((c) => [cadena(RPC_CIUDADES, c, "ciudad_id"), cadenaONula(RPC_CIUDADES, c, "departamento")]));
   } catch (error) {
     if (error instanceof ErrorSupabase && error.codigo === "CZ011") return new Map();
@@ -217,7 +218,7 @@ export function crearFuenteReportesRpc(
       [filasDeHoras, filasDeVentas, inscriptos, departamentoDe] = await Promise.all([
         leerPorDia(RPC, cliente, campania.id, campania.fechaInicio, hasta),
         leerPorDia(RPC_VENTAS, cliente, campania.id, campania.fechaInicio, hasta),
-        cliente.llamarRpc(RPC_INSCRIPTOS, { p_campania_id: campania.id }),
+        llamarRpcPorPaginas(cliente, RPC_INSCRIPTOS, { p_campania_id: campania.id }),
         departamentos(cliente, campania.id),
       ]);
     } catch (error) {
