@@ -1,7 +1,10 @@
 "use client";
 
+import { useRef } from "react";
+
 import { BotonAlternar } from "@/features/inicio/ListaDeCiudades";
 import { claveDe, detalleDePendientes, type ElementoDeLista, type Seleccion } from "@/features/cuentas/modelo";
+import { useMantenerVisible } from "@/lib/mantener-visible";
 import { cn } from "@/lib/utils";
 
 const CLASE_FOCO = "focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none";
@@ -25,10 +28,13 @@ export function ColumnaDeCiudades({
   alAlternar: () => void;
 }) {
   const clave = claveDe(seleccionada);
+  const desplazable = useRef<HTMLDivElement>(null);
+  useMantenerVisible(desplazable, `${contraida}:${clave}`);
 
   if (contraida) {
     return (
       <section
+        ref={desplazable}
         id="columna-ciudades"
         aria-label="Ciudades"
         className="flex min-h-0 flex-col items-center gap-1.5 overflow-auto border-r border-borde bg-superficie py-3"
@@ -89,7 +95,7 @@ export function ColumnaDeCiudades({
           onClick={alAlternar}
         />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto px-2.5 pb-3.5">
+      <div ref={desplazable} className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto px-2.5 pb-3.5">
         {elementos.map((elemento) =>
           elemento.tipo === "grupo" ? (
             <p key={elemento.clave} className="px-2 pt-3.5 pb-1.5 font-mono text-etiqueta tracking-[0.14em] text-tinta-suave">
