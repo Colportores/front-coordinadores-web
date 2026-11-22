@@ -47,10 +47,10 @@ interface Montaje {
 const ambito = (i: number) => ({ tipo: "ciudad" as const, ciudadId: idDe(i) });
 const todas = { tipo: "todas" as const };
 
-function columnaPorAmbito<N>(
+function columnaPorAmbito(
   Lista: ComponentType<{ lista: never; alElegir: (a: never) => void; alContraer: () => void }>,
-  nodoDe: (i: number, elegida: number | null, nombre: string) => N,
-  todasDe: (elegida: number | null) => N,
+  nodoDe: (i: number, elegida: number | null, nombre: string) => object,
+  todasDe: (elegida: number | null) => object,
 ): Montaje {
   return {
     montar: ({ elegida, cantidad = TOTAL, alElegir }) => {

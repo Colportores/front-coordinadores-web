@@ -43,6 +43,8 @@ export function BotonAlternar({
   );
 }
 
+type Renglon = Extract<ElementoDeLista, { tipo: "item" }>;
+
 /**
  * La lista de ciudades agrupada por departamento: es el filtro y, a la vez, el resumen del día de cada una. Queda siempre
  * a la vista con sus cifras.
