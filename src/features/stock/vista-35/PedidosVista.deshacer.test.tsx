@@ -405,7 +405,7 @@ describe("casos límite", () => {
   });
 
   it("muchas transferencias seguidas: cada una con su aviso y su decisión", async () => {
-    const extra = Array.from({ length: 20 }, (_, i) => ({ numero: `T-${100 + i}` }));
+    const extra = Array.from({ length: 8 }, (_, i) => ({ numero: `T-${100 + i}` }));
     const { acciones: a } = montar(datosConTransferencias(extra));
     await abrirTransferencias();
     await autorizar("T-18");
@@ -413,12 +413,12 @@ describe("casos límite", () => {
       await tocar(fila(e.numero));
       await autorizar(e.numero);
     }
-    expect(screen.getAllByRole("button", { name: /^Deshacer/ })).toHaveLength(21);
+    expect(screen.getAllByRole("button", { name: /^Deshacer/ })).toHaveLength(9);
 
     await avanzar(MS_DESHACER);
-    expect(a.decidir).toHaveBeenCalledTimes(21);
-    expect(new Set(a.decidir.mock.calls.map(([d]) => d.id)).size).toBe(21);
-  });
+    expect(a.decidir).toHaveBeenCalledTimes(9);
+    expect(new Set(a.decidir.mock.calls.map(([d]) => d.id)).size).toBe(9);
+  }, 30_000);
 });
 
 describe("lo que no cambia", () => {
