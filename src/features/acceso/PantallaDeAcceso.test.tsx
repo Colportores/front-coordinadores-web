@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { RespuestaDeInicio } from "@/auth/acciones";
 import { PantallaDeAcceso, type PropiedadesDeAcceso } from "@/features/acceso/PantallaDeAcceso";
+import { leerCorreoAPedir } from "@/features/acceso/recuperacion-almacen";
 import { TEXTOS_DE_ACCESO as T, textoSinAcceso } from "@/features/acceso/textos";
 
 /** axe en jsdom no mide contraste (no hay layout): el contraste va en la corrida con navegador real. */
@@ -476,10 +477,26 @@ describe("vista 38 · casos límite", () => {
     expect(texto.className).toContain("wrap-anywhere");
   });
 
-  it("no hay un enlace «¿Olvidaste tu contraseña?» sin destino (decisión del orquestador, 26/10)", () => {
+  it("«¿Olvidaste tu contraseña?» lleva a la recuperación (vista 40) con el correo ya escrito, sin pasarlo por la URL (#111)", async () => {
     montar();
-    expect(screen.queryByText(/olvidaste/i)).toBeNull();
-    expect(screen.queryByRole("link")).toBeNull();
+    const enlace = screen.getByRole("link", { name: T.olvidasteTuContrasena });
+    expect(enlace).toHaveAttribute("href", "/acceso/olvide");
+    const usuario = userEvent.setup();
+    await usuario.type(campoCorreo(), `  ${CORREO.toUpperCase()} `);
+    // El clic no navega en jsdom: lo que importa es lo que deja guardado para la pantalla siguiente.
+    enlace.addEventListener("click", (evento) => evento.preventDefault());
+    await usuario.click(enlace);
+    expect(leerCorreoAPedir()).toBe(CORREO);
+    expect(enlace.getAttribute("href")).not.toContain(CORREO);
+    window.sessionStorage.clear();
+  });
+
+  it("el enlace está en los estados con formulario y no en «Sin acceso»", () => {
+    const { unmount } = montar({ motivo: "vencida" });
+    expect(screen.getByRole("link", { name: T.olvidasteTuContrasena })).toBeVisible();
+    unmount();
+    montar({ motivo: "sin-acceso", correoSinAcceso: "otra@correo.com" });
+    expect(screen.queryByRole("link", { name: T.olvidasteTuContrasena })).toBeNull();
   });
 });
 

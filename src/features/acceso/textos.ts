@@ -17,6 +17,8 @@ export const TEXTOS_DE_ACCESO = {
   entrando: "Entrando…",
   reintentar: "Reintentar",
   entrarConOtraCuenta: "Entrar con otra cuenta",
+  /** Vista 38, canvas: debajo de la contraseña, a la derecha; lleva a la vista 40. */
+  olvidasteTuContrasena: "¿Olvidaste tu contraseña?",
   /** 01 · vacío */
   pieVacio: "Entrar se habilita con correo y contraseña escritos.",
   /** 02 · entrando */

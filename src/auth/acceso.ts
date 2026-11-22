@@ -74,7 +74,7 @@ export type ResultadoCierre =
   | { tipo: "cerrada-sin-revocar" };
 
 /** Lo que dé `promesa`, o `siVence` si tarda más de `ms`. La promesa que queda colgada no se cancela. */
-function conTiempoMaximo<T>(promesa: Promise<T>, ms: number, siVence: T): Promise<T> {
+export function conTiempoMaximo<T>(promesa: Promise<T>, ms: number, siVence: T): Promise<T> {
   let temporizador: ReturnType<typeof setTimeout> | undefined;
   const limite = new Promise<T>((resolver) => {
     temporizador = setTimeout(() => resolver(siVence), ms);

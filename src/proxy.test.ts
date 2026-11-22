@@ -294,6 +294,21 @@ describe("proxy: la guarda de rutas (issue #18, vista 38)", () => {
       expect(destino(await proxy(pedido("/acceso", { cookies: navegador })))).toBe("http://localhost:3000/inicio");
     });
 
+    it("las pantallas de recuperar la contraseña se muestran con una sesión abierta (el enlace del correo deja una) y sin marco (#111)", async () => {
+      prenderLogin();
+      const navegador = await conSesion();
+      const { llamadas } = prenderSupabaseFalso();
+
+      for (const ruta of ["/acceso/olvide", "/acceso/nueva-contrasena", "/acceso/nueva-contrasena?code=abc"]) {
+        for (const cookies of [navegador, undefined]) {
+          const respuesta = await proxy(pedido(ruta, { cookies }));
+          expect(respuesta.headers.get("x-middleware-next"), ruta).toBe("1");
+          expect(respuesta.headers.get(`x-middleware-request-${CABECERA_SIN_MARCO}`), ruta).toBe("1");
+        }
+      }
+      expect(llamadas).toEqual([]);
+    });
+
     it("el destino tiene que ser una ruta del panel: nada de sitios ajenos", async () => {
       prenderLogin();
       const navegador = await conSesion();

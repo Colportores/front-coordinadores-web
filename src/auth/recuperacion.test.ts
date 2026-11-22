@@ -1,0 +1,154 @@
+import { AuthApiError, AuthRetryableFetchError, AuthSessionMissingError, type SupabaseClient } from "@supabase/supabase-js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { abrirEnlace, guardarContrasena, pedirEnlace } from "@/auth/recuperacion";
+
+/** Un cliente con solo lo que usa la recuperación; cada test cambia lo que contesta cada método. */
+function clienteFalso() {
+  const auth = {
+    resetPasswordForEmail: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
+    exchangeCodeForSession: vi.fn(
+      async (): Promise<{ data: unknown; error: unknown }> => ({
+        data: { session: { user: { id: "u-1", email: "marta@correo.com" } } },
+        error: null,
+      }),
+    ),
+    updateUser: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
+    signOut: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
+  };
+  return { supabase: { auth } as unknown as SupabaseClient, auth };
+}
+
+const errorApi = (estado: number, codigo: string) => new AuthApiError("mensaje de prueba", estado, codigo as never);
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("pedirEnlace", () => {
+  it("pide el correo con la dirección de «Nueva contraseña» y dice enviado", async () => {
+    const { supabase, auth } = clienteFalso();
+    expect(await pedirEnlace(supabase, "marta@correo.com", "https://panel.test/acceso/nueva-contrasena")).toEqual({ tipo: "enviado" });
+    expect(auth.resetPasswordForEmail).toHaveBeenCalledWith("marta@correo.com", { redirectTo: "https://panel.test/acceso/nueva-contrasena" });
+  });
+
+  it.each([
+    ["el límite de correos", errorApi(429, "over_email_send_rate_limit")],
+    ["el límite de pedidos", errorApi(429, "over_request_rate_limit")],
+    ["una dirección que no recibe correos", errorApi(400, "email_address_invalid")],
+    ["una dirección no autorizada", errorApi(400, "email_address_not_authorized")],
+    ["un 429 sin código", errorApi(429, "")],
+  ])("%s se enmascara como un envío (no revela si hay cuenta)", async (_nombre, error) => {
+    const { supabase, auth } = clienteFalso();
+    auth.resetPasswordForEmail.mockResolvedValue({ error });
+    expect(await pedirEnlace(supabase, "marta@correo.com", "https://panel.test/x")).toEqual({ tipo: "enviado" });
+  });
+
+  it.each([
+    ["sin red", new AuthRetryableFetchError("fetch failed", 0)],
+    ["un 500", errorApi(500, "unexpected_failure")],
+    ["un 400 desconocido", errorApi(400, "algo_raro")],
+  ])("%s es «no disponible»", async (_nombre, error) => {
+    const { supabase, auth } = clienteFalso();
+    auth.resetPasswordForEmail.mockResolvedValue({ error });
+    expect(await pedirEnlace(supabase, "marta@correo.com", "https://panel.test/x")).toEqual({ tipo: "no-disponible" });
+  });
+
+  it("si el SDK tira, es «no disponible»; si no contesta en el tope, también", async () => {
+    const { supabase, auth } = clienteFalso();
+    auth.resetPasswordForEmail.mockRejectedValue(new Error("boom"));
+    expect(await pedirEnlace(supabase, "a@b.co", "https://panel.test/x")).toEqual({ tipo: "no-disponible" });
+
+    vi.useFakeTimers();
+    auth.resetPasswordForEmail.mockReturnValue(new Promise(() => {}));
+    const pedido = pedirEnlace(supabase, "a@b.co", "https://panel.test/x", 5000);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(await pedido).toEqual({ tipo: "no-disponible" });
+  });
+});
+
+describe("abrirEnlace", () => {
+  it("canjea el código y devuelve la cuenta", async () => {
+    const { supabase, auth } = clienteFalso();
+    expect(await abrirEnlace(supabase, "codigo-1")).toEqual({ tipo: "ok", correo: "marta@correo.com", usuarioId: "u-1" });
+    expect(auth.exchangeCodeForSession).toHaveBeenCalledWith("codigo-1");
+  });
+
+  it.each([
+    ["vencido", errorApi(403, "otp_expired")],
+    ["sin el verificador (otro navegador)", Object.assign(new Error("PKCE code verifier not found in storage"), { name: "AuthPKCECodeVerifierMissingError", status: 400 })],
+    ["un código que no existe", errorApi(404, "flow_state_not_found")],
+  ])("un enlace %s es una sola respuesta: no válido", async (_nombre, error) => {
+    const { supabase, auth } = clienteFalso();
+    auth.exchangeCodeForSession.mockResolvedValue({ data: { session: null }, error });
+    expect(await abrirEnlace(supabase, "x")).toEqual({ tipo: "no-valido" });
+  });
+
+  it("sin red, con el servicio caído o limitado no se dice que el enlace venció", async () => {
+    const { supabase, auth } = clienteFalso();
+    for (const error of [new AuthRetryableFetchError("fetch failed", 0), errorApi(503, "unexpected_failure"), errorApi(429, "over_request_rate_limit")]) {
+      auth.exchangeCodeForSession.mockResolvedValue({ data: { session: null }, error });
+      expect(await abrirEnlace(supabase, "x")).toEqual({ tipo: "no-disponible" });
+    }
+    auth.exchangeCodeForSession.mockRejectedValue(new Error("boom"));
+    expect(await abrirEnlace(supabase, "x")).toEqual({ tipo: "no-disponible" });
+  });
+
+  it("una respuesta sin sesión o sin correo no sirve", async () => {
+    const { supabase, auth } = clienteFalso();
+    auth.exchangeCodeForSession.mockResolvedValue({ data: { session: null }, error: null });
+    expect(await abrirEnlace(supabase, "x")).toEqual({ tipo: "no-valido" });
+    auth.exchangeCodeForSession.mockResolvedValue({ data: { session: { user: { id: "u" } } }, error: null });
+    expect(await abrirEnlace(supabase, "x")).toEqual({ tipo: "no-valido" });
+  });
+});
+
+describe("guardarContrasena", () => {
+  it("cambia la contraseña y cierra todas las sesiones de la cuenta", async () => {
+    const { supabase, auth } = clienteFalso();
+    expect(await guardarContrasena(supabase, "Nueva-clave-1")).toEqual({ tipo: "ok" });
+    expect(auth.updateUser).toHaveBeenCalledWith({ password: "Nueva-clave-1" });
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: "global" });
+    // Y la de este navegador se borra igual (cookie).
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: "local" });
+  });
+
+  it("una contraseña que no cumple las reglas no sale del servidor", async () => {
+    const { supabase, auth } = clienteFalso();
+    for (const mala of ["corta1A", "sin-mayuscula-1", "SinNumeroAqui", ""]) {
+      expect(await guardarContrasena(supabase, mala), mala).toEqual({ tipo: "contrasena-debil" });
+    }
+    expect(auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["la misma de antes", errorApi(422, "same_password"), "misma-contrasena"],
+    ["la política del servidor", errorApi(422, "weak_password"), "contrasena-debil"],
+    ["sin sesión de recuperación", new AuthSessionMissingError(), "sin-sesion"],
+    ["un 401", errorApi(401, "bad_jwt"), "sin-sesion"],
+    ["el servicio caído", errorApi(500, "unexpected_failure"), "no-disponible"],
+    ["sin red", new AuthRetryableFetchError("fetch failed", 0), "no-disponible"],
+  ])("%s", async (_nombre, error, esperado) => {
+    const { supabase, auth } = clienteFalso();
+    auth.updateUser.mockResolvedValue({ error });
+    expect(await guardarContrasena(supabase, "Nueva-clave-1")).toEqual({ tipo: esperado });
+    // Sin cambio no se cierra nada.
+    expect(auth.signOut).not.toHaveBeenCalled();
+  });
+
+  it("si el cierre global falla, la contraseña ya cambió: sigue siendo ok y la sesión de este navegador se borra", async () => {
+    const { supabase, auth } = clienteFalso();
+    auth.signOut.mockImplementation(async (opciones?: unknown) => {
+      if ((opciones as { scope: string }).scope === "global") throw new Error("sin red");
+      return { error: null };
+    });
+    expect(await guardarContrasena(supabase, "Nueva-clave-1")).toEqual({ tipo: "ok" });
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: "local" });
+  });
+
+  it("si el servicio tira al cambiar, es «no disponible»", async () => {
+    const { supabase, auth } = clienteFalso();
+    auth.updateUser.mockRejectedValue(new Error("boom"));
+    expect(await guardarContrasena(supabase, "Nueva-clave-1")).toEqual({ tipo: "no-disponible" });
+  });
+});

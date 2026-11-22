@@ -1,0 +1,409 @@
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import axe from "axe-core";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { RespuestaDeApertura, RespuestaDeGuardado } from "@/auth/acciones-recuperacion";
+import { PantallaNuevaContrasena, type PropiedadesDeNuevaContrasena } from "@/features/acceso/PantallaNuevaContrasena";
+import { TEXTOS_DE_NUEVA_CONTRASENA as T } from "@/features/acceso/textos-recuperacion";
+
+/** axe en jsdom no mide contraste (no hay layout). */
+async function violaciones(raiz: Element) {
+  const r = await axe.run(raiz, {
+    runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
+    rules: { "color-contrast": { enabled: false } },
+  });
+  return r.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+}
+
+function diferida<T>() {
+  let resolver!: (valor: T) => void;
+  const promesa = new Promise<T>((res) => {
+    resolver = res;
+  });
+  return { promesa, resolver };
+}
+
+const CORREO = "marta.perez@correo.com";
+const CLAVE = "Nueva-clave-1";
+
+function montar(propiedades: Partial<PropiedadesDeNuevaContrasena> = {}) {
+  const abrir = vi.fn<PropiedadesDeNuevaContrasena["abrir"]>(async () => ({ tipo: "ok", correo: CORREO }));
+  const guardar = vi.fn<PropiedadesDeNuevaContrasena["guardar"]>(async () => ({ tipo: "ok" }));
+  const resultado = render(<PantallaNuevaContrasena inicial={{ paso: "nueva", correo: CORREO }} abrir={abrir} guardar={guardar} {...propiedades} />);
+  return { ...resultado, abrir, guardar };
+}
+
+const nueva = () => screen.getByLabelText(T.nueva);
+const repetida = () => screen.getByLabelText(T.repetida);
+const guardarBoton = () => screen.getByRole("button", { name: new RegExp(`^(${T.guardar}|${T.guardando}|${T.reintentar})$`) });
+
+async function escribir(usuario: ReturnType<typeof userEvent.setup>, a = CLAVE, b = a) {
+  await usuario.type(nueva(), a);
+  await usuario.type(repetida(), b);
+}
+
+function sinRed(valor: boolean) {
+  vi.spyOn(navigator, "onLine", "get").mockReturnValue(!valor);
+  act(() => {
+    window.dispatchEvent(new Event(valor ? "offline" : "online"));
+  });
+}
+
+beforeEach(() => {
+  vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("40B · 01 nueva contraseña", () => {
+  it("nombra la cuenta, trae las reglas y «Guardar contraseña» apagado hasta que todo está bien", async () => {
+    montar();
+    expect(screen.getByRole("heading", { level: 1, name: T.titulo })).toBeVisible();
+    expect(screen.getByText(T.para(CORREO))).toBeVisible();
+    expect(guardarBoton()).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("list", { name: T.reglasTitulo })).toBeVisible();
+    // Sin escribir, ninguna regla acusa un incumplimiento.
+    expect(screen.queryByText(`(${T.noCumple})`, { exact: false })).toBeNull();
+
+    const usuario = userEvent.setup();
+    await escribir(usuario);
+    expect(guardarBoton()).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("guarda la contraseña nueva, una vez, y pasa a «Contraseña cambiada» con el foco en el título", async () => {
+    const { guardar } = montar();
+    const usuario = userEvent.setup();
+    await escribir(usuario);
+    await usuario.click(guardarBoton());
+
+    expect(guardar).toHaveBeenCalledOnce();
+    expect(guardar).toHaveBeenCalledWith(CLAVE);
+    expect(screen.getByRole("heading", { level: 1, name: T.tituloCambiada })).toHaveFocus();
+  });
+
+  it("«Ver» y «Ocultar» muestran cada campo, con un nombre que dice cuál y contiene el texto visible", async () => {
+    montar();
+    const usuario = userEvent.setup();
+    const ver = screen.getByRole("button", { name: `${T.ver} la contraseña nueva` });
+    expect(ver).toHaveTextContent(T.ver);
+    expect(nueva()).toHaveAttribute("type", "password");
+    await usuario.click(ver);
+    expect(nueva()).toHaveAttribute("type", "text");
+    expect(repetida()).toHaveAttribute("type", "password");
+    expect(screen.getByRole("button", { name: `${T.ocultar} la contraseña nueva` })).toHaveTextContent(T.ocultar);
+    await usuario.click(screen.getByRole("button", { name: `${T.ver} la contraseña repetida` }));
+    expect(repetida()).toHaveAttribute("type", "text");
+  });
+});
+
+describe("40B · 02 no cumple las reglas", () => {
+  it("cada regla dice si cumple, con «faltan N», y «Guardar» sigue apagado", async () => {
+    const { guardar } = montar();
+    const usuario = userEvent.setup();
+    await usuario.type(nueva(), "abc12");
+    expect(screen.getByText(T.reglaLargoFaltan(3))).toBeVisible();
+    const reglas = screen.getByRole("list", { name: T.reglasTitulo });
+    expect(reglas).toHaveTextContent(`${T.reglaLargoFaltan(3)} (${T.noCumple})`);
+    expect(reglas).toHaveTextContent(`${T.reglaMayuscula} (${T.noCumple})`);
+    expect(reglas).toHaveTextContent(`${T.reglaNumero} (${T.cumple})`);
+    await usuario.type(repetida(), "abc12");
+    await usuario.click(guardarBoton());
+    expect(guardar).not.toHaveBeenCalled();
+  });
+
+  it("una Ñ o una letra con tilde cuentan como mayúscula (decisión del 02/10)", async () => {
+    montar();
+    const usuario = userEvent.setup();
+    await usuario.type(nueva(), "ñandú2026Ñ");
+    expect(screen.getByRole("list", { name: T.reglasTitulo })).toHaveTextContent(`${T.reglaMayuscula} (${T.cumple})`);
+  });
+
+  it("un emoji vale 1 carácter visible", async () => {
+    montar();
+    const usuario = userEvent.setup();
+    await usuario.type(nueva(), "Ab1😀😀😀");
+    expect(screen.getByText(T.reglaLargoFaltan(2))).toBeVisible();
+  });
+});
+
+describe("40B · 03 no coinciden", () => {
+  it("el aviso sale en «Repetila» al salir del campo, con su texto, y «Guardar» sigue apagado", async () => {
+    const { guardar } = montar();
+    const usuario = userEvent.setup();
+    await usuario.type(nueva(), CLAVE);
+    await usuario.type(repetida(), "Nueva-clave-");
+    // Mientras escribe y todavía es más corta, no acusa.
+    expect(screen.queryByText(T.noCoinciden)).toBeNull();
+    await usuario.tab();
+    expect(screen.getByRole("alert")).toHaveTextContent(T.noCoinciden);
+    expect(repetida()).toHaveAttribute("aria-invalid", "true");
+    expect(repetida()).toHaveAccessibleDescription(T.noCoinciden);
+    await usuario.click(guardarBoton());
+    expect(guardar).not.toHaveBeenCalled();
+  });
+
+  it("si la repetición ya es tan larga como la contraseña y difiere, avisa sin esperar", async () => {
+    montar();
+    const usuario = userEvent.setup();
+    await escribir(usuario, CLAVE, "Nueva-clave-2");
+    expect(screen.getByRole("alert")).toHaveTextContent(T.noCoinciden);
+  });
+
+  it("al igualarlas el aviso se va", async () => {
+    montar();
+    const usuario = userEvent.setup();
+    await escribir(usuario, CLAVE, "Nueva-clave-2");
+    await usuario.type(repetida(), "{Backspace}1");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(guardarBoton()).not.toHaveAttribute("aria-disabled");
+  });
+});
+
+describe("40B · 04 guardando", () => {
+  it("campos y botón apagados hasta la respuesta, y un doble toque o Enter guarda una sola vez", async () => {
+    const respuesta = diferida<RespuestaDeGuardado>();
+    const guardar = vi.fn(() => respuesta.promesa);
+    montar({ guardar });
+    const usuario = userEvent.setup();
+    await escribir(usuario);
+    await usuario.click(guardarBoton());
+    expect(guardarBoton()).toHaveTextContent(T.guardando);
+    expect(guardarBoton()).toHaveAttribute("aria-disabled", "true");
+    expect(nueva()).toBeDisabled();
+    expect(repetida()).toBeDisabled();
+    await usuario.click(guardarBoton());
+    fireEvent.submit(guardarBoton().closest("form")!);
+    expect(guardar).toHaveBeenCalledOnce();
+
+    await act(async () => respuesta.resolver({ tipo: "ok" }));
+    expect(screen.getByRole("heading", { level: 1, name: T.tituloCambiada })).toBeVisible();
+  });
+});
+
+describe("40B · 05 contraseña cambiada", () => {
+  it("«Ir al login» (no entra directo: se cerraron todas las sesiones) y no queda nada escrito", async () => {
+    montar();
+    const usuario = userEvent.setup();
+    await escribir(usuario);
+    await usuario.click(guardarBoton());
+
+    expect(screen.getByRole("status")).toHaveTextContent(T.cambiada);
+    expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso");
+    expect(screen.queryByLabelText(T.nueva)).toBeNull();
+    expect(screen.queryByDisplayValue(CLAVE)).toBeNull();
+  });
+});
+
+describe("40B · 06 enlace no válido", () => {
+  it("sin código ni recuperación en curso: una sola pantalla, con el texto del teléfono y dos salidas", () => {
+    montar({ inicial: { paso: "no-valido" } });
+    expect(screen.getByRole("heading", { level: 1, name: T.tituloNoValido })).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(T.noValido);
+    expect(screen.getByRole("link", { name: T.solicitarNuevo })).toHaveAttribute("href", "/acceso/olvide");
+    expect(screen.getByRole("link", { name: T.volverAlLogin })).toHaveAttribute("href", "/acceso");
+    // No dice «venció» o «ya se usó» por separado.
+    expect(screen.queryByText(/^Este enlace venció/)).toBeNull();
+  });
+
+  it("un código vencido o usado cae en la misma pantalla", async () => {
+    const abrir = vi.fn(async (): Promise<RespuestaDeApertura> => ({ tipo: "no-valido" }));
+    montar({ inicial: { paso: "abrir", codigo: "c-vencido" }, abrir });
+    expect(await screen.findByRole("heading", { level: 1, name: T.tituloNoValido })).toHaveFocus();
+    expect(screen.getByRole("alert")).toHaveTextContent(T.noValido);
+  });
+
+  it("si al guardar la sesión de recuperación ya no está, también es «Enlace no válido» y no queda nada escrito", async () => {
+    const { guardar } = montar();
+    guardar.mockResolvedValue({ tipo: "enlace-no-valido" });
+    const usuario = userEvent.setup();
+    await escribir(usuario);
+    await usuario.click(guardarBoton());
+    expect(screen.getByRole("heading", { level: 1, name: T.tituloNoValido })).toBeVisible();
+    expect(screen.queryByDisplayValue(CLAVE)).toBeNull();
+  });
+});
+
+describe("40B · 07 error al guardar y 08 sin conexión", () => {
+  it("error: el aviso, «Reintentar», lo escrito queda y al reintentar guarda", async () => {
+    const { guardar } = montar();
+    guardar.mockResolvedValueOnce({ tipo: "no-disponible" });
+    const usuario = userEvent.setup();
+    await escribir(usuario);
+    await usuario.click(guardarBoton());
+
+    expect(screen.getByRole("alert")).toHaveTextContent(T.errorAlGuardar);
+    expect(guardarBoton()).toHaveTextContent(T.reintentar);
+    expect(guardarBoton()).not.toHaveAttribute("aria-disabled");
+    expect(nueva()).toHaveValue(CLAVE);
+    expect(nueva()).toBeEnabled();
+
+    await usuario.click(guardarBoton());
+    expect(guardar).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("heading", { level: 1, name: T.tituloCambiada })).toBeVisible();
+  });
+
+  it("la acción que tira a mitad de camino deja el botón habilitado y lo escrito", async () => {
+    const { guardar } = montar();
+    guardar.mockRejectedValueOnce(new Error("se cortó"));
+    const usuario = userEvent.setup();
+    await escribir(usuario);
+    await usuario.click(guardarBoton());
+    expect(screen.getByRole("alert")).toHaveTextContent(T.errorAlGuardar);
+    expect(guardarBoton()).not.toHaveAttribute("aria-disabled");
+    expect(repetida()).toHaveValue(CLAVE);
+  });
+
+  it("sin conexión: el cartel punteado, «Guardar» apagado y no se manda nada", async () => {
+    const { guardar } = montar();
+    const usuario = userEvent.setup();
+    await escribir(usuario);
+    sinRed(true);
+    expect(screen.getByRole("status")).toHaveTextContent(T.sinConexion);
+    expect(guardarBoton()).toHaveAttribute("aria-disabled", "true");
+    await usuario.click(guardarBoton());
+    expect(guardar).not.toHaveBeenCalled();
+
+    sinRed(false);
+    await usuario.click(guardarBoton());
+    expect(guardar).toHaveBeenCalledOnce();
+  });
+});
+
+describe("40B · avisos que el servidor dice y el canvas no dibuja", () => {
+  it.each([
+    ["misma-contrasena" as const, T.mismaContrasena],
+    ["contrasena-debil" as const, T.contrasenaDebil],
+  ])("%s: el aviso sale bajo los campos, el foco va a la contraseña y se corrige solo al escribir", async (tipo, texto) => {
+    const { guardar } = montar();
+    guardar.mockResolvedValueOnce({ tipo });
+    const usuario = userEvent.setup();
+    await escribir(usuario);
+    await usuario.click(guardarBoton());
+    expect(screen.getByRole("alert")).toHaveTextContent(texto);
+    expect(nueva()).toHaveFocus();
+    expect(nueva()).toHaveAccessibleDescription(texto);
+    expect(guardarBoton()).toHaveTextContent(T.guardar);
+
+    await usuario.type(nueva(), "2");
+    expect(screen.queryByText(texto)).toBeNull();
+  });
+});
+
+describe("abrir el enlace del correo", () => {
+  beforeEach(() => {
+    vi.spyOn(window.history, "replaceState");
+  });
+
+  it("verifica el código, nombra la cuenta, saca el código de la URL y lleva el foco a la contraseña", async () => {
+    const respuesta = diferida<RespuestaDeApertura>();
+    const abrir = vi.fn(() => respuesta.promesa);
+    montar({ inicial: { paso: "abrir", codigo: "c-bueno" }, abrir });
+    expect(screen.getByRole("status")).toHaveTextContent(T.verificando);
+    expect(screen.queryByLabelText(T.nueva)).toBeNull();
+
+    await act(async () => respuesta.resolver({ tipo: "ok", correo: CORREO }));
+    expect(abrir).toHaveBeenCalledOnce();
+    expect(abrir).toHaveBeenCalledWith("c-bueno");
+    expect(screen.getByText(T.para(CORREO))).toBeVisible();
+    expect(nueva()).toHaveFocus();
+    expect(window.history.replaceState).toHaveBeenCalledWith(null, "", "/acceso/nueva-contrasena");
+  });
+
+  it("el mismo código se canjea una sola vez aunque el efecto corra dos veces (React en desarrollo)", async () => {
+    const respuesta = diferida<RespuestaDeApertura>();
+    const abrir = vi.fn(() => respuesta.promesa);
+    const inicial = { paso: "abrir", codigo: "c-doble" } as const;
+    const { unmount } = render(<PantallaNuevaContrasena inicial={inicial} abrir={abrir} guardar={vi.fn()} />);
+    unmount();
+    render(<PantallaNuevaContrasena inicial={inicial} abrir={abrir} guardar={vi.fn()} />);
+    expect(abrir).toHaveBeenCalledOnce();
+    await act(async () => respuesta.resolver({ tipo: "ok", correo: CORREO }));
+    expect(screen.getByText(T.para(CORREO))).toBeVisible();
+  });
+
+  it("si no se pudo comprobar (no es un enlace vencido) ofrece «Reintentar» y el segundo intento canjea de nuevo", async () => {
+    const abrir = vi.fn<PropiedadesDeNuevaContrasena["abrir"]>(async () => ({ tipo: "no-disponible" }));
+    montar({ inicial: { paso: "abrir", codigo: "c-sin-red" }, abrir });
+    expect(await screen.findByRole("heading", { level: 1, name: T.tituloNoSePudoAbrir })).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(T.noSePudoAbrir);
+    expect(screen.queryByText(T.noValido)).toBeNull();
+
+    abrir.mockResolvedValueOnce({ tipo: "ok", correo: CORREO });
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: T.reintentar })));
+    expect(abrir).toHaveBeenCalledTimes(2);
+    expect(await screen.findByLabelText(T.nueva)).toBeVisible();
+  });
+
+  it("una acción que tira al abrir es «no se pudo comprobar»", async () => {
+    montar({ inicial: { paso: "abrir", codigo: "c-tira" }, abrir: vi.fn(async () => Promise.reject(new Error("se cortó"))) });
+    expect(await screen.findByRole("heading", { level: 1, name: T.tituloNoSePudoAbrir })).toBeVisible();
+  });
+
+  it("volver atrás y reentrar con el código ya usado muestra «Enlace no válido»", async () => {
+    const abrir = vi.fn(async (): Promise<RespuestaDeApertura> => ({ tipo: "no-valido" }));
+    const primera = montar({ inicial: { paso: "abrir", codigo: "c-usado" }, abrir });
+    await screen.findByRole("heading", { level: 1, name: T.tituloNoValido });
+    primera.unmount();
+    montar({ inicial: { paso: "abrir", codigo: "c-usado" }, abrir });
+    expect(await screen.findByRole("heading", { level: 1, name: T.tituloNoValido })).toBeVisible();
+  });
+});
+
+describe("40B · datos límite", () => {
+  it("una contraseña larguísima y una cuenta con correo largo no rompen la pantalla", async () => {
+    const largo = `${"x".repeat(60)}@${"y".repeat(60)}.com`;
+    const { guardar } = montar({ inicial: { paso: "nueva", correo: largo } });
+    expect(screen.getByText(T.para(largo)).className).toContain("wrap-anywhere");
+    const clave = `A1${"b".repeat(500)}`;
+    fireEvent.change(nueva(), { target: { value: clave } });
+    fireEvent.change(repetida(), { target: { value: clave } });
+    await act(async () => fireEvent.click(guardarBoton()));
+    expect(guardar).toHaveBeenCalledWith(clave);
+  });
+});
+
+describe("vista 40B · accesibilidad (axe A/AA, sin contraste)", () => {
+  it("cada estado de la pantalla", async () => {
+    for (const inicial of [{ paso: "nueva" as const, correo: CORREO }, { paso: "no-valido" as const }]) {
+      const { container, unmount } = montar({ inicial });
+      expect(await violaciones(container), JSON.stringify(inicial)).toEqual([]);
+      unmount();
+    }
+  });
+
+  it("con reglas sin cumplir, no coinciden, guardando, error, sin conexión y cambiada", async () => {
+    const respuesta = diferida<RespuestaDeGuardado>();
+    const { container, guardar } = montar();
+    guardar.mockImplementationOnce(() => respuesta.promesa);
+    const usuario = userEvent.setup();
+
+    await usuario.type(nueva(), "abc12");
+    expect(await violaciones(container)).toEqual([]);
+    await usuario.clear(nueva());
+    await escribir(usuario, CLAVE, "Nueva-clave-2");
+    expect(await violaciones(container)).toEqual([]);
+    await usuario.clear(repetida());
+    await usuario.type(repetida(), CLAVE);
+    await usuario.click(guardarBoton());
+    expect(await violaciones(container)).toEqual([]);
+
+    await act(async () => respuesta.resolver({ tipo: "no-disponible" }));
+    expect(await violaciones(container)).toEqual([]);
+    sinRed(true);
+    expect(await violaciones(container)).toEqual([]);
+    sinRed(false);
+    await usuario.click(guardarBoton());
+    expect(await violaciones(container)).toEqual([]);
+  });
+
+  it("verificando y no se pudo abrir", async () => {
+    const respuesta = diferida<RespuestaDeApertura>();
+    const { container } = montar({ inicial: { paso: "abrir", codigo: "c-axe" }, abrir: vi.fn(() => respuesta.promesa) });
+    expect(await violaciones(container)).toEqual([]);
+    await act(async () => respuesta.resolver({ tipo: "no-disponible" }));
+    expect(await violaciones(container)).toEqual([]);
+  });
+});

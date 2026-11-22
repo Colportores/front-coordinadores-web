@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { destinoSeguro, motivoDeAccesoValido } from "@/auth/guarda";
 import { modoDeAcceso } from "@/auth/modo";
 import { PantallaDeAcceso } from "@/features/acceso/PantallaDeAcceso";
-import { ContenidoPestana } from "@/shell/ContenidoPestana";
+import { SitioDePruebaSinAcceso } from "@/features/acceso/SitioDePruebaSinAcceso";
 import { RUTA_INICIAL } from "@/shell/pestanas";
 
 export const metadata: Metadata = {
@@ -25,19 +24,7 @@ export const metadata: Metadata = {
  */
 export default async function AccesoPagina({ searchParams }: PageProps<"/acceso">) {
   if (process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1") {
-    return (
-      <ContenidoPestana titulo="Acceso">
-        <div className="flex flex-col gap-2 rounded-tarjeta border border-borde bg-superficie px-5 py-6">
-          <p className="font-serif text-titulo font-semibold text-marca">El sitio de prueba no tiene inicio de sesión.</p>
-          <p className="text-cuerpo text-tinta-suave">
-            Trabaja con datos de ejemplo y no guarda nada, así que no hace falta una cuenta.{" "}
-            <Link href={RUTA_INICIAL} className="font-semibold text-marca underline underline-offset-2">
-              Ir a Inicio
-            </Link>
-          </p>
-        </div>
-      </ContenidoPestana>
-    );
+    return <SitioDePruebaSinAcceso />;
   } else {
     if (modoDeAcceso() === "apagado") redirect(RUTA_INICIAL);
 
