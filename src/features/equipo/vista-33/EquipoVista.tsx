@@ -5,9 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { becasDeEquipoVisibles } from "@/config/flags";
 import type { AcompanamientoDeColportor, DatosEquipoPorCiudad } from "@/datos/equipo/contrato";
+import { useEnLinea } from "@/lib/en-linea";
 import { cn } from "@/lib/utils";
 
 import type { AccionesEquipo } from "./acciones";
+import { DialogoQuitarDeCampania } from "./DialogoQuitarDeCampania";
 import { FranjaPendientes, type Pendiente } from "./FranjaPendientes";
 import { ListaDeCiudades, RielDeCiudades } from "./ListaDeCiudades";
 import {
@@ -29,6 +31,7 @@ import { TablaBecas } from "./TablaBecas";
 import { TablaZonas } from "./TablaZonas";
 import { useUnidadDeAvance } from "./unidad-de-avance";
 import { useBecas } from "./useBecas";
+import { useQuitarDeCampania, type FocoTrasQuitar } from "./useQuitarDeCampania";
 import { useVistaDeBecas } from "./useVistaDeBecas";
 
 const VISTAS: { valor: VistaEquipo; etiqueta: string }[] = [
@@ -47,6 +50,12 @@ function conRegistrados(datos: DatosEquipoPorCiudad, registrados: Record<string,
       return nuevos.length === 0 ? c : { ...c, acompanamientos: [...nuevos, ...c.acompanamientos] };
     }),
   };
+}
+
+/** Saca de los datos a los que se quitaron de la campaña desde esta pantalla (HU-CAM-005). */
+function sinQuitados(datos: DatosEquipoPorCiudad, quitados: ReadonlySet<string>): DatosEquipoPorCiudad {
+  if (quitados.size === 0) return datos;
+  return { ...datos, colportores: datos.colportores.filter((c) => !quitados.has(c.id)) };
 }
 
 const UNIDADES: { valor: UnidadDeAvance; etiqueta: string }[] = [
@@ -82,7 +91,8 @@ function pendientesDe(sinZona: string[], solicitudes: number, vista: VistaEquipo
  * Vista 33 (HU-JOR-004, HU-CAM-006): el equipo de la campaña por ciudad. A la izquierda la lista de ciudades por
  * departamento (que se contrae); a la derecha la tabla de zonas, de becas o de acompañamientos de la ciudad elegida, con
  * la acción de cada tema en la misma fila. Cambiar de ciudad o de pestaña no pide nada al servidor: solo abrir las
- * jornadas de un colportor, registrar un acompañamiento y elegir la carrera o el tipo de beca hablan con él.
+ * jornadas de un colportor, registrar un acompañamiento, elegir la carrera o el tipo de beca y quitar a alguien de la campaña
+ * hablan con él.
  */
 export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; acciones: AccionesEquipo }) {
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_TODAS);
@@ -99,8 +109,14 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
   const raiz = useRef<HTMLDivElement>(null);
   // Al apagar el botón que tenía el foco (contraer la lista, cerrar el registro) el foco se devuelve a su par.
   const focoPendiente = useRef<string | null>(null);
+  const enLinea = useEnLinea();
+  const quitar = useQuitarDeCampania(acciones, (foco: FocoTrasQuitar) => {
+    focoPendiente.current = foco.tipo === "aviso" ? "aviso-quitar" : `quitar:${foco.colportorId}`;
+  });
+  // La fila ofrece «Quitar de la campaña» solo si la fuente lo sabe hacer (la de las RPC espera backend-supabase#273).
+  const puedeQuitar = datos.sePuedeQuitar === true && acciones.quitarDeCampania !== undefined;
 
-  const actuales = useMemo(() => conRegistrados(datos, registrados), [datos, registrados]);
+  const actuales = useMemo(() => conRegistrados(sinQuitados(datos, quitar.quitados), registrados), [datos, quitar.quitados, registrados]);
   const resuelto = useMemo(() => resolverAmbito(actuales, ambito), [actuales, ambito]);
   const lista = useMemo(() => construirLista(actuales, resuelto), [actuales, resuelto]);
   const riel = useMemo(() => construirRiel(lista), [lista]);
@@ -246,6 +262,19 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
 
         <FranjaPendientes pendientes={pendientesDe(porAsignar, datos.solicitudesPendientes, vista)} />
 
+        {/* Siempre montado: el lector de pantalla anuncia el aviso cuando cambia (la vista ya tiene su único `role=status`). */}
+        <div aria-live="polite">
+          {quitar.aviso && (
+            <p
+              data-foco="aviso-quitar"
+              tabIndex={-1}
+              className="rounded-control bg-exito-fondo px-3 py-2 text-cuerpo font-medium wrap-anywhere text-exito focus:outline-none"
+            >
+              {quitar.aviso}
+            </p>
+          )}
+        </div>
+
         <div className="min-h-0 flex-1 overflow-auto rounded-tarjeta border border-borde bg-superficie">
           {total === 0 ? (
             <p role="status" className="px-[18px] py-6 text-center text-chico text-tinta-suave">
@@ -254,7 +283,7 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
                 : `Todavía no hay colportores en ${resuelto.titulo}. Cuando asignes alguno a una de sus zonas, aparece acá.`}
             </p>
           ) : vista === "zonas" ? (
-            <TablaZonas resuelto={resuelto} />
+            <TablaZonas resuelto={resuelto} alQuitar={puedeQuitar ? quitar.abrir : undefined} />
           ) : vista === "becas" ? (
             <TablaBecas resuelto={resuelto} becas={datos.becas} estado={becas} unidad={unidad} vista={vistaDeBecas} permanente={esCampaniaPermanente(datos)} />
           ) : (
@@ -272,6 +301,21 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
           )}
         </div>
       </div>
+
+      {quitar.abierto && (
+        <DialogoQuitarDeCampania
+          nombre={quitar.abierto.nombre}
+          campania={datos.campania}
+          paso={quitar.paso}
+          quitando={quitar.quitando}
+          falla={quitar.falla}
+          enLinea={enLinea}
+          alSeguir={quitar.seguir}
+          alVolver={quitar.volver}
+          alCancelar={quitar.cancelar}
+          alConfirmar={quitar.confirmar}
+        />
+      )}
     </div>
   );
 }

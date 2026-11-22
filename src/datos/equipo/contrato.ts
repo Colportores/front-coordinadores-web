@@ -172,6 +172,13 @@ export type ResultadoBeca =
   | { ok: true; beca: BecaDeColportor }
   | { ok: false; mensaje: string; sinMeta?: boolean; recargar?: boolean };
 
+/**
+ * Respuesta a «Quitar de la campaña» (HU-CAM-005, «Remover» sin reasignar; `quitar_de_campania()`, backend-supabase#273).
+ * `yaEstaba`: ya no estaba en la campaña (otra pestaña lo quitó antes); para la vista es lo mismo que quitarlo. Un rechazo de
+ * la regla vuelve como `ok: false` con el texto para mostrar; una falla de conexión, como excepción.
+ */
+export type ResultadoQuitarDeCampania = { ok: true; yaEstaba?: boolean } | { ok: false; mensaje: string; sesionVencida?: true };
+
 /** Los datos de la vista 33 de la campaña del coordinador. */
 export interface DatosEquipoPorCiudad {
   campaniaId: string;
@@ -200,6 +207,11 @@ export interface DatosEquipoPorCiudad {
    * la pestaña no se ofrece o lo dice en vez de mostrar una tabla vacía.
    */
   becas: DatosDeBecas | null;
+  /**
+   * La fuente sabe quitar a alguien de la campaña (`quitarDeCampania`): la fila ofrece «Quitar de la campaña». Ausente o
+   * `false`: no (la base todavía no publicó `quitar_de_campania()`, backend-supabase#273) y el botón no aparece.
+   */
+  sePuedeQuitar?: boolean;
 }
 
 /** Una jornada terminada del colportor entre las que elegir para registrar un acompañamiento. */
@@ -353,6 +365,12 @@ export interface FuenteDatosEquipo {
    * fallas que `elegirCarrera`.
    */
   asignarTipoDeBeca(campaniaId: string, colportorId: string, tipo: TipoDeBeca | null): Promise<ResultadoBeca>;
+  /**
+   * Quita al colportor de la campaña (HU-CAM-005, «Remover» sin reasignar): la inscripción se da de baja, queda sin zona y no
+   * se borra nada de lo que registró; se lo puede volver a añadir desde la vista 23. Opcional: solo la tiene la fuente que
+   * marca `sePuedeQuitar` en sus datos (la de las RPC espera `quitar_de_campania()`, backend-supabase#273).
+   */
+  quitarDeCampania?(campaniaId: string, colportorId: string): Promise<ResultadoQuitarDeCampania>;
   /** `null`: el coordinador no tiene una campaña en curso ni por empezar a la que añadir colportores. */
   obtenerAnadirColportor(): Promise<DatosAnadirColportor | null>;
   /**

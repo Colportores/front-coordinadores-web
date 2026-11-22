@@ -20,7 +20,7 @@ function fuenteSimulada(): Promise<FuenteDatosEquipo> {
 
 /**
  * La vista 33 para el sitio de prueba (GitHub Pages, export estático): sin servidor no hay server actions, así que las
- * jornadas, el registro y las becas le hablan a la fuente simulada desde el navegador. El estado vive en la pestaña: al recargar
+ * jornadas, el registro, las becas y «Quitar de la campaña» le hablan a la fuente simulada desde el navegador. El estado vive en la pestaña: al recargar
  * vuelve a los datos de ejemplo.
  */
 export function EquipoVistaLocal({ datos }: { datos: DatosEquipoPorCiudad }) {
@@ -32,6 +32,11 @@ export function EquipoVistaLocal({ datos }: { datos: DatosEquipoPorCiudad }) {
         (await fuenteSimulada()).registrarAcompanamiento(datos.campaniaId, jornadaId, datosDelRegistro),
       elegirCarrera: async (colportorId, carreraId) => (await fuenteSimulada()).elegirCarrera(datos.campaniaId, colportorId, carreraId),
       asignarTipoDeBeca: async (colportorId, tipo) => (await fuenteSimulada()).asignarTipoDeBeca(datos.campaniaId, colportorId, tipo),
+      quitarDeCampania: async (colportorId) => {
+        const fuente = await fuenteSimulada();
+        if (!fuente.quitarDeCampania) return { ok: false, mensaje: "Todavía no se puede quitar a alguien de la campaña desde el panel." };
+        return fuente.quitarDeCampania(datos.campaniaId, colportorId);
+      },
     }),
     [datos.campaniaId],
   );
