@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { abrirEnlaceAccion, guardarContrasenaAccion, pedirEnlaceAccion } from "@/auth/acciones-recuperacion";
+import { abrirEnlaceAccion, cerrarOtrasSesionesAccion, guardarContrasenaAccion, pedirEnlaceAccion } from "@/auth/acciones-recuperacion";
 import { COOKIE_DE_RECUPERACION, piso, recuperacionEnCurso } from "@/auth/recuperacion-servidor";
 import { CONFIG_PRUEBA } from "@/test/cookies-supabase";
 import { errorDeAuth, json, respuestaDeSesion, type LlamadaFalsa } from "@/test/supabase";
@@ -217,7 +217,7 @@ describe("guardarContrasenaAccion", () => {
     const cambio = llamadas.find((l) => l.ruta === "/auth/v1/user" && l.metodo === "PUT");
     expect(cambio?.cuerpo).toMatchObject({ password: CLAVE });
     expect(cambio?.token).toBe("token-recuperacion");
-    expect(llamadas.some((l) => l.ruta === "/auth/v1/logout" && l.url.searchParams.get("scope") === "global")).toBe(true);
+    expect(llamadas.some((l) => l.ruta === "/auth/v1/logout" && l.url.searchParams.get("scope") === "others")).toBe(true);
     expect(pedido.cookies.has(COOKIE_DE_RECUPERACION)).toBe(false);
     expect(hayCookieDeSesion()).toBe(false);
   });
@@ -270,5 +270,34 @@ describe("guardarContrasenaAccion", () => {
     expect(await guardarContrasenaAccion(CLAVE)).toEqual({ tipo: "ok" });
     expect(await guardarContrasenaAccion(CLAVE)).toEqual({ tipo: "enlace-no-valido" });
     expect(llamadas.filter((l) => l.metodo === "PUT")).toHaveLength(1);
+  });
+
+  it("si el cierre global falla (500) no es éxito: «ok-sin-revocar», la marca y la sesión quedan, y el reintento sin contraseña lo cierra", async () => {
+    let falla = true;
+    const { llamadas } = await conEnlaceAbierto({
+      revocar: () => (falla ? errorDeAuth(500, "unexpected_failure", "caído") : new Response(null, { status: 204 })),
+    });
+    expect(await guardarContrasenaAccion(CLAVE)).toEqual({ tipo: "ok-sin-revocar" });
+    expect(pedido.cookies.has(COOKIE_DE_RECUPERACION)).toBe(true);
+    expect(hayCookieDeSesion()).toBe(true);
+
+    // El reintento sigue fallando: nada cambia.
+    expect(await cerrarOtrasSesionesAccion()).toEqual({ tipo: "ok-sin-revocar" });
+    expect(pedido.cookies.has(COOKIE_DE_RECUPERACION)).toBe(true);
+
+    falla = false;
+    expect(await cerrarOtrasSesionesAccion()).toEqual({ tipo: "ok" });
+    expect(pedido.cookies.has(COOKIE_DE_RECUPERACION)).toBe(false);
+    expect(hayCookieDeSesion()).toBe(false);
+    // La contraseña se cambió una sola vez: el reintento no la vuelve a pedir ni a mandar.
+    expect(llamadas.filter((l) => l.metodo === "PUT")).toHaveLength(1);
+  });
+});
+
+describe("cerrarOtrasSesionesAccion", () => {
+  it("sin una recuperación en curso (sin marca) no cierra nada ni afirma el cierre", async () => {
+    const { llamadas } = prenderServidor();
+    expect(await cerrarOtrasSesionesAccion()).toEqual({ tipo: "ok-sin-revocar" });
+    expect(llamadas.some((l) => l.ruta === "/auth/v1/logout")).toBe(false);
   });
 });

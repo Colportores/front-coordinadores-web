@@ -87,6 +87,11 @@ export async function abrirEnlace(supabase: SupabaseClient, codigo: string, tiem
 export type ResultadoDeGuardar =
   /** Contraseña cambiada y todas las sesiones de la cuenta cerradas. */
   | { tipo: "ok" }
+  /**
+   * La contraseña cambió, pero el cierre de las demás sesiones no se pudo confirmar (red, servicio caído, tiempo agotado o un
+   * `{ error }` de `signOut`). La sesión de este navegador se conserva para poder reintentar el cierre (`cerrarOtrasSesiones`).
+   */
+  | { tipo: "ok-sin-revocar" }
   /** Ya no hay sesión de recuperación (venció, se cerró): hay que pedir otro enlace. */
   | { tipo: "sin-sesion" }
   /** Es igual a la actual: Supabase la rechaza (`same_password`). */
@@ -96,9 +101,9 @@ export type ResultadoDeGuardar =
   | { tipo: "no-disponible" };
 
 /**
- * Cambia la contraseña de la sesión de recuperación y cierra todas las sesiones de la cuenta (`scope: "global"`, en todos los
- * dispositivos). Si el cierre global no se pudo (red cortada justo después), la contraseña ya cambió: la sesión de este navegador
- * se borra igual y el resultado es `ok`.
+ * Cambia la contraseña de la sesión de recuperación y cierra todas las sesiones de la cuenta (las de los demás dispositivos y,
+ * después, la de este navegador). Si el cierre global no se pudo confirmar, la contraseña ya cambió pero el resultado es `ok-sin-revocar` (nunca
+ * `ok`: la pantalla no puede afirmar un cierre que no pasó) y la sesión de este navegador se conserva para reintentarlo.
  */
 export async function guardarContrasena(
   supabase: SupabaseClient,
@@ -127,12 +132,42 @@ export async function guardarContrasena(
   );
   if (cambio.tipo !== "ok") return cambio;
 
-  try {
-    await conTiempoMaximo(supabase.auth.signOut({ scope: "global" }), tiempoMaximoMs, null);
-  } catch {
-    // Se cierra la de este navegador abajo.
-  }
-  // Quita la cookie de este navegador pase lo que pase con el cierre global.
+  if (!(await revocarTodas(supabase, tiempoMaximoMs))) return { tipo: "ok-sin-revocar" };
+  // Cierra la sesión de este navegador (y quita su cookie): junto con las otras, es el cierre global.
   await cerrarSesion(supabase, tiempoMaximoMs);
   return cambio;
+}
+
+/**
+ * Revoca las sesiones de la cuenta en los demás dispositivos (`scope: "others"`); la de este navegador se cierra después
+ * (`cerrarSesion`, local), con lo que el efecto es el de un cierre global. Se usa `others` y no `global` porque auth-js, ante un
+ * fallo de red o 5xx del `global`, borra igual la sesión local: ya no habría con qué reintentar. Con `others` la sesión de este
+ * navegador sobrevive al fallo. `signOut` no lanza ante red o 5xx: devuelve `{ error }`; también puede lanzar o no contestar a
+ * tiempo. En los tres casos es `false`.
+ */
+async function revocarTodas(supabase: SupabaseClient, tiempoMaximoMs: number): Promise<boolean> {
+  try {
+    const resultado = await conTiempoMaximo(supabase.auth.signOut({ scope: "others" }), tiempoMaximoMs, null);
+    return resultado !== null && !resultado.error;
+  } catch {
+    return false;
+  }
+}
+
+export type ResultadoDeCerrarOtras =
+  | { tipo: "ok" }
+  /** Sigue sin poderse cerrar (o ya no hay sesión de este navegador desde la cual hacerlo). */
+  | { tipo: "ok-sin-revocar" };
+
+/** Reintenta el cierre de todas las sesiones tras un `ok-sin-revocar`. No pide la contraseña: usa la sesión de recuperación. */
+export async function cerrarOtrasSesiones(supabase: SupabaseClient, tiempoMaximoMs: number = TIEMPO_MAXIMO_MS): Promise<ResultadoDeCerrarOtras> {
+  try {
+    const { data } = await conTiempoMaximo(supabase.auth.getSession(), tiempoMaximoMs, null).then((r) => r ?? { data: { session: null } });
+    if (!data.session) return { tipo: "ok-sin-revocar" };
+  } catch {
+    return { tipo: "ok-sin-revocar" };
+  }
+  if (!(await revocarTodas(supabase, tiempoMaximoMs))) return { tipo: "ok-sin-revocar" };
+  await cerrarSesion(supabase, tiempoMaximoMs);
+  return { tipo: "ok" };
 }

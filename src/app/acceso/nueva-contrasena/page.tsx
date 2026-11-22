@@ -38,7 +38,7 @@ export default async function NuevaContrasenaPagina({ searchParams }: PageProps<
     const codigo = unico(consulta.code);
     const hayError = unico(consulta.error) !== undefined;
 
-    const { abrirEnlaceAccion, guardarContrasenaAccion } = await import("@/auth/acciones-recuperacion");
+    const { abrirEnlaceAccion, guardarContrasenaAccion, cerrarOtrasSesionesAccion } = await import("@/auth/acciones-recuperacion");
 
     let inicial: EstadoInicialDeNuevaContrasena = { paso: "no-valido" };
     if (!hayError && typeof codigo === "string" && codigo !== "" && codigo.length <= LARGO_MAXIMO_DEL_CODIGO) {
@@ -48,6 +48,6 @@ export default async function NuevaContrasenaPagina({ searchParams }: PageProps<
       if (enCurso) inicial = { paso: "nueva", correo: enCurso.correo };
     }
 
-    return <PantallaNuevaContrasena inicial={inicial} abrir={abrirEnlaceAccion} guardar={guardarContrasenaAccion} />;
+    return <PantallaNuevaContrasena inicial={inicial} abrir={abrirEnlaceAccion} guardar={guardarContrasenaAccion} cerrarOtras={cerrarOtrasSesionesAccion} />;
   }
 }

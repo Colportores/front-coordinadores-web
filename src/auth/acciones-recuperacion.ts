@@ -1,6 +1,6 @@
 "use server";
 
-import { guardarContrasena, abrirEnlace, pedirEnlace } from "@/auth/recuperacion";
+import { guardarContrasena, abrirEnlace, cerrarOtrasSesiones, pedirEnlace } from "@/auth/recuperacion";
 import { modoDeAcceso } from "@/auth/modo";
 import {
   direccionDeNuevaContrasena,
@@ -24,6 +24,8 @@ export type RespuestaDeApertura = { tipo: "ok"; correo: string } | { tipo: "no-v
 
 export type RespuestaDeGuardado =
   | { tipo: "ok" }
+  /** La contraseña cambió pero no se pudieron cerrar las otras sesiones: la pantalla lo avisa y ofrece reintentar. */
+  | { tipo: "ok-sin-revocar" }
   | { tipo: "enlace-no-valido" }
   | { tipo: "misma-contrasena" }
   | { tipo: "contrasena-debil" }
@@ -80,6 +82,9 @@ export async function guardarContrasenaAccion(contrasena: unknown): Promise<Resp
       case "ok":
         await quitarMarcaDeRecuperacion();
         return { tipo: "ok" };
+      case "ok-sin-revocar":
+        // La marca y la sesión quedan: el reintento del cierre las necesita.
+        return { tipo: "ok-sin-revocar" };
       case "sin-sesion":
         await quitarMarcaDeRecuperacion();
         return { tipo: "enlace-no-valido" };
@@ -88,5 +93,21 @@ export async function guardarContrasenaAccion(contrasena: unknown): Promise<Resp
     }
   } catch {
     return { tipo: "no-disponible" };
+  }
+}
+
+export type RespuestaDeCierreDeSesiones = { tipo: "ok" } | { tipo: "ok-sin-revocar" };
+
+/** «Cerrar las otras sesiones»: reintenta el cierre global tras un guardado `ok-sin-revocar`. Sin pedir la contraseña otra vez. */
+export async function cerrarOtrasSesionesAccion(): Promise<RespuestaDeCierreDeSesiones> {
+  if (modoDeAcceso() !== "activo") return { tipo: "ok-sin-revocar" };
+  try {
+    // Solo dentro de la recuperación que cambió la contraseña (marca + misma cuenta), como el guardado.
+    if (!(await recuperacionEnCurso())) return { tipo: "ok-sin-revocar" };
+    const resultado = await cerrarOtrasSesiones(await crearSupabaseDeServidor());
+    if (resultado.tipo === "ok") await quitarMarcaDeRecuperacion();
+    return resultado;
+  } catch {
+    return { tipo: "ok-sin-revocar" };
   }
 }

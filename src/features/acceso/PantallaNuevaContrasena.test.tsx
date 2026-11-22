@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { RespuestaDeApertura, RespuestaDeGuardado } from "@/auth/acciones-recuperacion";
+import type { RespuestaDeApertura, RespuestaDeCierreDeSesiones, RespuestaDeGuardado } from "@/auth/acciones-recuperacion";
 import { PantallaNuevaContrasena, type PropiedadesDeNuevaContrasena } from "@/features/acceso/PantallaNuevaContrasena";
 import { TEXTOS_DE_NUEVA_CONTRASENA as T } from "@/features/acceso/textos-recuperacion";
 
@@ -30,8 +30,11 @@ const CLAVE = "Nueva-clave-1";
 function montar(propiedades: Partial<PropiedadesDeNuevaContrasena> = {}) {
   const abrir = vi.fn<PropiedadesDeNuevaContrasena["abrir"]>(async () => ({ tipo: "ok", correo: CORREO }));
   const guardar = vi.fn<PropiedadesDeNuevaContrasena["guardar"]>(async () => ({ tipo: "ok" }));
-  const resultado = render(<PantallaNuevaContrasena inicial={{ paso: "nueva", correo: CORREO }} abrir={abrir} guardar={guardar} {...propiedades} />);
-  return { ...resultado, abrir, guardar };
+  const cerrarOtras = vi.fn<PropiedadesDeNuevaContrasena["cerrarOtras"]>(async () => ({ tipo: "ok" }));
+  const resultado = render(
+    <PantallaNuevaContrasena inicial={{ paso: "nueva", correo: CORREO }} abrir={abrir} guardar={guardar} cerrarOtras={cerrarOtras} {...propiedades} />,
+  );
+  return { ...resultado, abrir, guardar, cerrarOtras };
 }
 
 const nueva = () => screen.getByLabelText(T.nueva);
@@ -195,6 +198,80 @@ describe("40B · 05 contraseña cambiada", () => {
     expect(screen.queryByLabelText(T.nueva)).toBeNull();
     expect(screen.queryByDisplayValue(CLAVE)).toBeNull();
   });
+
+  describe("el cierre de las otras sesiones no se pudo confirmar", () => {
+    async function llegarASinRevocar(propiedades: Partial<PropiedadesDeNuevaContrasena> = {}) {
+      const montado = montar(propiedades);
+      montado.guardar.mockResolvedValue({ tipo: "ok-sin-revocar" });
+      const usuario = userEvent.setup();
+      await escribir(usuario);
+      await usuario.click(guardarBoton());
+      return { ...montado, usuario };
+    }
+    const botonCerrar = () => screen.getByRole("button", { name: new RegExp(`^(${T.cerrarOtras}|${T.cerrandoOtras})$`) });
+
+    it("no muestra el éxito: avisa, ofrece «Cerrar las otras sesiones» y deja «Ir al login»", async () => {
+      await llegarASinRevocar();
+      expect(screen.getByRole("heading", { level: 1, name: T.tituloCambiada })).toHaveFocus();
+      expect(screen.getByRole("alert")).toHaveTextContent(T.sinRevocar);
+      expect(screen.queryByText(T.cambiada)).toBeNull();
+      expect(botonCerrar()).not.toHaveAttribute("aria-disabled");
+      expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso");
+      expect(screen.queryByDisplayValue(CLAVE)).toBeNull();
+    });
+
+    it("el reintento no pide la contraseña y, si sale bien, sigue el éxito de siempre", async () => {
+      const { cerrarOtras, guardar, usuario } = await llegarASinRevocar();
+      await usuario.click(botonCerrar());
+      expect(cerrarOtras).toHaveBeenCalledTimes(1);
+      expect(guardar).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("status")).toHaveTextContent(T.cambiada);
+      expect(screen.queryByRole("button", { name: T.cerrarOtras })).toBeNull();
+      expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso");
+    });
+
+    it("si el reintento sigue sin poder (respuesta o falla de la acción), el aviso queda y el botón se vuelve a habilitar", async () => {
+      const { cerrarOtras, usuario } = await llegarASinRevocar();
+      cerrarOtras.mockResolvedValueOnce({ tipo: "ok-sin-revocar" });
+      await usuario.click(botonCerrar());
+      expect(screen.getByRole("alert")).toHaveTextContent(T.sinRevocar);
+      expect(botonCerrar()).not.toHaveAttribute("aria-disabled");
+
+      cerrarOtras.mockRejectedValueOnce(new Error("sin red"));
+      await usuario.click(botonCerrar());
+      expect(screen.getByRole("alert")).toHaveTextContent(T.sinRevocar);
+      expect(botonCerrar()).not.toHaveAttribute("aria-disabled");
+
+      // Y un tercer intento todavía puede salir bien.
+      await usuario.click(botonCerrar());
+      expect(screen.getByRole("status")).toHaveTextContent(T.cambiada);
+    });
+
+    it("un doble toque hace un solo cierre y el botón queda ocupado hasta la respuesta", async () => {
+      const respuesta = diferida<RespuestaDeCierreDeSesiones>();
+      const { cerrarOtras, usuario } = await llegarASinRevocar();
+      cerrarOtras.mockReturnValueOnce(respuesta.promesa);
+      await usuario.dblClick(botonCerrar());
+      expect(cerrarOtras).toHaveBeenCalledTimes(1);
+      expect(botonCerrar()).toHaveAttribute("aria-disabled", "true");
+      expect(botonCerrar()).toHaveTextContent(T.cerrandoOtras);
+      await act(async () => respuesta.resolver({ tipo: "ok" }));
+      expect(screen.getByRole("status")).toHaveTextContent(T.cambiada);
+    });
+
+    it("sin conexión el botón queda apagado y no llama", async () => {
+      const { cerrarOtras, usuario } = await llegarASinRevocar();
+      sinRed(true);
+      expect(botonCerrar()).toHaveAttribute("aria-disabled", "true");
+      await usuario.click(botonCerrar());
+      expect(cerrarOtras).not.toHaveBeenCalled();
+    });
+
+    it("no tiene fallas de accesibilidad (axe)", async () => {
+      const { container } = await llegarASinRevocar();
+      expect(await violaciones(container)).toEqual([]);
+    });
+  });
 });
 
 describe("40B · 06 enlace no válido", () => {
@@ -316,9 +393,9 @@ describe("abrir el enlace del correo", () => {
     const respuesta = diferida<RespuestaDeApertura>();
     const abrir = vi.fn(() => respuesta.promesa);
     const inicial = { paso: "abrir", codigo: "c-doble" } as const;
-    const { unmount } = render(<PantallaNuevaContrasena inicial={inicial} abrir={abrir} guardar={vi.fn()} />);
+    const { unmount } = render(<PantallaNuevaContrasena inicial={inicial} abrir={abrir} guardar={vi.fn()} cerrarOtras={vi.fn()} />);
     unmount();
-    render(<PantallaNuevaContrasena inicial={inicial} abrir={abrir} guardar={vi.fn()} />);
+    render(<PantallaNuevaContrasena inicial={inicial} abrir={abrir} guardar={vi.fn()} cerrarOtras={vi.fn()} />);
     expect(abrir).toHaveBeenCalledOnce();
     await act(async () => respuesta.resolver({ tipo: "ok", correo: CORREO }));
     expect(screen.getByText(T.para(CORREO))).toBeVisible();

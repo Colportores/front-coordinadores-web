@@ -1,7 +1,7 @@
 import { AuthApiError, AuthRetryableFetchError, AuthSessionMissingError, type SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { abrirEnlace, guardarContrasena, pedirEnlace } from "@/auth/recuperacion";
+import { abrirEnlace, cerrarOtrasSesiones, guardarContrasena, pedirEnlace } from "@/auth/recuperacion";
 
 /** Un cliente con solo lo que usa la recuperación; cada test cambia lo que contesta cada método. */
 function clienteFalso() {
@@ -15,6 +15,7 @@ function clienteFalso() {
     ),
     updateUser: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
     signOut: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
+    getSession: vi.fn(async (): Promise<{ data: { session: unknown } }> => ({ data: { session: { user: { id: "u-1" } } } })),
   };
   return { supabase: { auth } as unknown as SupabaseClient, auth };
 }
@@ -108,7 +109,7 @@ describe("guardarContrasena", () => {
     const { supabase, auth } = clienteFalso();
     expect(await guardarContrasena(supabase, "Nueva-clave-1")).toEqual({ tipo: "ok" });
     expect(auth.updateUser).toHaveBeenCalledWith({ password: "Nueva-clave-1" });
-    expect(auth.signOut).toHaveBeenCalledWith({ scope: "global" });
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: "others" });
     // Y la de este navegador se borra igual (cookie).
     expect(auth.signOut).toHaveBeenCalledWith({ scope: "local" });
   });
@@ -136,19 +137,48 @@ describe("guardarContrasena", () => {
     expect(auth.signOut).not.toHaveBeenCalled();
   });
 
-  it("si el cierre global falla, la contraseña ya cambió: sigue siendo ok y la sesión de este navegador se borra", async () => {
+  it.each([
+    ["devuelve { error } (red o 5xx: signOut no lanza)", () => Promise.resolve({ error: errorApi(500, "unexpected_failure") })],
+    ["devuelve { error } de red", () => Promise.resolve({ error: new AuthRetryableFetchError("fetch failed", 0) })],
+    ["lanza", () => Promise.reject(new Error("sin red"))],
+    ["no contesta a tiempo", () => new Promise<{ error: unknown }>(() => {})],
+  ])("si el cierre global %s, la contraseña ya cambió pero NO es ok: «ok-sin-revocar» y la sesión de este navegador se conserva", async (_nombre, signOut) => {
     const { supabase, auth } = clienteFalso();
-    auth.signOut.mockImplementation(async (opciones?: unknown) => {
-      if ((opciones as { scope: string }).scope === "global") throw new Error("sin red");
-      return { error: null };
-    });
-    expect(await guardarContrasena(supabase, "Nueva-clave-1")).toEqual({ tipo: "ok" });
-    expect(auth.signOut).toHaveBeenCalledWith({ scope: "local" });
+    auth.signOut.mockImplementation(signOut);
+    expect(await guardarContrasena(supabase, "Nueva-clave-1", 20)).toEqual({ tipo: "ok-sin-revocar" });
+    expect(auth.signOut).not.toHaveBeenCalledWith({ scope: "local" });
   });
 
   it("si el servicio tira al cambiar, es «no disponible»", async () => {
     const { supabase, auth } = clienteFalso();
     auth.updateUser.mockRejectedValue(new Error("boom"));
     expect(await guardarContrasena(supabase, "Nueva-clave-1")).toEqual({ tipo: "no-disponible" });
+  });
+});
+
+describe("cerrarOtrasSesiones", () => {
+  it("reintenta el cierre global sin tocar la contraseña y borra la sesión de este navegador", async () => {
+    const { supabase, auth } = clienteFalso();
+    expect(await cerrarOtrasSesiones(supabase)).toEqual({ tipo: "ok" });
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: "others" });
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: "local" });
+    expect(auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["{ error }", () => Promise.resolve({ error: errorApi(503, "unexpected_failure") })],
+    ["un throw", () => Promise.reject(new Error("sin red"))],
+  ])("si el cierre global vuelve a fallar con %s, sigue «ok-sin-revocar» y la sesión se conserva", async (_nombre, signOut) => {
+    const { supabase, auth } = clienteFalso();
+    auth.signOut.mockImplementation(signOut);
+    expect(await cerrarOtrasSesiones(supabase)).toEqual({ tipo: "ok-sin-revocar" });
+    expect(auth.signOut).not.toHaveBeenCalledWith({ scope: "local" });
+  });
+
+  it("sin sesión en este navegador no se puede afirmar el cierre", async () => {
+    const { supabase, auth } = clienteFalso();
+    auth.getSession.mockResolvedValue({ data: { session: null } });
+    expect(await cerrarOtrasSesiones(supabase)).toEqual({ tipo: "ok-sin-revocar" });
+    expect(auth.signOut).not.toHaveBeenCalled();
   });
 });

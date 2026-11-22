@@ -60,6 +60,10 @@ export const TEXTOS_DE_NUEVA_CONTRASENA = {
   tituloCambiada: "Contraseña cambiada",
   cambiada: "Ya podés entrar con tu contraseña nueva.",
   irAlLogin: "Ir al login",
+  /** 40B-05 con el cierre de las otras sesiones sin confirmar (decisión del orquestador 22/11, precedente HU-AUTH-005 02/10). */
+  sinRevocar: "Cambiaste la contraseña, pero no pudimos cerrar las otras sesiones de tu cuenta. Probá de nuevo.",
+  cerrarOtras: "Cerrar las otras sesiones",
+  cerrandoOtras: "Cerrando…",
   /** 40B-06: una sola pantalla para vencido, ya usado y otro navegador (HU-AUTH-005); el texto no afirma el motivo (decisión P3). */
   tituloNoValido: "Enlace no válido",
   noValido: "No pudimos abrir este enlace en este navegador. Abrilo en el navegador donde lo pediste, o pedí uno nuevo desde acá.",

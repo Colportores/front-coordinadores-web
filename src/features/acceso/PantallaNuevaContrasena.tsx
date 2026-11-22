@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent, type Ref } from "react";
 
-import type { RespuestaDeApertura, RespuestaDeGuardado } from "@/auth/acciones-recuperacion";
+import type { RespuestaDeApertura, RespuestaDeCierreDeSesiones, RespuestaDeGuardado } from "@/auth/acciones-recuperacion";
 import { Cartel, CLASE_DE_CAMPO, CLASE_DE_ENLACE, CLASE_DE_ETIQUETA, MarcoDeAcceso, type DatosDelAviso } from "@/features/acceso/MarcoDeAcceso";
 import { TEXTOS_DE_NUEVA_CONTRASENA as T } from "@/features/acceso/textos-recuperacion";
 import { reglasDeContrasena } from "@/features/acceso/validacion";
@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
  * | 02 no cumple las reglas | «Guardar contraseña» apagado; cada regla dice si cumple |
  * | 03 no coinciden | el aviso sale en «Repetila» y «Guardar» sigue apagado |
  * | 04 guardando | campos y botón apagados hasta la respuesta |
- * | 05 contraseña cambiada | «Ir al login»: se cerraron todas las sesiones, el panel no entra directo (HU-AUTH-005) |
+ * | 05 contraseña cambiada | «Ir al login»: se cerraron todas las sesiones, el panel no entra directo (HU-AUTH-005). Si el cierre de las otras sesiones no se pudo confirmar, no es un éxito: aviso + «Cerrar las otras sesiones» (reintenta sin pedir la contraseña) |
  * | 06 enlace no válido | vencido, ya usado o sin código: una sola pantalla, sin adivinar cuál (HU-AUTH-005) |
  * | 07 error al guardar | «Reintentar», con lo escrito intacto |
  * | 08 sin conexión | el navegador está sin red |
@@ -47,6 +47,8 @@ export interface PropiedadesDeNuevaContrasena {
   abrir: (codigo: string) => Promise<RespuestaDeApertura>;
   /** Server action `guardarContrasenaAccion`. */
   guardar: (contrasena: string) => Promise<RespuestaDeGuardado>;
+  /** Server action `cerrarOtrasSesionesAccion`: reintenta el cierre global tras un guardado `ok-sin-revocar`. */
+  cerrarOtras: () => Promise<RespuestaDeCierreDeSesiones>;
 }
 
 type Paso = "abriendo" | "no-se-pudo-abrir" | "nueva" | "cambiada" | "no-valido";
@@ -143,7 +145,7 @@ function CampoDeContrasena({
   );
 }
 
-export function PantallaNuevaContrasena({ inicial, abrir, guardar }: PropiedadesDeNuevaContrasena) {
+export function PantallaNuevaContrasena({ inicial, abrir, guardar, cerrarOtras }: PropiedadesDeNuevaContrasena) {
   const [paso, setPaso] = useState<Paso>(inicial.paso === "abrir" ? "abriendo" : inicial.paso === "nueva" ? "nueva" : "no-valido");
   const [correo, setCorreo] = useState(inicial.paso === "nueva" ? inicial.correo : "");
   const [intento, setIntento] = useState(0);
@@ -152,9 +154,13 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar }: Propiedades
   const [repetidaRevisada, setRepetidaRevisada] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState<AvisoDeGuardado>(null);
+  /** La contraseña cambió pero el cierre de las otras sesiones no se confirmó. */
+  const [sinRevocar, setSinRevocar] = useState(false);
+  const [cerrando, setCerrando] = useState(false);
   const enLinea = useEnLinea();
 
   const enCurso = useRef(false);
+  const cerrandoAhora = useRef(false);
   const titulo = useRef<HTMLHeadingElement>(null);
   const campoNueva = useRef<HTMLInputElement>(null);
   const focoPendiente = useRef<"titulo" | "nueva" | null>(null);
@@ -223,6 +229,13 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar }: Propiedades
           setPaso("cambiada");
           focoPendiente.current = "titulo";
           return;
+        case "ok-sin-revocar":
+          setNueva("");
+          setRepetida("");
+          setSinRevocar(true);
+          setPaso("cambiada");
+          focoPendiente.current = "titulo";
+          return;
         case "enlace-no-valido":
           setNueva("");
           setRepetida("");
@@ -250,6 +263,25 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar }: Propiedades
     }
   }
 
+  /** «Cerrar las otras sesiones»: una a la vez; si falla (devuelve `ok-sin-revocar` o no llega) el aviso queda y el botón se rehabilita. */
+  async function cerrarOtrasAhora() {
+    if (cerrandoAhora.current || !enLinea) return;
+    cerrandoAhora.current = true;
+    setCerrando(true);
+    try {
+      const respuesta = await cerrarOtras();
+      if (respuesta.tipo === "ok") {
+        setSinRevocar(false);
+        focoPendiente.current = "titulo";
+      }
+    } catch {
+      // No llegó al servidor: sigue sin confirmarse el cierre; el aviso queda.
+    } finally {
+      cerrandoAhora.current = false;
+      setCerrando(false);
+    }
+  }
+
   function alEnviar(evento: FormEvent) {
     evento.preventDefault();
     void guardarAhora();
@@ -267,6 +299,7 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar }: Propiedades
   if (paso === "abriendo") cartel = { texto: T.verificando, rol: "status", tono: "info" };
   else if (paso === "no-se-pudo-abrir") cartel = { texto: T.noSePudoAbrir, rol: "alert", tono: "error" };
   else if (paso === "no-valido") cartel = { texto: T.noValido, rol: "alert", tono: "error" };
+  else if (paso === "cambiada" && sinRevocar) cartel = { texto: T.sinRevocar, rol: "alert", tono: "error" };
   else if (paso === "cambiada") cartel = { texto: T.cambiada, rol: "status", tono: "exito" };
   else if (!enLinea) cartel = { texto: T.sinConexion, rol: "status", tono: "sin-red" };
   else if (aviso === "error") cartel = { texto: T.errorAlGuardar, rol: "alert", tono: "error" };
@@ -354,7 +387,26 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar }: Propiedades
         </form>
       ) : null}
 
-      {paso === "cambiada" ? (
+      {paso === "cambiada" && sinRevocar ? (
+        <>
+          <button
+            type="button"
+            onClick={() => void cerrarOtrasAhora()}
+            aria-disabled={cerrando || !enLinea || undefined}
+            className={cn(botonPrincipal, cerrando ? "bg-marca-media" : !enLinea ? "bg-tinta-tenue" : "bg-marca hover:bg-marca-media")}
+          >
+            {cerrando ? (
+              <span aria-hidden className="size-3.5 animate-spin rounded-pastilla border-2 border-superficie/35 border-t-superficie" />
+            ) : null}
+            {cerrando ? T.cerrandoOtras : T.cerrarOtras}
+          </button>
+          <a href="/acceso" className={cn(CLASE_DE_ENLACE, "text-center")}>
+            {T.irAlLogin}
+          </a>
+        </>
+      ) : null}
+
+      {paso === "cambiada" && !sinRevocar ? (
         <a href="/acceso" className={cn(botonPrincipal, "bg-marca hover:bg-marca-media")}>
           {T.irAlLogin}
         </a>
