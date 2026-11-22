@@ -204,8 +204,8 @@ describe("40B · 06 enlace no válido", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(T.noValido);
     expect(screen.getByRole("link", { name: T.solicitarNuevo })).toHaveAttribute("href", "/acceso/olvide");
     expect(screen.getByRole("link", { name: T.volverAlLogin })).toHaveAttribute("href", "/acceso");
-    // No dice «venció» o «ya se usó» por separado.
-    expect(screen.queryByText(/^Este enlace venció/)).toBeNull();
+    // No afirma por qué falló (vencido, usado u otro navegador: no se sabe).
+    expect(screen.queryByText(/venció|ya se usó/)).toBeNull();
   });
 
   it("un código vencido o usado cae en la misma pantalla", async () => {

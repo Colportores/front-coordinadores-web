@@ -60,9 +60,9 @@ export const TEXTOS_DE_NUEVA_CONTRASENA = {
   tituloCambiada: "Contraseña cambiada",
   cambiada: "Ya podés entrar con tu contraseña nueva.",
   irAlLogin: "Ir al login",
-  /** 40B-06: una sola pantalla para vencido y ya usado (HU-AUTH-005); el texto es el del teléfono. */
+  /** 40B-06: una sola pantalla para vencido, ya usado y otro navegador (HU-AUTH-005); el texto no afirma el motivo (decisión P3). */
   tituloNoValido: "Enlace no válido",
-  noValido: "Este enlace ya no sirve: venció o ya se usó. Solicitá uno nuevo.",
+  noValido: "No pudimos abrir este enlace en este navegador. Abrilo en el navegador donde lo pediste, o pedí uno nuevo desde acá.",
   solicitarNuevo: "Solicitar un enlace nuevo",
   /** 40B-07 */
   errorAlGuardar: "No pudimos guardar la contraseña. Probá de nuevo.",
