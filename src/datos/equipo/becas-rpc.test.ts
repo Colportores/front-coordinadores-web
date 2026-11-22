@@ -140,6 +140,36 @@ describe("leerBecas", () => {
   });
 });
 
+describe("leerBecas con más de 1000 inscriptos (#194)", () => {
+  const idDe = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+
+  it("pide las becas por páginas hasta el final: nadie queda fuera por el corte de 1000 filas", async () => {
+    const todas = Array.from({ length: 2100 }, (_, n) => beca({ usuario_id: idDe(n) }));
+    const llamarRpc = vi.fn<(nombre: string, argumentos: Record<string, unknown>) => Promise<unknown>>(async (nombre, argumentos) => {
+      if (nombre === "carreras_de_beca") return [carrera()];
+      const salto = argumentos.p_desplazamiento as number;
+      return todas.slice(salto, salto + (argumentos.p_limite as number));
+    });
+
+    const datos = await leerBecas({ llamarRpc } as unknown as ClienteRpc, CAMPANIA);
+
+    expect(Object.keys(datos?.porColportor ?? {})).toHaveLength(2100);
+    expect(datos?.porColportor[idDe(2099)]).toBeDefined();
+    expect(llamarRpc.mock.calls.filter(([n]) => n === "becas_de_campania").map(([, a]) => a.p_desplazamiento)).toEqual([0, 1000, 2000]);
+  });
+
+  it("si falla la segunda página, la lectura falla: ninguna caída se toma por «nadie tiene beca»", async () => {
+    const caida = rechazo("57P01", "se cayó", 503);
+    const llamarRpc = vi.fn(async (nombre: string, argumentos: Record<string, unknown>) => {
+      if (nombre === "carreras_de_beca") return [carrera()];
+      if (argumentos.p_desplazamiento === 1000) throw caida;
+      return Array.from({ length: 1000 }, (_, n) => beca({ usuario_id: idDe(n) }));
+    });
+
+    await expect(leerBecas({ llamarRpc } as unknown as ClienteRpc, CAMPANIA)).rejects.toBe(caida);
+  });
+});
+
 describe("elegirCarreraRpc", () => {
   it("elige la carrera y devuelve la beca como quedó, leída de nuevo de la base", async () => {
     const { cliente, llamarRpc } = clienteCon({

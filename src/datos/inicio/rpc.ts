@@ -13,7 +13,6 @@ import {
   booleano,
   cadena,
   cadenaONula,
-  filas,
   lista,
   listaDeObjetos,
   nombreVisible,
@@ -23,6 +22,7 @@ import {
   UUID,
   type Objeto,
 } from "@/datos/supabase/respuesta";
+import { llamarRpcPorPaginas } from "@/datos/supabase/paginas";
 
 /**
  * Fuente de la vista 31 (Inicio, HU-CAM-008) contra las RPC de Supabase (ADR-013): `tablero_de_inicio()` (migraciones
@@ -101,7 +101,7 @@ function campaniaYaNoVigente(error: unknown): boolean {
 /** Los departamentos por id de ciudad. Una campaña terminada no deja leerlos (CZ011): sus ciudades quedan sin departamento. */
 async function departamentos(cliente: ClienteRpc, campaniaId: string): Promise<Map<string, string | null>> {
   try {
-    const ciudades = filas(RPC_CIUDADES, await cliente.llamarRpc(RPC_CIUDADES, { p_campania_id: campaniaId }));
+    const ciudades = await llamarRpcPorPaginas(cliente, RPC_CIUDADES, { p_campania_id: campaniaId });
     return new Map(ciudades.map((c) => [cadena(RPC_CIUDADES, c, "ciudad_id"), cadenaONula(RPC_CIUDADES, c, "departamento")]));
   } catch (error) {
     if (error instanceof ErrorSupabase && error.codigo === "CZ011") return new Map();

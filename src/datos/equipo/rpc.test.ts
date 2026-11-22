@@ -101,7 +101,7 @@ describe("fuente de la vista 23 contra las RPC", () => {
       });
       expect(llamarRpc).toHaveBeenCalledWith("campanias_del_coordinador", {});
       expect(llamarRpc).toHaveBeenCalledWith("buscar_candidatos", { p_campania_id: CAMPANIA, p_texto: null, p_despues_de: null });
-      expect(llamarRpc).toHaveBeenCalledWith("colportores_de_campania", { p_campania_id: CAMPANIA });
+      expect(llamarRpc).toHaveBeenCalledWith("colportores_de_campania", expect.objectContaining({ p_campania_id: CAMPANIA }));
     });
 
     it("trabaja con la campaña que eligió la coordinadora en el topbar (#70), aunque no sea la primera", async () => {
@@ -115,7 +115,7 @@ describe("fuente de la vista 23 contra las RPC", () => {
 
       expect(datos).toMatchObject({ campaniaId: OTRA, campania: "Otoño" });
       expect(llamarRpc).toHaveBeenCalledWith("buscar_candidatos", { p_campania_id: OTRA, p_texto: null, p_despues_de: null });
-      expect(llamarRpc).toHaveBeenCalledWith("colportores_de_campania", { p_campania_id: OTRA });
+      expect(llamarRpc).toHaveBeenCalledWith("colportores_de_campania", expect.objectContaining({ p_campania_id: OTRA }));
     });
 
     it("una elegida que ya no figura en su lista (cookie vieja o ajena) vuelve a la primera", async () => {
@@ -128,7 +128,7 @@ describe("fuente de la vista 23 contra las RPC", () => {
       const datos = await crearFuenteAnadirRpc(cliente, async () => "99999999-9999-4999-8999-999999999999").obtenerAnadirColportor();
 
       expect(datos).toMatchObject({ campaniaId: CAMPANIA });
-      expect(llamarRpc).toHaveBeenCalledWith("colportores_de_campania", { p_campania_id: CAMPANIA });
+      expect(llamarRpc).toHaveBeenCalledWith("colportores_de_campania", expect.objectContaining({ p_campania_id: CAMPANIA }));
     });
 
     it("sin campañas que no hayan terminado no hay a quién añadir: `null`, y no pregunta por candidatos", async () => {

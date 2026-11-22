@@ -31,6 +31,7 @@ import {
   RespuestaInesperada,
   UUID,
 } from "@/datos/supabase/respuesta";
+import { llamarRpcPorPaginas } from "@/datos/supabase/paginas";
 import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
 
 /**
@@ -204,14 +205,14 @@ export function crearFuentePestanaRpc(
       let respuestas: unknown[];
       try {
         respuestas = await Promise.all([
-          cliente.llamarRpc("ciudades_de_campania", argumentos),
-          cliente.llamarRpc("zonas_por_colportor", argumentos),
-          cliente.llamarRpc("historial_de_acompaniamientos", { ...argumentos, p_colportor_id: null }),
-          cliente.llamarRpc("acompaniamientos_por_colportor", argumentos),
+          llamarRpcPorPaginas(cliente, "ciudades_de_campania", argumentos),
+          llamarRpcPorPaginas(cliente, "zonas_por_colportor", argumentos),
+          llamarRpcPorPaginas(cliente, "historial_de_acompaniamientos", { ...argumentos, p_colportor_id: null }),
+          llamarRpcPorPaginas(cliente, "acompaniamientos_por_colportor", argumentos),
           miId(cliente),
           // Solo para saber quién tiene la cuenta suspendida: `zonas_por_colportor()` no lo trae (#167). Esta no lee una
           // campaña terminada (`CZ011`), que Equipo sí muestra: ahí nadie queda marcado (no hay zonas que asignar).
-          cliente.llamarRpc("colportores_de_campania", argumentos).catch((error: unknown) => {
+          llamarRpcPorPaginas(cliente, "colportores_de_campania", argumentos).catch((error: unknown) => {
             if (error instanceof ErrorSupabase && error.codigo === "CZ011") return [];
             throw error;
           }),
@@ -330,7 +331,7 @@ export function crearFuentePestanaRpc(
       if (!UUID.test(colportorId)) return { ok: false, mensaje: COLPORTOR_FUERA_DE_CAMPANIA };
       try {
         const [crudas, yo] = await Promise.all([
-          cliente.llamarRpc("jornadas_cerradas_de_colportor", { p_campania_id: campaniaId, p_colportor_id: colportorId }),
+          llamarRpcPorPaginas(cliente, "jornadas_cerradas_de_colportor", { p_campania_id: campaniaId, p_colportor_id: colportorId }),
           miId(cliente),
         ]);
         return { ok: true, jornadas: filas("jornadas_cerradas_de_colportor", crudas).map((f) => aJornada(f, yo)) };
