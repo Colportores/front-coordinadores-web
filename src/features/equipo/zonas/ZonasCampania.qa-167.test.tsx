@@ -63,7 +63,7 @@ function acciones(sobre: Partial<AccionesZonas> = {}): AccionesZonas {
     agregarCiudad: vi.fn((id: string) =>
       fuenteZonasSimulada.agregarCiudad(CAMPANIA, id),
     ),
-    casasDeZonas: vi.fn(async () => []),
+    casasDeLaCiudad: vi.fn(async () => []),
     ...sobre,
   };
 }

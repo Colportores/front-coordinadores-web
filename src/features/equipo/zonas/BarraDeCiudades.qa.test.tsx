@@ -290,7 +290,7 @@ describe("ZonasCampania · barra de ciudades · QA #186", () => {
       agregarCiudad: vi.fn((id: string) =>
         fuenteZonasSimulada.agregarCiudad(CAMPANIA, id),
       ),
-      casasDeZonas: vi.fn(async () => []),
+      casasDeLaCiudad: vi.fn(async () => []),
     } as unknown as AccionesZonas;
   }
 
