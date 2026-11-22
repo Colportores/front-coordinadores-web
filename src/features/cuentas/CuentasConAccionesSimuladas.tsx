@@ -11,6 +11,6 @@ import { CuentasVista } from "@/features/cuentas/CuentasVista";
  * conecten las RPC (V2, después del 20/11): ahí este componente pasa a recibir server actions con el mismo contrato.
  */
 export function CuentasConAccionesSimuladas({ datos }: { datos: DatosDeCuentas }) {
-  const [acciones] = useState(() => crearAccionesSimuladas());
+  const [acciones] = useState(() => crearAccionesSimuladas(datos));
   return <CuentasVista datos={datos} acciones={acciones} />;
 }

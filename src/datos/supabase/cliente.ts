@@ -38,6 +38,11 @@ export interface ClienteSupabase extends ClienteRpc {
    * Solo lo usa el puente de desarrollo de Equipo (#45): ADR-013 no deja leer tablas desde los clientes.
    */
   consultar<T>(consulta: string): Promise<T>;
+  /**
+   * POST a la Edge Function `/functions/v1/<nombre>` con el mismo token, y la respuesta tal cual (no tira por el estado HTTP:
+   * los errores de la función traen su propio cuerpo). Solo la usa el puente de desarrollo (la foto de la vista 29, #170).
+   */
+  invocarFuncion(nombre: string, cuerpo: Record<string, unknown>): Promise<Response>;
 }
 
 /** Se renueva la sesión un minuto antes de que venza, para no mandar un token a punto de caducar. */
@@ -114,7 +119,7 @@ export function crearClienteSupabase(
   }
 
   function enviar(ruta: string, init: RequestInit, token: string): Promise<Response> {
-    return fetchFn(`${config.url}/rest/v1/${ruta}`, {
+    return fetchFn(`${config.url}/${ruta}`, {
       ...init,
       headers: {
         ...init.headers,
@@ -126,20 +131,27 @@ export function crearClienteSupabase(
     });
   }
 
+  /** `ruta` va después de la URL del proyecto (`rest/v1/…`, `functions/v1/…`). Si vuelve 401, inicia otra sesión una sola vez. */
+  async function enviarConSesion(ruta: string, init: RequestInit): Promise<Response> {
+    const respuesta = await enviar(ruta, init, await obtenerToken(false));
+    return respuesta.status === 401 ? enviar(ruta, init, await obtenerToken(true)) : respuesta;
+  }
+
   async function pedir<T>(ruta: string, init: RequestInit): Promise<T> {
-    let respuesta = await enviar(ruta, init, await obtenerToken(false));
-    if (respuesta.status === 401) respuesta = await enviar(ruta, init, await obtenerToken(true));
+    const respuesta = await enviarConSesion(`rest/v1/${ruta}`, init);
     if (!respuesta.ok) throw await errorDe(respuesta);
     return (await respuesta.json()) as T;
   }
 
+  const post = (cuerpo: Record<string, unknown>): RequestInit => ({
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cuerpo),
+  });
+
   return {
     consultar: <T>(consulta: string) => pedir<T>(consulta, { method: "GET" }),
-    llamarRpc: <T>(nombre: string, argumentos: Record<string, unknown>) =>
-      pedir<T>(`rpc/${nombre}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(argumentos),
-      }),
+    llamarRpc: <T>(nombre: string, argumentos: Record<string, unknown>) => pedir<T>(`rpc/${nombre}`, post(argumentos)),
+    invocarFuncion: (nombre: string, cuerpo: Record<string, unknown>) => enviarConSesion(`functions/v1/${nombre}`, post(cuerpo)),
   };
 }

@@ -25,6 +25,13 @@ describe("leerConfigSupabase", () => {
     expect(config?.url).toBe("https://abc.supabase.co");
   });
 
+  it("una URL de solo barras cuenta como ausente y una cadena enorme de barras no cuelga la lectura", () => {
+    const inicio = Date.now();
+    expect(leerConfigSupabase({ ...COMPLETO, SUPABASE_URL: "///" })).toBeNull();
+    expect(leerConfigSupabase({ ...COMPLETO, SUPABASE_URL: `https://abc.supabase.co${"/".repeat(200_000)}` })?.url).toBe("https://abc.supabase.co");
+    expect(Date.now() - inicio).toBeLessThan(1500);
+  });
+
   it.each(Object.keys(COMPLETO))("queda apagada si falta %s", (variable) => {
     expect(leerConfigSupabase({ ...COMPLETO, [variable]: undefined })).toBeNull();
     expect(leerConfigSupabase({ ...COMPLETO, [variable]: "  " })).toBeNull();

@@ -26,6 +26,8 @@ describe("logroDeBeca", () => {
     expect(logroDeBeca(beca({ avance: { libros: 0, monto: 179999 } }), CARRERAS_SIMULADAS)).toBeNull();
     expect(logroDeBeca(beca({ avance: { libros: 0, monto: 180000 } }), CARRERAS_SIMULADAS)).toBe("media");
     expect(logroDeBeca(beca({ avance: { libros: 0, monto: 360000 } }), CARRERAS_SIMULADAS)).toBe("completa");
+    // Apunta a media: la completa no se alcanza sin tenerla asignada (Cristian, 11/11; igual que becas_de_campania()).
+    expect(logroDeBeca(beca({ apuntaA: "media", meta: { libros: 120, monto: 180000 }, avance: { libros: 0, monto: 360000 } }), CARRERAS_SIMULADAS)).toBe("media");
   });
 
   it("los libros no deciden: sin la compra a la CES no hay logro, y con ella basta aunque falten libros", () => {
@@ -59,11 +61,13 @@ describe("logroDeBeca", () => {
 describe("la fuente simulada y «Logro beca»", () => {
   const GENTE = [{ id: "emi", nombre: "Emiliano Sosa" }];
 
-  // Metas bajas: Emiliano (compró $U 45.000 a 126.000) ya pasó la completa de Sistemas.
+  // Metas bajas: Emiliano (compró $U 45.000 a 126.000) ya pasó la completa de Sistemas; apunta a media, así que se la pasa a
+  // completa para que la alcance (quien apunta a media no alcanza la completa, 11/11).
   const METAS_BAJAS = [{ id: "sis", nombre: "Ingeniería en Sistemas", metaMedia: { libros: 10, monto: 15000 }, metaCompleta: { libros: 20, monto: 30000 } }];
 
   it("al pasar a «Sin beca» a quien ya alcanzó la completa, la base devuelve la marca y el avance no cambia", () => {
     const becas = crearBecasSimuladas(GENTE, "2026-10-21", METAS_BAJAS);
+    becas.asignarTipoDeBeca("emi", "completa");
     const antes = becas.datos().porColportor.emi.avance;
 
     const respuesta = becas.asignarTipoDeBeca("emi", null);
@@ -74,6 +78,7 @@ describe("la fuente simulada y «Logro beca»", () => {
 
   it("la marca no baja: volver a apuntar a media después no la quita", () => {
     const becas = crearBecasSimuladas(GENTE, "2026-10-21", METAS_BAJAS);
+    becas.asignarTipoDeBeca("emi", "completa");
     becas.asignarTipoDeBeca("emi", null);
 
     const respuesta = becas.asignarTipoDeBeca("emi", "media");

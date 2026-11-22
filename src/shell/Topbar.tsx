@@ -81,8 +81,10 @@ export function Topbar({
     await esperarYSalir(() => router.push(destino));
   }
 
+  // Capa 20: el encabezado (y los desplegables del selector de campaña y de la cuenta, que viven adentro) queda por encima de
+  // los encabezados fijos de las tablas (`sticky z-10`); con z-10 empataba y la tabla, que viene después, lo tapaba (11/11).
   return (
-    <header className="z-10 flex items-center justify-between border-b border-borde bg-superficie px-[22px]">
+    <header className="relative z-20 flex items-center justify-between border-b border-borde bg-superficie px-[22px]">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-[11px]">
           <div

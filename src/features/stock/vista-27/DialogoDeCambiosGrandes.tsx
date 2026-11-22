@@ -58,7 +58,8 @@ export function DialogoDeCambiosGrandes({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-tinta/40 p-4" onKeyDown={alTeclear}>
+    // El fondo no es un control: solo recibe las teclas (Esc y el ciclo de Tab) de lo que está dentro del diálogo.
+    <div role="presentation" className="fixed inset-0 z-50 grid place-items-center bg-tinta/40 p-4" onKeyDown={alTeclear}>
       <div
         role="dialog"
         aria-modal="true"

@@ -4,10 +4,14 @@ Guía paso a paso para dejar listo el despliegue del panel en Cloudflare (issue 
 nombres. El repo es público; los valores se cargan directo en GitHub (o con `gh`) y no se escriben en archivos, commits,
 PRs ni capturas.
 
-> **Decisión pendiente de Cristian antes de usar el workflow de despliegue.** El ADR-015 y `production.yml` dejan a
-> **Vercel** como hosting de producción, porque el panel necesita servidor (`src/proxy.ts`, cookies de sesión, server
-> actions). El pedido #147 es Cloudflare. Esta guía sirve para los dos caminos de Cloudflare (ver el paso 4), pero **no
-> toca** `production.yml` ni `deploy-pages.yml`. Si Cloudflare reemplaza a Vercel, se decide aparte y se cambia el ADR.
+> **Actualización del 11/11 (#105):** el despliegue automático de staging pasó a **Vercel** (integración Git, sin
+> secretos de GitHub). `deploy-cloudflare.yml` ya no corre por push a `staging`: queda solo para correrlo a mano
+> (Actions → Run workflow). Esta guía sigue valiendo para ese caso manual.
+>
+> **Decisión de Cristian (11/11):** el staging se despliega con **Vercel**, y el ADR-015 y `production.yml` dejan a
+> Vercel como hosting de producción, porque el panel necesita servidor (`src/proxy.ts`, cookies de sesión, server
+> actions). Cloudflare Pages queda como copia estática opcional del sitio de prueba, solo a mano. Esta guía **no toca**
+> `production.yml` ni `deploy-pages.yml`; si Cloudflare llegara a reemplazar a Vercel, se decide aparte y se cambia el ADR.
 
 ## Qué se carga y dónde
 
@@ -92,8 +96,8 @@ environment), y en Pages no se puede pasar de Git a carga directa después.
 
 1. En el repo: **Settings → Environments.** `staging` ya existe; creá `production`.
 2. En `production`: **Required reviewers** (alguien que apruebe cada despliegue) y **Deployment branches and tags** →
-   solo la rama `production`. En `staging`: las ramas `staging` y `develop` (el workflow `deploy-cloudflare.yml` corre por push a `staging` o a mano
-   sobre cualquiera de las dos).
+   solo la rama `production`. En `staging`: las ramas `staging` y `develop` (el workflow `deploy-cloudflare.yml` corre solo a mano, sobre cualquiera de
+   las dos).
 3. En cada environment, **Environment secrets → Add secret** → `CLOUDFLARE_API_TOKEN` (el valor del paso 3).
    **Environment variables → Add variable** → `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_PROJECT_NAME`.
 4. O por consola, sin escribir el valor en disco (`gh` lo pide por la entrada y no lo repite en pantalla):
@@ -125,7 +129,7 @@ environment), y en Pages no se puede pasar de Git a carga directa después.
 2. Probar el workflow: **Actions → Deploy Cloudflare (staging) → Run workflow** sobre `develop` o `staging`. Si falta
    algo, falla con un mensaje que dice cuál nombre falta y dónde cargarlo. Al terminar, abrí
    `https://<proyecto>.pages.dev/`: redirige a `/front-coordinadores-web/` (el export lleva ese `basePath`).
-   Por push a `staging` sin credenciales cargadas el workflow no falla: avisa y se salta.
+   El workflow ya no corre por push: sin credenciales siempre falla con ese mensaje.
 3. Comprobar que el environment `production` pide aprobación antes de arrancar.
 
 ### 7. Rotar

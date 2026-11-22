@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { AccionNoDisponible } from "@/components/AccionNoDisponible";
 import { EncabezadoDeTabla, Pastilla, type ColumnaDeTabla } from "@/features/cuentas/TablaDeFilas";
 import { formatMonto } from "@/features/cuentas/formato";
@@ -26,8 +28,14 @@ const COLUMNAS: ColumnaDeTabla[] = [
   { rotulo: "" },
 ];
 
+/** «Validar tickets» (vista 29) lleva solo depósitos y retiros; los cobros con tarjeta quedan afuera (Cristian, 10/11, «Ticket dep.»). */
+function seValidaEnLa29(medio: FilaDeTicket["ticket"]["medio"]): boolean {
+  return medio === "deposito-banco" || medio === "retiro-coordinador";
+}
+
 function EstadoDelTicket({ fila }: { fila: FilaDeTicket }) {
   const { ticket } = fila;
+  if (ticket.anulado) return <Pastilla tono="neutro">↩ Devuelto</Pastilla>;
   if (ticket.estado === "PENDIENTE") return <Pastilla tono="alerta">◔ Por validar</Pastilla>;
   if (ticket.estado === "RECHAZADO") return <Pastilla tono="peligro">✕ Rechazado</Pastilla>;
   return <Pastilla tono="exito">✓ Validado</Pastilla>;
@@ -35,7 +43,7 @@ function EstadoDelTicket({ fila }: { fila: FilaDeTicket }) {
 
 /**
  * El historial de tickets de la selección: foto, fecha, número, medio, destino, monto y estado. Cada fila se abre para ver el
- * detalle. Validar y rechazar se resuelven en «Validar tickets» (vista 29, issue #69): acá se ve el historial.
+ * detalle. Validar y rechazar se resuelven en «Validar tickets» (vista 29, `/cuentas/validar-tickets`): acá se ve el historial.
  */
 export function TablaDeTickets({
   filas,
@@ -112,7 +120,16 @@ export function TablaDeTickets({
                     )}
                   </span>
                   <span role="cell" className="flex justify-end">
-                    {ticket.estado === "PENDIENTE" && (
+                    {ticket.estado === "PENDIENTE" && seValidaEnLa29(ticket.medio) && (
+                      <Link
+                        href={`/cuentas/validar-tickets?ticket=${encodeURIComponent(ticket.id)}`}
+                        aria-label={`Validar el ticket de ${colportor.nombre}`}
+                        className="inline-flex min-h-8 items-center rounded-control border border-marca bg-marca px-3 text-[11.5px] font-semibold text-superficie focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca-media"
+                      >
+                        Validar
+                      </Link>
+                    )}
+                    {ticket.estado === "PENDIENTE" && !seValidaEnLa29(ticket.medio) && (
                       <AccionNoDisponible
                         aria-label={`Validar el ticket de ${colportor.nombre}`}
                         className="inline-flex min-h-8 items-center rounded-control border border-marca bg-marca px-3 text-[11.5px] font-semibold text-superficie"

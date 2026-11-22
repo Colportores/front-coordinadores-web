@@ -141,7 +141,7 @@ export interface NodoLista {
   nombre: string;
   /** Colportores con zona en el ámbito. */
   cantidad: number;
-  /** Los que no tienen zona y figuran en el ámbito además de los anteriores. */
+  /** Los que no tienen zona: solo en «Todas las ciudades» (no son de ninguna ciudad); 0 en las ciudades y departamentos. */
   sinZona: number;
   seleccionado: boolean;
 }
@@ -161,12 +161,15 @@ export interface ModeloLista {
 
 export function construirLista(datos: DatosEquipoPorCiudad, resuelto: AmbitoResuelto): ModeloLista {
   const ninguna = sinZona(datos).length;
-  const nodo = (clave: string, ambito: Ambito, nombre: string, cantidad: number): NodoLista => ({
+  // Los que no tienen zona no son de ninguna ciudad: se cuentan una sola vez, en «Todas las ciudades». Repetirlos en cada
+  // ciudad y departamento («3 + 2 sin zona» en todas) parecía sumarlos en cada una (#167). La tabla de una ciudad los sigue
+  // mostrando al final, bajo «Sin zona asignada» («Ciudad colp.»).
+  const nodo = (clave: string, ambito: Ambito, nombre: string, cantidad: number, sinZonaDelNodo = 0): NodoLista => ({
     clave,
     ambito,
     nombre,
     cantidad,
-    sinZona: ninguna,
+    sinZona: sinZonaDelNodo,
     seleccionado: mismoAmbito(ambito, resuelto.ambito),
   });
   const cuantos = (idCiudad: string) => datos.colportores.filter((c) => c.ciudadId === idCiudad).length;
@@ -196,7 +199,7 @@ export function construirLista(datos: DatosEquipoPorCiudad, resuelto: AmbitoResu
     }
   }
 
-  return { todas: nodo("todas", AMBITO_TODAS, "Todas las ciudades", datos.colportores.length - ninguna), grupos };
+  return { todas: nodo("todas", AMBITO_TODAS, "Todas las ciudades", datos.colportores.length - ninguna, ninguna), grupos };
 }
 
 /** Un renglón de la lista contraída: solo la abreviatura. */
@@ -359,7 +362,8 @@ export function esUnidadDeAvance(valor: unknown): valor is UnidadDeAvance {
   return valor === "libros" || valor === "ces";
 }
 
-export const ETIQUETA_DE_TIPO: Record<TipoDeBeca, string> = { media: "Media", completa: "Completa" };
+/** Se nombra la beca entera: un «Completa» suelto se leía como «cumplió la meta» (Cristian, 11/11). */
+export const ETIQUETA_DE_TIPO: Record<TipoDeBeca, string> = { media: "Media beca", completa: "Beca completa" };
 
 /** Las tres opciones de «Apunta a»: media, completa y «Sin beca» (`null`, como `tipo_beca` en el esquema). */
 export const OPCIONES_DE_TIPO: { tipo: TipoDeBeca | null; etiqueta: string }[] = [

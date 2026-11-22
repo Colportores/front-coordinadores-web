@@ -1,5 +1,6 @@
 import { fechaYHoraEnMontevideo } from "@/lib/momento";
 import type { ColportorDeStock, DatosDeStock, ProductoDeStock, TipoDeProducto } from "@/datos/stock/contrato";
+import { conPuntosDeMiles } from "@/lib/texto";
 
 /**
  * Lo que arma la vista 34 (HU-STK-010) a partir de los datos: qué mira (todas las ciudades, un departamento, una ciudad
@@ -43,7 +44,7 @@ export function claveDeDepartamento(nombre: string): string {
 }
 
 export function formatearCantidad(n: number): string {
-  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return conPuntosDeMiles(String(Math.round(n)));
 }
 
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;

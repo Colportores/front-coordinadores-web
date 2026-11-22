@@ -12,11 +12,14 @@ export type {
   CiudadDeCuentas,
   ColportorDeCuentas,
   DatosDeCuentas,
+  DecisionDeAlquiler,
+  DestinoDeAlquiler,
   DestinoDeTicket,
   EstadoDeTicket,
   FuenteDatosCuentas,
   MedioDeTicket,
   ResultadoDeAccion,
+  ResultadoDeDecision,
   TicketDeCuentas,
 } from "@/datos/cuentas/contrato";
 

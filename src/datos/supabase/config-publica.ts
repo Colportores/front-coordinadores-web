@@ -47,8 +47,18 @@ export function esClaveDeServicio(clave: string): boolean {
 /** Los únicos hosts donde se acepta `http://`: el Supabase local de `supabase start`. */
 const HOSTS_LOCALES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
+/**
+ * Saca las barras del final sin expresión regular (Sonar S8786). Es una copia de `sinBarrasFinales` de `@/lib/texto`:
+ * este módulo lo carga `next.config.ts` antes de que exista el alias `@/`, así que no puede importarlo.
+ */
+function sinBarrasFinales(texto: string): string {
+  let fin = texto.length;
+  while (fin > 0 && texto[fin - 1] === "/") fin -= 1;
+  return texto.slice(0, fin);
+}
+
 function urlDelProyecto(valor: string | undefined): string | null {
-  const texto = valor?.trim().replace(/\/+$/, "");
+  const texto = typeof valor === "string" ? sinBarrasFinales(valor.trim()) : undefined;
   if (!texto) return null;
   try {
     const url = new URL(texto);

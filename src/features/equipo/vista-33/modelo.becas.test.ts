@@ -6,7 +6,7 @@ import { diaYMes } from "@/lib/dias";
 
 import canvas from "./canvas-33-becas.json";
 import { estadoDeBeca } from "./becas-tabla";
-import { avanceDeBeca, avisoDeBecaAsignada, ETIQUETA_DE_TIPO, resolverAmbito, type UnidadDeAvance } from "./modelo";
+import { avanceDeBeca, avisoDeBecaAsignada, resolverAmbito, type UnidadDeAvance } from "./modelo";
 
 const sistemas = { id: "sis", nombre: "Ingeniería en Sistemas", elegidaEl: "2026-09-01" };
 
@@ -123,8 +123,9 @@ async function filasDeLaTabla(unidad: UnidadDeAvance) {
     porNombre.set(c.nombre, {
       colportor: c.nombre,
       carrera: b?.carrera?.nombre ?? null,
-      carreraSub: b?.carrera ? `elegida el ${diaYMes(b.carrera.elegidaEl)}` : undefined,
-      apuntaA: b?.apuntaA ? ETIQUETA_DE_TIPO[b.apuntaA] : null,
+      carreraSub: b?.carrera?.elegidaEl ? `elegida el ${diaYMes(b.carrera.elegidaEl)}` : undefined,
+      // El canvas rotula «Media»/«Completa»; el panel dice «Media beca»/«Beca completa» (Cristian, 11/11).
+      apuntaA: b?.apuntaA ? { media: "Media", completa: "Completa" }[b.apuntaA] : null,
       // El canvas no trae el « · N %» del final: se compara el resto.
       avance: avance.tipo === "con-meta" ? avance.texto.replace(/ · \d+ %$/, "") : avance.tipo === "sin-carrera" ? "Sin meta: falta la carrera" : "Sin meta: no apunta a ninguna beca",
       ancho: avance.tipo === "con-meta" ? `${avance.porcentaje}%` : undefined,

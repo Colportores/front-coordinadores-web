@@ -2,11 +2,21 @@ import type {
   CiudadDeCuentas,
   ColportorDeCuentas,
   DatosDeCuentas,
+  DecisionDeAlquiler,
   DestinoDeTicket,
   TicketDeCuentas,
 } from "@/datos/cuentas";
 import { textoFechaDeTicket } from "@/datos/cuentas/fechas";
 import { formatMonto } from "@/features/cuentas/formato";
+import {
+  alquilerDecidible,
+  decideElCoordinador,
+  esPagoDeAlquilerVigente,
+  sePuedeDecidir,
+  sumarDecision,
+  TEXTO_ALQUILER_CON_PAGOS,
+  type AlquilerDecidible,
+} from "@/features/cuentas/por-decidir";
 
 /**
  * Lo que la vista 36 calcula con los datos: qué ciudades y colportores abarca la selección, las filas de cada tabla, las
@@ -71,7 +81,16 @@ export function subtituloDeSeleccion(datos: DatosDeCuentas, seleccion: Seleccion
 
 export type ElementoDeLista =
   | { tipo: "grupo"; clave: string; etiqueta: string }
-  | { tipo: "ciudad"; clave: string; nombre: string; sigla: string; pendientes: number; seleccion: Seleccion };
+  | {
+      tipo: "ciudad";
+      clave: string;
+      nombre: string;
+      sigla: string;
+      pendientes: number;
+      /** Cuántos colportores tienen alquiler pagado por decidir que el que mira puede decidir. */
+      porDecidir: number;
+      seleccion: Seleccion;
+    };
 
 function siglaDe(nombre: string): string {
   const palabras = nombre.split(/\s+/).filter(Boolean);
@@ -82,8 +101,9 @@ function siglaDe(nombre: string): string {
 /** «Todas las ciudades», y por departamento: «Todo el departamento» (si tiene más de una ciudad) y sus ciudades. */
 export function elementosDeLista(datos: DatosDeCuentas): ElementoDeLista[] {
   const pendientes = (seleccion: Seleccion) => pendientesDe(datos, seleccion).length;
+  const porDecidir = (seleccion: Seleccion) => filasDe(datos, seleccion).filter((f) => sePuedeDecidir(f.colportor, f.alquiler)).length;
   const elementos: ElementoDeLista[] = [
-    { tipo: "ciudad", clave: "todas", nombre: "Todas las ciudades", sigla: "Todas", pendientes: pendientes(TODAS), seleccion: TODAS },
+    { tipo: "ciudad", clave: "todas", nombre: "Todas las ciudades", sigla: "Todas", pendientes: pendientes(TODAS), porDecidir: porDecidir(TODAS), seleccion: TODAS },
   ];
   const departamentos = [...new Set(datos.ciudades.map((c) => c.departamento))];
   for (const departamento of departamentos) {
@@ -97,6 +117,7 @@ export function elementosDeLista(datos: DatosDeCuentas): ElementoDeLista[] {
         nombre: "Todo el departamento",
         sigla: "Dpto.",
         pendientes: pendientes(seleccion),
+        porDecidir: porDecidir(seleccion),
         seleccion,
       });
     }
@@ -108,6 +129,7 @@ export function elementosDeLista(datos: DatosDeCuentas): ElementoDeLista[] {
         nombre: ciudad.nombre,
         sigla: siglaDe(ciudad.nombre),
         pendientes: pendientes(seleccion),
+        porDecidir: porDecidir(seleccion),
         seleccion,
       });
     }
@@ -115,8 +137,11 @@ export function elementosDeLista(datos: DatosDeCuentas): ElementoDeLista[] {
   return elementos;
 }
 
-export function detalleDePendientes(n: number): string {
-  return n > 0 ? `${plural(n, "ticket", "tickets")} por validar` : "";
+export function detalleDePendientes(n: number, porDecidir = 0): string {
+  const partes = [];
+  if (n > 0) partes.push(`${plural(n, "ticket", "tickets")} por validar`);
+  if (porDecidir > 0) partes.push(`${porDecidir} por decidir`);
+  return partes.join(" · ");
 }
 
 // ─── Tickets ───────────────────────────────────────────────────────────────
@@ -172,6 +197,7 @@ export function textoDeNumero(t: TicketDeCuentas): string {
 export const textoDeDestino = (destino: DestinoDeTicket) => (destino === "alquiler" ? "Alquiler" : "Casa editora");
 
 export function textoDeEstado(t: TicketDeCuentas): string {
+  if (t.anulado) return "Devuelto al colportor";
   if (t.estado === "PENDIENTE") return "Por validar";
   if (t.estado === "RECHAZADO") return t.motivoRechazo ? `Rechazado · ${t.motivoRechazo}` : "Rechazado";
   return "Validado";
@@ -190,10 +216,12 @@ export interface FilaDeCuenta {
   debeAlquiler: number;
   /**
    * Lo pagado de más de alquiler: no queda «a favor» del alquiler sino que baja la deuda con la casa editora («Alquiler fav»,
-   * Cristian 28/10; el servidor lo llama `alquiler_trasladado`). Con una campaña sin alquiler (monto 0) es 0: qué pasa con
-   * lo pagado ahí lo decide el coordinador (front-coordinadores-web#132).
+   * Cristian 28/10; el servidor lo llama `alquiler_trasladado`). Si lo pagado lo decide el coordinador (baja o campaña sin
+   * alquiler) es 0: lo que se deja a cuenta está en `alquiler.aCuenta`.
    */
   trasladadoAlquiler: number;
+  /** Lo pagado «por decidir», las decisiones y lo devuelto (vista 41). */
+  alquiler: AlquilerDecidible;
   /** Instante del último depósito validado, de cualquier destino. */
   ultimoDeposito: string | null;
   /** Instante del último pago de alquiler validado. */
@@ -202,17 +230,25 @@ export interface FilaDeCuenta {
 
 const masReciente = (actual: string | null, otro: string) => (actual === null || Date.parse(otro) > Date.parse(actual) ? otro : actual);
 
-/** Lo pagado de alquiler por colportor: depósitos validados con ese destino (todo, sin topar en el alquiler). */
+/** Lo pagado de alquiler por colportor: depósitos validados con ese destino y no devueltos (todo, sin topar en el alquiler). */
 function pagosDeAlquiler(datos: DatosDeCuentas): Map<string, number> {
   const pagado = new Map<string, number>();
   for (const t of datos.tickets) {
-    if (t.estado === "VALIDADO" && t.destino === "alquiler") pagado.set(t.colportorId, (pagado.get(t.colportorId) ?? 0) + t.monto);
+    if (esPagoDeAlquilerVigente(t)) pagado.set(t.colportorId, (pagado.get(t.colportorId) ?? 0) + t.monto);
   }
   return pagado;
 }
 
 /** Lo pagado que pasa del alquiler y se traslada a la deuda con la casa editora. Sin alquiler en la campaña no se traslada nada. */
 const trasladoDe = (pagado: number, alquiler: number) => (alquiler > 0 ? Math.max(0, pagado - alquiler) : 0);
+
+/**
+ * Lo que el alquiler le descontó a la deuda con la casa editora (`alquiler_trasladado`): lo pagado de más de una inscripción viva,
+ * o, si lo decide el coordinador, lo que dejó a cuenta del próximo depósito.
+ */
+function descuentoDeAlquiler(datos: DatosDeCuentas, colportor: ColportorDeCuentas, pagado: number): number {
+  return decideElCoordinador(datos, colportor) ? alquilerDecidible(datos, colportor).aCuenta : trasladoDe(pagado, datos.alquilerPorColportor);
+}
 
 export function filasDe(datos: DatosDeCuentas, seleccion: Seleccion): FilaDeCuenta[] {
   const { ciudades } = indices(datos);
@@ -231,13 +267,15 @@ export function filasDe(datos: DatosDeCuentas, seleccion: Seleccion): FilaDeCuen
       const ciudad = ciudades.get(colportor.ciudadId);
       if (!ciudad) return [];
       const todoLoPagado = pagado.get(colportor.id) ?? 0;
+      const decidible = alquilerDecidible(datos, colportor);
       return [
         {
           colportor,
           ciudad,
-          pagadoAlquiler: alquiler > 0 ? Math.min(todoLoPagado, alquiler) : todoLoPagado,
-          debeAlquiler: Math.max(0, alquiler - todoLoPagado),
-          trasladadoAlquiler: trasladoDe(todoLoPagado, alquiler),
+          pagadoAlquiler: alquiler > 0 && !decidible.decide ? Math.min(todoLoPagado, alquiler) : todoLoPagado,
+          debeAlquiler: decidible.decide ? 0 : Math.max(0, alquiler - todoLoPagado),
+          trasladadoAlquiler: decidible.decide ? 0 : trasladoDe(todoLoPagado, alquiler),
+          alquiler: decidible,
           ultimoDeposito: ultimo.get(colportor.id) ?? null,
           ultimoPagoAlquiler: ultimoAlquiler.get(colportor.id) ?? null,
         },
@@ -305,8 +343,14 @@ function valorDeOrden(fila: FilaDeCuenta, columna: ColumnaOrdenable): number | s
   }
 }
 
-/** Ordena dentro de cada ciudad (los grupos siguen el orden de las ciudades); sin orden, el de los datos. */
-export function ordenarFilas(filas: FilaDeCuenta[], orden: Orden | null): FilaDeCuenta[] {
+/** Las filas que el que mira tiene que decidir van arriba en Alquiler, cuando no hay otro orden elegido (41A·01). */
+export const filaPorDecidir = (f: FilaDeCuenta) => sePuedeDecidir(f.colportor, f.alquiler);
+
+/**
+ * Ordena dentro de cada ciudad (los grupos siguen el orden de las ciudades); sin orden, el de los datos, con las filas de
+ * `primero` arriba.
+ */
+export function ordenarFilas(filas: FilaDeCuenta[], orden: Orden | null, primero?: (f: FilaDeCuenta) => boolean): FilaDeCuenta[] {
   const porNombre = (a: FilaDeCuenta, b: FilaDeCuenta) => a.colportor.nombre.localeCompare(b.colportor.nombre, "es");
   const posicion = new Map<string, number>();
   filas.forEach((f) => {
@@ -315,7 +359,7 @@ export function ordenarFilas(filas: FilaDeCuenta[], orden: Orden | null): FilaDe
   return [...filas].sort((a, b) => {
     const grupo = (posicion.get(a.ciudad.id) ?? 0) - (posicion.get(b.ciudad.id) ?? 0);
     if (grupo !== 0) return grupo;
-    if (!orden) return 0;
+    if (!orden) return primero ? Number(primero(b)) - Number(primero(a)) : 0;
     const va = valorDeOrden(a, orden.columna);
     const vb = valorDeOrden(b, orden.columna);
     const comparacion = typeof va === "string" && typeof vb === "string" ? va.localeCompare(vb, "es") : Number(va) - Number(vb);
@@ -353,7 +397,9 @@ export function kpisDeCasaEditora(filas: FilaDeCuenta[]): Kpi[] {
   ];
 }
 
-export function kpisDeAlquiler(filas: FilaDeCuenta[], alquiler: number): Kpi[] {
+/** Las cifras de lo que se debe: quien se dio de baja no debe alquiler y queda afuera (lo suyo es «por decidir»). */
+export function kpisDeAlquiler(todas: FilaDeCuenta[], alquiler: number): Kpi[] {
+  const filas = todas.filter((f) => !f.colportor.baja);
   const total = filas.length * alquiler;
   const pagado = suma(filas, (f) => f.pagadoAlquiler);
   const deben = filas.filter((f) => f.pagadoAlquiler < alquiler);
@@ -376,7 +422,8 @@ export function kpisDeAlquiler(filas: FilaDeCuenta[], alquiler: number): Kpi[] {
 }
 
 export function kpisDeTickets(tickets: FilaDeTicket[]): Kpi[] {
-  const validados = tickets.filter((f) => f.ticket.estado === "VALIDADO");
+  // Un pago devuelto al colportor (anulado) queda como historia: no cuenta como validado, igual que en «Depositado».
+  const validados = tickets.filter((f) => f.ticket.estado === "VALIDADO" && !f.ticket.anulado);
   return [
     { rotulo: "POR VALIDAR", valor: String(tickets.filter((f) => f.ticket.estado === "PENDIENTE").length), extra: "", detalle: "se validan en «Validar tickets»" },
     {
@@ -425,8 +472,13 @@ export function leerMonto(texto: string): LecturaDeMonto {
   return { ok: true, valor: Number(limpio) };
 }
 
-export function validarAlquiler(texto: string): { error: string | null; monto: number | null } {
+/**
+ * Lee lo escrito en «Editar» del alquiler. Con pagos de alquiler en la campaña (`hayPagos`), 0 y vacío no se aceptan: la
+ * campaña no puede quedar sin alquiler (decisión de Cristian del 10/11, «Alquiler a 0»).
+ */
+export function validarAlquiler(texto: string, { hayPagos = false }: { hayPagos?: boolean } = {}): { error: string | null; monto: number | null } {
   const monto = leerMonto(texto);
+  if (hayPagos && (monto.ok ? monto.valor === 0 : monto.motivo === "vacio")) return { error: TEXTO_ALQUILER_CON_PAGOS, monto: null };
   if (monto.ok) return { error: null, monto: monto.valor };
   const error =
     monto.motivo === "vacio"
@@ -450,10 +502,12 @@ const conFavor = (c: ColportorDeCuentas, aFavor: number) => (aFavor === 0 && c.a
 function moverTraslados(antes: DatosDeCuentas, despues: DatosDeCuentas): DatosDeCuentas {
   const pagadoAntes = pagosDeAlquiler(antes);
   const pagadoDespues = pagosDeAlquiler(despues);
+  const previos = new Map(antes.colportores.map((c) => [c.id, c]));
   let cambio = false;
   const colportores = despues.colportores.map((c) => {
+    const previo = previos.get(c.id) ?? c;
     const delta =
-      trasladoDe(pagadoDespues.get(c.id) ?? 0, despues.alquilerPorColportor) - trasladoDe(pagadoAntes.get(c.id) ?? 0, antes.alquilerPorColportor);
+      descuentoDeAlquiler(despues, c, pagadoDespues.get(c.id) ?? 0) - descuentoDeAlquiler(antes, previo, pagadoAntes.get(c.id) ?? 0);
     if (delta === 0) return c;
     cambio = true;
     const aFavor = c.aFavor ?? 0;
@@ -494,9 +548,26 @@ export function aplicarTicket(datos: DatosDeCuentas, ticket: TicketDeCuentas): D
   return acredita && ticket.destino === "alquiler" ? moverTraslados(datos, conTicket) : conTicket;
 }
 
-/** Cambia el alquiler de todos: lo pagado que pasa del nuevo monto se traslada a la deuda, y lo que ya no pasa vuelve a ella. */
+/**
+ * Cambia el alquiler de todos: lo pagado que pasa del nuevo monto se traslada a la deuda, y lo que ya no pasa vuelve a ella. Si
+ * la campaña pasa a cobrar, lo decidido «a cuenta» o «se lo queda» de quien sigue inscripto deja de valer (lo dejado a cuenta
+ * vuelve a la deuda), como en `refrescar_cuenta_alquiler()`; lo devuelto no se deshace.
+ */
 export function aplicarAlquiler(datos: DatosDeCuentas, monto: number): DatosDeCuentas {
-  return moverTraslados(datos, { ...datos, alquilerPorColportor: monto });
+  const nuevos: DatosDeCuentas = { ...datos, alquilerPorColportor: monto };
+  if (datos.decisionesDeAlquiler) {
+    const colportores = new Map(datos.colportores.map((c) => [c.id, c]));
+    nuevos.decisionesDeAlquiler = datos.decisionesDeAlquiler.filter((d) => {
+      const c = colportores.get(d.colportorId);
+      return d.destino === "devolver" || (c !== undefined && decideElCoordinador(nuevos, c));
+    });
+  }
+  return moverTraslados(datos, nuevos);
+}
+
+/** Suma una decisión sobre lo pagado por decidir y mueve la plata como el servidor (lo dejado a cuenta baja la deuda). */
+export function aplicarDecision(datos: DatosDeCuentas, decision: DecisionDeAlquiler): DatosDeCuentas {
+  return moverTraslados(datos, sumarDecision(datos, decision));
 }
 
 /** Lo que dice la celda de lo que se debe: el monto, o «a favor $U X» cuando se pagó de más y ya no se debe nada. */
@@ -506,6 +577,9 @@ export function textoDeSaldo(debe: number, aFavor: number): string {
 
 /** La línea de la fila de la casa editora cuando el alquiler pagado de más le bajó la deuda: «Descuento por alquiler pagado de más: $U 500». */
 export const textoDeTraslado = (monto: number) => `Descuento por alquiler pagado de más: ${formatMonto(monto)}`;
+
+/** La misma línea cuando el coordinador dejó lo pagado de alquiler a cuenta del próximo depósito. */
+export const textoDeACuenta = (monto: number) => `Descuento por alquiler dejado a cuenta: ${formatMonto(monto)}`;
 
 /** La fecha de un depósito o pago tal como la muestra la tabla: «hoy 09:15», «ayer 18:30» o «09/10». */
 export const fechaDeCuenta = (iso: string, ahoraIso: string) => textoFechaDeTicket(iso, ahoraIso);

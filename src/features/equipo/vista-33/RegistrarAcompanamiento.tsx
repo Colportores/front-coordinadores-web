@@ -5,6 +5,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type RefObjec
 import {
   DIAS_DE_GRACIA_ACOMPANAMIENTO,
   LARGO_MAXIMO_NOTA,
+  type AcompananteDelPanel,
   type CargadoPor,
   type ColportorDeEquipo,
   type DatosEquipoPorCiudad,
@@ -24,7 +25,10 @@ type Carga =
   | { tipo: "error"; mensaje: string }
   | { tipo: "lista"; jornadas: JornadaParaAcompanar[] };
 
-/** «Yo» (la coordinación de la sesión) u «Otro colportor» de la misma campaña. */
+/** Los coordinadores y administradores del selector: llegan aparte de las jornadas y sin ellos el panel sigue andando. */
+type Personas = { tipo: "cargando" } | { tipo: "error"; mensaje: string } | { tipo: "lista"; personas: AcompananteDelPanel[] };
+
+/** «Yo» (la coordinación de la sesión) u «Otra persona» de la misma campaña. */
 type Quien = "yo" | "otro";
 
 /** El aviso de arriba de la lista: lo que salió bien, o lo que pasó y hay que saber (la nota no se guardó). */
@@ -35,6 +39,8 @@ interface Aviso {
 
 const ACCION_CARGAR = "traer las jornadas";
 const ACCION_REGISTRAR = "registrar el acompañamiento";
+const ACCION_PERSONAS = "traer los coordinadores y administradores";
+const GRUPO_DE_COORDINACION = "Coordinadores y administradores";
 const FALTA_EL_COLPORTOR = "Elegí al colportor que acompañó, o cambiá a «Yo».";
 const NOTA_NO_GUARDADA = "La nota no se guardó: un acompañamiento ya registrado no se cambia desde acá.";
 // El mismo texto que manda la base (CZ011) cuando ya pasó el plazo; acá se muestra antes de intentar nada.
@@ -54,7 +60,7 @@ export interface AcompanamientoRegistrado {
 }
 
 /**
- * «Registrar acompañamiento» de una fila (HU-JOR-004): quién lo acompañó («Yo» u «Otro colportor» de la campaña), una nota
+ * «Registrar acompañamiento» de una fila (HU-JOR-004): quién lo acompañó («Yo» u «Otra persona» de la campaña), una nota
  * opcional y las jornadas terminadas del colportor en la campaña, de la más nueva a la más vieja. Solo se ofrecen las
  * que nadie acompañó; las que ya tienen acompañante figuran con su nombre y no se tocan: el panel nunca pisa un
  * acompañamiento ya registrado. Pasados los 15 días del fin de la campaña no se registra nada y el panel lo dice.
@@ -116,6 +122,7 @@ function PanelDeRegistro({
   alCerrar: () => void;
 }) {
   const [carga, setCarga] = useState<Carga>({ tipo: "cargando" });
+  const [panel, setPanel] = useState<Personas>({ tipo: "cargando" });
   const [enCurso, setEnCurso] = useState<ReadonlySet<string>>(new Set());
   const [rechazos, setRechazos] = useState<ReadonlyMap<string, string>>(new Map());
   const [aviso, setAviso] = useState<Aviso | null>(null);
@@ -131,6 +138,7 @@ function PanelDeRegistro({
   const selector = useRef<HTMLSelectElement>(null);
   const focoPendiente = useRef<string | null>(null);
   const cargaVigente = useRef(0);
+  const personasVigentes = useRef(0);
   const id = useId();
 
   // Los demás de la campaña, con o sin zona: el servidor valida que estén inscriptos. No se ofrece a quien es dueño de la jornada.
@@ -138,6 +146,17 @@ function PanelDeRegistro({
     () => datos.colportores.filter((c) => c.id !== colportor.id).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
     [datos.colportores, colportor.id],
   );
+
+  // Los coordinadores (de cualquier campaña) y los administradores, debajo de los colportores. No se ofrece a quien ya está
+  // entre los colportores de la campaña ni a quien es dueño de la jornada.
+  const delPanel = useMemo(() => {
+    if (panel.tipo !== "lista") return [];
+    const yaOfrecidos = new Set([colportor.id, ...otros.map((c) => c.id)]);
+    return panel.personas.filter((p) => !yaOfrecidos.has(p.id)).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  }, [panel, otros, colportor.id]);
+  // Sin nadie más a quien elegir (y con la lista del panel ya resuelta): «Otro» no se ofrece. Mientras carga o si falló, sí:
+  // el selector se completa o muestra el aviso con «Reintentar».
+  const sinNadieMas = otros.length + delPanel.length === 0 && panel.tipo === "lista";
 
   // Pide las jornadas y devuelve cómo quedó la carga; no toca el estado, así que sirve igual al abrir y al reintentar.
   const pedir = useCallback(async (): Promise<Carga> => {
@@ -164,14 +183,35 @@ function PanelDeRegistro({
     [aplicar],
   );
 
+  // Igual que las jornadas: una respuesta más nueva (o el panel cerrado) descarta la de la anterior.
+  const pedirPersonas = useCallback(async () => {
+    const mia = ++personasVigentes.current;
+    let siguiente: Personas;
+    try {
+      const respuesta = acciones.acompanantesDelPanel ? await acciones.acompanantesDelPanel() : { ok: true as const, acompanantes: [] };
+      siguiente = respuesta.ok ? { tipo: "lista", personas: respuesta.acompanantes } : { tipo: "error", mensaje: respuesta.mensaje };
+    } catch {
+      siguiente = { tipo: "error", mensaje: mensajeSinConexion(ACCION_PERSONAS) };
+    }
+    if (montado.current && mia === personasVigentes.current) setPanel(siguiente);
+  }, [acciones]);
+
+  const reintentarPersonas = useCallback(() => {
+    // El aviso y su botón se desmontan al volver a cargar: el foco pasa al selector antes, para no caer al <body>.
+    selector.current?.focus();
+    setPanel({ tipo: "cargando" });
+    void pedirPersonas();
+  }, [pedirPersonas]);
+
   useEffect(() => {
     montado.current = true;
     void aplicar();
+    void pedirPersonas();
     titulo.current?.focus();
     return () => {
       montado.current = false;
     };
-  }, [aplicar]);
+  }, [aplicar, pedirPersonas]);
 
   useEffect(() => {
     const clave = focoPendiente.current;
@@ -315,23 +355,23 @@ function PanelDeRegistro({
                 />
                 Yo
               </label>
-              <label className={cn("inline-flex min-h-8 items-center gap-2 text-chico font-semibold", otros.length === 0 ? "text-tinta-suave" : "text-tinta-2")}>
+              <label className={cn("inline-flex min-h-8 items-center gap-2 text-chico font-semibold", sinNadieMas ? "text-tinta-suave" : "text-tinta-2")}>
                 <input
                   type="radio"
                   name={`${id}-quien`}
                   checked={quien === "otro"}
-                  disabled={otros.length === 0}
+                  disabled={sinNadieMas}
                   onChange={() => setQuien("otro")}
                   className="size-4 accent-marca"
                 />
-                Otro colportor
+                Otra persona
               </label>
-              {otros.length === 0 && <span className="text-chico text-tinta-suave">No hay otros colportores en esta campaña.</span>}
+              {sinNadieMas && <span className="text-chico text-tinta-suave">No hay otros colportores en esta campaña.</span>}
             </div>
             {quien === "otro" && (
               <div className="flex min-w-0 flex-col gap-1">
                 <label htmlFor={idOtro} className="text-chico font-semibold text-tinta-2">
-                  Colportor que acompañó
+                  Quién acompañó
                 </label>
                 <select
                   id={idOtro}
@@ -348,13 +388,37 @@ function PanelDeRegistro({
                     faltaElOtro ? "border-peligro" : "border-borde",
                   )}
                 >
-                  <option value="">Elegí un colportor</option>
+                  <option value="">Elegí quién acompañó</option>
                   {otros.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.nombre}
                     </option>
                   ))}
+                  {delPanel.length > 0 && (
+                    <optgroup label={GRUPO_DE_COORDINACION}>
+                      {delPanel.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nombre}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
+                {panel.tipo === "error" && (
+                  <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <p className="min-w-0 text-chico wrap-anywhere text-alerta">
+                      {panel.mensaje} Mientras tanto podés elegir entre los colportores de la campaña.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={reintentarPersonas}
+                      aria-label="Reintentar traer los coordinadores y administradores"
+                      className={CLASE_BOTON_SECUNDARIO}
+                    >
+                      Reintentar
+                    </button>
+                  </div>
+                )}
                 {faltaElOtro && (
                   <p id={`${idOtro}-error`} role="alert" className="text-chico font-medium text-peligro">
                     {FALTA_EL_COLPORTOR}

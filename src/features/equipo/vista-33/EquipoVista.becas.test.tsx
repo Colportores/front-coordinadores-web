@@ -548,12 +548,30 @@ describe("Becas · «Elegir carrera»", () => {
 
 describe("Becas · estados y datos límite", () => {
   it("sin la fuente de becas conectada dice por qué no hay tabla, en vez de mostrarla vacía", async () => {
+    // Con el flag prendido el botón se ofrece aunque la fuente no traiga las becas.
+    vi.stubEnv("NEXT_PUBLIC_EQUIPO_BECAS", "1");
     const { usuario } = mostrar(datosDePrueba({ becas: null }));
     await irABecas(usuario);
 
     expect(screen.getByRole("status")).toHaveTextContent("Las becas todavía no están conectadas a la base de datos.");
     expect(screen.queryByRole("table", { name: "Becas de cada colportor" })).not.toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Ver avance en" })).not.toBeInTheDocument();
+  });
+
+  it("sin la fuente de becas conectada y sin el flag, Equipo no ofrece el botón «Becas» (staging, 11/11)", () => {
+    mostrar(datosDePrueba({ becas: null }));
+
+    const ver = screen.getByRole("group", { name: "Ver" });
+    expect(within(ver).queryByRole("button", { name: "Becas" })).not.toBeInTheDocument();
+    expect(within(ver).getByRole("button", { name: "Zonas" })).toBeInTheDocument();
+    expect(within(ver).getByRole("button", { name: "Acompañamientos" })).toBeInTheDocument();
+  });
+
+  it("con el flag apagado tampoco aparece, aunque la fuente traiga las becas", () => {
+    vi.stubEnv("NEXT_PUBLIC_EQUIPO_BECAS", "0");
+    mostrar(datosDePrueba());
+
+    expect(within(screen.getByRole("group", { name: "Ver" })).queryByRole("button", { name: "Becas" })).not.toBeInTheDocument();
   });
 
   it("sin colportores en la campaña muestra el mensaje de siempre", async () => {

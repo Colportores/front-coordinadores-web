@@ -1,16 +1,17 @@
-import { act, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { DescargarInforme } from "@/datos/reportes/informe";
+
 import { armarReporte } from "./armado";
 import { armarCsv } from "../exportar/csv";
-import { retirarDocumentoDeImpresion } from "../exportar/descargar";
 import { colportor, datosDePruebaConVentas, horasConstantes } from "./datos-de-prueba";
 import { ReporteHoras } from "./ReporteHoras";
 
 /**
- * QA de la vista 32 · exportar (PR #74, issue #62). Estos tests usan el módulo real `descargar.ts` (los del PR lo
- * reemplazan): lo único que se simula es el navegador (direcciones temporales, clic del enlace y marco de impresión).
+ * QA de la vista 32 · exportar (PR #74, issue #62; el PDF, issue #84). Estos tests usan el módulo real `descargar.ts` (los del PR lo
+ * reemplazan): lo único que se simula es el navegador (direcciones temporales y clic del enlace) y el servidor del informe.
  */
 
 const botonPdf = () => screen.getByRole("button", { name: /Informe PDF|Preparando informe/ });
@@ -135,7 +136,6 @@ describe("QA #62 · el foco y los avisos con el teclado", () => {
   afterEach(() => {
     URL.createObjectURL = originales.crear;
     URL.revokeObjectURL = originales.revocar;
-    retirarDocumentoDeImpresion();
     vi.restoreAllMocks();
   });
 
@@ -171,34 +171,52 @@ describe("QA #62 · el foco y los avisos con el teclado", () => {
     expect(botonCsv()).toHaveFocus();
   });
 
-  // QA #62 (bloqueante): `imprimirDocumento` hace `ventana.focus()` sobre el marco oculto y, al terminar de imprimir,
-  // retira el marco: el foco cae al <body> y quien usa el teclado pierde el lugar (WCAG 2.4.3). Reproducido en
-  // Chromium real: antes de `print()` activeElement = IFRAME; tras `afterprint` = BODY.
-  it("QA #62: tras imprimir el informe, el foco vuelve a «Informe PDF» (no cae al <body>)", async () => {
+  // Antes (QA #62, bloqueante) el cuadro de imprimir se llevaba el foco al marco oculto y lo dejaba caer al <body>. Ahora el
+  // informe se baja como el CSV, sin marco: el foco no se mueve nunca.
+  it("tras bajar el informe PDF, con éxito o con error, el foco sigue en «Informe PDF»", async () => {
     const user = userEvent.setup();
-    let alTerminar: (() => void) | undefined;
-    let ventanaFalsa: unknown;
-    vi.spyOn(HTMLIFrameElement.prototype, "srcdoc", "set").mockImplementation(() => {});
-    vi.spyOn(HTMLIFrameElement.prototype, "contentWindow", "get").mockImplementation(function (this: HTMLIFrameElement) {
-      ventanaFalsa ??= {
-        // Como en el navegador: enfocar la ventana del marco enfoca el marco.
-        focus: () => this.focus(),
-        print: () => {},
-        addEventListener: (nombre: string, escucha: () => void) => {
-          if (nombre === "afterprint") alTerminar = escucha;
-        },
-      };
-      return ventanaFalsa as Window;
-    });
-    render(<ReporteHoras datos={datosDePruebaConVentas()} />);
+    URL.createObjectURL = vi.fn(() => "blob:qa-pdf");
+    URL.revokeObjectURL = vi.fn();
+    const clic = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const informe = vi
+      .fn<DescargarInforme>()
+      .mockResolvedValueOnce({ ok: false, causa: "sin-conexion" })
+      .mockResolvedValue({ ok: true, pdfBase64: Buffer.from("%PDF-1.7 qa").toString("base64") });
+    render(<ReporteHoras datos={datosDePruebaConVentas()} descargarInforme={informe} />);
     botonPdf().focus();
 
     await user.keyboard("{Enter}");
-    await act(async () => document.querySelector("iframe")!.dispatchEvent(new Event("load")));
-    expect(document.activeElement?.tagName).toBe("IFRAME"); // el foco se fue al marco mientras se imprime
-
-    act(() => alTerminar!()); // el cuadro de impresión se cerró
-    expect(document.querySelector("iframe")).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent("Necesitás conexión para descargar el informe PDF.");
     expect(botonPdf()).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(clic).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("p[role=status]")).toHaveTextContent("Se descargó «reportes-todas-las-ciudades-semanas-2026-10-21.pdf»");
+    expect(botonPdf()).toHaveFocus();
+    expect(document.querySelector("iframe")).toBeNull();
+  });
+
+  it("los bytes del PDF que baja el navegador son los que mandó el servidor, con su tipo", async () => {
+    const user = userEvent.setup();
+    const blobs: Blob[] = [];
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      blobs.push(blob);
+      return "blob:qa-pdf";
+    });
+    URL.revokeObjectURL = vi.fn();
+    const nombres: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      nombres.push(this.download);
+    });
+    const original = Uint8Array.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x00, 0xff, 0xfe, 0x80]);
+    const informe: DescargarInforme = async () => ({ ok: true, pdfBase64: Buffer.from(original).toString("base64") });
+    render(<ReporteHoras datos={datosDePruebaConVentas()} descargarInforme={informe} />);
+
+    await user.click(botonPdf());
+
+    expect(nombres).toEqual(["reportes-todas-las-ciudades-semanas-2026-10-21.pdf"]);
+    expect(blobs[0].type).toBe("application/pdf");
+    expect([...(await leerBytes(blobs[0]))]).toEqual([...original]);
   });
 });

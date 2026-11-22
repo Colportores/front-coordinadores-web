@@ -221,6 +221,53 @@ describe("fuente de la vista 23 contra las RPC", () => {
       expect(resultado.ok && resultado.candidatos).toMatchObject([{ nombre: "Agustín Pérez", campaniaActual: "Otoño 2026", enOtraCampania: false }]);
     });
 
+    it("`rol_cuenta` (0187) marca la cuenta de coordinación o de administración; la de un colportor queda sin marca", async () => {
+      const { cliente } = clienteCon({
+        buscar_candidatos: [
+          fila({ rol_cuenta: "COORDINADOR" }),
+          fila({ usuario_id: OTRA, rol_cuenta: "ADMIN" }),
+          fila({ usuario_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", rol_cuenta: null }),
+        ],
+      });
+
+      const resultado = await crearFuenteAnadirRpc(cliente).buscarCandidatos(CAMPANIA, "ana", null);
+
+      expect(resultado.ok && resultado.candidatos.map((c) => c.rolCuenta)).toEqual(["coordinador", "administracion", undefined]);
+      // El rol no bloquea: se la puede añadir (HU-CAM-004, decisión del 02/10).
+      expect(resultado.ok && resultado.candidatos.map((c) => c.enOtraCampania)).toEqual([false, false, false]);
+    });
+
+    it("una base que todavía no manda `rol_cuenta` (antes de la 0187) o manda un rol desconocido: la cuenta sale igual, sin marca", async () => {
+      const { cliente } = clienteCon({
+        buscar_candidatos: [
+          fila(),
+          fila({ usuario_id: OTRA, rol_cuenta: "AUDITOR" }),
+          fila({ usuario_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", rol_cuenta: 7 }),
+          fila({ usuario_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", rol_cuenta: "constructor" }),
+          fila({ usuario_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", rol_cuenta: "coordinador" }),
+        ],
+      });
+
+      const resultado = await crearFuenteAnadirRpc(cliente).buscarCandidatos(CAMPANIA, "ana", null);
+
+      expect(resultado).toMatchObject({ ok: true });
+      expect(resultado.ok && resultado.candidatos).toHaveLength(5);
+      // Ni siquiera la clave: la cuenta es idéntica a la de antes de la columna.
+      expect(resultado.ok && resultado.candidatos.every((c) => !("rolCuenta" in c))).toBe(true);
+    });
+
+    it("los sugeridos de la carga también traen el rol de la cuenta", async () => {
+      const { cliente } = clienteCon({
+        campanias_del_coordinador: [{ id: CAMPANIA, nombre: "Verano 2026", tipo: "VERANO", fecha_inicio: "2026-09-01", fecha_fin: "2026-12-31" }],
+        buscar_candidatos: [fila({ rol_cuenta: "COORDINADOR" }), fila({ usuario_id: OTRA })],
+        colportores_de_campania: [],
+      });
+
+      const datos = await crearFuenteAnadirRpc(cliente).obtenerAnadirColportor();
+
+      expect(datos?.sugeridos.map((c) => c.rolCuenta)).toEqual(["coordinador", undefined]);
+    });
+
     it("una página llena (10) avisa que puede haber más; una de 9, no", async () => {
       const diez = Array.from({ length: CUENTAS_POR_PAGINA }, (_, i) => fila({ usuario_id: `${i}0000000-0000-4000-8000-000000000000` }));
       const llena = await crearFuenteAnadirRpc(clienteCon({ buscar_candidatos: diez }).cliente).buscarCandidatos(CAMPANIA, "x", null);

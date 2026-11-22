@@ -34,6 +34,7 @@ export type {
   GuardarZonaEntrada,
   PoligonoGeojson,
   Punto,
+  RechazoDelMapa,
   ResultadoAgregarCiudad,
   ResultadoAsignacion,
   ResultadoEliminarZona,

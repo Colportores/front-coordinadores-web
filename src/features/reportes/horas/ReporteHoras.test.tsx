@@ -17,12 +17,39 @@ function lista() {
   return screen.getByRole("navigation", { name: "Ciudades" });
 }
 
+describe("ReporteHoras · Semanas: la última completa y la que está en curso (#167, decisión del 10/11, P1)", () => {
+  it("con la S3 en curso, el encabezado es la S2 completa y avisa cuándo se compara la S3", () => {
+    render(<ReporteHoras datos={datosDePrueba()} />);
+
+    expect(screen.getByText("4 colportores · S2 · última semana completa contra S1")).toBeInTheDocument();
+    expect(screen.getByText("La S3 está en curso: se compara cuando termine.")).toBeInTheDocument();
+  });
+
+  it("con la campaña terminada no queda semana en curso: sin aviso", () => {
+    render(<ReporteHoras datos={{ ...datosDePrueba(), finCampania: "2026-10-17", hoy: "2026-10-21" }} />);
+
+    expect(screen.getByText(/S2 · última semana completa contra S1$/)).toBeInTheDocument();
+    expect(screen.queryByText(/está en curso: se compara cuando termine/)).not.toBeInTheDocument();
+  });
+
+  it("en Días y Meses no aparece ni la aclaración ni el aviso", async () => {
+    const user = userEvent.setup();
+    render(<ReporteHoras datos={datosDePrueba()} />);
+
+    for (const nombre of ["Días", "Meses"]) {
+      await user.click(screen.getByRole("button", { name: nombre }));
+      expect(screen.queryByText(/última semana completa/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/está en curso: se compara cuando termine/)).not.toBeInTheDocument();
+    }
+  });
+});
+
 describe("ReporteHoras · vista inicial", () => {
   it("arranca en todas las ciudades, por semanas, con la cifra de horas y la tabla por colportor", () => {
     render(<ReporteHoras datos={datosDePrueba()} />);
 
     expect(screen.getByRole("heading", { level: 2, name: "Todas las ciudades" })).toBeInTheDocument();
-    expect(screen.getByText("4 colportores · S2 contra S1")).toBeInTheDocument();
+    expect(screen.getByText("4 colportores · S2 · última semana completa contra S1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Semanas", pressed: true })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Días", pressed: false })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Meses", pressed: false })).toBeInTheDocument();
@@ -72,7 +99,7 @@ describe("ReporteHoras · elegir ciudad, departamento y colportor", () => {
     await user.click(within(lista()).getByRole("button", { name: /^Rivera/ }));
 
     expect(screen.getByRole("heading", { level: 2, name: "Rivera" })).toBeInTheDocument();
-    expect(screen.getByText("Departamento Rivera · 2 colportores · S2 contra S1")).toBeInTheDocument();
+    expect(screen.getByText("Departamento Rivera · 2 colportores · S2 · última semana completa contra S1")).toBeInTheDocument();
     expect(within(lista()).getByRole("button", { name: /^Rivera/ })).toHaveAttribute("aria-current", "true");
     expect(within(lista()).getByRole("button", { name: /Beto Techera/ })).toHaveTextContent("sin datos desde el 15/10");
     expect(within(tabla()).getAllByRole("rowheader").map((h) => h.textContent)).toEqual(["Ana Silva", "Beto Techera"]);
@@ -100,7 +127,7 @@ describe("ReporteHoras · elegir ciudad, departamento y colportor", () => {
     await user.click(within(lista()).getByRole("button", { name: /Ana Silva/ }));
 
     expect(screen.getByRole("heading", { level: 2, name: "Ana Silva" })).toBeInTheDocument();
-    expect(screen.getByText("Rivera · Departamento Rivera · S2 contra S1")).toBeInTheDocument();
+    expect(screen.getByText("Rivera · Departamento Rivera · S2 · última semana completa contra S1")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "SEMANA" })).toBeInTheDocument();
     expect(textoDeFilas()).toHaveLength(3);
     expect(within(tabla()).getByRole("rowheader", { name: /S3 · 19\/10.*en curso/ })).toBeInTheDocument();
@@ -153,7 +180,7 @@ describe("ReporteHoras · días, semanas y meses", () => {
     expect(within(screen.getByRole("region", { name: "HORAS" })).queryByText(/[▲▼]/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Semanas" }));
-    expect(screen.getByText("4 colportores · S2 contra S1")).toBeInTheDocument();
+    expect(screen.getByText("4 colportores · S2 · última semana completa contra S1")).toBeInTheDocument();
   });
 
   it("el ámbito elegido se mantiene al cambiar de período", async () => {
@@ -238,7 +265,7 @@ describe("ReporteHoras · datos límite", () => {
   it("sin ciudades ni colportores avisa que no hay nada que mostrar", () => {
     const vacio: DatosHoras = { ...datosDePrueba(), ciudades: [] };
     render(<ReporteHoras datos={vacio} />);
-    expect(screen.getByText("0 colportores · S2 contra S1")).toBeInTheDocument();
+    expect(screen.getByText("0 colportores · S2 · última semana completa contra S1")).toBeInTheDocument();
     expect(screen.getByText("Todavía no hay colportores para mostrar acá.")).toBeInTheDocument();
     expect(within(screen.getByRole("region", { name: "HORAS" })).getByText("—")).toBeInTheDocument();
   });
@@ -274,7 +301,7 @@ describe("ReporteHoras · datos límite", () => {
       datos.ciudades[1].colportores.push(colportor(`c-${i}`, `Colportor ${i}`, horasConstantes("2026-10-05", "2026-10-21", 5)));
     }
     render(<ReporteHoras datos={datos} />);
-    expect(screen.getByText("304 colportores · S2 contra S1")).toBeInTheDocument();
+    expect(screen.getByText("304 colportores · S2 · última semana completa contra S1")).toBeInTheDocument();
     expect(filasDeLaTabla().length).toBeGreaterThanOrEqual(300);
     await user.click(within(lista()).getByRole("button", { name: /^Artigas/ }));
     expect(within(lista()).getAllByRole("button", { name: /^Colportor \d+/ })).toHaveLength(300);
@@ -319,10 +346,10 @@ describe("ReporteHoras · con los datos de ejemplo del diseño", () => {
     render(<ReporteHoras datos={sim} />);
 
     // 01 · todas las ciudades · semanas
-    expect(screen.getByText("25 colportores · S7 contra S6")).toBeInTheDocument();
+    expect(screen.getByText("25 colportores · S7 · última semana completa contra S6")).toBeInTheDocument();
     // 02 · Rivera · semanas
     await user.click(within(lista()).getByRole("button", { name: /^Rivera/ }));
-    expect(screen.getByText("Departamento Rivera · 10 colportores · S7 contra S6")).toBeInTheDocument();
+    expect(screen.getByText("Departamento Rivera · 10 colportores · S7 · última semana completa contra S6")).toBeInTheDocument();
     // 03 · Rivera · días
     await user.click(screen.getByRole("button", { name: "Días" }));
     expect(screen.getByText("Departamento Rivera · 10 colportores · ayer contra el día anterior")).toBeInTheDocument();
@@ -332,7 +359,7 @@ describe("ReporteHoras · con los datos de ejemplo del diseño", () => {
     // 05 · colportor elegido · Bruno Techera · semanas
     await user.click(screen.getByRole("button", { name: "Semanas" }));
     await user.click(within(lista()).getByRole("button", { name: /Bruno Techera/ }));
-    expect(screen.getByText("Rivera · Departamento Rivera · S7 contra S6")).toBeInTheDocument();
+    expect(screen.getByText("Rivera · Departamento Rivera · S7 · última semana completa contra S6")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "‹ Rivera" })).toBeInTheDocument();
     expect(within(lista()).getByRole("button", { name: /Bruno Techera/ })).toHaveTextContent("sin datos desde el 17/10");
     expect(within(tabla()).getByRole("rowheader", { name: /S8 · 19\/10.*sin datos · últimos datos el 17\/10/ })).toBeInTheDocument();
@@ -342,7 +369,7 @@ describe("ReporteHoras · con los datos de ejemplo del diseño", () => {
     const user = userEvent.setup();
     render(<ReporteHoras datos={sim} />);
     await user.click(within(lista()).getByRole("button", { name: /Todo el departamento/ }));
-    expect(screen.getByText("15 colportores · S7 contra S6")).toBeInTheDocument();
+    expect(screen.getByText("15 colportores · S7 · última semana completa contra S6")).toBeInTheDocument();
   });
 });
 

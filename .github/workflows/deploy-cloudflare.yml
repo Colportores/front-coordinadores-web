@@ -1,20 +1,19 @@
 name: Deploy Cloudflare (staging)
 
 # Despliegue del sitio de prueba del panel en Cloudflare Pages (carga directa), environment `staging` (issue #147).
-# Es ADICIONAL: no toca deploy-pages.yml (GitHub Pages) ni staging.yml, y no usa production.yml (Vercel, ADR-015).
+# Desde el 11/11 (#105) NO corre solo: el despliegue automático de staging es el de Vercel (Git integration, sin
+# workflow ni secretos de GitHub). Este workflow queda solo para correrlo a mano (Run workflow) si hace falta una copia
+# estática en Cloudflare; no toca deploy-pages.yml (GitHub Pages) ni staging.yml, y no usa production.yml (Vercel, ADR-015).
 # Publica el mismo export estático con DATOS SIMULADOS (`npm run build:pages`): sin Supabase, sin claves reales.
 #
 # Credenciales (nombres, nunca valores): del environment `staging` o, como hoy, de la organización con acceso a este repo
 # (un secreto o variable del environment pisa al de la organización); guía paso a paso en docs/ci-cloudflare.md:
 #   Secreto:   CLOUDFLARE_API_TOKEN  (token con el permiso Account → Cloudflare Pages → Edit y nada más)
 #   Variables: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_PROJECT_NAME
-# Corrida manual sin credenciales: falla y dice cuál falta y dónde cargarla. Por push a `staging` sin credenciales: avisa
-# y se salta, para no marcar en rojo cada merge mientras Cloudflare no esté configurado.
-# Sin secretos en PRs ni en forks: el job solo corre por push a `staging` o a mano, y solo sobre develop o staging.
+# Sin credenciales: falla y dice cuál falta y dónde cargarla.
+# Sin secretos en PRs ni en forks: el job solo corre a mano, y solo sobre develop o staging.
 
 on:
-  push:
-    branches: [staging]
   workflow_dispatch:
   # Solo para que GitHub registre el workflow cuando un PR lo toca (ver staging.yml). En un PR no corre ningún job.
   pull_request:
@@ -46,7 +45,6 @@ jobs:
           CUENTA: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           PROYECTO: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
           HAY_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
-          EVENTO: ${{ github.event_name }}
         run: |
           faltan=""
           donde="Settings → Environments → staging o a nivel organización con acceso a este repo (guía: docs/ci-cloudflare.md)"
@@ -55,9 +53,6 @@ jobs:
           [ "$HAY_TOKEN" = true ] || faltan="$faltan CLOUDFLARE_API_TOKEN (secreto; se carga con: gh secret set CLOUDFLARE_API_TOKEN --env staging)"
           if [ -z "$faltan" ]; then
             echo "listo=true" >> "$GITHUB_OUTPUT"
-          elif [ "$EVENTO" = push ]; then
-            echo "::notice title=Cloudflare::Se salta el despliegue: faltan (environment staging u organización):$faltan"
-            echo "listo=false" >> "$GITHUB_OUTPUT"
           else
             echo "::error title=Cloudflare::Faltan (environment staging u organización):$faltan"
             exit 1

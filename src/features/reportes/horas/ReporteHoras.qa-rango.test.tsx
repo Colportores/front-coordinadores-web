@@ -5,23 +5,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DatosHoras } from "@/datos/reportes/contrato";
 
-import { descargarArchivo, imprimirDocumento, retirarDocumentoDeImpresion } from "../exportar/descargar";
+import { descargarArchivo } from "../exportar/descargar";
 import { colportor, conAcompanamientos, datosDePruebaConVentas, horasConstantes } from "./datos-de-prueba";
 import { ReporteHoras } from "./ReporteHoras";
 
 // QA de #107 (vista 32, rango libre y colportores a elegir): casos límite que el PR no prueba.
 vi.mock("../exportar/descargar", () => ({
   descargarArchivo: vi.fn(),
-  imprimirDocumento: vi.fn(),
-  retirarDocumentoDeImpresion: vi.fn(),
 }));
 
 const bajar = vi.mocked(descargarArchivo);
 
 beforeEach(() => {
   bajar.mockReset();
-  vi.mocked(imprimirDocumento).mockReset().mockResolvedValue(undefined);
-  vi.mocked(retirarDocumentoDeImpresion).mockReset();
 });
 
 const datos = () => conAcompanamientos(datosDePruebaConVentas());
@@ -105,8 +101,13 @@ describe("QA #107 · coherencia de cifras y exportación con colportores elegido
     expect(suma).toBe(total);
   });
 
-  it.skip("QA #107: el informe PDF de una selección de colportores dice «Ver: Todas las ciudades» sin decir que es una selección (el CSV sí trae solo a los elegidos)", async () => {
-    const { user } = await abrirRango();
+  // QA #107 vio que el informe PDF de una selección salía como «Todas las ciudades» sin decir que era una selección. Desde
+  // el issue #84 lo arma el servidor, que no recibe la selección: el PDF no se pide hasta que la función la admita.
+  it("con una selección de colportores el CSV trae solo a los elegidos y el informe PDF no se pide (saldría con todos)", async () => {
+    const informe = vi.fn();
+    const user = userEvent.setup();
+    render(<ReporteHoras datos={datos()} descargarInforme={informe} />);
+    await user.click(screen.getByRole("button", { name: "Rango" }));
     await user.click(botonDeColportores());
     await user.click(screen.getByRole("checkbox", { name: "Carla Rey" }));
     await user.click(screen.getByRole("checkbox", { name: "Darío Viera" }));
@@ -119,11 +120,11 @@ describe("QA #107 · coherencia de cifras y exportación con colportores elegido
     expect(contenido).not.toContain("Carla Rey");
     expect(contenido).not.toContain("Darío Viera");
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Informe PDF" })).not.toHaveAttribute("aria-disabled", "true"), { timeout: 3000 });
-    await user.click(screen.getByRole("button", { name: "Informe PDF" }));
-    const html = vi.mocked(imprimirDocumento).mock.calls[0][0];
-    // El informe se usa para liquidar viáticos: tiene que decir que no es toda la ciudad.
-    expect(html).toMatch(/2 de 4 colportores|colportores elegidos|selección/i);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Datos CSV" })).not.toHaveAttribute("aria-disabled", "true"), { timeout: 3000 });
+    const pdf = screen.getByRole("button", { name: "Informe PDF" });
+    expect(pdf).toHaveAttribute("aria-disabled", "true");
+    await user.click(pdf);
+    expect(informe).not.toHaveBeenCalled();
   });
 
   it("volver a Meses con un rango al revés no deja ningún aviso ni exportar apagado", async () => {

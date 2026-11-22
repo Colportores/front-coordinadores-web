@@ -1,3 +1,4 @@
+import { ATRIBUCION } from "@colportores/lib-mapa/tokens";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { removeProtocol } from "maplibre-gl";
 import type { ReactNode } from "react";
@@ -36,7 +37,9 @@ vi.mock("react-map-gl/maplibre", () => ({
     );
   },
   NavigationControl: () => null,
-  AttributionControl: () => <div data-testid="atribucion" />,
+  AttributionControl: ({ customAttribution }: { customAttribution?: string }) => (
+    <div data-testid="atribucion" data-atribucion={customAttribution} />
+  ),
   Source: ({ id, data, children }: { id: string; data: { features: unknown[] }; children: ReactNode }) => {
     doble.fuentes[id] = data;
     return <div>{children}</div>;
@@ -54,7 +57,14 @@ const CATALOGO = {
   version: 1,
   estilo: { url: "estilo/colportores.json" },
   paquetes: [
-    { nivel: "ciudad", ambito_id: MONTEVIDEO, nombre: "Montevideo", partes: [{ archivo: "paquetes/ciudad/mvd.123.pmtiles" }] },
+    {
+      id: "ciudad-montevideo",
+      nivel: "ciudad",
+      ambito_id: MONTEVIDEO,
+      nombre: "Montevideo",
+      version: "1".repeat(64),
+      partes: [{ archivo: "paquetes/ciudad/mvd.123.pmtiles", tamano_bytes: 1024, sha256: "a".repeat(64) }],
+    },
   ],
 };
 const ESTILO = {
@@ -139,6 +149,9 @@ describe("mapa de fondo con Supabase", () => {
     expect((doble.fuentes.zonas as { features: unknown[] }).features).toHaveLength(CIUDAD.zonas.length);
     expect((doble.fuentes.calles as { features: unknown[] }).features).toHaveLength(0);
     expect(screen.getByTestId("atribucion")).toBeInTheDocument();
+    // La de la licencia de OpenStreetMap, desde el token de lib-mapa (la misma que trae la fuente del estilo: no se repite).
+    expect(screen.getByTestId("atribucion")).toHaveAttribute("data-atribucion", ATRIBUCION.html);
+    expect(ATRIBUCION.html).toContain("OpenStreetMap");
     expect(document.querySelector("[data-aviso-del-mapa]")).toBeNull();
   });
 

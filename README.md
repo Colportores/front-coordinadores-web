@@ -43,6 +43,8 @@ docker compose -f compose.dev.yml up
 
 Las pestañas **Stock** y **Cuentas** muestran datos simulados hasta su conexión en V2: tienen flag propio (`NEXT_PUBLIC_PESTANA_STOCK`, `NEXT_PUBLIC_PESTANA_CUENTAS`) que, si no se define, sigue al modo dev. En staging y producción quedan ocultas: `src/proxy.ts` reescribe esas rutas a un 404 antes de renderizar (así ni el HTML ni el payload RSC llevan su contenido) y, con el flag apagado, la ruta no se prerenderiza (`LayoutPestanaConFlag`).
 
+En **Equipo**, el botón **Becas** (vista 33) solo aparece si la fuente trae las becas: con los datos simulados siempre; conectado a Supabase, cuando la base tiene `carreras_de_beca()` y `becas_de_campania()` y la campaña no terminó (`src/datos/equipo/becas-rpc.ts`). `NEXT_PUBLIC_EQUIPO_BECAS=1` lo muestra siempre y `0` lo oculta siempre (`src/config/flags.ts`, `becasDeEquipoVisibles`).
+
 ### Equipo con datos reales de Supabase (solo desarrollo)
 
 Para la demo, la pestaña **Equipo** puede leer la campaña y los colportores reales de un proyecto de Supabase en vez de los simulados (issue #45). Es un puente de desarrollo con la cuenta de un coordinador cargada en el servidor: la conexión definitiva usa el login del coordinador (sección siguiente) y la RPC de cada pestaña.
@@ -64,10 +66,11 @@ Después `docker compose -f compose.dev.yml up` y abrí `/equipo`. El servidor i
 
 ### Ciudades y zonas con datos reales de Supabase (solo desarrollo)
 
-La pestaña **Ciudades** (vista 24, issue #40) usa el mismo puente y las mismas cuatro variables: con ellas lee y escribe por las RPC `ciudades_de_campania()`, `zonas_de_ciudad()`, `colportores_de_campania()`, `ciudades_del_catalogo()`, `agregar_ciudad_a_campania()`, `guardar_zona()`, `baja_zona()`, `asignar_zona()` y `quitar_zona()` (`src/datos/equipo/zonas/rpc.ts`). Se apaga sola igual que Equipo (sin variables, o en cualquier build de producción, queda la simulada).
+La pestaña **Ciudades** (vista 24, issue #40) usa el mismo puente y las mismas cuatro variables: con ellas lee y escribe por las RPC `ciudades_de_campania()`, `zonas_de_ciudad()`, `colportores_de_campania()`, `ciudades_del_catalogo()`, `agregar_ciudad_a_campania()`, `guardar_zona()`, `baja_zona()`, `asignar_zona()`, `quitar_zona()` y, para las zonas por esquinas, `esquina_mas_cercana()`, `tramo_por_calles()` y `poligono_por_calles()` (`src/datos/equipo/zonas/rpc.ts`). Se apaga sola igual que Equipo (sin variables, o en cualquier build de producción, queda la simulada).
 
 - **Campaña:** la primera de `campanias_del_coordinador()` (`src/datos/supabase/campania-provisoria.ts`); cómo se elige cuando el coordinador tiene varias está pendiente de decisión. Sin una campaña en curso ni por empezar, la vista lo dice en vez de mostrar el mapa.
-- **Lo que todavía no está conectado:** las zonas **por esquinas** (marcar una esquina, el borde por calles y guardarlas) esperan a `backend-supabase#25`; la **superposición** con otra zona y el aviso de **calle compartida** no los calcula ninguna RPC, así que no se muestran; el buscador de ciudades no trae provincia porque el catálogo de la base no la tiene.
+- **Zonas por esquinas (#179):** la esquina más cercana, el borde por calles y el guardado salen de las RPC de la migración 0036 (`backend-supabase#25`). Necesitan que la ciudad tenga las calles cargadas en la base (`scripts/db-importar-calles.sh` de backend-supabase): sin ellas la base contesta `CZ015` y la vista muestra ese aviso; la zona radial no las necesita. La **superposición** con otra zona y el aviso de **calle compartida** salen de `guardar_zona()` (`superposiciones`, `calles_compartidas`): se muestra una de cada una.
+- **Lo que todavía no está conectado:** el buscador de ciudades no trae provincia porque el catálogo de la base no la tiene.
 - **Colportores:** cada ciudad lista a todos los inscriptos de la campaña con su zona (la zona de un colportor es una por campaña, de la ciudad que sea).
 
 ## Acceso del coordinador y conexión a Supabase
@@ -99,7 +102,7 @@ Nunca un dato simulado sin aviso. `AvisoVersionDePrueba` (la franja fija de arri
 
 El panel se publica para probarlo desde un navegador, **desde la rama `staging`** (o a mano desde `develop`) y **con datos simulados**: sin backend, sin claves, sin datos de personas.
 
-- **URL:** https://colportores.github.io/front-coordinadores-web/ (ya no se actualiza solo con cada push a `staging`: el despliegue automático de staging es el de Cloudflare Pages, `deploy-cloudflare.yml`; a mano: `gh workflow run staging.yml --ref staging`, que llama a `deploy-pages.yml`, o `gh workflow run deploy-pages.yml --ref develop`; no hay deploys desde feature, PR ni production).
+- **URL:** https://colportores.github.io/front-coordinadores-web/ (ya no se actualiza solo con cada push a `staging`: el despliegue automático de staging es el de Vercel, por su integración con Git: sin workflow ni secretos de GitHub, ver `docs/ci-cd.md`; a mano: `gh workflow run staging.yml --ref staging`, que llama a `deploy-pages.yml`, o `gh workflow run deploy-pages.yml --ref develop`; no hay deploys desde feature, PR ni production).
 - Es un sitio público, sin acceso restringido: lleva `noindex, nofollow` y un `robots.txt` que bloquea todo. El modo dev está prendido: todas las pestañas visibles y el estado de cada HU.
 - **Aviso fijo en cada pantalla** (`AvisoVersionDePrueba`, arriba del topbar, sin botón para cerrarlo): «Versión de prueba con datos simulados. Lo que hagas no se guarda: al recargar la página vuelve a los datos de ejemplo.» En este build (`NEXT_PUBLIC_DEPLOY_PAGES=1`) `build:pages` falla si alguna página no lo lleva. Fuera de Pages el mismo componente avisa cuando hay datos simulados a la vista (ver «Aviso de datos simulados» más abajo).
 - **Qué lo distingue del build normal:** export estático (`output: 'export'`) con `basePath` y `assetPrefix` `/front-coordinadores-web`, solo cuando corre `npm run build:pages` (`DEPLOY_PAGES=1`, ver `next.config.ts`). `next dev`, `npm run build` y el CI de siempre no cambian.
@@ -140,7 +143,7 @@ Ramas `develop → staging → production`. Los compilados y publicaciones de de
 
 | Workflow | Cuándo | Qué hace |
 |---|---|---|
-| `staging.yml` | solo a mano, desde `develop` o `staging` (ya no corre por push a `staging`: el único despliegue automático es `deploy-cloudflare.yml`) | llama a `deploy-pages.yml` (sitio de prueba en Pages, datos simulados) y a `demo-supabase-dev.yml` (artefacto `panel-supabase-dev`, conectado al Supabase **dev**), los dos como `workflow_call` |
+| `staging.yml` | solo a mano, desde `develop` o `staging` (ya no corre por push a `staging`: el único despliegue automático de staging es el de Vercel, por su integración con Git) | llama a `deploy-pages.yml` (sitio de prueba en Pages, datos simulados) y a `demo-supabase-dev.yml` (artefacto `panel-supabase-dev`, conectado al Supabase **dev**), los dos como `workflow_call` |
 | `production.yml` | push a `production` | `next build` con las variables del environment `production` y `PANEL_EXIGIR_SUPABASE=1`, y deploy a Vercel (ADR-015). Exige `APP_ENV=production`, rechaza la URL del proyecto dev y falla claro si falta algo: hoy no hay Supabase de producción (diciembre) |
 
 - Demo sin pasar por staging: `gh workflow run staging.yml --ref develop` (o `demo-supabase-dev.yml` / `deploy-pages.yml` por separado).

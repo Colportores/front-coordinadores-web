@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { becasDeEquipoVisibles } from "@/config/flags";
 import type { AcompanamientoDeColportor, DatosEquipoPorCiudad } from "@/datos/equipo/contrato";
 import { cn } from "@/lib/utils";
 
@@ -94,6 +95,8 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
   const [unidad, elegirUnidad] = useUnidadDeAvance();
   const becas = useBecas(datos.becas, acciones);
   const vistaDeBecas = useVistaDeBecas();
+  // Sin las becas conectadas el botón «Becas» no se ofrece (`becasDeEquipoVisibles`): nadie llega a una pestaña que no anda.
+  const vistas = becasDeEquipoVisibles(datos.becas !== null) ? VISTAS : VISTAS.filter(({ valor }) => valor !== "becas");
   const raiz = useRef<HTMLDivElement>(null);
   // Al apagar el botón que tenía el foco (contraer la lista, cerrar el registro) el foco se devuelve a su par.
   const focoPendiente = useRef<string | null>(null);
@@ -141,6 +144,8 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
 
   const total = resuelto.colportores.length;
   const sinZona = resuelto.sinZona.map((c) => c.nombre);
+  // Una cuenta suspendida sin zona no es un pendiente: no se le puede asignar zona hasta que la reactiven (#167).
+  const porAsignar = resuelto.sinZona.filter((c) => !c.suspendido).map((c) => c.nombre);
   const totalAcompanamientos = resuelto.colportores.reduce((suma, c) => suma + jornadasAcompanadas(c), 0);
   const subtitulo = [
     pluralColportores(resuelto.conZona) + (sinZona.length > 0 ? ` + ${sinZona.length} sin zona` : ""),
@@ -216,7 +221,7 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
               </div>
             )}
             <div role="group" aria-label="Ver" className="flex overflow-hidden rounded-control border border-borde bg-superficie">
-              {VISTAS.map(({ valor, etiqueta }) => {
+              {vistas.map(({ valor, etiqueta }) => {
                 const activa = valor === vista;
                 return (
                   <button
@@ -240,7 +245,7 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
           </div>
         </div>
 
-        <FranjaPendientes pendientes={pendientesDe(sinZona, datos.solicitudesPendientes, vista)} />
+        <FranjaPendientes pendientes={pendientesDe(porAsignar, datos.solicitudesPendientes, vista)} />
 
         <div className="min-h-0 flex-1 overflow-auto rounded-tarjeta border border-borde bg-superficie">
           {total === 0 ? (

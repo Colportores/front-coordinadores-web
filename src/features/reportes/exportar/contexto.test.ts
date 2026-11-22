@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fechaCompleta, nombreDeArchivo } from "./contexto";
+import { nombreDeArchivo } from "./contexto";
 
 describe("nombreDeArchivo", () => {
   it("dice qué se mira, cómo se agrupó y el día", () => {
@@ -23,14 +23,21 @@ describe("nombreDeArchivo", () => {
     expect(nombre).not.toMatch(/--/);
   });
 
+  it("sin guiones al principio ni al final, tampoco cuando el corte en 40 letras cae en un guion", () => {
+    expect(nombreDeArchivo("--¡Rivera!--", "semana", "2026-10-21", "csv")).toBe("reportes-rivera-semanas-2026-10-21.csv");
+    const corte = nombreDeArchivo(`${"a".repeat(39)} bcd`, "dia", "2026-10-21", "csv");
+    expect(corte).toBe(`reportes-${"a".repeat(39)}-dias-2026-10-21.csv`);
+  });
+
+  it("un título larguísimo de símbolos no se cuelga", () => {
+    const inicio = Date.now();
+    expect(nombreDeArchivo("-".repeat(200_000) + "?", "dia", "2026-10-21", "csv")).toBe("reportes-dias-2026-10-21.csv");
+    expect(nombreDeArchivo("a ".repeat(100_000), "dia", "2026-10-21", "csv")).toMatch(/^reportes-a-a-/);
+    expect(Date.now() - inicio).toBeLessThan(2000);
+  });
+
   it("un título sin letras ni números cae en un nombre genérico", () => {
     expect(nombreDeArchivo("???", "semana", "2026-10-21", "csv")).toBe("reportes-semanas-2026-10-21.csv");
     expect(nombreDeArchivo("", "dia", "2026-10-21", "csv")).toBe("reportes-dias-2026-10-21.csv");
-  });
-});
-
-describe("fechaCompleta", () => {
-  it("día, mes y año", () => {
-    expect(fechaCompleta("2026-10-21")).toBe("21/10/2026");
   });
 });

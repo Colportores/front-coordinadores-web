@@ -192,7 +192,7 @@ describe("QA #98 · al registrar desde el panel", () => {
   const botonDe = (cuando: string) => screen.getByRole("button", { name: `Registrar acompañamiento en la jornada de Florencia Pintos del ${cuando}` });
   const historialDe = () => within(screen.getByRole("region", { name: /Historial de acompañamientos de Florencia/ }));
 
-  it("registrado a nombre de «Otro colportor» el historial dice «cargado por vos» (lo cargó quien tiene la sesión) y «Acompañó» nombra al otro", async () => {
+  it("registrado a nombre de «Otra persona» el historial dice «cargado por vos» (lo cargó quien tiene la sesión) y «Acompañó» nombra al otro", async () => {
     const acciones = crearAcciones();
     acciones.registrarAcompanamiento.mockResolvedValueOnce(ok("2026-10-20", { acompanante: "Tomás Ibarra" }));
     const { usuario } = await abrirRegistro(acciones);

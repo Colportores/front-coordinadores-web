@@ -82,6 +82,11 @@ export interface ColportorDeEquipo {
   nombre: string;
   /** Ciudad de su zona actual; `null` mientras no tenga zona. */
   ciudadId: string | null;
+  /**
+   * La cuenta está suspendida: no se le puede asignar zona (`asignar_zona` lo rechaza), así que sin zona no es un pendiente
+   * de acción (#167). Ausente o `false`: activa.
+   */
+  suspendido?: boolean;
   zonaActual: ZonaActualDeColportor | null;
   /** Del más viejo al más nuevo. */
   zonasAnteriores: ZonaAnterior[];
@@ -125,8 +130,8 @@ export interface CarreraDelCatalogo {
 export interface CarreraElegida {
   id: string;
   nombre: string;
-  /** Día en que se eligió, `AAAA-MM-DD`. */
-  elegidaEl: string;
+  /** Día en que se eligió, `AAAA-MM-DD`; `null` si la base no lo guardó (una carrera cargada antes de la 0117). */
+  elegidaEl: string | null;
 }
 
 /** Lo que muestra la tabla «Becas» de un colportor (HU-BEC-004, HU-BEC-006). */
@@ -191,8 +196,8 @@ export interface DatosEquipoPorCiudad {
    */
   solicitudesPendientes: number;
   /**
-   * La pestaña «Becas» (V2: el backend se conecta después del 20/11). `null`: esta fuente todavía no trae las becas, la
-   * pestaña lo dice en vez de mostrar una tabla vacía.
+   * La pestaña «Becas». `null`: esta fuente no trae las becas (la base no publicó sus RPC o la campaña no las deja leer),
+   * la pestaña no se ofrece o lo dice en vez de mostrar una tabla vacía.
    */
   becas: DatosDeBecas | null;
 }
@@ -222,6 +227,23 @@ export interface DatosDeAcompanamiento {
 }
 
 /**
+ * Una persona que el coordinador puede anotar como acompañante además de los colportores de su campaña: un coordinador de
+ * cualquier campaña o un administrador activo (`acompaniantes_del_panel()`). Solo el id y el nombre: la base no manda
+ * correo, teléfono ni cédula.
+ */
+export interface AcompananteDelPanel {
+  id: string;
+  nombre: string;
+}
+
+/**
+ * Los coordinadores y administradores que se ofrecen en «Quién lo acompañó». Un rechazo de la regla vuelve como
+ * `ok: false`; una falla de conexión, como excepción. Una base que todavía no tiene la RPC devuelve la lista vacía:
+ * el panel sigue ofreciendo solo a los colportores, como antes.
+ */
+export type ResultadoAcompanantes = { ok: true; acompanantes: AcompananteDelPanel[] } | { ok: false; mensaje: string };
+
+/**
  * Respuesta a registrar un acompañamiento (`agregar_acompaniamiento()`). `yaEstaba`: ya figuraba a nombre de esa misma
  * persona (un reintento, un doble toque o el teléfono que la marcó antes): no se tocó nada, **tampoco la nota**; `origen`
  * y `nota` son los que quedaron guardados. `recargar`: la jornada cambió y la lista que se está viendo ya no es cierta.
@@ -232,6 +254,12 @@ export type ResultadoAcompanamiento =
 
 /** Estado de la cuenta de un candidato (HU-CAM-004). `suspendida` no se puede añadir. */
 export type EstadoCuenta = "pendiente_asignacion" | "activa" | "suspendida";
+
+/**
+ * La cuenta no es de un colportor: es de coordinación (de cualquier campaña) o de administración. Se la puede añadir igual
+ * (HU-CAM-004, decisión del 02/10), pero la vista 23 lo advierte y pide confirmarlo (decisión de Cristian, 11/11).
+ */
+export type RolDeCuenta = "coordinador" | "administracion";
 
 /** Cuenta que el coordinador puede buscar para añadirla a su campaña. */
 export interface CandidatoColportor {
@@ -248,6 +276,11 @@ export interface CandidatoColportor {
   enOtraCampania: boolean;
   /** Fecha de creación de la cuenta, ISO `AAAA-MM-DD`. */
   cuentaCreada: string;
+  /**
+   * Solo si la cuenta es de coordinación o de administración (`rol_cuenta` de `buscar_candidatos()`, 0187). Sin el dato
+   * (una cuenta de colportor, o una base que todavía no lo manda) la fila no lleva etiqueta ni pide confirmación.
+   */
+  rolCuenta?: RolDeCuenta;
 }
 
 /** Colportor que ya está en la campaña; `zonaNombre` es `null` mientras no tenga zona. */
@@ -300,8 +333,13 @@ export interface FuenteDatosEquipo {
    */
   jornadasParaAcompanar(campaniaId: string, colportorId: string): Promise<ResultadoJornadas>;
   /**
+   * Los coordinadores (de cualquier campaña) y los administradores que se pueden anotar como acompañantes, además de los
+   * colportores de la campaña. Sin quien tiene la sesión: ese es «Yo».
+   */
+  acompanantesDelPanel(campaniaId: string): Promise<ResultadoAcompanantes>;
+  /**
    * Registra el acompañamiento de esa jornada: a nombre del coordinador de la sesión («Yo») o, con `acompananteId`, de otro
-   * colportor de la campaña, con una nota opcional.
+   * colportor de la campaña, de un coordinador o de un administrador, con una nota opcional.
    */
   registrarAcompanamiento(campaniaId: string, jornadaId: string, datos?: DatosDeAcompanamiento): Promise<ResultadoAcompanamiento>;
   /**

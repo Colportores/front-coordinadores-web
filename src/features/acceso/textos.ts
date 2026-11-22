@@ -1,3 +1,5 @@
+import { LARGO_MINIMO_CONTRASENA } from "@/features/acceso/validacion";
+
 /**
  * Los textos de la pantalla de acceso (vista 38, `disenio-vistas/web/38 Login Coordinador.dc.html`). Salen del canvas, que los
  * marca como propuesta (el de credenciales no dice cuál de los dos campos falló). Los dos avisos que el canvas no dibuja
@@ -34,6 +36,14 @@ export const TEXTOS_DE_ACCESO = {
   /** Sin artboard (mapa §2). */
   correoSinVerificar: "Todavía no verificaste tu correo. Abrí el enlace que te mandamos y volvé a intentar.",
   demasiadosIntentos: "Hiciste demasiados intentos seguidos. Esperá unos minutos y volvé a intentar.",
+  /**
+   * Sin artboard (#177): los avisos de cada campo cuando lo escrito no puede ser un correo o una contraseña, antes de mandar
+   * nada. El de los caracteres es el de HU-AUTH-003 con la palabra del panel («correo»); los otros dos los redactó el
+   * implementador (mapa §2: texto/aviso): dicen qué pasa y qué hacer.
+   */
+  correoConCaracterQueNoVa: "Revisá el correo: no puede llevar tildes, ñ, espacios ni comas.",
+  correoIncompleto: "El correo no es válido. Revisá que esté completo, como nombre@correo.com.",
+  contrasenaCorta: `Revisá la contraseña: tiene que tener al menos ${LARGO_MINIMO_CONTRASENA} caracteres.`,
 } as const;
 
 /** 04 · sin acceso (no es coordinador). Sin el correo, si no se pudo saber de qué cuenta se trata. */

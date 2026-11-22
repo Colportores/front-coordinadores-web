@@ -7,6 +7,8 @@ import type {
   PendienteDeAccion,
   TableroDelDia,
 } from "@/datos/inicio";
+import { hrefAsignarZona } from "@/features/equipo/zonas/preseleccion";
+import { conPuntosDeMiles } from "@/lib/texto";
 
 /**
  * Lo que la vista 31 (Inicio) hace con los datos del día: qué ciudades entran en cada elección, las sumas, las listas
@@ -234,7 +236,7 @@ export function horasTexto(horas: number): string {
 export function montoTexto(centavos: number): string {
   const pesos = Math.trunc(centavos / 100);
   const resto = Math.abs(centavos % 100);
-  const miles = String(pesos).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const miles = conPuntosDeMiles(String(pesos));
   return `$U ${miles}${resto === 0 ? "" : `,${String(resto).padStart(2, "0")}`}`;
 }
 
@@ -389,7 +391,8 @@ export interface TarjetaPendiente {
   etiqueta: "CUENTAS" | "STOCK" | "EQUIPO";
   titulo: string;
   detalle?: string;
-  personas?: { id: string; nombre: string; cuando: string }[];
+  /** Con `destino`, la persona tiene su propia acción (p. ej. «Asignar zona» con ella ya elegida en Ciudades, #187). */
+  personas?: { id: string; nombre: string; cuando: string; destino?: { pestana: Pestana; href: string } }[];
   acciones: AccionDeTarjeta[];
 }
 
@@ -424,9 +427,10 @@ function tarjetaDePedido(pedido: Pedido, ahora: string): TarjetaPendiente {
 }
 
 function tarjetaSinZona(personas: ColportorSinZona[], ahora: string): TarjetaPendiente {
-  const accion: AccionDeTarjeta = { texto: "Asignar zona", tono: "primaria", destino: { pestana: "ciudades", href: "/ciudades" } };
   if (personas.length === 1) {
     const [persona] = personas;
+    // Ciudades se abre con esa persona ya elegida (#187): no hay que volver a buscarla.
+    const accion: AccionDeTarjeta = { texto: "Asignar zona", tono: "primaria", destino: { pestana: "ciudades", href: hrefAsignarZona(persona.id) } };
     return {
       id: "sin-zona",
       etiqueta: "EQUIPO",
@@ -439,8 +443,14 @@ function tarjetaSinZona(personas: ColportorSinZona[], ahora: string): TarjetaPen
     id: "sin-zona",
     etiqueta: "EQUIPO",
     titulo: `${personas.length} colportores sin zona asignada`,
-    personas: personas.map((p) => ({ id: p.id, nombre: p.nombre, cuando: `se sumó ${cuandoSeSumoTexto(p.inscriptoAt, ahora)}` })),
-    acciones: [accion],
+    // Cada persona con su «Asignar zona»: el botón de la tarjeta no sabría a quién de todas se viene a asignar (#187).
+    personas: personas.map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      cuando: `se sumó ${cuandoSeSumoTexto(p.inscriptoAt, ahora)}`,
+      destino: { pestana: "ciudades", href: hrefAsignarZona(p.id) },
+    })),
+    acciones: [],
   };
 }
 

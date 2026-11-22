@@ -86,7 +86,7 @@ export function TablaDeColportores({ ciudades, ahora, titulo }: { ciudades: Ciud
     <div
       role="region"
       aria-label={`Colportores · ${titulo}`}
-      tabIndex={0}
+      tabIndex={0} // NOSONAR S6845: región con desplazamiento; sin tabIndex el teclado no la alcanza (WCAG 2.1.1)
       className="min-h-0 flex-1 overflow-auto rounded-tarjeta border border-borde bg-superficie focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none"
     >
       <table className="w-full min-w-[720px] table-fixed border-collapse">

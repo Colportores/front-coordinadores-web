@@ -52,10 +52,17 @@ export function esClaveAnonima(clave) {
   return decodificarJwt(clave)?.role === "anon";
 }
 
+/** Saca las barras `/` del final de una URL, sin expresión regular (una cadena de barras no puede colgar el recorrido). */
+function sinBarrasFinales(texto) {
+  let fin = texto.length;
+  while (fin > 0 && texto[fin - 1] === "/") fin -= 1;
+  return texto.slice(0, fin);
+}
+
 /** Problemas del entorno de quien lanza el build (sin valores). Lista vacía = se puede construir. */
 export function problemasDelEntorno(env) {
   const problemas = [];
-  const url = env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/+$/, "");
+  const url = typeof env.NEXT_PUBLIC_SUPABASE_URL === "string" ? sinBarrasFinales(env.NEXT_PUBLIC_SUPABASE_URL.trim()) : undefined;
   const clave = env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
   if (!url) problemas.push("falta NEXT_PUBLIC_SUPABASE_URL (variable del repo SUPABASE_URL)");
   else if (url !== URL_PROYECTO_DEV) problemas.push(`NEXT_PUBLIC_SUPABASE_URL no es la del proyecto de desarrollo (${URL_PROYECTO_DEV})`);
@@ -78,7 +85,7 @@ export function entornoDelBuild(env) {
   }
   return {
     ...limpio,
-    NEXT_PUBLIC_SUPABASE_URL: env.NEXT_PUBLIC_SUPABASE_URL.trim().replace(/\/+$/, ""),
+    NEXT_PUBLIC_SUPABASE_URL: sinBarrasFinales(env.NEXT_PUBLIC_SUPABASE_URL.trim()),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: env.NEXT_PUBLIC_SUPABASE_ANON_KEY.trim(),
     ...VARIABLES_DEL_BUILD,
   };
@@ -93,7 +100,8 @@ export function archivosEnvProhibidos(nombresDeArchivos) {
 }
 
 const PATRON_JWT = /eyJ[A-Za-z0-9_-]{15,}\.eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{10,}/g;
-const PATRON_HOST_SUPABASE = /([a-z0-9-]+)\.supabase\.(?:co|in)\b/gi;
+// Una etiqueta DNS tiene a lo sumo 63 caracteres: el tope acota el retroceso (Sonar S8786).
+const PATRON_HOST_SUPABASE = /([a-z0-9-]{1,63})\.supabase\.(?:co|in)\b/gi;
 
 /**
  * Lo que el texto de un archivo del artefacto no debería tener. Acepta la URL del proyecto dev y las claves anónimas

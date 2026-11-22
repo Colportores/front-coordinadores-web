@@ -15,6 +15,8 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.mjs"],
     restoreMocks: true,
+    // lib-mapa trae fuentes TypeScript (imports sin extensión): las transforma Vite, como las del panel, en vez de Node.
+    server: { deps: { inline: ["@colportores/lib-mapa"] } },
     unstubEnvs: true,
     // Cobertura para SonarQube Cloud (docs/ci-sonarqube.md): solo con COVERAGE=1, así `npm run test` sigue siendo el
     // de siempre. Deja `coverage/lcov.info`, con rutas relativas a la raíz del repo.

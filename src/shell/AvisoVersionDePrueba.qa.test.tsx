@@ -44,14 +44,32 @@ describe("#101 · texto literal de cada caso del aviso", () => {
     );
   });
 
-  it("Stock y Cuentas simuladas con la conexión real: las nombra a las dos", () => {
+  it("Stock y Cuentas simuladas con la conexión real: las nombra a las dos y dice que Validar tickets sí guarda (P4 del QA de #173)", () => {
     conexion();
     fijarFlags({ modoDev: true });
     render(<AvisoVersionDePrueba />);
 
     expect(textoDelAviso()).toBe(
-      "Stock y Cuentas: datos simulados. Esas pestañas todavía no están conectadas a la base de datos: lo que muestran es de ejemplo y lo que hagas en ellas no se guarda.",
+      "Stock y Cuentas: datos simulados, salvo Validar tickets. Esas pestañas todavía no están conectadas a la base de datos: lo que muestran es de ejemplo y lo que hagas en ellas no se guarda. Validar tickets sí está conectada: lo que validás o rechazás ahí se guarda.",
     );
+  });
+
+  it("solo Cuentas a la vista con la conexión real: el mismo texto en singular (P4 del QA de #173)", () => {
+    conexion();
+    fijarFlags({ modoDev: false, cuentas: true });
+    render(<AvisoVersionDePrueba />);
+
+    expect(textoDelAviso()).toBe(
+      "Cuentas: datos simulados, salvo Validar tickets. Esa pestaña todavía no está conectada a la base de datos: lo que muestra es de ejemplo y lo que hagas en ella no se guarda. Validar tickets sí está conectada: lo que validás o rechazás ahí se guarda.",
+    );
+  });
+
+  it("solo Stock a la vista: sin la excepción de Validar tickets", () => {
+    conexion();
+    fijarFlags({ modoDev: false, stock: true });
+    render(<AvisoVersionDePrueba />);
+
+    expect(textoDelAviso()).not.toContain("Validar tickets");
   });
 
   it("solo Stock a la vista: habla de «Esa pestaña» en singular", () => {
@@ -137,7 +155,7 @@ describe("#101 · precedencias y casos límite", () => {
     fijarFlags({ modoDev: true });
     render(<AvisoVersionDePrueba />);
 
-    expect(textoDelAviso()).toContain("Stock y Cuentas: datos simulados.");
+    expect(textoDelAviso()).toContain("Stock y Cuentas: datos simulados, salvo Validar tickets. Esas pestañas todavía no están conectadas a la base de datos: lo que muestran es de ejemplo y lo que hagas en ellas no se guarda. Validar tickets sí está conectada: lo que validás o rechazás ahí se guarda.");
     expect(textoDelAviso()).not.toContain("no está conectado a la base de datos:");
   });
 

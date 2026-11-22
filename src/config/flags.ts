@@ -63,3 +63,14 @@ function flagDePestana(pestana: Pestana): boolean | undefined {
 export function pestanaVisible(pestana: Pestana): boolean {
   return flagDePestana(pestana) ?? true;
 }
+
+/**
+ * Si Equipo ofrece la vista «Becas» (vista 33). Si `NEXT_PUBLIC_EQUIPO_BECAS` no está definida (staging y producción), el
+ * botón sigue a la fuente: aparece cuando trae las becas (los datos simulados, o las RPC `carreras_de_beca()` y
+ * `becas_de_campania()` publicadas, `datos/equipo/becas-rpc.ts`) y no aparece cuando vienen en null (la base no publicó
+ * esas RPC o la campaña no las deja leer), así nadie llega a una pestaña que no anda. Con la variable en `1` se ve siempre
+ * (con el aviso si no hay becas); en `0`, nunca. Pedido de Cristian, 11/11.
+ */
+export function becasDeEquipoVisibles(fuenteConBecas: boolean): boolean {
+  return leerBandera(process.env.NEXT_PUBLIC_EQUIPO_BECAS) ?? fuenteConBecas;
+}

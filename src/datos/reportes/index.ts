@@ -36,7 +36,10 @@ export type {
 
 const configSupabase = leerConfigSupabase();
 
-/** Las horas salen de las RPC; el resto del reporte (ventas por día…) todavía es el simulado hasta que haya RPC (#61). */
+/**
+ * Las horas y las ventas por día salen de las RPC (las ventas desde #167); los agregados viejos del S4 (`obtenerReportes`)
+ * siguen simulados.
+ */
 function conRpc(cliente: ClienteRpc): FuenteDatosReportes {
   return { obtenerReportes: fuenteReportesSimulada.obtenerReportes, ...crearFuenteReportesRpc(cliente, leerCampaniaElegida) };
 }

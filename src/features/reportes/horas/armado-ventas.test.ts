@@ -56,7 +56,10 @@ describe("las cifras de los cinco tableros del canvas 32 (HU-REP-002), una por u
     (_nombre, { ambito, granularidad }, esperado) => {
       const r = armarReporte(sim, ambito, granularidad, { porCobrar: true });
       expect(r.titulo).toBe(esperado.titulo);
-      expect(r.subtitulo).toBe(esperado.subtitulo);
+      // Lo único que se aparta del canvas: «· última semana completa» en Semanas (#167, decisión del 10/11, P1).
+      expect(r.subtitulo).toBe(
+        granularidad === "semana" ? esperado.subtitulo.replace(/(S\d+) contra/, "$1 · última semana completa contra") : esperado.subtitulo,
+      );
       expect(tarjetasComoEnElCanvas(r)).toEqual(esperado.tarjetas);
       expect(r.tabla.primeraColumna).toBe(esperado.primeraColumna);
       expect(r.tabla.columnas.map((c) => c.encabezado)).toEqual(["HORAS", "PRESENTACIONES", "VENTAS", "MONTO", "% POR COBRAR"]);

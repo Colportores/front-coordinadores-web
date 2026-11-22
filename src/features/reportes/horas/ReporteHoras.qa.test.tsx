@@ -68,7 +68,7 @@ describe("QA #60 · colportor inscripto sin ninguna jornada cerrada", () => {
 
     // «Rivera» pasa de 2 a 3 colportores y «Todas» de 4 a 5, como en Equipo e Inicio.
     expect(within(lista()).getByRole("button", { name: /^Rivera/ })).toHaveTextContent("3 colportores");
-    expect(screen.getByText("5 colportores · S2 contra S1")).toBeInTheDocument();
+    expect(screen.getByText("5 colportores · S2 · última semana completa contra S1")).toBeInTheDocument();
     const fila = textoDeFilas().find((t) => t.includes("Rocío Paz"));
     expect(fila).toBeDefined();
     expect(fila).toContain("—");
@@ -201,7 +201,7 @@ describe("QA #60 · datos límite en la lista y la tabla", () => {
       ],
     };
     render(<ReporteHoras datos={datos} />);
-    expect(screen.getByText("Departamento Rivera · 1 colportor · S2 contra S1")).toBeInTheDocument();
+    expect(screen.getByText("Departamento Rivera · 1 colportor · S2 · última semana completa contra S1")).toBeInTheDocument();
     expect(within(tabla()).getAllByRole("rowheader").map((h) => h.textContent)).toEqual(["Ana Silva"]);
   });
 });

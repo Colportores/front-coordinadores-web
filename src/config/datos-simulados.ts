@@ -1,5 +1,6 @@
 import { modoDeAcceso } from "@/auth/modo";
 import { demoSupabaseDevActivo, pestanaVisible, sitioDePruebaActivo } from "@/config/flags";
+import { validarTicketsConectada } from "@/datos/cuentas/validar/conexion";
 import { leerConfigSupabase } from "@/datos/supabase/config";
 
 /**
@@ -39,6 +40,15 @@ export function datosSimulados(): DatosSimulados | null {
  */
 export function hayAvisoDeVersionDePrueba(): boolean {
   return datosSimulados() !== null || (demoSupabaseDevActivo() && !sitioDePruebaActivo());
+}
+
+/**
+ * Si la franja tiene que nombrar la excepción de Cuentas: «Validar tickets» (vista 29) está conectada y guarda de verdad
+ * aunque el resto de Cuentas sea simulado (decisión P4 del QA de #173, 10/11). Solo cuando Cuentas está a la vista y la 29
+ * usa la fuente real, con la misma regla que su página.
+ */
+export function cuentasConValidarTicketsConectada(): boolean {
+  return pestanaVisible("cuentas") && validarTicketsConectada();
 }
 
 /** Nombres de las pestañas visibles que muestran datos simulados aunque el resto esté conectado. */

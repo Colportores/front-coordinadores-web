@@ -1,7 +1,9 @@
+import { Suspense } from "react";
+
 import { fuenteZonas } from "@/datos/equipo/zonas";
 import { fuenteZonasSimulada } from "@/datos/equipo/zonas/simulado";
 import { SinCampaniaParaZonas } from "@/features/equipo/zonas/SinCampaniaParaZonas";
-import { ZonasCampania } from "@/features/equipo/zonas/ZonasCampania";
+import { ZonasCampaniaDesdeUrl } from "@/features/equipo/zonas/ZonasCampaniaDesdeUrl";
 import { ZonasCampaniaLocal } from "@/features/equipo/zonas/ZonasCampaniaLocal";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
@@ -18,7 +20,9 @@ export default async function ZonasPagina() {
     return (
       <ContenidoPestana titulo="Ciudades">
         <SeccionHu hu="HU-CAM-006">
-          <ZonasCampaniaLocal datos={datos} />
+          <Suspense fallback={null}>
+            <ZonasCampaniaLocal datos={datos} />
+          </Suspense>
         </SeccionHu>
       </ContenidoPestana>
     );
@@ -42,7 +46,9 @@ export default async function ZonasPagina() {
         <SeccionHu hu="HU-CAM-006">
           {/* `key`: al elegir otra campaña en el topbar la página se vuelve a pedir (`router.refresh()`), que conserva el estado de
               cliente; sin `key` la vista seguiría con las ciudades y zonas de la campaña anterior (#70). */}
-          <ZonasCampania key={datos.campaniaId} datos={datos} acciones={crearAccionesServidor(datos.campaniaId)} />
+          <Suspense fallback={null}>
+            <ZonasCampaniaDesdeUrl key={datos.campaniaId} datos={datos} acciones={crearAccionesServidor(datos.campaniaId)} />
+          </Suspense>
         </SeccionHu>
       </ContenidoPestana>
     );

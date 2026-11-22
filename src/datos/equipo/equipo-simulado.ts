@@ -4,6 +4,7 @@ import type {
   ColportorDeEquipo,
   DatosEquipoPorCiudad,
   FuenteDatosEquipo,
+  AcompananteDelPanel,
   OrigenDeAcompanamiento,
   ZonaAnterior,
 } from "@/datos/equipo/contrato";
@@ -26,6 +27,12 @@ export const COORDINADOR_SIMULADO = "Mariana Pérez";
 const COORDINADOR_ID = "usr-mariana-perez";
 const OTRO_COORDINADOR = "Tomás Ibarra";
 const OTRO_COORDINADOR_ID = "usr-tomas-ibarra";
+/** Coordinadores (de esta y de otras campañas) y administradores que el panel ofrece además de los colportores; sin quien tiene la sesión. */
+const ACOMPANANTES_DEL_PANEL: readonly AcompananteDelPanel[] = [
+  { id: OTRO_COORDINADOR_ID, nombre: OTRO_COORDINADOR },
+  { id: "usr-marta-rivas", nombre: "Marta Rivas" },
+  { id: "usr-alicia-benitez", nombre: "Alicia Benítez" },
+];
 
 /** Las notas de ejemplo del diseño (la vacía es «sin nota»). */
 const NOTAS = ["Buena presentación; practicar el cierre.", "Trabajamos juntos el sector norte de la zona.", "", "Le costó arrancar; mejoró a la tarde.", "Repasamos cómo ofrecer la colección.", ""];
@@ -194,7 +201,7 @@ const SU_PROPIA_JORNADA = "Un colportor no puede figurar como acompañante de su
 /** Una fuente con su propio estado: registrar un acompañamiento cambia lo que ve la siguiente lectura. */
 export function crearEquipoSimulado(): Pick<
   FuenteDatosEquipo,
-  "obtenerEquipoPorCiudad" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
+  "obtenerEquipoPorCiudad" | "acompanantesDelPanel" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
 > {
   const { base, jornadas } = armar();
   const becas = crearBecasSimuladas(base, HOY_SIMULADO);
@@ -231,6 +238,10 @@ export function crearEquipoSimulado(): Pick<
       };
     },
 
+    async acompanantesDelPanel() {
+      return { ok: true, acompanantes: ACOMPANANTES_DEL_PANEL.map((a) => ({ ...a })) };
+    },
+
     async jornadasParaAcompanar(_campaniaId, colportorId) {
       if (!base.some((c) => c.id === colportorId)) return { ok: false, mensaje: "El colportor no está en esta campaña." };
       return {
@@ -251,7 +262,10 @@ export function crearEquipoSimulado(): Pick<
       if (largo > LARGO_MAXIMO_NOTA) {
         return { ok: false, mensaje: `La nota admite hasta ${LARGO_MAXIMO_NOTA} caracteres y esta tiene ${largo}. Acortala; no pongas datos de clientes.` };
       }
-      const otro = datos.acompananteId === undefined ? undefined : base.find((c) => c.id === datos.acompananteId);
+      const otro =
+        datos.acompananteId === undefined
+          ? undefined
+          : (base.find((c) => c.id === datos.acompananteId) ?? ACOMPANANTES_DEL_PANEL.find((a) => a.id === datos.acompananteId));
       if (datos.acompananteId !== undefined && jornada.colportorId === datos.acompananteId) return { ok: false, mensaje: SU_PROPIA_JORNADA };
       const acompananteId = otro ? otro.id : COORDINADOR_ID;
       const acompanante = otro ? otro.nombre : COORDINADOR_SIMULADO;

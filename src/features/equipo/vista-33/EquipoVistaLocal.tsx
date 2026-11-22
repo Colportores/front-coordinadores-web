@@ -26,6 +26,7 @@ function fuenteSimulada(): Promise<FuenteDatosEquipo> {
 export function EquipoVistaLocal({ datos }: { datos: DatosEquipoPorCiudad }) {
   const acciones = useMemo<AccionesEquipo>(
     () => ({
+      acompanantesDelPanel: async () => (await fuenteSimulada()).acompanantesDelPanel(datos.campaniaId),
       jornadasParaAcompanar: async (colportorId) => (await fuenteSimulada()).jornadasParaAcompanar(datos.campaniaId, colportorId),
       registrarAcompanamiento: async (jornadaId, datosDelRegistro) =>
         (await fuenteSimulada()).registrarAcompanamiento(datos.campaniaId, jornadaId, datosDelRegistro),

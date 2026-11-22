@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import PestanaReportes from "@/app/reportes/page";
@@ -25,6 +26,18 @@ describe("PestanaReportes en el build del sitio de prueba (export estático, sin
     render(<ProveedorModoDev activo={false}>{await PestanaReportes()}</ProveedorModoDev>);
 
     expect(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeInTheDocument();
-    expect(screen.getByText("25 colportores · S7 contra S6")).toBeInTheDocument();
+    expect(screen.getByText("25 colportores · S7 · última semana completa contra S6")).toBeInTheDocument();
+  });
+
+  it("el informe PDF lo arma el servidor y el sitio de prueba no lo tiene: lo dice en vez de bajar un archivo inventado", async () => {
+    vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "1");
+    const clic = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    render(<ProveedorModoDev activo={false}>{await PestanaReportes()}</ProveedorModoDev>);
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Informe PDF" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("lo arma el servidor del panel");
+    expect(clic).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Informe PDF" })).not.toHaveAttribute("aria-disabled");
   });
 });
