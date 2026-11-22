@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import type { AvisoDeStock } from "./modelo";
 
+const ID_CUENTA = "avisos-de-stock-cuenta";
+
 const CLASE_BOTON =
   "inline-flex min-h-8 flex-none items-center rounded-control border border-borde bg-superficie px-3 text-[11.5px] font-semibold whitespace-nowrap text-tinta-2 hover:bg-fondo focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento";
 
@@ -11,8 +13,19 @@ const CLASE_BOTON =
  */
 export function AvisosDeStock({ avisos, alVerQuienTiene }: { avisos: AvisoDeStock[]; alVerQuienTiene: (aviso: AvisoDeStock) => void }) {
   if (avisos.length === 0) return null;
+  const cuenta = avisos.length === 1 ? "1 aviso" : `${avisos.length} avisos`;
   return (
-    <ul aria-label="Avisos de stock" className="grid max-h-[148px] grid-cols-[repeat(auto-fit,minmax(380px,1fr))] gap-3 overflow-auto">
+    <div className="flex flex-col gap-1.5">
+      {/* La cuenta se ve arriba y la lee el lector como descripción de la lista: el alto tope esconde los que no entran. */}
+      <p id={ID_CUENTA} aria-hidden="true" className="text-chico font-semibold text-tinta-suave">
+        {cuenta}
+      </p>
+      <ul
+        aria-label="Avisos de stock"
+        aria-describedby={ID_CUENTA}
+        tabIndex={0} // NOSONAR S6845: región con desplazamiento; sin tabIndex el teclado no la alcanza (WCAG 2.1.1)
+        className="grid max-h-[148px] grid-cols-[repeat(auto-fit,minmax(380px,1fr))] gap-3 overflow-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
+      >
       {avisos.map((aviso) => {
         const contexto = `${aviso.negrita}${aviso.nombraCiudad ? ` en ${aviso.ciudadNombre}` : ""}`;
         return (
@@ -38,6 +51,7 @@ export function AvisosDeStock({ avisos, alVerQuienTiene }: { avisos: AvisoDeStoc
           </li>
         );
       })}
-    </ul>
+      </ul>
+    </div>
   );
 }
