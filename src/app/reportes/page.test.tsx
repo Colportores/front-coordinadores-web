@@ -56,7 +56,7 @@ describe("PestanaReportes (vista 32, HU-REP-001 y HU-REP-002)", () => {
     render(<ProveedorModoDev activo={false}>{await PestanaReportes()}</ProveedorModoDev>);
 
     expect(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Todavía no tenés una campaña con horas para mostrar");
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés campañas en curso ni por empezar");
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Semanas" })).not.toBeInTheDocument();
   });

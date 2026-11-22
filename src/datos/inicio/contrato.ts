@@ -85,8 +85,20 @@ export type PendienteDeAccion =
       cuando: string;
     };
 
+/** La campaña que se mira, para el encabezado «Inicio · <campaña>» (canvas de la vista 37). */
+export interface CampaniaDelTablero {
+  nombre: string;
+  /** Nombres de sus ciudades, en el orden del topbar; vacío si todavía no tiene. */
+  ciudades: string[];
+  /** Día en que empieza, `AAAA-MM-DD`. */
+  fechaInicio: string;
+  /** Todavía no empezó (su día de inicio es posterior a hoy en Montevideo): todavía no hay jornadas que mirar. */
+  porEmpezar: boolean;
+}
+
 export interface TableroDelDia {
   campaniaId: string;
+  campania: CampaniaDelTablero;
   /** El día que se mira (día de Montevideo), `AAAA-MM-DD`. */
   fecha: string;
   esHoy: boolean;

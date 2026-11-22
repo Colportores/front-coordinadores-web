@@ -6,6 +6,7 @@ import type { FocusEvent as EventoFoco, KeyboardEvent as EventoTeclado, ReactNod
 
 import type { CampaniaElegible, ResultadoCampanias, ResumenCoordinador } from "@/datos/shell/contrato";
 import { cn } from "@/lib/utils";
+import { TEXTO_SIN_CAMPANIA, TEXTO_SIN_CAMPANIA_DETALLE } from "@/shell/AvisoSinCampania";
 import { guardarCampaniaElegida } from "@/shell/campania-elegida";
 import { textoDeFechas, textoDelBoton } from "@/shell/campanias-texto";
 import { estaEsperando, esperarYSalir, hayQueEsperar } from "@/shell/trabajo-pendiente";
@@ -16,8 +17,8 @@ import { estaEsperando, esperarYSalir, hayQueEsperar } from "@/shell/trabajo-pen
  */
 export const TEXTO_CARGANDO_CAMPANIAS = "Cargando tus campañas…";
 export const TEXTO_ERROR_CAMPANIAS = "No pudimos traer tus campañas.";
-export const TEXTO_SIN_CAMPANIAS = "No tenés campañas en curso ni por empezar";
-export const TEXTO_SIN_CAMPANIAS_DETALLE = "Las campañas terminadas no se eligen desde acá.";
+export const TEXTO_SIN_CAMPANIAS = TEXTO_SIN_CAMPANIA;
+export const TEXTO_SIN_CAMPANIAS_DETALLE = TEXTO_SIN_CAMPANIA_DETALLE;
 export const TEXTO_REINTENTAR = "Reintentar";
 export const textoSinConexionCampanias = (campania: string | null) =>
   `Sin conexión. La lista se carga cuando vuelva internet${campania ? `; seguís viendo ${campania}` : ""}.`;

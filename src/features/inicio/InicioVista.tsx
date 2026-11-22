@@ -11,6 +11,7 @@ import {
   ciudadesDe,
   elementosDeLista,
   encabezadoDe,
+  encabezadoDeCampania,
   horaDeActualizacion,
   horasTexto,
   montoTexto,
@@ -107,6 +108,8 @@ export function InicioVista({ tablero: inicial, acciones }: { tablero: TableroDe
   const tarjetas = tablero ? tarjetasPendientes(tablero, seleccion) : [];
   const { titulo, subtitulo } = encabezadoDe(seleccion, ciudades);
   const conCiudades = tablero !== null && ciudades.length > 0;
+  // De la campaña con que se abrió la pestaña: un día anterior no la cambia (y cambiarla de campaña remonta la vista, ver `key`).
+  const cabecera = encabezadoDeCampania(inicial.campania);
 
   const nota = tablero
     ? [
@@ -125,93 +128,99 @@ export function InicioVista({ tablero: inicial, acciones }: { tablero: TableroDe
   }
 
   return (
-    <div className={cn("grid h-full min-h-0", conCiudades ? (ajustes.ciudadesCerrada ? "grid-cols-[68px_minmax(0,1fr)]" : "grid-cols-[320px_minmax(0,1fr)]") : "grid-cols-[minmax(0,1fr)]")}>
-      {conCiudades &&
-        (ajustes.ciudadesCerrada ? (
-          <BarraDeCiudades
-            elementos={elementos}
-            seleccionada={seleccion}
-            alElegir={(s) => guardar({ seleccion: s })}
-            alExpandir={() => alternar({ ciudadesCerrada: false }, "alternar-ciudades")}
-          />
-        ) : (
-          <ListaDeCiudades
-            elementos={elementos}
-            seleccionada={seleccion}
-            alElegir={(s) => guardar({ seleccion: s })}
-            alContraer={() => alternar({ ciudadesCerrada: true }, "alternar-ciudades")}
-          />
-        ))}
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="flex flex-none flex-col gap-[3px] border-b border-borde bg-superficie px-[22px] py-3">
+        <h2 className="font-serif text-[22px] font-semibold [overflow-wrap:anywhere]">{cabecera.titulo}</h2>
+        {cabecera.subtitulo && <p className="text-chico text-tinta-suave [overflow-wrap:anywhere]">{cabecera.subtitulo}</p>}
+      </header>
+      <div className={cn("grid min-h-0 flex-1", conCiudades ? (ajustes.ciudadesCerrada ? "grid-cols-[68px_minmax(0,1fr)]" : "grid-cols-[320px_minmax(0,1fr)]") : "grid-cols-[minmax(0,1fr)]")}>
+        {conCiudades &&
+          (ajustes.ciudadesCerrada ? (
+            <BarraDeCiudades
+              elementos={elementos}
+              seleccionada={seleccion}
+              alElegir={(s) => guardar({ seleccion: s })}
+              alExpandir={() => alternar({ ciudadesCerrada: false }, "alternar-ciudades")}
+            />
+          ) : (
+            <ListaDeCiudades
+              elementos={elementos}
+              seleccionada={seleccion}
+              alElegir={(s) => guardar({ seleccion: s })}
+              alContraer={() => alternar({ ciudadesCerrada: true }, "alternar-ciudades")}
+            />
+          ))}
 
-      <div className="flex min-h-0 min-w-0 flex-col gap-3.5 px-[22px] pt-[18px] pb-5" aria-busy={carga.tipo === "cargando"}>
-        <div className="flex items-end justify-between gap-4">
-          <div className="flex min-w-0 flex-col gap-[3px]">
-            {conCiudades && (
-              <>
-                <h2 id="titulo-detalle" tabIndex={-1} data-foco="titulo-detalle" className="font-serif text-[22px] font-semibold [overflow-wrap:anywhere] outline-none">
-                  {titulo}
-                </h2>
-                <p className="text-chico text-tinta-suave">{subtitulo}</p>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-3.5">
-            {nota && <p className="max-w-[360px] text-right text-[11.5px] text-tinta-suave text-pretty">{nota}</p>}
-            <SelectorDeDia dia={dia} hoy={hoy} alElegir={(d) => void cargar(d)} />
-            <Link href="/equipo" className="inline-flex min-h-8 items-center text-[11.5px] font-semibold whitespace-nowrap text-marca-media focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none">
-              Ver equipo →
-            </Link>
-          </div>
-        </div>
-
-        {carga.tipo === "cargando" && (
-          <p role="status" className="text-nav text-tinta-suave">
-            Cargando el día…
-          </p>
-        )}
-
-        {carga.tipo === "error" && (
-          <div role="alert" className="flex max-w-xl flex-col items-start gap-3 rounded-tarjeta border border-borde bg-superficie px-[18px] py-4">
-            <p className="text-nav text-tinta">{carga.texto}</p>
-            <Button type="button" onClick={() => void cargar(dia, true)} className="text-nav font-semibold">
-              Reintentar
-            </Button>
-          </div>
-        )}
-
-        {tablero && ciudades.length === 0 && (
-          <div className="flex max-w-xl flex-col items-start gap-3 rounded-tarjeta border border-borde bg-superficie px-[18px] py-4">
-            <p className="text-nav text-tinta">Esta campaña todavía no tiene ciudades. Agregalas para ver cómo está tu gente.</p>
-            <Button asChild variant="outline" className="text-nav font-semibold text-tinta-2">
-              <Link href="/ciudades">Ir a Ciudades</Link>
-            </Button>
-          </div>
-        )}
-
-        {tablero && conCiudades && (
-          <>
-            <dl className="grid grid-cols-3 gap-3.5">
-              <Cifra rotulo="Horas">{horasTexto(resumen.horas)}</Cifra>
-              <Cifra rotulo="Presentaciones">{resumen.presentaciones}</Cifra>
-              <Cifra rotulo="Ventas">
-                {resumen.ventas}
-                <span className="font-mono text-nav font-normal text-tinta-2">{montoTexto(resumen.montoCentavos)}</span>
-              </Cifra>
-            </dl>
-            <div className={cn("grid min-h-0 flex-1 gap-4", ajustes.pendientesCerrada ? "grid-cols-[minmax(0,1fr)_52px]" : "grid-cols-[minmax(0,1fr)_280px]")}>
-              <TablaDeColportores ciudades={elegidas} ahora={tablero.calculadoA} titulo={titulo} />
-              {ajustes.pendientesCerrada ? (
-                <BarraDePendientes cantidad={tarjetas.length} alExpandir={() => alternar({ pendientesCerrada: false }, "alternar-pendientes")} />
-              ) : (
-                <PendientesDeAccion
-                  tarjetas={tarjetas}
-                  vacio={seleccion.tipo === "ciudad" ? "Nada pendiente en esta ciudad." : "Nada pendiente."}
-                  alContraer={() => alternar({ pendientesCerrada: true }, "alternar-pendientes")}
-                />
+        <div className="flex min-h-0 min-w-0 flex-col gap-3.5 px-[22px] pt-[18px] pb-5" aria-busy={carga.tipo === "cargando"}>
+          <div className="flex items-end justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-[3px]">
+              {conCiudades && (
+                <>
+                  <h2 id="titulo-detalle" tabIndex={-1} data-foco="titulo-detalle" className="font-serif text-[22px] font-semibold [overflow-wrap:anywhere] outline-none">
+                    {titulo}
+                  </h2>
+                  <p className="text-chico text-tinta-suave">{subtitulo}</p>
+                </>
               )}
             </div>
-          </>
-        )}
+            <div className="flex items-center gap-3.5">
+              {nota && <p className="max-w-[360px] text-right text-[11.5px] text-tinta-suave text-pretty">{nota}</p>}
+              <SelectorDeDia dia={dia} hoy={hoy} alElegir={(d) => void cargar(d)} />
+              <Link href="/equipo" className="inline-flex min-h-8 items-center text-[11.5px] font-semibold whitespace-nowrap text-marca-media focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none">
+                Ver equipo →
+              </Link>
+            </div>
+          </div>
+
+          {carga.tipo === "cargando" && (
+            <p role="status" className="text-nav text-tinta-suave">
+              Cargando el día…
+            </p>
+          )}
+
+          {carga.tipo === "error" && (
+            <div role="alert" className="flex max-w-xl flex-col items-start gap-3 rounded-tarjeta border border-borde bg-superficie px-[18px] py-4">
+              <p className="text-nav text-tinta">{carga.texto}</p>
+              <Button type="button" onClick={() => void cargar(dia, true)} className="text-nav font-semibold">
+                Reintentar
+              </Button>
+            </div>
+          )}
+
+          {tablero && ciudades.length === 0 && (
+            <div className="flex max-w-xl flex-col items-start gap-3 rounded-tarjeta border border-borde bg-superficie px-[18px] py-4">
+              <p className="text-nav text-tinta">Esta campaña todavía no tiene ciudades. Agregalas para ver cómo está tu gente.</p>
+              <Button asChild variant="outline" className="text-nav font-semibold text-tinta-2">
+                <Link href="/ciudades">Ir a Ciudades</Link>
+              </Button>
+            </div>
+          )}
+
+          {tablero && conCiudades && (
+            <>
+              <dl className="grid grid-cols-3 gap-3.5">
+                <Cifra rotulo="Horas">{horasTexto(resumen.horas)}</Cifra>
+                <Cifra rotulo="Presentaciones">{resumen.presentaciones}</Cifra>
+                <Cifra rotulo="Ventas">
+                  {resumen.ventas}
+                  <span className="font-mono text-nav font-normal text-tinta-2">{montoTexto(resumen.montoCentavos)}</span>
+                </Cifra>
+              </dl>
+              <div className={cn("grid min-h-0 flex-1 gap-4", ajustes.pendientesCerrada ? "grid-cols-[minmax(0,1fr)_52px]" : "grid-cols-[minmax(0,1fr)_280px]")}>
+                <TablaDeColportores ciudades={elegidas} ahora={tablero.calculadoA} titulo={titulo} />
+                {ajustes.pendientesCerrada ? (
+                  <BarraDePendientes cantidad={tarjetas.length} alExpandir={() => alternar({ pendientesCerrada: false }, "alternar-pendientes")} />
+                ) : (
+                  <PendientesDeAccion
+                    tarjetas={tarjetas}
+                    vacio={seleccion.tipo === "ciudad" ? "Nada pendiente en esta ciudad." : "Nada pendiente."}
+                    alContraer={() => alternar({ pendientesCerrada: true }, "alternar-pendientes")}
+                  />
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

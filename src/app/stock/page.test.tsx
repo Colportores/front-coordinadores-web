@@ -31,9 +31,7 @@ describe("PestanaStock", () => {
 
     render(<ProveedorModoDev activo={false}>{await PestanaStock()}</ProveedorModoDev>);
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "No tenés una campaña en curso ni por empezar. Cuando tengas una, vas a ver acá el stock de cada ciudad.",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés campañas en curso ni por empezar");
     expect(screen.queryByRole("navigation", { name: "Ciudades" })).not.toBeInTheDocument();
   });
 

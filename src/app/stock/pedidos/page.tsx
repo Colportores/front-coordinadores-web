@@ -2,7 +2,7 @@ import { fuentePedidos } from "@/datos/stock/pedidos";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { PedidosConAccionesSimuladas } from "@/features/stock/vista-35/PedidosConAccionesSimuladas";
 import { PedidosLocal } from "@/features/stock/vista-35/PedidosLocal";
-import { SinCampaniaParaPedidos } from "@/features/stock/vista-35/SinCampaniaParaPedidos";
+import { AvisoSinCampania } from "@/shell/AvisoSinCampania";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
 // La vista llena el área bajo el topbar: la lista de ciudades va de borde a borde, sin el padding de las demás pestañas.
@@ -31,7 +31,7 @@ export default async function PedidosYTransferencias() {
       <ContenidoPestana titulo="Pedidos y transferencias" className={SIN_PADDING}>
         <SeccionHu hu="HU-STK-003" className={LLENA}>
           {/* `key`: al elegir otra campaña en el topbar la página se vuelve a pedir y el estado de la vista se reinicia. */}
-          {datos ? <PedidosConAccionesSimuladas key={datos.campaniaId} datos={datos} /> : <SinCampaniaParaPedidos />}
+          {datos ? <PedidosConAccionesSimuladas key={datos.campaniaId} datos={datos} /> : <AvisoSinCampania className="m-[22px]" />}
         </SeccionHu>
       </ContenidoPestana>
     );

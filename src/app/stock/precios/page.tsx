@@ -2,7 +2,7 @@ import { fuentePrecios } from "@/datos/precios";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { PreciosLocal } from "@/features/stock/vista-27/PreciosLocal";
 import { PreciosVista } from "@/features/stock/vista-27/PreciosVista";
-import { SinCampaniaParaPrecios } from "@/features/stock/vista-27/SinCampaniaParaPrecios";
+import { AvisoSinCampania } from "@/shell/AvisoSinCampania";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
 /**
@@ -26,7 +26,7 @@ export default async function Precios() {
       return (
         <ContenidoPestana titulo="Precios de venta">
           <SeccionHu hu="HU-CAT-005">
-            <SinCampaniaParaPrecios />
+            <AvisoSinCampania />
           </SeccionHu>
         </ContenidoPestana>
       );

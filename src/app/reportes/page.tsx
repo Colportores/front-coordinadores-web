@@ -3,7 +3,7 @@ import { fuenteReportesSimulada } from "@/datos/reportes/simulado";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { ReporteHoras } from "@/features/reportes/horas/ReporteHoras";
 import { ReporteHorasLocal } from "@/features/reportes/horas/ReporteHorasLocal";
-import { SinCampaniaParaReportes } from "@/features/reportes/horas/SinCampaniaParaReportes";
+import { AvisoSinCampania } from "@/shell/AvisoSinCampania";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
 /**
@@ -27,7 +27,7 @@ export default async function PestanaReportes() {
         ) : (
           <div className="p-[22px]">
             <SeccionHu hu="HU-REP-001">
-              <SinCampaniaParaReportes />
+              <AvisoSinCampania />
             </SeccionHu>
           </div>
         )}
@@ -40,7 +40,7 @@ export default async function PestanaReportes() {
         <ContenidoPestana titulo="Reportes" className="gap-0 overflow-hidden p-0">
           <div className="p-[22px]">
             <SeccionHu hu="HU-REP-001">
-              <SinCampaniaParaReportes />
+              <AvisoSinCampania />
             </SeccionHu>
           </div>
         </ContenidoPestana>

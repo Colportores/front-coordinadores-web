@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 
 import type { DatosDePedidos } from "@/datos/stock/pedidos";
+import { AvisoSinCampania } from "@/shell/AvisoSinCampania";
 
 import { PedidosConAccionesSimuladas } from "./PedidosConAccionesSimuladas";
-import { SinCampaniaParaPedidos } from "./SinCampaniaParaPedidos";
 
 /**
  * La vista 35 para el sitio de prueba (GitHub Pages, export estático): sin servidor, los datos se arman en el navegador con la
@@ -45,6 +45,6 @@ export function PedidosLocal() {
       </p>
     );
   }
-  if (datos === null) return <SinCampaniaParaPedidos />;
+  if (datos === null) return <AvisoSinCampania className="m-[22px]" />;
   return <PedidosConAccionesSimuladas datos={datos} />;
 }

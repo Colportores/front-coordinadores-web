@@ -41,8 +41,8 @@ describe("PestanaInicio", () => {
 
     render(<ProveedorModoDev activo={false}>{await PestanaInicio()}</ProveedorModoDev>);
 
-    expect(screen.getByText(/No tenés una campaña en curso ni por empezar/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ir a Equipo" })).toHaveAttribute("href", "/equipo");
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés campañas en curso ni por empezar");
+    expect(screen.getByText(/pedísela a la administración/)).toBeInTheDocument();
   });
 
   it("un rechazo de la base muestra su texto; una caída sigue al error de la pestaña (Reintentar)", async () => {

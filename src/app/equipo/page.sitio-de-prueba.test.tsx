@@ -42,7 +42,7 @@ describe("PestanaEquipo en el build del sitio de prueba (export estático, sin s
 
     render(<ProveedorModoDev activo={false}>{await PestanaEquipo()}</ProveedorModoDev>);
 
-    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso ni por empezar.");
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés campañas en curso ni por empezar");
     expect(screen.queryByRole("navigation", { name: "Ciudades" })).not.toBeInTheDocument();
   });
 

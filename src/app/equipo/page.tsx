@@ -3,7 +3,7 @@ import { fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { EquipoVista } from "@/features/equipo/vista-33/EquipoVista";
 import { EquipoVistaLocal } from "@/features/equipo/vista-33/EquipoVistaLocal";
-import { SinCampaniaParaEquipo } from "@/features/equipo/vista-33/SinCampaniaParaEquipo";
+import { AvisoSinCampania } from "@/shell/AvisoSinCampania";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
 /**
@@ -27,7 +27,7 @@ export default async function PestanaEquipo() {
           </SeccionHu>
         ) : (
           <SeccionHu hu="HU-JOR-004">
-            <SinCampaniaParaEquipo />
+            <AvisoSinCampania className="m-[22px]" />
           </SeccionHu>
         )}
       </ContenidoPestana>
@@ -38,7 +38,7 @@ export default async function PestanaEquipo() {
       return (
         <ContenidoPestana titulo="Equipo" className="gap-0 overflow-hidden p-0">
           <SeccionHu hu="HU-JOR-004">
-            <SinCampaniaParaEquipo />
+            <AvisoSinCampania className="m-[22px]" />
           </SeccionHu>
         </ContenidoPestana>
       );
