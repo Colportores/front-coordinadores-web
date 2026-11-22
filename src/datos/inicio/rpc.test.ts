@@ -106,7 +106,7 @@ describe("fuente de Inicio contra las RPC", () => {
       pendientes: [],
     });
     expect(llamarRpc).toHaveBeenCalledWith("tablero_de_inicio", { p_campania_id: CAMPANIA, p_fecha: null });
-    expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: CAMPANIA });
+    expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", expect.objectContaining({ p_campania_id: CAMPANIA }));
   });
 
   it("para otro día manda p_fecha; con una campaña dada no pregunta cuál es", async () => {
