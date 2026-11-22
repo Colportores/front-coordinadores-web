@@ -59,7 +59,7 @@ describe("ZonasPagina", () => {
     render(<ProveedorModoDev activo={false}>{jsx}</ProveedorModoDev>);
 
     expect(screen.getByRole("heading", { level: 1, name: "Ciudades" })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso ni por empezar.");
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés campañas en curso ni por empezar");
     expect(screen.queryByTestId("mapa")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "+ Nueva zona" })).not.toBeInTheDocument();
     vi.restoreAllMocks();

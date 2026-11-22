@@ -37,14 +37,13 @@ describe("AnadirColportorPagina", () => {
     expect(screen.getByRole("textbox", { name: "Buscar por email o nombre" })).toHaveValue("");
   });
 
-  it("sin campaña en curso no arma el buscador: avisa y deja volver a Equipo", async () => {
+  it("sin campaña en curso no arma el buscador: avisa con el aviso único", async () => {
     vi.spyOn(fuenteEquipoSimulada, "obtenerAnadirColportor").mockResolvedValueOnce(null);
 
     render(<ProveedorModoDev activo={false}>{await AnadirColportorPagina()}</ProveedorModoDev>);
 
     expect(screen.getByRole("heading", { level: 1, name: "Añadir colportor" })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso ni por empezar a la que añadir colportores.");
-    expect(screen.getByRole("link", { name: "‹ Equipo" })).toHaveAttribute("href", "/equipo");
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés campañas en curso ni por empezar");
     expect(screen.queryByRole("textbox", { name: "Buscar por email o nombre" })).not.toBeInTheDocument();
   });
 

@@ -1,5 +1,6 @@
 import type { Pestana } from "@/config/flags";
 import type {
+  CampaniaDelTablero,
   CiudadDelDia,
   ColportorDelDia,
   ColportorSinZona,
@@ -9,6 +10,7 @@ import type {
 } from "@/datos/inicio";
 import { hrefAsignarZona } from "@/features/equipo/zonas/preseleccion";
 import { conPuntosDeMiles } from "@/lib/texto";
+import { fechaConAnio } from "@/shell/campanias-texto";
 
 /**
  * Lo que la vista 31 (Inicio) hace con los datos del día: qué ciudades entran en cada elección, las sumas, las listas
@@ -220,6 +222,18 @@ export function encabezadoDe(seleccion: Seleccion, ciudades: CiudadDelDia[]): { 
     return { titulo: `Departamento ${etiquetaDeDepartamento(seleccion.nombre, ciudades)}`, subtitulo: jornada };
   }
   return { titulo: "Todas las ciudades", subtitulo: jornada };
+}
+
+/**
+ * El encabezado de la pestaña con la campaña que se mira (canvas de la vista 37): «Inicio · <campaña>» y, debajo, sus
+ * ciudades; si todavía no empezó, «Empieza el dd/mm/aaaa · todavía no hay jornadas». Sin ciudades cargadas la segunda
+ * línea queda vacía (la vista ya avisa que la campaña no tiene ciudades).
+ */
+export function encabezadoDeCampania(campania: CampaniaDelTablero): { titulo: string; subtitulo: string } {
+  return {
+    titulo: `Inicio · ${campania.nombre}`,
+    subtitulo: campania.porEmpezar ? `Empieza el ${fechaConAnio(campania.fechaInicio)} · todavía no hay jornadas` : campania.ciudades.join(" · "),
+  };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

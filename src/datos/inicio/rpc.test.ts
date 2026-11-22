@@ -79,6 +79,8 @@ describe("fuente de Inicio contra las RPC", () => {
 
     expect(resultado).toEqual({
       campaniaId: CAMPANIA,
+      // El nombre y las ciudades, en el orden de la base (el del topbar); la campaña ya empezó el 15/09.
+      campania: { nombre: "Primavera", ciudades: ["Bella Unión", "Rivera", "Salto"], fechaInicio: "2026-09-15", porEmpezar: false },
       fecha: "2026-10-21",
       esHoy: true,
       calculadoA: "2026-10-21T13:40:00+00:00",
@@ -109,13 +111,46 @@ describe("fuente de Inicio contra las RPC", () => {
     expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: CAMPANIA });
   });
 
-  it("para otro día manda p_fecha; con una campaña dada no pregunta cuál es", async () => {
-    const { cliente, llamarRpc } = lecturas();
+  it("para otro día manda p_fecha; con una campaña dada no mira la cookie y la busca en la lista", async () => {
+    const elegida = vi.fn(async () => CAMPANIA);
+    const { cliente, llamarRpc } = lecturas({
+      campanias_del_coordinador: [
+        { id: CAMPANIA, nombre: "Primavera", fecha_inicio: "2026-09-15", fecha_fin: null },
+        { id: OTRA, nombre: "Verano", fecha_inicio: "2026-10-01", fecha_fin: null },
+      ],
+    });
 
-    await crearFuenteInicioRpc(cliente, sinElegir).obtenerTablero({ fecha: "2026-10-20", campaniaId: OTRA });
+    const resultado = await crearFuenteInicioRpc(cliente, elegida).obtenerTablero({ fecha: "2026-10-20", campaniaId: OTRA });
 
     expect(llamarRpc).toHaveBeenCalledWith("tablero_de_inicio", { p_campania_id: OTRA, p_fecha: "2026-10-20" });
-    expect(llamarRpc).not.toHaveBeenCalledWith("campanias_del_coordinador", {});
+    expect(elegida).not.toHaveBeenCalled();
+    expect(resultado?.campania.nombre).toBe("Verano");
+  });
+
+  it("una campaña dada que ya no figura en la lista (terminó o se dio de baja) es «sin campaña», no la primera de la lista", async () => {
+    const { cliente, llamarRpc } = lecturas();
+
+    expect(await crearFuenteInicioRpc(cliente, sinElegir).obtenerTablero({ campaniaId: OTRA })).toBeNull();
+    expect(llamarRpc).not.toHaveBeenCalledWith("tablero_de_inicio", expect.anything());
+  });
+
+  it("una campaña que empieza después de hoy (en Montevideo) está «por empezar»; la que empieza hoy, ya empezó", async () => {
+    const hoy = () => new Date("2026-10-21T02:30:00.000Z"); // 20/10 23:30 en Montevideo
+    const cuando = (fecha_inicio: string) => lecturas({ campanias_del_coordinador: [{ id: CAMPANIA, nombre: "Verano 2027", fecha_inicio, fecha_fin: null }] }).cliente;
+
+    const manana = await crearFuenteInicioRpc(cuando("2026-10-21"), sinElegir, hoy).obtenerTablero();
+    const ese = await crearFuenteInicioRpc(cuando("2026-10-20"), sinElegir, hoy).obtenerTablero();
+
+    expect(manana?.campania).toMatchObject({ fechaInicio: "2026-10-21", porEmpezar: true });
+    expect(ese?.campania).toMatchObject({ fechaInicio: "2026-10-20", porEmpezar: false });
+  });
+
+  it("sin ciudades cargadas (o con la campaña terminada: CZ011) las ciudades del encabezado salen del tablero", async () => {
+    const sinCiudades = lecturas({ ciudades_de_campania: [] });
+    const terminada = lecturas({ ciudades_de_campania: new ErrorSupabase("Terminada", 400, "CZ011") });
+
+    expect((await crearFuenteInicioRpc(sinCiudades.cliente, sinElegir).obtenerTablero())?.campania.ciudades).toEqual(["Bella Unión", "Rivera"]);
+    expect((await crearFuenteInicioRpc(terminada.cliente, sinElegir).obtenerTablero())?.campania.ciudades).toEqual(["Bella Unión", "Rivera"]);
   });
 
   it("usa la campaña que eligió en el topbar si figura en su lista", async () => {

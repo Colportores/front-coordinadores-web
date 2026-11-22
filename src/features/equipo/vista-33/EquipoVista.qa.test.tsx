@@ -6,11 +6,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import ErrorEquipo from "@/app/equipo/error";
 import CargandoEquipo from "@/app/equipo/loading";
 import type { JornadaParaAcompanar, ResultadoAcompanamiento, ResultadoJornadas } from "@/datos/equipo/contrato";
+import { AvisoSinCampania } from "@/shell/AvisoSinCampania";
 
 import type { AccionesEquipo } from "./acciones";
 import { colportor, datosDePrueba, HOY } from "./datos-de-prueba";
 import { EquipoVista } from "./EquipoVista";
-import { SinCampaniaParaEquipo } from "./SinCampaniaParaEquipo";
 
 /**
  * QA de la vista 33 (PR #75, issue #63): los escenarios de HU-JOR-004 con su texto, los cinco estados, los avisos de error
@@ -132,8 +132,8 @@ describe("QA #63 · los cinco estados", () => {
   });
 
   it("sin campaña: dice por qué no hay nada que mostrar y qué pasa cuando haya una", () => {
-    render(<SinCampaniaParaEquipo />);
-    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso ni por empezar.");
+    render(<AvisoSinCampania />);
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés campañas en curso ni por empezar");
   });
 
   it("error de la ruta: aviso con «Reintentar» a mano y sin detalle técnico", async () => {

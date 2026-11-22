@@ -20,6 +20,7 @@ import { leerConfigSupabase } from "@/datos/supabase/config";
 import { fuenteDeSesion } from "@/datos/supabase/fuente-de-sesion";
 
 export type {
+  CampaniaDelTablero,
   CiudadDelDia,
   ColportorDelDia,
   ColportorSinZona,

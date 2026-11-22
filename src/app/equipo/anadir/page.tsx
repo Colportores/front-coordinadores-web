@@ -3,7 +3,7 @@ import { fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { SeccionHu } from "@/dev/SeccionHu";
 import { AnadirColportor } from "@/features/equipo/AnadirColportor";
 import { AnadirColportorLocal } from "@/features/equipo/AnadirColportorLocal";
-import { SinCampaniaParaAnadir } from "@/features/equipo/SinCampaniaParaAnadir";
+import { AvisoSinCampania } from "@/shell/AvisoSinCampania";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
 /** Vista 23 (HU-CAM-004): añadir colportor a la campaña. Cuelga de la pestaña Equipo. */
@@ -17,7 +17,7 @@ export default async function AnadirColportorPagina() {
 
     return (
       <ContenidoPestana titulo="Añadir colportor">
-        <SeccionHu hu="HU-CAM-004">{datos ? <AnadirColportorLocal datos={datos} /> : <SinCampaniaParaAnadir />}</SeccionHu>
+        <SeccionHu hu="HU-CAM-004">{datos ? <AnadirColportorLocal datos={datos} /> : <AvisoSinCampania />}</SeccionHu>
       </ContenidoPestana>
     );
   } else {
@@ -26,7 +26,7 @@ export default async function AnadirColportorPagina() {
       return (
         <ContenidoPestana titulo="Añadir colportor">
           <SeccionHu hu="HU-CAM-004">
-            <SinCampaniaParaAnadir />
+            <AvisoSinCampania />
           </SeccionHu>
         </ContenidoPestana>
       );
