@@ -100,10 +100,9 @@ afterEach(() => {
 });
 
 describe("QA #81 · sin señal con el diálogo abierto", () => {
-  it.skip("QA #81: si falla por falta de señal el aviso dice «Necesitás conexión para anular un cobro» (convención de avisos), no el texto genérico", async () => {
+  it("QA #81: si falla por falta de señal el aviso dice «Necesitás conexión para anular un cobro» (convención de avisos), no el texto genérico", async () => {
     // Convenciones de desarrollo, «Sin conexión, por pantalla»: una falla de red se dice con «Necesitás conexión para <acción>».
-    // Hoy `textoDeFallaAlAnular` ignora la causa `sin-conexion` y muestra «No pudimos anular el cobro. No cambió nada: probá de nuevo.»
-    // (`anular-cobro.ts`), que no dice que el problema es la conexión: el usuario sin señal reintenta a ciegas.
+    // `textoDeFallaAlAnular` dice la falta de conexión por su nombre y no el error genérico de 39B·03: el usuario sin señal sabe qué revisar.
     const { usuario } = montar({ anularCobro: async () => ({ ok: false, causa: "sin-conexion" }) });
     const d = await elegirYSeguir(usuario, "Monto equivocado");
     conConexion(false);

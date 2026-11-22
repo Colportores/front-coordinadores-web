@@ -401,7 +401,7 @@ describe("39B·02 · el plazo venció mientras confirmaba", () => {
 
 describe("39B·03 · error al anular", () => {
   it("dice que no cambió nada, ofrece «Reintentar», el botón vuelve a poder usarse y al reintentar anula", async () => {
-    const respuestas: Array<ResultadoDeAccion<ResultadoDeAnulacion>> = [{ ok: false, causa: "sin-conexion" }];
+    const respuestas: Array<ResultadoDeAccion<ResultadoDeAnulacion>> = [{ ok: false, causa: "rechazado" }];
     const { usuario, anularCobro, base } = montar({
       anularCobro: async (...args) => respuestas.shift() ?? base.anularCobro(...args),
     });
@@ -420,13 +420,13 @@ describe("39B·03 · error al anular", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Cobro anulado.");
   });
 
-  it("si el pedido se cae (throw), es lo mismo: no queda nada trabado", async () => {
+  it("si el pedido se cae (throw), se dice como falta de conexión y no queda nada trabado", async () => {
     const { usuario } = montar({
       anularCobro: () => Promise.reject(new Error("red caída")),
     });
     const d = await elegirYSeguir(usuario, "Monto equivocado");
     await usuario.click(d.getByRole("button", { name: "Sí, anular el cobro" }));
-    await waitFor(() => expect(d.getByRole("alert")).toHaveTextContent("No pudimos anular el cobro. No cambió nada: probá de nuevo."));
+    await waitFor(() => expect(d.getByRole("alert")).toHaveTextContent("Necesitás conexión para anular un cobro. Revisá la conexión y probá de nuevo."));
     expect(hayTrabajoPendiente()).toBe(false);
     expect(d.getByRole("button", { name: "Reintentar" })).not.toHaveAttribute("aria-disabled", "true");
   });
@@ -486,7 +486,7 @@ describe("39B·04 · sin conexión", () => {
     const d = await elegirYSeguir(usuario, "Monto equivocado");
     conConexion(false);
     await usuario.click(d.getByRole("button", { name: "Sí, anular el cobro" }));
-    await waitFor(() => expect(d.getByRole("alert")).toHaveTextContent("No pudimos anular el cobro"));
+    await waitFor(() => expect(d.getByRole("alert")).toHaveTextContent("Necesitás conexión para anular un cobro"));
     expect(d.getByRole("button", { name: "Reintentar" })).not.toHaveAttribute("aria-disabled", "true");
   });
 });

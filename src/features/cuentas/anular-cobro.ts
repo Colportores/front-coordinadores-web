@@ -1,6 +1,7 @@
 import type { MotivoDeAnulacion, TicketDeCuentas } from "@/datos/cuentas";
 import { textoDiaYHora } from "@/datos/cuentas/fechas";
 import { formatMonto } from "@/features/cuentas/formato";
+import { mensajeSinConexion } from "@/lib/mensajes";
 
 /**
  * «Anular cobro» (vista 39, front-coordinadores-web#81, HU-COB-006): lo que el panel decide y dice sobre un cobro con tarjeta.
@@ -106,7 +107,14 @@ export const TEXTO_VENCIO_AL_CONFIRMAR = "Pasaron las 72 h mientras confirmabas.
 export const TEXTO_ANULADO = "Cobro anulado.";
 export const TEXTO_YA_ESTABA_ANULADO = "Ese cobro ya estaba anulado y no cambió nada. Recargá la página para ver cómo quedó.";
 
-/** Lo que dice un fallo de la anulación: lo que contestó el servidor, o el texto de siempre (nunca un código técnico). */
+/** Sin señal al confirmar: dice que el problema es la conexión («Sin conexión, por pantalla»), no el error genérico. */
+export const TEXTO_SIN_CONEXION_AL_ANULAR = mensajeSinConexion("anular un cobro");
+
+/**
+ * Lo que dice un fallo de la anulación: la falta de conexión por su nombre; lo que contestó el servidor al rechazar; o el texto
+ * de 39B·03 (nunca un código técnico).
+ */
 export function textoDeFallaAlAnular(causa: "sin-conexion" | "rechazado", mensaje?: string): string {
-  return causa === "rechazado" && mensaje ? mensaje : TEXTO_DE_ERROR;
+  if (causa === "sin-conexion") return TEXTO_SIN_CONEXION_AL_ANULAR;
+  return mensaje ?? TEXTO_DE_ERROR;
 }

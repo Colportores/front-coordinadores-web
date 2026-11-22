@@ -17,6 +17,7 @@ import {
   tieneCobroAnulado,
   tituloDelMotivo,
   TEXTO_DE_ERROR,
+  TEXTO_SIN_CONEXION_AL_ANULAR,
 } from "@/features/cuentas/anular-cobro";
 import { aplicarAnulacion, filasDe, kpisDeTickets, pendientesDe, textoDeEstado, ticketsDe, TODAS } from "@/features/cuentas/modelo";
 import { esPagoDeAlquilerVigente, esPagoDeAlquilerVivo } from "@/features/cuentas/por-decidir";
@@ -108,8 +109,8 @@ describe("los textos del canvas 39", () => {
   });
 
   it("un fallo dice lo que contestó el servidor o el texto de siempre, nunca un código", () => {
-    expect(textoDeFallaAlAnular("sin-conexion")).toBe(TEXTO_DE_ERROR);
-    expect(textoDeFallaAlAnular("sin-conexion", "ignorado")).toBe(TEXTO_DE_ERROR);
+    expect(textoDeFallaAlAnular("sin-conexion")).toBe("Necesitás conexión para anular un cobro. Revisá la conexión y probá de nuevo.");
+    expect(textoDeFallaAlAnular("sin-conexion", "ignorado")).toBe(TEXTO_SIN_CONEXION_AL_ANULAR);
     expect(textoDeFallaAlAnular("rechazado")).toBe(TEXTO_DE_ERROR);
     expect(textoDeFallaAlAnular("rechazado", "No encontramos ese cobro entre los de tu equipo.")).toBe(
       "No encontramos ese cobro entre los de tu equipo.",
