@@ -27,7 +27,7 @@ function montar(opciones: { datos?: DatosDeCuentas; decidirAlquiler?: AccionesCu
   const datos = opciones.datos ?? armarCuentasSimuladas(AHORA);
   const base = crearAccionesSimuladas(datos);
   const decidirAlquiler = vi.fn(opciones.decidirAlquiler ?? base.decidirAlquiler);
-  const acciones: AccionesCuentas = { editarAlquiler: vi.fn(base.editarAlquiler), decidirAlquiler };
+  const acciones: AccionesCuentas = { editarAlquiler: vi.fn(base.editarAlquiler), decidirAlquiler, anularCobro: base.anularCobro };
   const usuario = userEvent.setup();
   render(
     <ProveedorModoDev activo={false}>
