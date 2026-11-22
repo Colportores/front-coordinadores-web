@@ -35,7 +35,7 @@ function acciones(sobre: Partial<AccionesZonas> = {}): AccionesZonas {
     eliminarZona: vi.fn((id: string) => fuenteZonasSimulada.eliminarZona("campania-verano-2026", id)),
     buscarCiudades: vi.fn((t: string) => fuenteZonasSimulada.buscarCiudades("campania-verano-2026", t)),
     agregarCiudad: vi.fn((id: string) => fuenteZonasSimulada.agregarCiudad("campania-verano-2026", id)),
-    casasDeZonas: vi.fn(async () => []),
+    casasDeLaCiudad: vi.fn(async () => []),
     ...sobre,
   };
 }

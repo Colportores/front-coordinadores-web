@@ -17,6 +17,7 @@ import {
   construirLista,
   construirRiel,
   esCampaniaPermanente,
+  jornadasAcompanadas,
   mismoAmbito,
   pluralAcompanamientos,
   pluralColportores,
@@ -161,7 +162,7 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
   const sinZona = resuelto.sinZona.map((c) => c.nombre);
   // Una cuenta suspendida sin zona no es un pendiente: no se le puede asignar zona hasta que la reactiven (#167).
   const porAsignar = resuelto.sinZona.filter((c) => !c.suspendido).map((c) => c.nombre);
-  const totalAcompanamientos = resuelto.colportores.reduce((suma, c) => suma + c.acompanamientos.length, 0);
+  const totalAcompanamientos = resuelto.colportores.reduce((suma, c) => suma + jornadasAcompanadas(c), 0);
   const subtitulo = [
     pluralColportores(resuelto.conZona) + (sinZona.length > 0 ? ` + ${sinZona.length} sin zona` : ""),
     resuelto.departamento ? `Departamento ${resuelto.departamento}` : null,
