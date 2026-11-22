@@ -1,6 +1,7 @@
 import type { CampaniaElegible, FuenteDatosShell, ResumenCoordinador } from "@/datos/shell/contrato";
 import type { ClienteRpc } from "@/datos/supabase/cliente";
 import { cadena, cadenaONula, filas, nombreVisible } from "@/datos/supabase/respuesta";
+import { llamarRpcPorPaginas } from "@/datos/supabase/paginas";
 
 /**
  * Fuente del shell contra las RPC de Supabase (ADR-013): `mi_perfil()` (nombre y apellido; las iniciales las arma el
@@ -49,10 +50,7 @@ export function crearFuenteShellRpc(
       campanias.map(async (fila): Promise<CampaniaElegible> => {
         const id = cadena(rpc, fila, "id");
         const fechaInicio = cadena(rpc, fila, "fecha_inicio");
-        const ciudades = filas(
-          "ciudades_de_campania",
-          await cliente.llamarRpc("ciudades_de_campania", { p_campania_id: id }),
-        ).map((c) => cadena("ciudades_de_campania", c, "nombre"));
+        const ciudades = (await llamarRpcPorPaginas(cliente, "ciudades_de_campania", { p_campania_id: id })).map((c) => cadena("ciudades_de_campania", c, "nombre"));
         return {
           id,
           nombre: cadena(rpc, fila, "nombre"),

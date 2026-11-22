@@ -21,6 +21,7 @@ import {
   RespuestaInesperada,
   UUID,
 } from "@/datos/supabase/respuesta";
+import { llamarRpcPorPaginas } from "@/datos/supabase/paginas";
 import { MENSAJE_SESION_VENCIDA } from "@/lib/mensajes";
 
 /**
@@ -199,7 +200,7 @@ export function crearFuenteAnadirRpc(
       try {
         const [sugeridos, equipo] = await Promise.all([
           cliente.llamarRpc("buscar_candidatos", { p_campania_id: campaniaId, p_texto: null, p_despues_de: null }),
-          cliente.llamarRpc("colportores_de_campania", { p_campania_id: campaniaId }),
+          llamarRpcPorPaginas(cliente, "colportores_de_campania", { p_campania_id: campaniaId }),
         ]);
         return {
           campaniaId,

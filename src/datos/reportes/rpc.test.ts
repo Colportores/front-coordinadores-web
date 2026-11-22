@@ -114,7 +114,7 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
       p_ciudad_id: null,
       p_colportor_ids: null,
     });
-    expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: CAMPANIA });
+    expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", expect.objectContaining({ p_campania_id: CAMPANIA }));
   });
 
   it("toma el día de hoy de Montevideo aunque en UTC ya sea el día siguiente", async () => {
@@ -211,7 +211,7 @@ describe("fuente de Reportes (horas) contra las RPC", () => {
 
     await crearFuenteReportesRpc(cliente, sinElegir, hoy).obtenerHoras();
 
-    expect(llamarRpc).toHaveBeenCalledWith("zonas_por_colportor", { p_campania_id: CAMPANIA });
+    expect(llamarRpc).toHaveBeenCalledWith("zonas_por_colportor", expect.objectContaining({ p_campania_id: CAMPANIA }));
   });
 
   it("un inscripto que todavía no cerró ninguna jornada figura en su ciudad, sin horas (guion)", async () => {
