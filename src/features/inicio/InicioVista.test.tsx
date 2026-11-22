@@ -107,7 +107,7 @@ describe("InicioVista · artboard 01 «Principal · 10:40 · Rivera elegida»", 
 
     const sinZona = within(pendientes).getByRole("heading", { name: "Colportor sin zona asignada" }).closest("article")!;
     expect(within(sinZona).getByText("Rocío Benítez · se sumó hoy a las 09:10")).toBeInTheDocument();
-    expect(within(sinZona).getByRole("link", { name: "Asignar zona" })).toHaveAttribute("href", "/ciudades");
+    expect(within(sinZona).getByRole("link", { name: "Asignar zona" })).toHaveAttribute("href", "/ciudades?colportor=sin-zona-1");
     // El pedido de libros es de Bella Unión.
     expect(within(pendientes).queryByText("Pedido de libros por autorizar")).not.toBeInTheDocument();
   });

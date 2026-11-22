@@ -24,6 +24,7 @@ import type {
 import { distanciaM, poligonoCircular } from "@/datos/equipo/zonas/geometria";
 import { colorParaZonaNueva } from "@/datos/equipo/zonas/paleta";
 import { recortarIdaYVuelta } from "@/features/equipo/zonas/borde";
+import { BarraDeCiudades, CIUDADES_PARA_BUSCAR } from "@/features/equipo/zonas/BarraDeCiudades";
 import { BuscadorCiudad } from "@/features/equipo/zonas/BuscadorCiudad";
 import { AvisoDeCasas, type AvisoDelMapa } from "@/features/equipo/zonas/casas/AvisoDeCasas";
 import { horaEnMontevideo, sinOcultas } from "@/features/equipo/zonas/casas/estados";
@@ -40,6 +41,7 @@ import {
   textoColportoresSinZona,
 } from "@/features/equipo/zonas/PanelFormularioZona";
 import { PanelListaZonas } from "@/features/equipo/zonas/PanelListaZonas";
+import { preseleccionDeColportor } from "@/features/equipo/zonas/preseleccion";
 import { type DibujoEnMapa, nombreEsquina, TEXTO_CUENTA_SUSPENDIDA } from "@/features/equipo/zonas/tipos";
 import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
@@ -147,11 +149,6 @@ const MS_ESPERA_VISTA_PREVIA = 150;
 const MS_ESPERA_NOMBRE_CENTRO = 250;
 
 const mismaEsquina = (a: Esquina, b: Esquina) => a.lon === b.lon && a.lat === b.lat;
-
-function textoCantidadZonas(cantidad: number): string {
-  if (cantidad === 0) return "sin zonas";
-  return cantidad === 1 ? "1 zona" : `${cantidad} zonas`;
-}
 
 function formaVacia(tipoForma: TipoForma): FormaZona {
   return tipoForma === "RADIAL" ? { tipoForma } : { tipoForma, esquinas: [], cerrada: false };
@@ -263,16 +260,21 @@ async function correrEsquina(
 interface Props {
   datos: DatosZonas;
   acciones: AccionesZonas;
+  /** A quién se viene a asignarle zona (el «Asignar zona» de Inicio, #187). Se toma una sola vez, al abrir. */
+  colportorPreseleccionadoId?: string | null;
 }
 
 /**
  * Vista 24 (HU-CAM-006): zonas de la campaña. Lista y formularios a la izquierda,
  * mapa a la derecha. La geometría la calcula el backend; acá solo se pide y se dibuja.
  */
-export function ZonasCampania({ datos, acciones }: Props) {
+export function ZonasCampania({ datos, acciones, colportorPreseleccionadoId = null }: Props) {
+  const [preseleccion] = useState(() => preseleccionDeColportor(datos.ciudades, colportorPreseleccionadoId));
   const [ciudades, setCiudades] = useState<CiudadDeCampania[]>(datos.ciudades);
-  const [ciudadId, setCiudadId] = useState(datos.ciudades[0]?.id ?? "");
-  const [panel, setPanel] = useState<Panel>({ tipo: "lista", asignandoA: null });
+  const [ciudadId, setCiudadId] = useState(preseleccion.ciudadId ?? datos.ciudades[0]?.id ?? "");
+  const [panel, setPanel] = useState<Panel>({ tipo: "lista", asignandoA: preseleccion.asignandoA });
+  // Lo que no se pudo dejar elegido al llegar desde Inicio (no existe, ya tiene zona, suspendido): se ve hasta que se lo cierra.
+  const [avisoDeLlegada, setAvisoDeLlegada] = useState(preseleccion.aviso);
   const [aviso, setAviso] = useState<string | null>(null);
   const [hover, setHover] = useState<Esquina | null>(null);
   const [buscador, setBuscador] = useState<{ ocupado: boolean; error: string | null } | null>(null);
@@ -977,29 +979,10 @@ export function ZonasCampania({ datos, acciones }: Props) {
     <div ref={raiz} className="flex flex-col gap-3.5">
       <h2 className="font-serif text-[21px] font-semibold text-tinta">Zonas · {datos.campania}</h2>
 
-      <div className="flex items-center gap-2">
+      {/* Centrado como en el canvas 24; con el buscador arriba de los botones, «+ Agregar ciudad» se alinea con el campo. */}
+      <div data-testid="fila-de-ciudades" className={cn("flex gap-2", ciudades.length > CIUDADES_PARA_BUSCAR ? "items-start" : "items-center")}>
         {ciudad ? (
-          <nav aria-label="Ciudades de la campaña" className="flex flex-wrap gap-2">
-            {ciudades.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                aria-current={c.id === ciudad.id ? "true" : undefined}
-                data-foco={c.id === ciudad.id ? "ciudad-elegida" : undefined}
-                disabled={guardando || agregando}
-                onClick={() => elegirCiudad(c.id)}
-                className={cn(
-                  "flex cursor-pointer flex-col items-start rounded-control border px-3.5 py-1.5 text-left focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60",
-                  c.id === ciudad.id
-                    ? "border-marca bg-marca-clara text-marca"
-                    : "border-borde bg-superficie text-tinta-2 hover:bg-fondo",
-                )}
-              >
-                <span className="text-nav font-semibold">{c.nombre}</span>
-                <span className="text-mini text-tinta-suave">{textoCantidadZonas(c.zonas.length)}</span>
-              </button>
-            ))}
-          </nav>
+          <BarraDeCiudades ciudades={ciudades} ciudadId={ciudad.id} deshabilitado={guardando || agregando} onElegir={elegirCiudad} />
         ) : null}
         <Button
           type="button"
@@ -1028,6 +1011,15 @@ export function ZonasCampania({ datos, acciones }: Props) {
             raiz.current?.querySelector<HTMLElement>('[data-foco="agregar-ciudad"]')?.focus();
           }}
         />
+      ) : null}
+
+      {avisoDeLlegada ? (
+        <p aria-live="polite" data-foco="aviso-de-llegada" className="flex items-center justify-between gap-2 rounded-control bg-alerta-fondo px-3 py-2 text-cuerpo font-medium text-tinta-2">
+          <span className="min-w-0 wrap-anywhere">{avisoDeLlegada}</span>
+          <button type="button" onClick={() => setAvisoDeLlegada(null)} className="min-h-6 flex-none cursor-pointer font-semibold underline">
+            Entendido
+          </button>
+        </p>
       ) : null}
 
       {aviso ? (
