@@ -88,7 +88,7 @@ describe("TablaDeReporte · ancho y cabecera (#188)", () => {
     expect(encabezados.map((e) => e.textContent)).toEqual(ENCABEZADOS);
     for (const e of encabezados) {
       expect(e).toHaveClass("text-right", "border-l");
-      expect(e.querySelector("span[aria-hidden]")).toHaveClass("min-w-[46px]");
+      expect(e.querySelector("span[aria-hidden]")).toHaveClass("w-[46px]");
     }
     // Las celdas de datos comparten el separador y el lugar de la tendencia.
     const celdas = within(screen.getByRole("row", { name: /^Semana 1/ })).getAllByRole("cell");
@@ -96,10 +96,20 @@ describe("TablaDeReporte · ancho y cabecera (#188)", () => {
     for (const c of celdas) expect(c).toHaveClass("border-l");
   });
 
-  it("un encabezado largo se parte en vez de invadir a la columna de al lado", () => {
+  it("ningún encabezado usa corte dentro de la palabra: si falta ancho, cede el lugar de la tendencia y no la palabra (#207)", () => {
     montar([fila("Semana 1", [])]);
 
-    expect(screen.getByText("PRESENTACIONES")).toHaveClass("wrap-anywhere");
+    const encabezados = screen.getAllByRole("columnheader").slice(1);
+    for (const e of encabezados) {
+      const texto = e.querySelector("span > span:not([aria-hidden])") as HTMLElement;
+      const lugar = e.querySelector("span[aria-hidden]") as HTMLElement;
+      // Sin `wrap-anywhere`, `break-all` ni `break-words` (partían «PRESENTACIONE / S»), y sin tope de ancho que apriete la palabra.
+      expect(texto.className).not.toMatch(/wrap-anywhere|break-all|break-words|overflow-wrap|\bmin-w-0\b|\btruncate\b|\bshrink/);
+      // El lugar de la tendencia se encoge hasta 0 antes que la palabra: es lo único que cede.
+      expect(lugar).toHaveClass("min-w-0", "shrink-[100]");
+    }
+    expect(screen.getByText("PRESENTACIONES")).toBeInTheDocument();
+    expect(screen.getByText("DÍAS TRABAJADOS")).toBeInTheDocument(); // varias palabras: se parte en el espacio, no dentro de una
   });
 
   it("con muchas filas y un nombre larguísimo la tabla sigue entera: nombre cortado con su título, sin violaciones axe", async () => {

@@ -39,6 +39,8 @@ const PARTE_DE_LA_PRIMERA_COLUMNA = "24%";
 const COLUMNAS_CON_COLOR: ReadonlySet<ColumnaDeReporte> = new Set(["horas", "presentaciones", "ventas", "monto"]);
 /** Lo que ocupa la tendencia al lado de la cifra: el encabezado reserva el mismo lugar para quedar justo sobre el número. */
 const CLASE_DE_TENDENCIA = "min-w-[46px]";
+/** El mismo lugar en el encabezado, pero cediendo ancho (hasta 0) antes de que la palabra del encabezado se corte (#207). */
+const CLASE_DE_LUGAR_EN_ENCABEZADO = "w-[46px] min-w-0 shrink-[100]";
 
 /**
  * La tabla del reporte: una fila por colportor (agrupados por ciudad si el ámbito tiene varias) o, con un colportor
@@ -85,10 +87,14 @@ export function TablaDeReporte({
               </th>
               {columnas.map((columna) => (
                 <th key={columna.clave} scope="col" className="border-l border-borde-suave px-3 py-[9px] text-right font-semibold">
-                  {/* Misma estructura que la celda (cifra + lugar de la tendencia): el encabezado queda justo sobre el número. */}
+                  {/*
+                    Misma estructura que la celda (cifra + lugar de la tendencia): el encabezado queda justo sobre el número.
+                    Si la palabra no entra, el que cede es el lugar de la tendencia (que en el encabezado está vacío), nunca
+                    la palabra: un encabezado no se corta a mitad de palabra (#207); los de varias palabras se parten en el espacio.
+                  */}
                   <span className="flex items-baseline justify-end gap-2">
-                    <span className="min-w-0 wrap-anywhere">{columna.encabezado}</span>
-                    <span aria-hidden="true" className={CLASE_DE_TENDENCIA} />
+                    <span>{columna.encabezado}</span>
+                    <span aria-hidden="true" className={CLASE_DE_LUGAR_EN_ENCABEZADO} />
                   </span>
                 </th>
               ))}
