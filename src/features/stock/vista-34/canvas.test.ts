@@ -35,7 +35,8 @@ const AMBITOS: Record<string, Ambito> = {
 
 const claveDeFila = (k: string | null) => (k === null ? null : k === k.toUpperCase() ? `categoria:${k}` : `producto:${k}`);
 
-const modelo = construirMundo(crearDatosDeStockSimulados());
+// El canvas 34 no dibuja el aviso de pedidos por autorizar (es del retoque 42B, que tiene su propio test): se compara sin él.
+const modelo = construirMundo({ ...crearDatosDeStockSimulados(), pedidosPorAutorizar: [] });
 
 describe("vista 34: el modelo da lo mismo que el canvas", () => {
   for (const esc of canvas) {

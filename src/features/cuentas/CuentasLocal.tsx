@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import type { DatosDeCuentas } from "@/datos/cuentas";
-import { CuentasConAccionesSimuladas } from "@/features/cuentas/CuentasConAccionesSimuladas";
+import { CuentasDesdeUrl } from "@/features/cuentas/CuentasDesdeUrl";
 
 /**
  * La vista 36 para el sitio de prueba (GitHub Pages, export estático): sin servidor, los datos se arman en el navegador con
@@ -43,5 +43,5 @@ export function CuentasLocal() {
       </p>
     );
   }
-  return <CuentasConAccionesSimuladas datos={datos} />;
+  return <CuentasDesdeUrl datos={datos} />;
 }

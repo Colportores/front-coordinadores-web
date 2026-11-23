@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { Fragment } from "react";
 
+import { hrefCuentasDe } from "@/features/cuentas/preseleccion";
 import { cn } from "@/lib/utils";
 
-import { formatearCantidad, type EstadoDeUnidad, type FilaDeUnidad, type GrupoDeFilas } from "./modelo";
+import { formatearCantidad, type AjusteDeUnidad, type EstadoDeUnidad, type FilaDeUnidad, type GrupoDeFilas } from "./modelo";
 
 const COLUMNAS = 8;
 
@@ -21,14 +23,52 @@ function Cifra({ valor, negrita = false }: { valor: number; negrita?: boolean })
   return <span className={cn("font-mono", valor === 0 ? "text-tinta-suave" : "text-tinta", negrita && "font-semibold")}>{formatearCantidad(valor)}</span>;
 }
 
+/**
+ * Los ajustes de stock que cargó la colportora de este producto (HU-STK-010, decisión de Cristian del 28/10, «Ajuste stock»):
+ * cuánto entró o salió, por qué (la lista cerrada: «Stock inicial», «Libros dañados», «Conteo»), cuándo y quién lo cargó. Los
+ * más nuevos primero; con muchos, la lista se desplaza dentro de su alto.
+ */
+function Ajustes({ ajustes, fila, nombreDelLugar }: { ajustes: AjusteDeUnidad[]; fila: FilaDeUnidad; nombreDelLugar: string }) {
+  return (
+    <div className="mt-2.5 flex flex-col gap-1">
+      <p className="text-etiqueta font-semibold tracking-[0.06em] text-tinta-suave">AJUSTES DE STOCK</p>
+      <ul
+        aria-label={`Ajustes de stock de ${fila.nombre} en ${nombreDelLugar}`}
+        tabIndex={0} // NOSONAR S6845: región con desplazamiento; sin tabIndex el teclado no la alcanza (WCAG 2.1.1)
+        className="flex max-h-[132px] flex-col divide-y divide-borde overflow-auto border-t border-borde focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
+      >
+        {ajustes.map((a) => (
+          <li key={a.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-1.5 text-chico">
+            <span className="font-semibold wrap-anywhere text-tinta">{a.colportor}</span>
+            {a.producto && <span className="wrap-anywhere text-tinta-2">· {a.producto}</span>}
+            <span className={cn("font-semibold", a.entrada ? "text-exito" : "text-peligro")}>
+              <span aria-hidden="true" className="mr-0.5 font-mono">
+                {a.entrada ? "+" : "−"}
+              </span>
+              {a.entrada ? "Entrada" : "Salida"} de {formatearCantidad(a.unidades)}
+            </span>
+            <span className="text-tinta-2">· {a.motivo}</span>
+            {a.cuandoTexto && <span className="text-tinta-suave">· {a.cuandoTexto}</span>}
+            <span className="text-tinta-suave">· Lo cargó {a.cargadoPor}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string; nombreDelLugar: string }) {
   return (
     <tr id={id}>
       <td colSpan={COLUMNAS} className="p-0">
         <div className="border-b border-borde bg-marca-clara/40 py-2.5 pr-[18px] pb-3 pl-[52px]">
-          {fila.quien.length === 0 ? (
+          {fila.quien.length === 0 && fila.ajustes.length === 0 ? (
             <p className="text-chico text-tinta-suave">{fila.sinNadie}</p>
           ) : (
+            <>
+              {fila.quien.length === 0 ? (
+                <p className="text-chico text-tinta-suave">{fila.sinNadie}</p>
+              ) : (
             <table aria-label={`Quién tiene ${fila.nombre} en ${nombreDelLugar}`} className="w-full table-fixed border-collapse">
               <colgroup>
                 <col className="w-[28%]" />
@@ -37,6 +77,7 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
                 <col />
                 <col />
                 <col />
+                <col className="w-[148px]" />
               </colgroup>
               <thead>
                 <tr className="text-etiqueta font-semibold tracking-[0.06em] text-tinta-suave">
@@ -58,6 +99,9 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
                   <th scope="col" title={AYUDA_POR_COBRAR} className="pb-1 text-right font-semibold">
                     POR COBRAR
                   </th>
+                  <th scope="col" className="pb-1 text-right font-semibold">
+                    <span className="sr-only">CUENTAS</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -65,7 +109,11 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
                   <tr key={q.id} className="min-h-[30px] border-t border-borde text-chico">
                     <th scope="row" className="py-1.5 pr-3 text-left font-semibold text-tinta">
                       <span className="block wrap-anywhere">{q.nombre}</span>
-                      <span className="block text-mini font-normal wrap-anywhere text-tinta-suave">{q.sincronizo}</span>
+                      <span className={cn("block text-mini font-normal wrap-anywhere", q.sincronizoViejo ? "font-semibold text-peligro" : "text-tinta-suave")}>
+                        {q.sincronizoViejo && <span aria-hidden="true">△ </span>}
+                        {q.sincronizo}
+                        {q.sincronizoViejo && <span className="sr-only"> (hace más de dos días)</span>}
+                      </span>
                     </th>
                     <td className="py-1.5 text-right">
                       <Cifra valor={q.tiene} />
@@ -78,10 +126,22 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
                       <Cifra valor={q.devueltos} />
                     </td>
                     <td className="py-1.5 text-right font-mono text-tinta">{formatearCantidad(q.porCobrar)}</td>
+                    <td className="py-1.5 text-right">
+                      <Link
+                        href={hrefCuentasDe(q.id)}
+                        aria-label={`Ver en Cuentas la plata de ${q.nombre}`}
+                        className="inline-flex min-h-8 items-center justify-end gap-1 text-chico font-semibold whitespace-nowrap text-marca-media hover:text-marca focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
+                      >
+                        Ver en Cuentas <span aria-hidden="true">→</span>
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+              )}
+              {fila.ajustes.length > 0 && <Ajustes ajustes={fila.ajustes} fila={fila} nombreDelLugar={nombreDelLugar} />}
+            </>
           )}
         </div>
       </td>

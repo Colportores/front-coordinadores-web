@@ -1,6 +1,8 @@
+import { Suspense } from "react";
+
 import { fuentePedidos } from "@/datos/stock/pedidos";
 import { SeccionHu } from "@/dev/SeccionHu";
-import { PedidosConAccionesSimuladas } from "@/features/stock/vista-35/PedidosConAccionesSimuladas";
+import { PedidosDesdeUrl } from "@/features/stock/vista-35/PedidosDesdeUrl";
 import { PedidosLocal } from "@/features/stock/vista-35/PedidosLocal";
 import { AvisoSinCampania } from "@/shell/AvisoSinCampania";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
@@ -21,7 +23,9 @@ export default async function PedidosYTransferencias() {
     return (
       <ContenidoPestana titulo="Pedidos y transferencias" className={SIN_PADDING}>
         <SeccionHu hu="HU-STK-003" className={LLENA}>
-          <PedidosLocal />
+          <Suspense fallback={null}>
+            <PedidosLocal />
+          </Suspense>
         </SeccionHu>
       </ContenidoPestana>
     );
@@ -31,7 +35,13 @@ export default async function PedidosYTransferencias() {
       <ContenidoPestana titulo="Pedidos y transferencias" className={SIN_PADDING}>
         <SeccionHu hu="HU-STK-003" className={LLENA}>
           {/* `key`: al elegir otra campaña en el topbar la página se vuelve a pedir y el estado de la vista se reinicia. */}
-          {datos ? <PedidosConAccionesSimuladas key={datos.campaniaId} datos={datos} /> : <AvisoSinCampania className="m-[22px]" />}
+          {datos ? (
+            <Suspense fallback={null}>
+              <PedidosDesdeUrl key={datos.campaniaId} datos={datos} />
+            </Suspense>
+          ) : (
+            <AvisoSinCampania className="m-[22px]" />
+          )}
         </SeccionHu>
       </ContenidoPestana>
     );

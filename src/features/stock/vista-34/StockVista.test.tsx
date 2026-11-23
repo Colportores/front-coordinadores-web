@@ -7,7 +7,8 @@ import { crearDatosDeStockSimulados } from "@/datos/stock/simulado";
 
 import { StockVista } from "./StockVista";
 
-const simulados = () => crearDatosDeStockSimulados();
+// Sin los pedidos por autorizar: el canvas 34 no dibuja ese aviso (es del retoque 42B, con su propio test).
+const simulados = () => ({ ...crearDatosDeStockSimulados(), pedidosPorAutorizar: [] });
 
 const ex = (productoId: string, tiene: number, porEntregar = 0): ExistenciaDeStock => ({ productoId, tiene, porEntregar, entregados: 0, devueltos: 0, porCobrar: 0 });
 const col = (id: string, ciudadId: string | null, ...existencias: ExistenciaDeStock[]): ColportorDeStock => ({ id, nombre: id, ciudadId, ultimoDatoAt: null, existencias });
@@ -75,8 +76,8 @@ describe("StockVista", () => {
       const detalle = screen.getByRole("table", { name: "Quién tiene Libro uno en Todas las ciudades" });
       const filas = within(detalle).getAllByRole("row").slice(1);
       expect(filas.map((f) => [...f.querySelectorAll("th span:first-child, td")].map((c) => c.textContent))).toEqual([
-        ["ana", "3", "0", "1.500", "1.234", "2"],
-        ["beto", "1", "0", "4", "0", "0"],
+        ["ana", "3", "0", "1.500", "1.234", "2", "Ver en Cuentas →"],
+        ["beto", "1", "0", "4", "0", "0", "Ver en Cuentas →"],
       ]);
       expect(within(filas[1]).getAllByRole("cell")[3].firstElementChild).toHaveClass("text-tinta-suave");
     });
@@ -162,6 +163,7 @@ describe("StockVista", () => {
         "ENTREGADOS",
         "DEVUELTOS",
         "POR COBRAR",
+        "CUENTAS",
       ]);
       const filas = within(detalle).getAllByRole("row").slice(1);
       expect(filas.map((f) => f.querySelector("th span")?.textContent)).toEqual([

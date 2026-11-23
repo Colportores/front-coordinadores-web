@@ -7,13 +7,20 @@ import type { FuenteDatosStock } from "@/datos/stock/contrato";
 import { fuenteStockSimulada } from "@/datos/stock/simulado";
 
 export type {
+  AccionesDeStock,
+  AjusteDeStock,
   CiudadDeStock,
   ColportorDeStock,
   DatosDeStock,
   ExistenciaDeStock,
   FuenteDatosStock,
+  LineaDeTransferenciaPedida,
+  MotivoDeAjuste,
+  PedidosPorAutorizarDeCiudad,
   ProductoDeStock,
   TipoDeProducto,
+  TransferenciaArmada,
+  TransferenciaPedida,
 } from "@/datos/stock/contrato";
 
 export const fuenteStock: FuenteDatosStock = fuenteStockSimulada;

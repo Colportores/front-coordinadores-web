@@ -1,6 +1,8 @@
+import { Suspense } from "react";
+
 import { fuenteCuentas } from "@/datos/cuentas";
 import { SeccionHu } from "@/dev/SeccionHu";
-import { CuentasConAccionesSimuladas } from "@/features/cuentas/CuentasConAccionesSimuladas";
+import { CuentasDesdeUrl } from "@/features/cuentas/CuentasDesdeUrl";
 import { CuentasLocal } from "@/features/cuentas/CuentasLocal";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
@@ -16,7 +18,9 @@ export default async function PestanaCuentas() {
     return (
       <ContenidoPestana titulo="Cuentas" className={SIN_PADDING}>
         <SeccionHu hu="HU-CTA-005" className={LLENA}>
-          <CuentasLocal />
+          <Suspense fallback={null}>
+            <CuentasLocal />
+          </Suspense>
         </SeccionHu>
       </ContenidoPestana>
     );
@@ -26,7 +30,9 @@ export default async function PestanaCuentas() {
       <ContenidoPestana titulo="Cuentas" className={SIN_PADDING}>
         <SeccionHu hu="HU-CTA-005" className={LLENA}>
           {/* `key`: al elegir otra campaña en el topbar la página se vuelve a pedir y el estado de la vista se reinicia. */}
-          <CuentasConAccionesSimuladas key={datos.campaniaId} datos={datos} />
+          <Suspense fallback={null}>
+            <CuentasDesdeUrl key={datos.campaniaId} datos={datos} />
+          </Suspense>
         </SeccionHu>
       </ContenidoPestana>
     );

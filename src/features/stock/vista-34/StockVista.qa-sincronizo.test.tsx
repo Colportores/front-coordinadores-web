@@ -71,9 +71,10 @@ describe("PR #104 · la fila abierta con la línea nueva", () => {
     const cabecera = within(quien).getByRole("rowheader", { name: /^Ana Pérez/ });
     expect(cabecera).toHaveTextContent("Ana Pérez");
     expect(cabecera).toHaveTextContent("Sincronizó el 22/10 a las 18:30");
-    // La línea no está escondida de los lectores de pantalla ni de la vista.
-    expect(cabecera.querySelector("[aria-hidden='true']")).toBeNull();
-    expect(cabecera.querySelector(".sr-only, .hidden")).toBeNull();
+    // La línea no está escondida de los lectores de pantalla ni de la vista (una fecha vieja suma un «△» y un aviso solo para el lector).
+    expect(cabecera.querySelector("[aria-hidden='true']")?.textContent?.trim() ?? "△").toBe("△");
+    expect(cabecera.querySelector(".hidden")).toBeNull();
+    expect(cabecera.querySelector(".sr-only")?.textContent?.trim() ?? "(hace más de dos días)").toBe("(hace más de dos días)");
   });
 
   it("dos colportores con fechas distintas y uno sin dato: cada fila lleva la suya, sin cruzarse", async () => {

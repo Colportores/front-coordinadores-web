@@ -1,9 +1,12 @@
 import type {
+  AccionesDeStock,
+  AjusteDeStock,
   CiudadDeStock,
   ColportorDeStock,
   DatosDeStock,
   ExistenciaDeStock,
   FuenteDatosStock,
+  PedidosPorAutorizarDeCiudad,
   ProductoDeStock,
 } from "@/datos/stock/contrato";
 import { generadorDeAzar } from "@/lib/azar";
@@ -68,6 +71,26 @@ const LGE_POR_ENTREGAR: Record<string, number> = { "Lucía Fernández": 2, "Emil
 const RSH_POR_ENTREGAR: Record<string, number> = { "Micaela Rodríguez": 2, "Joaquín Duarte": 1 };
 const HORAS_SIN_SENAL: Record<string, number | null> = { "Natalia Vidal": 74, "Nicolás Viera": null };
 
+/**
+ * Los pedidos a la casa editora que esperan autorización en cada ciudad: los mismos de la fuente simulada de la vista 35 (dos en
+ * Rivera, uno en Artigas y uno en Bella Unión), para que el aviso de Stock y la bandeja de Pedidos cuenten lo mismo.
+ */
+const PEDIDOS_POR_AUTORIZAR: PedidosPorAutorizarDeCiudad[] = [
+  { ciudadId: "rivera", pedidos: 2 },
+  { ciudadId: "artigas", pedidos: 1 },
+  { ciudadId: "bella-union", pedidos: 1 },
+];
+
+/** Ajustes de ejemplo que cargaron algunas colportoras desde el teléfono: `[colportor, producto, cantidad, motivo, horas atrás]`. */
+const AJUSTES: ReadonlyArray<readonly [string, string, number, AjusteDeStock["motivo"], number]> = [
+  ["Lucía Fernández", "ddg", 7, "STOCK_INICIAL", 24 * 12],
+  ["Lucía Fernández", "ddg", -1, "LIBROS_DANADOS", 24 * 3 + 5],
+  ["Bruno Techera", "rvf", -2, "CONTEO", 30],
+  ["Bruno Techera", "rsh", 4, "STOCK_INICIAL", 24 * 12],
+  ["Sofía Cabral", "pam", 10, "STOCK_INICIAL", 24 * 9],
+  ["Natalia Vidal", "lge", -1, "LIBROS_DANADOS", 24 * 5],
+];
+
 const PAMPLONA_POR_ENTREGAR: Record<string, number> = { "Sofía Cabral": 2, "Natalia Vidal": 2 };
 
 function existencia(ciudadId: string, nombre: string, producto: (typeof PRODUCTOS)[number]): ExistenciaDeStock {
@@ -116,6 +139,17 @@ function ultimoDato(nombre: string, ahora: Date): string | null {
   return new Date(ahora.getTime() - horas * 3_600_000 - minutos * 60_000).toISOString();
 }
 
+function ajustesDe(nombre: string, ahora: Date): AjusteDeStock[] {
+  return AJUSTES.filter(([quien]) => quien === nombre).map(([, productoId, cantidad, motivo, horas], i) => ({
+    id: `ajuste-${slug(nombre)}-${i + 1}`,
+    productoId,
+    cantidad,
+    motivo,
+    cuando: new Date(ahora.getTime() - horas * 3_600_000).toISOString(),
+    cargadoPor: nombre,
+  }));
+}
+
 export function crearDatosDeStockSimulados(ahora: Date = new Date()): DatosDeStock {
   const colportores: ColportorDeStock[] = CIUDADES.flatMap((ciudad) =>
     NOMBRES[ciudad.id].map((nombre) => ({
@@ -124,6 +158,7 @@ export function crearDatosDeStockSimulados(ahora: Date = new Date()): DatosDeSto
       ciudadId: ciudad.id,
       ultimoDatoAt: ultimoDato(nombre, ahora),
       existencias: PRODUCTOS.map((p) => existencia(ciudad.id, nombre, p)),
+      ajustes: ajustesDe(nombre, ahora),
     })),
   );
   return {
@@ -131,6 +166,7 @@ export function crearDatosDeStockSimulados(ahora: Date = new Date()): DatosDeSto
     ciudades: CIUDADES,
     productos: PRODUCTOS.map(({ id, nombre, tipo, nota }) => ({ id, nombre, tipo, nota })),
     colportores,
+    pedidosPorAutorizar: PEDIDOS_POR_AUTORIZAR,
   };
 }
 
@@ -139,3 +175,33 @@ export const fuenteStockSimulada: FuenteDatosStock = {
     return crearDatosDeStockSimulados();
   },
 };
+
+/**
+ * «Pedir transferencia de materiales» simulado: valida como la base (`pedir_transferencia_de_stock`, TR007: puntas iguales o
+ * sin elegir, sin libros, un libro repetido, una cantidad que no sirve o un libro que no existe) y numera de a una desde T-19
+ * (la T-18 es la última de la fuente simulada de la vista 35). No guarda nada: la transferencia no aparece en Pedidos.
+ */
+export function crearAccionesSimuladas(datos: DatosDeStock = crearDatosDeStockSimulados()): AccionesDeStock {
+  let ultimo = 18;
+  return {
+    async pedirTransferencia({ origenId, destinoId, lineas }) {
+      const conocido = (id: string) => datos.colportores.some((c) => c.id === id);
+      if (!origenId || !destinoId || origenId === destinoId || !conocido(origenId) || !conocido(destinoId)) {
+        return { ok: false, causa: "rechazado", mensaje: "Elegí dos colportores distintos: el que da los libros y el que los recibe." };
+      }
+      const ids = lineas.map((l) => l.productoId);
+      if (lineas.length === 0 || new Set(ids).size !== ids.length || lineas.some((l) => !Number.isInteger(l.cantidad) || l.cantidad <= 0)) {
+        return {
+          ok: false,
+          causa: "rechazado",
+          mensaje: "La transferencia tiene que llevar una lista de libros con su cantidad (mayor que cero), sin repetir ninguno. Corregí la lista y volvé a intentar.",
+        };
+      }
+      if (ids.some((id) => !datos.productos.some((p) => p.id === id))) {
+        return { ok: false, causa: "rechazado", mensaje: "Hay un libro que ya no está en el catálogo. Sacalo de la transferencia y volvé a intentar." };
+      }
+      ultimo += 1;
+      return { ok: true, valor: { id: `transferencia-simulada-${ultimo}`, numero: `T-${ultimo}` } };
+    },
+  };
+}
