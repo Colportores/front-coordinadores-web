@@ -1,4 +1,5 @@
 import type { DatosDeStock, TransferenciaPedida } from "@/datos/stock/contrato";
+import { mensajeSinConexion } from "@/lib/mensajes";
 import { conPuntosDeMiles } from "@/lib/texto";
 
 /**
@@ -16,8 +17,8 @@ export const TEXTO_DE_TRANSFERENCIA =
   "Armás la transferencia entre dos colportores de la campaña. Queda por autorizar en Pedidos y transferencias: hasta que la autorices no se mueve ni el stock ni la deuda.";
 export const TEXTO_SIN_CON_QUIEN_TRANSFERIR =
   "Para armar una transferencia hacen falta al menos dos colportores en la campaña y productos en el catálogo. Cuando los haya, podés pedirla desde acá.";
-export const TEXTO_TRANSFERENCIA_SIN_CONEXION =
-  "No hay conexión: la transferencia no se puede pedir hasta que vuelva. Lo que cargaste queda acá.";
+/** El mismo texto de la convención (§10) que cuando la red falla al enviar, más lo que pasa con lo cargado. */
+export const TEXTO_TRANSFERENCIA_SIN_CONEXION = `${mensajeSinConexion("pedir la transferencia")} Lo que cargaste queda acá.`;
 export const MAXIMO_POR_LINEA = 99_999;
 
 /** Una fila del formulario: el producto elegido (vacío = sin elegir) y la cantidad como la escribió quien arma. */

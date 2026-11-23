@@ -83,7 +83,7 @@ describe("StockVista · QA · teclado", () => {
     expect(boton).not.toHaveAttribute("aria-controls");
   });
 
-  it("con Tab se llega a la lista de ciudades, a «Pedidos y transferencias →», a los avisos y a las filas, sin saltar ni atrapar", async () => {
+  it("con Tab se llega a la lista de ciudades, a las pastillas de «Pedidos» y «Transferencias», a los avisos y a las filas, sin saltar ni atrapar", async () => {
     render(<StockVista datos={crearDatosDeStockSimulados()} />);
     const visitados: string[] = [];
     for (let i = 0; i < 12; i++) {
@@ -91,7 +91,7 @@ describe("StockVista · QA · teclado", () => {
       visitados.push((document.activeElement as HTMLElement).getAttribute("aria-label") ?? document.activeElement!.textContent ?? "");
     }
     expect(visitados[0]).toBe("Contraer ciudades");
-    expect(visitados.some((v) => v.startsWith("Pedidos y transferencias"))).toBe(true);
+    expect(visitados.some((v) => v.startsWith("Pedidos"))).toBe(true);
     // Nunca se queda en el body.
     expect(document.activeElement).not.toBe(document.body);
   });

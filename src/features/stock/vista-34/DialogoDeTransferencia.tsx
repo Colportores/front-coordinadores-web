@@ -323,7 +323,9 @@ export function DialogoDeTransferencia({
         )}
 
         {!enLinea && (
-          <p className="rounded-control bg-alerta-fondo px-3 py-2 text-chico text-alerta">{TEXTO_TRANSFERENCIA_SIN_CONEXION}</p>
+          <p role="status" className="rounded-control bg-alerta-fondo px-3 py-2 text-chico text-alerta">
+            {TEXTO_TRANSFERENCIA_SIN_CONEXION}
+          </p>
         )}
         {error && (
           <p role="alert" className="rounded-control bg-peligro-fondo px-3 py-2 text-chico text-peligro">

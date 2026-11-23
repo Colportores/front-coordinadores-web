@@ -763,3 +763,37 @@ export function construirTabla(mundo: Mundo, resuelto: AmbitoResuelto): GrupoDeF
       }),
     }));
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Tabla por colportor (42B·01)
+// ---------------------------------------------------------------------------------------------------------------------
+
+export interface FilaDeColportor {
+  id: string;
+  /** «Lucía Fernández» o, si el ámbito junta varias ciudades, «Lucía Fernández · Rivera». */
+  nombre: string;
+  sincronizo: string;
+  sincronizoViejo: boolean;
+  /** Lo que tiene en mano, en unidades, por tipo: libros, revistas, material y misioneros (en ese orden). */
+  porTipo: Array<{ tipo: TipoDeProducto; etiqueta: string; tiene: number }>;
+}
+
+/**
+ * La tabla del retoque 42B·01: una fila por colportor con lo que tiene de cada tipo, a la vista sin abrir nada. Es la misma
+ * información de la tabla por producto vista desde el otro lado (quién tiene qué); la 42B dibuja libros, revistas y misioneros y
+ * acá se suma «Material», que existe en el catálogo.
+ */
+export function construirPorColportor(mundo: Mundo, resuelto: AmbitoResuelto): FilaDeColportor[] {
+  return resuelto.personas.map((p) => ({
+    id: p.id,
+    nombre: resuelto.variosLugares ? `${p.nombre} · ${p.ciudadNombre ?? "Sin ciudad"}` : p.nombre,
+    sincronizo: p.sincronizo,
+    sincronizoViejo: p.sincronizoViejo,
+    porTipo: mundo.tipos
+      .filter((t) => t.productos > 0)
+      .map((t) => ({ tipo: t.tipo, etiqueta: t.etiqueta, tiene: t.unidades.reduce((suma, u) => suma + cantidadesDe(p, u).tiene, 0) })),
+  }));
+}
+
+/** El subtítulo de la 42B para esta tabla: «10 colportores · lo que tiene cada uno». */
+export const subtituloPorColportor = (personas: number) => `${pluralColportores(personas)} · lo que tiene cada uno`;

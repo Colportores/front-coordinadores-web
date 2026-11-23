@@ -278,18 +278,20 @@ describe("StockVista", () => {
       expect(screen.getByRole("link", { name: "Ver pedidos de Misioneros · todos" })).toHaveAttribute("href", "/stock/pedidos");
     });
 
-    it("«Pedidos y transferencias →» lleva a la vista 35", () => {
+    it("las pastillas «Pedidos» y «Transferencias» llevan a la vista 35, con «Stock» como la actual (42B·01)", () => {
       render(<StockVista datos={simulados()} />);
 
-      expect(screen.getByRole("link", { name: "Pedidos y transferencias →" })).toHaveAttribute("href", "/stock/pedidos");
+      const secciones = screen.getByRole("navigation", { name: "Secciones de Stock" });
+      expect(within(secciones).getByText("Stock")).toHaveAttribute("aria-current", "page");
+      expect(within(secciones).getByRole("link", { name: "Pedidos" })).toHaveAttribute("href", "/stock/pedidos");
+      expect(within(secciones).getByRole("link", { name: "Transferencias" })).toHaveAttribute("href", "/stock/pedidos?pestana=transferencias");
     });
 
-    it("«Precios de venta →» lleva a la vista 27, junto al de pedidos", () => {
+    it("«Precios de venta →» lleva a la vista 27", () => {
       render(<StockVista datos={simulados()} />);
 
       const otras = screen.getByRole("navigation", { name: "Otras vistas de stock" });
       expect(within(otras).getByRole("link", { name: "Precios de venta →" })).toHaveAttribute("href", "/stock/precios");
-      expect(within(otras).getByRole("link", { name: "Pedidos y transferencias →" })).toHaveAttribute("href", "/stock/pedidos");
     });
 
     it("sin avisos no hay franja", async () => {

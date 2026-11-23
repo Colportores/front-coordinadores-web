@@ -318,7 +318,7 @@ describe("pedirla: éxito, falla y casos límite", () => {
     const enLinea = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
     render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
-    expect(enDialogo().getByText(/No hay conexión: la transferencia no se puede pedir hasta que vuelva/)).toBeInTheDocument();
+    expect(enDialogo().getByText(/Necesitás conexión para pedir la transferencia\. Revisá la conexión y probá de nuevo\. Lo que cargaste queda acá/)).toBeInTheDocument();
     await llenar();
     await pedir();
     expect(pedirTransferencia).not.toHaveBeenCalled();
@@ -328,7 +328,7 @@ describe("pedirla: éxito, falla y casos límite", () => {
     act(() => {
       window.dispatchEvent(new Event("online"));
     });
-    expect(enDialogo().queryByText(/No hay conexión/)).toBeNull();
+    expect(enDialogo().queryByText(/Necesitás conexión para pedir/)).toBeNull();
     await pedir();
     expect(pedirTransferencia).toHaveBeenCalledTimes(1);
   });

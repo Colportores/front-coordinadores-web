@@ -6,6 +6,7 @@ import { Fragment } from "react";
 import { hrefCuentasDe } from "@/features/cuentas/preseleccion";
 import { cn } from "@/lib/utils";
 
+import { LineaDeSincronizacion } from "./LineaDeSincronizacion";
 import { formatearCantidad, type AjusteDeUnidad, type EstadoDeUnidad, type FilaDeUnidad, type GrupoDeFilas } from "./modelo";
 
 const COLUMNAS = 8;
@@ -109,11 +110,7 @@ function Detalle({ fila, id, nombreDelLugar }: { fila: FilaDeUnidad; id: string;
                   <tr key={q.id} className="min-h-[30px] border-t border-borde text-chico">
                     <th scope="row" className="py-1.5 pr-3 text-left font-semibold text-tinta">
                       <span className="block wrap-anywhere">{q.nombre}</span>
-                      <span className={cn("block text-mini font-normal wrap-anywhere", q.sincronizoViejo ? "font-semibold text-peligro" : "text-tinta-suave")}>
-                        {q.sincronizoViejo && <span aria-hidden="true">△ </span>}
-                        {q.sincronizo}
-                        {q.sincronizoViejo && <span className="sr-only"> (hace más de dos días)</span>}
-                      </span>
+                      <LineaDeSincronizacion texto={q.sincronizo} vieja={q.sincronizoViejo} />
                     </th>
                     <td className="py-1.5 text-right">
                       <Cifra valor={q.tiene} />

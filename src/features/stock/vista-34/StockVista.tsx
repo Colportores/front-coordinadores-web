@@ -9,7 +9,7 @@ import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
 import { registrarEnvio } from "@/shell/trabajo-pendiente";
 
-import { hrefTransferencias } from "../vista-35/preseleccion";
+import { hrefPedidos, hrefTransferencias } from "../vista-35/preseleccion";
 import { AvisosDeStock } from "./AvisosDeStock";
 import { DialogoDeTransferencia } from "./DialogoDeTransferencia";
 import { ListaDeCiudades, RielDeCiudades } from "./ListaDeCiudades";
@@ -19,21 +19,28 @@ import {
   construirAvisosDePedidos,
   construirLista,
   construirMundo,
+  construirPorColportor,
   construirRiel,
   construirTabla,
   construirTarjetas,
   mismoAmbito,
   resolverAmbito,
+  subtituloPorColportor,
   totalDePedidosPorAutorizar,
   type Ambito,
   type AvisoDeStock,
 } from "./modelo";
 import { TablaDeProductos } from "./TablaDeProductos";
+import { TablaPorColportor } from "./TablaPorColportor";
 import { TarjetasPorTipo } from "./TarjetasPorTipo";
 import { textoDeTransferenciaArmada, TITULO_DE_TRANSFERENCIA } from "./transferencia";
 
 const CLASE_ENLACE =
   "inline-flex min-h-8 flex-none items-center gap-1.5 text-chico font-semibold whitespace-nowrap text-marca-media hover:text-marca focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento";
+const CLASE_PASTILLA =
+  "inline-flex min-h-8 items-center gap-1.5 rounded-pastilla border px-3.5 text-chico font-semibold whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento";
+const CLASE_VISTA =
+  "inline-flex min-h-8 cursor-pointer items-center rounded-control border px-3 text-chico font-semibold whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento";
 const CLASE_ACCION =
   "inline-flex min-h-8 flex-none cursor-pointer items-center rounded-control border border-borde bg-superficie px-3.5 text-chico font-semibold whitespace-nowrap text-tinta-2 hover:bg-fondo focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento";
 
@@ -63,6 +70,8 @@ export function StockVista({ datos, acciones }: { datos: DatosDeStock; acciones?
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_TODAS);
   const [listaAbierta, setListaAbierta] = useState(true);
   const [abiertas, setAbiertas] = useState<ReadonlySet<string>>(new Set());
+  // Cómo se mira la tabla: producto por producto (la 34) o colportor por colportor (42B·01).
+  const [vista, setVista] = useState<"producto" | "colportor">("producto");
   const [pidiendo, setPidiendo] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [errorDeTransferencia, setErrorDeTransferencia] = useState<string | null>(null);
@@ -83,6 +92,7 @@ export function StockVista({ datos, acciones }: { datos: DatosDeStock; acciones?
   const avisosDePedidos = useMemo(() => construirAvisosDePedidos(mundo, resuelto), [mundo, resuelto]);
   const pedidosPorAutorizar = totalDePedidosPorAutorizar(avisosDePedidos);
   const grupos = useMemo(() => construirTabla(mundo, resuelto), [mundo, resuelto]);
+  const porColportor = useMemo(() => construirPorColportor(mundo, resuelto), [mundo, resuelto]);
 
   useEffect(() => {
     const clave = focoPendiente.current;
@@ -108,6 +118,7 @@ export function StockVista({ datos, acciones }: { datos: DatosDeStock; acciones?
 
   // «Ver quién tiene» habla de una ciudad: si se está mirando varias, pasa a esa ciudad y abre la fila del producto.
   const verQuienTiene = (aviso: AvisoDeStock) => {
+    setVista("producto");
     setAmbito({ tipo: "ciudad", ciudadId: aviso.ciudadId });
     setAbiertas((anteriores) => new Set(anteriores).add(aviso.unidadClave));
     focoPendiente.current = `fila:${aviso.unidadClave}`;
@@ -191,7 +202,7 @@ export function StockVista({ datos, acciones }: { datos: DatosDeStock; acciones?
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-[3px]">
             <h2 className="font-serif text-[22px] font-semibold wrap-anywhere text-tinta">{resuelto.titulo}</h2>
-            <p className="text-chico text-tinta-suave">{resuelto.subtitulo}</p>
+            <p className="text-chico text-tinta-suave">{vista === "colportor" ? subtituloPorColportor(resuelto.personas.length) : resuelto.subtitulo}</p>
           </div>
           <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-1">
             {acciones && (
@@ -211,26 +222,31 @@ export function StockVista({ datos, acciones }: { datos: DatosDeStock; acciones?
               <Link href="/stock/precios" className={CLASE_ENLACE}>
                 Precios de venta →
               </Link>
-              <Link href="/stock/pedidos" className={CLASE_ENLACE}>
-                Pedidos y transferencias{" "}
-                {pedidosPorAutorizar > 0 && (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className="rounded-pastilla bg-alerta-fondo px-1.5 font-mono text-[10.5px] font-medium text-alerta"
-                    >
-                      {pedidosPorAutorizar}
-                    </span>
-                    <span className="sr-only">
-                      {pedidosPorAutorizar === 1 ? "(1 pedido por autorizar)" : `(${pedidosPorAutorizar} pedidos por autorizar)`}
-                    </span>
-                  </>
-                )}{" "}
-                <span>→</span>
-              </Link>
             </nav>
           </div>
         </div>
+
+        {/* 42B·01: las pastillas Stock / Pedidos / Transferencias; «Pedidos» lleva el número de lo que espera autorización (sin pedidos, sin número). */}
+        <nav aria-label="Secciones de Stock" className="flex flex-wrap gap-1.5">
+          <span aria-current="page" className={cn(CLASE_PASTILLA, "border-marca bg-marca text-superficie")}>
+            Stock
+          </span>
+          <Link href={hrefPedidos()} className={cn(CLASE_PASTILLA, "border-borde bg-superficie text-tinta-2 hover:bg-fondo")}>
+            Pedidos
+            {pedidosPorAutorizar > 0 && (
+              <>
+                {" "}
+                <span aria-hidden="true" className="rounded-pastilla bg-alerta-fondo px-1.5 font-mono text-[10.5px] font-medium text-alerta">
+                  {pedidosPorAutorizar}
+                </span>
+                <span className="sr-only">{pedidosPorAutorizar === 1 ? "(1 pedido por autorizar)" : `(${pedidosPorAutorizar} pedidos por autorizar)`}</span>
+              </>
+            )}
+          </Link>
+          <Link href={hrefTransferencias()} className={cn(CLASE_PASTILLA, "border-borde bg-superficie text-tinta-2 hover:bg-fondo")}>
+            Transferencias
+          </Link>
+        </nav>
 
         <div aria-live="polite" className="flex flex-col gap-2 empty:hidden">
           {armadas.map((a) => (
@@ -261,8 +277,25 @@ export function StockVista({ datos, acciones }: { datos: DatosDeStock; acciones?
           <>
             <TarjetasPorTipo tarjetas={tarjetas} />
             <AvisosDeStock avisos={avisos} avisosDePedidos={avisosDePedidos} alVerQuienTiene={verQuienTiene} />
+            <div role="group" aria-label="Ver el stock" className="flex flex-wrap items-center gap-1.5">
+              {(["producto", "colportor"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  aria-pressed={vista === v}
+                  onClick={() => setVista(v)}
+                  className={cn(CLASE_VISTA, vista === v ? "border-marca bg-marca-clara text-marca" : "border-borde bg-superficie text-tinta-2 hover:bg-fondo")}
+                >
+                  {v === "producto" ? "Por producto" : "Por colportor"}
+                </button>
+              ))}
+            </div>
             <div className="min-h-0 flex-1 overflow-auto rounded-tarjeta border border-borde bg-superficie">
-              <TablaDeProductos grupos={grupos} abiertas={abiertas} nombreDelLugar={resuelto.titulo} alAlternar={alternar} />
+              {vista === "producto" ? (
+                <TablaDeProductos grupos={grupos} abiertas={abiertas} nombreDelLugar={resuelto.titulo} alAlternar={alternar} />
+              ) : (
+                <TablaPorColportor filas={porColportor} nombreDelLugar={resuelto.titulo} />
+              )}
             </div>
           </>
         )}

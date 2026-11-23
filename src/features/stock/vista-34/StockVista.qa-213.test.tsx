@@ -56,7 +56,7 @@ async function llenar(origen = "ana", destino = "beto", producto = "l1", cantida
 afterEach(() => vi.restoreAllMocks());
 
 describe("QA #213 · sin conexión: el texto de la convención (§10) y el anuncio", () => {
-  it.skip("QA #213: con el navegador sin conexión el diálogo dice «Necesitás conexión para pedir la transferencia», como cuando la red falla al enviar (hoy dice «No hay conexión: …»)", async () => {
+  it("QA #213: con el navegador sin conexión el diálogo dice «Necesitás conexión para pedir la transferencia», como cuando la red falla al enviar (hoy dice «No hay conexión: …»)", async () => {
     vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
     render(<StockVista datos={chico()} acciones={acciones(ok())} />);
     await abrir();
@@ -72,7 +72,7 @@ describe("QA #213 · sin conexión: el texto de la convención (§10) y el anunc
     expect(enDialogo().getByRole("alert")).toHaveTextContent(/^Necesitás conexión para pedir la transferencia\. /);
   });
 
-  it.skip("QA #213: el aviso de «sin conexión» del diálogo se anuncia al lector de pantalla cuando la conexión se corta con el diálogo abierto (hoy es un <p> sin role ni región viva)", async () => {
+  it("QA #213: el aviso de «sin conexión» del diálogo se anuncia al lector de pantalla cuando la conexión se corta con el diálogo abierto (hoy es un <p> sin role ni región viva)", async () => {
     const enLinea = vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
     render(<StockVista datos={chico()} acciones={acciones(ok())} />);
     await abrir();

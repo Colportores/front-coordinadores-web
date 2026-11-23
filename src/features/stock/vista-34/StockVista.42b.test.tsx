@@ -51,7 +51,7 @@ const elegir = (nombre: RegExp | string) => userEvent.click(within(lista()).getB
 const tabla = () => screen.getByRole("table", { name: /^Stock por producto en/ });
 const abrir = (nombre: RegExp | string) => userEvent.click(within(tabla()).getByRole("button", { name: nombre }));
 const avisos = () => screen.queryByRole("list", { name: "Avisos de stock" });
-const navegacion = () => screen.getByRole("navigation", { name: "Otras vistas de stock" });
+const navegacion = () => screen.getByRole("navigation", { name: "Secciones de Stock" });
 
 describe("42B·01 · el aviso «N pedidos por autorizar en <ciudad>» con «Ver pedidos»", () => {
   it("dice «2 pedidos por autorizar en Rivera» con la etiqueta PEDIDOS y lleva a la vista 35 en esa ciudad", async () => {
@@ -114,12 +114,12 @@ describe("42B·01 · el aviso «N pedidos por autorizar en <ciudad>» con «Ver 
     expect(within(lista()).getByRole("button", { name: /^Rivera/ })).toHaveTextContent("1 aviso · 2 por autorizar");
   });
 
-  it("la pestaña «Pedidos y transferencias» lleva el número de lo que se mira, dicho también para el lector", async () => {
+  it("la pastilla «Pedidos» lleva el número de lo que se mira, dicho también para el lector", async () => {
     render(<StockVista datos={chico({ pedidosPorAutorizar: [{ ciudadId: "riv", pedidos: 2 }, { ciudadId: "art", pedidos: 1 }] })} />);
-    expect(within(navegacion()).getByRole("link", { name: "Pedidos y transferencias (3 pedidos por autorizar) →" })).toHaveAttribute("href", "/stock/pedidos");
+    expect(within(navegacion()).getByRole("link", { name: "Pedidos (3 pedidos por autorizar)" })).toHaveAttribute("href", "/stock/pedidos");
 
     await elegir(/^Artigas/);
-    expect(within(navegacion()).getByRole("link", { name: "Pedidos y transferencias (1 pedido por autorizar) →" })).toBeInTheDocument();
+    expect(within(navegacion()).getByRole("link", { name: "Pedidos (1 pedido por autorizar)" })).toBeInTheDocument();
   });
 });
 
@@ -129,7 +129,7 @@ describe("42B·02 · sin pedidos por autorizar no hay aviso ni número", () => {
     await elegir(/^Rivera/);
     expect(screen.queryByText("PEDIDOS")).toBeNull();
     expect(within(lista()).getByRole("button", { name: /^Rivera/ })).not.toHaveTextContent("por autorizar");
-    expect(within(navegacion()).getByRole("link", { name: "Pedidos y transferencias →" })).toBeInTheDocument();
+    expect(within(navegacion()).getByRole("link", { name: "Pedidos" })).toBeInTheDocument();
   });
 
   it("sin la clave `pedidosPorAutorizar` pasa lo mismo (datos de antes de la lectura de pedidos)", () => {
@@ -137,7 +137,7 @@ describe("42B·02 · sin pedidos por autorizar no hay aviso ni número", () => {
     delete datos.pedidosPorAutorizar;
     render(<StockVista datos={datos} />);
     expect(screen.queryByText("PEDIDOS")).toBeNull();
-    expect(within(navegacion()).getByRole("link", { name: "Pedidos y transferencias →" })).toBeInTheDocument();
+    expect(within(navegacion()).getByRole("link", { name: "Pedidos" })).toBeInTheDocument();
   });
 
   it("un número que no sirve (cero, negativo, NaN) no es un pedido: no avisa", () => {
@@ -359,5 +359,69 @@ describe("volver atrás y reentrar", () => {
     expect(screen.queryByText("PEDIDOS")).toBeNull();
     await elegir(/^Rivera/);
     expect(avisos()).toHaveTextContent("2 pedidos por autorizar en Rivera");
+  });
+});
+
+describe("42B·01 · las pastillas «Stock / Pedidos / Transferencias» y la tabla por colportor", () => {
+  const vistaPor = (nombre: RegExp | string) => userEvent.click(within(screen.getByRole("group", { name: "Ver el stock" })).getByRole("button", { name: nombre }));
+  const porColportor = () => screen.getByRole("table", { name: /^Stock por colportor en/ });
+
+  it("tres pastillas: «Stock» es la actual y las otras dos llevan a la vista 35, «Transferencias» en su pestaña", () => {
+    render(<StockVista datos={chico()} />);
+    const nav = navegacion();
+    expect(within(nav).getByText("Stock")).toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("link", { name: /^Pedidos/ })).toHaveAttribute("href", "/stock/pedidos");
+    expect(within(nav).getByRole("link", { name: "Transferencias" })).toHaveAttribute("href", "/stock/pedidos?pestana=transferencias");
+  });
+
+  it("«Por colportor» muestra una fila por colportor con lo que tiene de cada tipo, su «Sincronizó…» y «Ver en Cuentas →», sin abrir nada", async () => {
+    render(
+      <StockVista
+        datos={chico({ colportores: [col("ana", "riv", haceHoras(49), undefined, ex("l1", 3), ex("r1", 2), ex("r2", 1)), col("beto", "riv", haceHoras(5), undefined, ex("l1", 0))] })}
+      />,
+    );
+    await elegir(/^Rivera/);
+    expect(screen.getByRole("button", { name: "Por producto" })).toHaveAttribute("aria-pressed", "true");
+    await vistaPor("Por colportor");
+
+    expect(screen.getByRole("button", { name: "Por colportor" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("2 colportores · lo que tiene cada uno")).toBeInTheDocument();
+    const tabla = within(porColportor());
+    expect(tabla.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["COLPORTOR", "LIBROS", "REVISTAS", "CUENTAS"]);
+    const ana = tabla.getByRole("row", { name: /^ana/ });
+    expect(within(ana).getAllByRole("cell").map((c) => c.textContent)).toEqual(["3", "3", "Ver en Cuentas →"]);
+    expect(ana).toHaveTextContent("Sincronizó el");
+    expect(ana.querySelector(".text-peligro")).not.toBeNull();
+    expect(within(tabla.getByRole("row", { name: /^beto/ })).getAllByRole("cell").map((c) => c.textContent)).toEqual(["0", "0", "Ver en Cuentas →"]);
+    expect(tabla.getByRole("link", { name: "Ver en Cuentas la plata de ana" })).toHaveAttribute("href", "/cuentas?colportor=ana");
+  });
+
+  it("sin plata, con varias ciudades cada nombre lleva la suya y volver a «Por producto» deja la tabla de siempre", async () => {
+    render(<StockVista datos={chico()} />);
+    await vistaPor("Por colportor");
+    expect(porColportor().textContent).not.toMatch(/\$|UYU/);
+    expect(within(porColportor()).getByRole("rowheader", { name: /^ana · Rivera/ })).toBeInTheDocument();
+    await vistaPor("Por producto");
+    expect(screen.getByRole("table", { name: /^Stock por producto en/ })).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: /^Stock por colportor/ })).toBeNull();
+  });
+
+  it("con la fuente simulada cada ciudad lista a sus colportores, 25 en total; con 300 se arma igual", async () => {
+    const { unmount } = render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    await vistaPor("Por colportor");
+    expect(within(porColportor()).getAllByRole("row")).toHaveLength(26);
+    unmount();
+    const muchos = Array.from({ length: 300 }, (_, i) => col(`c${i}`, "riv", haceHoras(5)));
+    render(<StockVista datos={chico({ colportores: muchos })} />);
+    await vistaPor("Por colportor");
+    expect(within(porColportor()).getAllByRole("row")).toHaveLength(301);
+  });
+
+  it("«Ver quién tiene» de un aviso vuelve a «Por producto» y abre esa fila", async () => {
+    render(<StockVista datos={chico({ colportores: [col("ana", "riv", haceHoras(5), undefined, ex("l1", 1, 3), ex("r1", 2), ex("r2", 1))] })} />);
+    await vistaPor("Por colportor");
+    await userEvent.click(screen.getByRole("button", { name: /^Ver quién tiene/ }));
+    expect(screen.getByRole("table", { name: /^Stock por producto en/ })).toBeInTheDocument();
+    expect(within(screen.getByRole("table", { name: /^Stock por producto en/ })).getByRole("button", { name: /Libro uno/ })).toHaveAttribute("aria-expanded", "true");
   });
 });
