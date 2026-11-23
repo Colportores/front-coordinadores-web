@@ -1,7 +1,9 @@
 import { useRef } from "react";
 
+import { BuscadorDeCiudades, SinCoincidenciasDeCiudades } from "@/components/BuscadorDeCiudades";
 import { claveDe, jornadaTexto, horasTexto, type ElementoDeLista, type Seleccion } from "@/features/inicio/modelo";
 import { useMantenerVisible } from "@/lib/mantener-visible";
+import { useBuscarEnColumna } from "@/lib/use-buscar-en-columna";
 import { cn } from "@/lib/utils";
 
 const CLASE_ALTERNAR =
@@ -41,6 +43,8 @@ export function BotonAlternar({
   );
 }
 
+type Renglon = Extract<ElementoDeLista, { tipo: "item" }>;
+
 /**
  * La lista de ciudades agrupada por departamento: es el filtro y, a la vez, el resumen del día de cada una. Queda siempre
  * a la vista con sus cifras.
@@ -58,7 +62,9 @@ export function ListaDeCiudades({
 }) {
   const clave = claveDe(seleccionada);
   const desplazable = useRef<HTMLDivElement>(null);
-  useMantenerVisible(desplazable, clave);
+  const renglones = elementos.filter((e): e is Renglon => e.tipo === "item");
+  const busqueda = useBuscarEnColumna(renglones, (e) => e.seleccion.tipo === "ciudad", clave);
+  useMantenerVisible(desplazable, `${clave}:${busqueda.buscando}`);
   return (
     <section id="columna-ciudades" aria-labelledby="titulo-ciudades" className="flex min-h-0 min-w-0 flex-col border-r border-borde bg-superficie">
       <div className="flex items-center justify-between py-3 pr-3 pl-[18px]">
@@ -74,37 +80,74 @@ export function ListaDeCiudades({
           onClick={alContraer}
         />
       </div>
+      {busqueda.conBuscador && (
+        <div className="px-2.5 pb-2">
+          <BuscadorDeCiudades
+            texto={busqueda.texto}
+            alCambiar={busqueda.setTexto}
+            total={busqueda.total}
+            coinciden={busqueda.coinciden.length}
+            buscando={busqueda.buscando}
+            alElegirPrimera={() => {
+              if (busqueda.coinciden[0]) alElegir(busqueda.coinciden[0].seleccion);
+            }}
+          />
+        </div>
+      )}
       <div ref={desplazable} className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto px-2.5 pb-3.5">
-        {elementos.map((elemento) =>
-          elemento.tipo === "grupo" ? (
-            <p key={elemento.clave} className="px-2 pt-3.5 pb-1.5 font-mono text-etiqueta tracking-[0.14em] text-tinta-suave">
-              {elemento.etiqueta}
-            </p>
-          ) : (
-            <button
-              key={elemento.clave}
-              type="button"
-              aria-pressed={elemento.clave === clave}
-              onClick={() => alElegir(elemento.seleccion)}
-              className={cn(
-                "flex cursor-pointer flex-col gap-[7px] rounded-control px-3 py-[11px] text-left focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none",
-                elemento.clave === clave ? "bg-marca-clara shadow-[inset_3px_0_0_var(--marca-media)]" : "hover:bg-superficie-calida",
-              )}
-            >
-              <span className="flex items-baseline justify-between gap-2">
-                <span className="min-w-0 text-nav font-semibold [overflow-wrap:anywhere]">{elemento.nombre}</span>{" "}
-                <span className="shrink-0 text-mini text-tinta-suave">{jornadaTexto(elemento.resumen)}</span>
-              </span>
-              <span className="grid grid-cols-[1fr_1.2fr_1fr] gap-1.5">
-                <Cifra valor={horasTexto(elemento.resumen.horas)} rotulo="Horas" />{" "}
-                <Cifra valor={String(elemento.resumen.presentaciones)} rotulo="Presentaciones" />{" "}
-                <Cifra valor={String(elemento.resumen.ventas)} rotulo="Ventas" />
-              </span>
-            </button>
-          ),
+        {busqueda.buscando ? (
+          <>
+            {busqueda.visibles.map((elemento) => (
+              <FilaDeCiudad key={elemento.clave} elemento={elemento} elegida={elemento.clave === clave} alElegir={alElegir} />
+            ))}
+            {busqueda.coinciden.length === 0 && <SinCoincidenciasDeCiudades texto={busqueda.texto} />}
+          </>
+        ) : (
+          elementos.map((elemento) =>
+            elemento.tipo === "grupo" ? (
+              <p key={elemento.clave} className="px-2 pt-3.5 pb-1.5 font-mono text-etiqueta tracking-[0.14em] text-tinta-suave">
+                {elemento.etiqueta}
+              </p>
+            ) : (
+              <FilaDeCiudad key={elemento.clave} elemento={elemento} elegida={elemento.clave === clave} alElegir={alElegir} />
+            ),
+          )
         )}
       </div>
     </section>
+  );
+}
+
+/** Un renglón de la columna expandida: la ciudad (o «Todas», o «Todo el departamento») con las cifras de su día. */
+function FilaDeCiudad({
+  elemento,
+  elegida,
+  alElegir,
+}: {
+  elemento: Renglon;
+  elegida: boolean;
+  alElegir: (seleccion: Seleccion) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={elegida}
+      onClick={() => alElegir(elemento.seleccion)}
+      className={cn(
+        "flex cursor-pointer flex-col gap-[7px] rounded-control px-3 py-[11px] text-left focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none",
+        elegida ? "bg-marca-clara shadow-[inset_3px_0_0_var(--marca-media)]" : "hover:bg-superficie-calida",
+      )}
+    >
+      <span className="flex items-baseline justify-between gap-2">
+        <span className="min-w-0 text-nav font-semibold [overflow-wrap:anywhere]">{elemento.nombre}</span>{" "}
+        <span className="shrink-0 text-mini text-tinta-suave">{jornadaTexto(elemento.resumen)}</span>
+      </span>
+      <span className="grid grid-cols-[1fr_1.2fr_1fr] gap-1.5">
+        <Cifra valor={horasTexto(elemento.resumen.horas)} rotulo="Horas" />{" "}
+        <Cifra valor={String(elemento.resumen.presentaciones)} rotulo="Presentaciones" />{" "}
+        <Cifra valor={String(elemento.resumen.ventas)} rotulo="Ventas" />
+      </span>
+    </button>
   );
 }
 
