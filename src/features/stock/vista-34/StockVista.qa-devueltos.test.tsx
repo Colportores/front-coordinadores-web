@@ -138,7 +138,7 @@ describe("PR #119 · el detalle «Quién lo tiene»", () => {
     await userEvent.click(within(tabla()).getByRole("button", { name: /Libro uno/ }));
     const detalle = screen.getByRole("table", { name: /^Quién tiene Libro uno/ });
     const cabeceras = within(detalle).getAllByRole("columnheader").map((h) => h.textContent);
-    expect(cabeceras).toEqual(["QUIÉN LO TIENE O DEBE ENTREGARLO", "TIENE", "POR ENTREGAR", "ENTREGADOS", "DEVUELTOS", "POR COBRAR"]);
+    expect(cabeceras).toEqual(["QUIÉN LO TIENE O DEBE ENTREGARLO", "TIENE", "POR ENTREGAR", "ENTREGADOS", "DEVUELTOS", "POR COBRAR", "CUENTAS"]);
     const idx = cabeceras.indexOf("DEVUELTOS");
     for (const [nombre, esperado] of [["ana", "2"], ["beto", "7"]]) {
       const fila = within(detalle).getByRole("row", { name: new RegExp(nombre) });
@@ -162,7 +162,8 @@ describe("PR #119 · «Por cobrar» tal cual llega", () => {
     await userEvent.click(within(tabla()).getByRole("button", { name: /Libro uno/ }));
     const detalle = screen.getByRole("table", { name: /^Quién tiene Libro uno/ });
     const fila = within(detalle).getByRole("row", { name: /ana/ });
-    expect(within(fila).getAllByRole("cell").at(-1)).toHaveTextContent("2");
+    // La última celda es el «Ver en Cuentas →»: «Por cobrar» es la anterior.
+    expect(within(fila).getAllByRole("cell").at(-2)).toHaveTextContent("2");
   });
 
   it("por cobrar mayor que entregados no se recorta ni se recalcula (el panel no prorratea)", () => {

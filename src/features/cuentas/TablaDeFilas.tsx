@@ -156,6 +156,7 @@ export function TablaDeFilas({
                 <div
                   key={fila.colportor.id}
                   role="row"
+                  data-colportor={fila.colportor.id}
                   className={cn(
                     "grid min-h-[46px] items-center gap-3 border-b border-borde-suave px-[18px] text-cuerpo",
                     plantilla,

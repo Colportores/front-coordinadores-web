@@ -79,11 +79,25 @@ function mensajeDeFalla(resultado: Extract<ResultadoDeAccion<unknown>, { ok: fal
  * ignora) y en orden entre pedidos, así dos seguidas no se pisan ni se pierde ninguna; si una falla, el botón vuelve a
  * poder usarse y el aviso dice qué pasó.
  */
-export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedidos; acciones: AccionesPedidos }) {
+export function PedidosVista({
+  datos: inicial,
+  acciones,
+  ciudadInicialId,
+  pestanaInicial,
+}: {
+  datos: DatosDePedidos;
+  acciones: AccionesPedidos;
+  /** La ciudad con la que abre la vista cuando se llega desde Stock («Ver pedidos»); si ya no figura, abre en «todas». */
+  ciudadInicialId?: string | null;
+  /** La pestaña con la que abre (la de siempre, «Por autorizar», si no se pide otra). */
+  pestanaInicial?: Pestana | null;
+}) {
   const [datos, setDatos] = useState(inicial);
-  const [ambito, setAmbito] = useState<Ambito>(AMBITO_TODAS);
+  const [ambito, setAmbito] = useState<Ambito>(() =>
+    ciudadInicialId && inicial.ciudades.some((c) => c.id === ciudadInicialId) ? { tipo: "ciudad", ciudadId: ciudadInicialId } : AMBITO_TODAS,
+  );
   const [listaAbierta, setListaAbierta] = useState(true);
-  const [pestana, setPestana] = useState<Pestana>("PEND");
+  const [pestana, setPestana] = useState<Pestana>(pestanaInicial ?? "PEND");
   const [elegida, setElegida] = useState<string | null>(null);
   const [rechazando, setRechazando] = useState<ReadonlySet<string>>(new Set());
   const [borradores, setBorradores] = useState<Readonly<Record<string, string>>>({});
