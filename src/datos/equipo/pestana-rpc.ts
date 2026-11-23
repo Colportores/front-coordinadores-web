@@ -13,6 +13,7 @@ import type {
   ResultadoAcompanantes,
   ResultadoBeca,
   ResultadoJornadas,
+  ResultadoQuitarDeCampania,
   ZonaAnterior,
 } from "@/datos/equipo/contrato";
 import { LARGO_MAXIMO_NOTA } from "@/datos/equipo/contrato";
@@ -32,13 +33,15 @@ import {
   UUID,
 } from "@/datos/supabase/respuesta";
 import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
+import { MENSAJE_SESION_VENCIDA } from "@/lib/mensajes";
 
 /**
  * Fuente de la vista 33 (HU-JOR-004, HU-CAM-006) contra las RPC de Supabase (ADR-013): `campanias_del_coordinador()`,
  * `ciudades_de_campania()`, `zonas_por_colportor()` (la zona de hoy, las anteriores con sus fechas y las casas),
  * `historial_de_acompaniamientos()` (todos los acompañamientos de la campaña de una sola vez, con su origen, su nota y quién los cargó desde el panel),
  * `acompaniamientos_por_colportor()` (solo por `contado_desde`), `jornadas_cerradas_de_colportor()` y
- * `agregar_acompaniamiento()` (con otro colportor y una nota opcional, migración 0100). Habla con un `ClienteRpc`, o sea
+ * `agregar_acompaniamiento()` (con otro colportor y una nota opcional, migración 0100) y `quitar_de_campania()` (HU-CAM-005,
+ * migración 0192: `p_campania_id` y `p_usuario_id`, la misma pareja que el resto de las escrituras sobre un colportor). Habla con un `ClienteRpc`, o sea
  * con el JWT del coordinador.
  *
  * Los «días sin acompañar» y el total de cada colportor no se piden a `acompaniamientos_por_colportor()`: salen del mismo
@@ -56,6 +59,12 @@ import { esDiaIso, hoyEnMontevideo } from "@/lib/dias";
 
 const CUENTA_SIN_NOMBRE = "Cuenta sin nombre";
 
+/**
+ * Los rechazos de `quitar_de_campania()` (0192) cuyo `message` es el texto para mostrar: `QC001` la campaña no existe o se dio de
+ * baja, `QC002` ya terminó. `QC003` (no está en el equipo o ya lo quitaron) no es un error: ver `quitarDeCampania`.
+ */
+const CODIGOS_DE_QUITAR_CON_TEXTO = new Set(["QC001", "QC002"]);
+
 /** Los códigos cuyo `message` es el texto para mostrar (migraciones 0006, 0008, 0033 y 0043). */
 const CODIGOS_CON_TEXTO = new Set(["CZ001", "CZ011", "JO001", "JO002", "JO003", "JO004", "JO005", "22023"]);
 
@@ -69,6 +78,9 @@ const NOTA_LARGA = `La nota admite hasta ${LARGO_MAXIMO_NOTA} caracteres. Acorta
 const JORNADAS_RECHAZADAS = "No se pudieron traer las jornadas. Probá de nuevo más tarde.";
 const SIN_PERMISO_ACOMPANANTES = "Solo el coordinador de la campaña puede ver a quién anotar como acompañante.";
 const ACOMPANANTES_RECHAZADOS = "No se pudieron traer los coordinadores y administradores. Probá de nuevo más tarde.";
+const SIN_PERMISO_QUITAR = "Solo el coordinador de la campaña o un administrador puede quitar colportores de ella. Entrá con la cuenta de un coordinador de esta campaña.";
+const QUITAR_RECHAZADO = "No se pudo quitar a la persona de la campaña. Probá de nuevo más tarde.";
+const QUITAR_SIN_FUNCION = "Todavía no se puede quitar a alguien de la campaña desde el panel. Probá de nuevo más tarde.";
 const REGISTRO_RECHAZADO = "No se pudo registrar el acompañamiento. Probá de nuevo más tarde.";
 
 /** Un rechazo de la regla se traduce; una caída, un 5xx o una sesión vencida siguen como excepción. */
@@ -166,18 +178,36 @@ async function miId(cliente: ClienteRpc): Promise<string | null> {
   return fila ? cadena(rpc, fila, "usuario_id") : null;
 }
 
-function aJornada(fila: Objeto, yo: string | null): JornadaParaAcompanar {
+/** Une los nombres como se lee: «A», «A y B», «A, B y C». */
+function unirNombres(nombres: string[]): string {
+  return nombres.length <= 1 ? (nombres[0] ?? "") : `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}`;
+}
+
+/**
+ * Las jornadas cerradas del colportor, una por jornada: desde la 0177 la base manda una fila por acompañante (una jornada con dos
+ * sale dos veces, la que no tiene acompañante una vez con el acompañante en null). Con varios, `acompanante` los nombra a todos
+ * y el «(vos)» va en el nombre de quien tiene la sesión; con uno solo, el «(vos)» lo pone la vista como siempre.
+ */
+function aJornadas(filasCrudas: Objeto[], yo: string | null): JornadaParaAcompanar[] {
   const rpc = "jornadas_cerradas_de_colportor";
-  const nombre = cadenaONula(rpc, fila, "acompaniante_nombre") ?? "";
-  const apellido = cadenaONula(rpc, fila, "acompaniante_apellido") ?? "";
-  const acompananteId = cadenaONula(rpc, fila, "acompaniante_id");
-  return {
-    id: cadena(rpc, fila, "jornada_id"),
-    dia: dia(rpc, fila, "dia"),
-    horas: numero(rpc, fila, "horas"),
-    acompanante: acompananteId === null ? null : nombreVisible(nombre, apellido, CUENTA_SIN_NOMBRE),
-    acompananteEsVos: acompananteId !== null && acompananteId === yo,
-  };
+  const porJornada = new Map<string, { base: Omit<JornadaParaAcompanar, "acompanante" | "acompananteEsVos">; acompanantes: { nombre: string; esVos: boolean }[] }>();
+  for (const fila of filasCrudas) {
+    const id = cadena(rpc, fila, "jornada_id");
+    const acompananteId = cadenaONula(rpc, fila, "acompaniante_id");
+    const entrada = porJornada.get(id) ?? { base: { id, dia: dia(rpc, fila, "dia"), horas: numero(rpc, fila, "horas") }, acompanantes: [] };
+    if (acompananteId !== null) {
+      entrada.acompanantes.push({
+        nombre: nombreVisible(cadenaONula(rpc, fila, "acompaniante_nombre") ?? "", cadenaONula(rpc, fila, "acompaniante_apellido") ?? "", CUENTA_SIN_NOMBRE),
+        esVos: acompananteId === yo,
+      });
+    }
+    porJornada.set(id, entrada);
+  }
+  return Array.from(porJornada.values(), ({ base, acompanantes }) => {
+    if (acompanantes.length === 0) return { ...base, acompanante: null, acompananteEsVos: false };
+    if (acompanantes.length === 1) return { ...base, acompanante: acompanantes[0].nombre, acompananteEsVos: acompanantes[0].esVos };
+    return { ...base, acompanante: unirNombres(acompanantes.map((a) => (a.esVos ? `${a.nombre} (vos)` : a.nombre))), acompananteEsVos: false };
+  });
 }
 
 function textoDeRechazo(error: ErrorSupabase, sinPermiso: string, generico: string): string {
@@ -187,8 +217,14 @@ function textoDeRechazo(error: ErrorSupabase, sinPermiso: string, generico: stri
 
 type FuentePestana = Pick<
   FuenteDatosEquipo,
-  "obtenerEquipoPorCiudad" | "acompanantesDelPanel" | "jornadasParaAcompanar" | "registrarAcompanamiento" | "elegirCarrera" | "asignarTipoDeBeca"
->;
+  | "obtenerEquipoPorCiudad"
+  | "acompanantesDelPanel"
+  | "jornadasParaAcompanar"
+  | "registrarAcompanamiento"
+  | "elegirCarrera"
+  | "asignarTipoDeBeca"
+> &
+  Required<Pick<FuenteDatosEquipo, "quitarDeCampania">>;
 
 export function crearFuentePestanaRpc(
   cliente: ClienteRpc,
@@ -292,6 +328,8 @@ export function crearFuentePestanaRpc(
         colportores,
         solicitudesPendientes: 0,
         becas,
+        // `quitar_de_campania()` ya está publicada (0192): la fila ofrece «Quitar de la campaña».
+        sePuedeQuitar: true,
       };
     },
 
@@ -301,6 +339,28 @@ export function crearFuentePestanaRpc(
 
     async asignarTipoDeBeca(campaniaId, colportorId, tipo): Promise<ResultadoBeca> {
       return asignarTipoDeBecaRpc(cliente, campaniaId, colportorId, tipo);
+    },
+
+    async quitarDeCampania(campaniaId, colportorId): Promise<ResultadoQuitarDeCampania> {
+      // El id del colportor viene del navegador: si no es una cuenta, no está en la campaña (se lo toma como ya quitado).
+      if (!UUID.test(colportorId)) return { ok: true, yaEstaba: true };
+      try {
+        await cliente.llamarRpc("quitar_de_campania", { p_campania_id: campaniaId, p_usuario_id: colportorId });
+        return { ok: true };
+      } catch (error) {
+        // Sin sesión (401 con 42501 o PGRST3xx): vuelve como resultado para que la pantalla diga que hay que volver a entrar.
+        if (error instanceof ErrorSupabase && causaDe(error) === "sesion-vencida") {
+          return { ok: false, mensaje: MENSAJE_SESION_VENCIDA, sesionVencida: true };
+        }
+        // La función no está publicada en esa base: no es un permiso negado ni una caída.
+        if (laRpcNoExiste(error)) return { ok: false, mensaje: QUITAR_SIN_FUNCION };
+        if (!esRechazo(error)) throw error;
+        // Ya lo habían quitado (otra pestaña, otro coordinador): para quien mira es lo mismo, la fila se va.
+        if (error.codigo === "QC003") return { ok: true, yaEstaba: true };
+        if (error.codigo === "42501") return { ok: false, mensaje: SIN_PERMISO_QUITAR };
+        if (CODIGOS_DE_QUITAR_CON_TEXTO.has(error.codigo) && error.message !== "") return { ok: false, mensaje: error.message };
+        return { ok: false, mensaje: QUITAR_RECHAZADO };
+      }
     },
 
     async acompanantesDelPanel(campaniaId): Promise<ResultadoAcompanantes> {
@@ -333,7 +393,7 @@ export function crearFuentePestanaRpc(
           cliente.llamarRpc("jornadas_cerradas_de_colportor", { p_campania_id: campaniaId, p_colportor_id: colportorId }),
           miId(cliente),
         ]);
-        return { ok: true, jornadas: filas("jornadas_cerradas_de_colportor", crudas).map((f) => aJornada(f, yo)) };
+        return { ok: true, jornadas: aJornadas(filas("jornadas_cerradas_de_colportor", crudas), yo) };
       } catch (error) {
         if (esRechazo(error)) return { ok: false, mensaje: textoDeRechazo(error, SIN_PERMISO_JORNADAS, JORNADAS_RECHAZADAS) };
         throw error;

@@ -38,6 +38,7 @@ export type {
   ResultadoBusqueda,
   ResultadoInscripcion,
   ResultadoJornadas,
+  ResultadoQuitarDeCampania,
   TipoDeBeca,
   ZonaActualDeColportor,
   ZonaAnterior,

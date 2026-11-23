@@ -35,5 +35,12 @@ export function crearAccionesEquipo(campaniaId: string): AccionesEquipo {
       }
       return fuenteEquipo.asignarTipoDeBeca(campaniaId, colportorId, tipo);
     },
+    async quitarDeCampania(colportorId) {
+      "use server";
+      const quitar = fuenteEquipo.quitarDeCampania;
+      // La vista no ofrece el botón si la fuente no lo sabe hacer (`sePuedeQuitar`); esto cubre un pedido armado a mano.
+      if (!quitar) return { ok: false, mensaje: "Todavía no se puede quitar a alguien de la campaña desde el panel." };
+      return quitar.call(fuenteEquipo, campaniaId, colportorId);
+    },
   };
 }

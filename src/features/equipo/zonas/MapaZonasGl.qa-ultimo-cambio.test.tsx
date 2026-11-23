@@ -230,10 +230,9 @@ describe("24P·03 · la línea «Último cambio» de la tarjeta (QA #143)", () =
 
   it("la fuente simulada: las casas con estado traen fecha legible y «Sin visita» no", async () => {
     const fuente = fuenteZonasSimulada;
-    const zonas = DATOS_ZONAS_SIMULADO.ciudades[0].zonas.map((z) => z.id);
-    const casas = await fuente.casasDeZonas(
+    const casas = await fuente.casasDeLaCiudad(
       DATOS_ZONAS_SIMULADO.campaniaId,
-      zonas,
+      DATOS_ZONAS_SIMULADO.ciudades[0].id,
     );
     const conEstado = casas.filter((c) => c.estado !== "SIN_VISITA");
     expect(conEstado.length).toBeGreaterThan(0);
@@ -249,9 +248,9 @@ describe("24P·03 · la línea «Último cambio» de la tarjeta (QA #143)", () =
       now: new Date("2026-11-05T01:00:00Z"),
     }); // 22:00 del 4/11 en Montevideo
     try {
-      const casas = await fuenteZonasSimulada.casasDeZonas(
+      const casas = await fuenteZonasSimulada.casasDeLaCiudad(
         DATOS_ZONAS_SIMULADO.campaniaId,
-        DATOS_ZONAS_SIMULADO.ciudades[0].zonas.map((z) => z.id),
+        DATOS_ZONAS_SIMULADO.ciudades[0].id,
       );
       const hoyEnMontevideo = fechaEnMontevideo(new Date().toISOString());
       const fechas = casas

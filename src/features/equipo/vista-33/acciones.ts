@@ -4,6 +4,7 @@ import type {
   ResultadoAcompanantes,
   ResultadoBeca,
   ResultadoJornadas,
+  ResultadoQuitarDeCampania,
   TipoDeBeca,
 } from "@/datos/equipo/contrato";
 
@@ -22,4 +23,8 @@ export interface AccionesEquipo {
   registrarAcompanamiento(jornadaId: string, datos?: DatosDeAcompanamiento): Promise<ResultadoAcompanamiento>;
   elegirCarrera(colportorId: string, carreraId: string): Promise<ResultadoBeca>;
   asignarTipoDeBeca(colportorId: string, tipo: TipoDeBeca | null): Promise<ResultadoBeca>;
+  /**
+   * «Quitar de la campaña» (HU-CAM-005). Opcional: sin ella (o sin `sePuedeQuitar` en los datos) la fila no ofrece el botón.
+   */
+  quitarDeCampania?(colportorId: string): Promise<ResultadoQuitarDeCampania>;
 }

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 
 import { fuenteZonas } from "@/datos/equipo/zonas";
 import { fuenteZonasSimulada } from "@/datos/equipo/zonas/simulado";
-import { SinCampaniaParaZonas } from "@/features/equipo/zonas/SinCampaniaParaZonas";
+import { AvisoSinCampania } from "@/shell/AvisoSinCampania";
 import { ZonasCampaniaDesdeUrl } from "@/features/equipo/zonas/ZonasCampaniaDesdeUrl";
 import { ZonasCampaniaLocal } from "@/features/equipo/zonas/ZonasCampaniaLocal";
 import { SeccionHu } from "@/dev/SeccionHu";
@@ -32,7 +32,7 @@ export default async function ZonasPagina() {
       return (
         <ContenidoPestana titulo="Ciudades">
           <SeccionHu hu="HU-CAM-006">
-            <SinCampaniaParaZonas />
+            <AvisoSinCampania />
           </SeccionHu>
         </ContenidoPestana>
       );

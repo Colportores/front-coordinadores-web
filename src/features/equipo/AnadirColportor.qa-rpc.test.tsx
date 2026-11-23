@@ -13,7 +13,7 @@ import { crearFuenteAnadirRpc } from "@/datos/equipo/rpc";
 import { DATOS_ANADIR_COLPORTOR_SIMULADO, fuenteEquipoSimulada } from "@/datos/equipo/simulado";
 import { AnadirColportor, MS_DESHACER } from "@/features/equipo/AnadirColportor";
 import { iniciales } from "@/features/equipo/candidatos";
-import { SinCampaniaParaAnadir } from "@/features/equipo/SinCampaniaParaAnadir";
+import { AvisoSinCampania } from "@/shell/AvisoSinCampania";
 import { MS_ESPERA_BUSQUEDA } from "@/features/equipo/useBusquedaCandidatos";
 
 /**
@@ -195,10 +195,9 @@ describe("QA #41 · búsqueda lenta y reintentos", () => {
 });
 
 describe("QA #41 · sin campaña en curso", () => {
-  it("dice qué pasa, deja volver a Equipo y es accesible (axe A/AA)", async () => {
-    const { container } = render(<SinCampaniaParaAnadir />);
-    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso ni por empezar a la que añadir colportores.");
-    expect(screen.getByRole("link", { name: "‹ Equipo" })).toHaveAttribute("href", "/equipo");
+  it("dice qué pasa, a quién pedir una campaña y es accesible (axe A/AA)", async () => {
+    const { container } = render(<AvisoSinCampania />);
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés campañas en curso ni por empezar");
     expect(await violaciones(container)).toEqual([]);
   });
 });

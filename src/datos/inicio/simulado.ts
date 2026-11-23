@@ -149,6 +149,8 @@ export function crearFuenteInicioSimulada(ahora: () => Date = () => new Date()):
 
       return {
         campaniaId: opciones.campaniaId ?? CAMPANIA_SIMULADA,
+        // Una campaña en curso (la del canvas 31): el encabezado «Inicio · Primavera 2026».
+        campania: { nombre: "Primavera 2026", ciudades: ciudades.map((c) => c.nombre), fechaInicio: "2026-09-15", porEmpezar: false },
         fecha,
         esHoy,
         calculadoA: calculadoA.toISOString(),

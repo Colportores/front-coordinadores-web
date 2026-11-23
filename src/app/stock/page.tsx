@@ -1,7 +1,7 @@
 import { fuenteStock } from "@/datos/stock";
 import { fuenteStockSimulada } from "@/datos/stock/simulado";
 import { SeccionHu } from "@/dev/SeccionHu";
-import { SinCampaniaParaStock } from "@/features/stock/vista-34/SinCampaniaParaStock";
+import { AvisoSinCampania } from "@/shell/AvisoSinCampania";
 import { StockVista } from "@/features/stock/vista-34/StockVista";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
@@ -23,7 +23,7 @@ export default async function PestanaStock() {
     <ContenidoPestana titulo="Stock" className={SIN_PADDING}>
       <SeccionHu hu="HU-STK-010" className={LLENA}>
         {/* `key`: al elegir otra campaña en el topbar la página se vuelve a pedir y el estado de la vista se reinicia. */}
-        {datos ? <StockVista key={datos.campaniaId} datos={datos} /> : <SinCampaniaParaStock />}
+        {datos ? <StockVista key={datos.campaniaId} datos={datos} /> : <AvisoSinCampania className="m-[22px]" />}
       </SeccionHu>
     </ContenidoPestana>
   );

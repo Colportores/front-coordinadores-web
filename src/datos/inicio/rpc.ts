@@ -7,7 +7,8 @@ import type {
   OpcionesTablero,
   TableroDelDia,
 } from "@/datos/inicio/contrato";
-import { campaniaProvisoria } from "@/datos/supabase/campania-provisoria";
+import { hoyEnMontevideo } from "@/datos/shell/rpc";
+import { campaniaProvisoriaConFechas } from "@/datos/supabase/campania-provisoria";
 import { causaDe, ErrorSupabase, type ClienteRpc } from "@/datos/supabase/cliente";
 import {
   booleano,
@@ -98,31 +99,49 @@ function campaniaYaNoVigente(error: unknown): boolean {
   return error instanceof ErrorSupabase && (error.codigo === "CZ001" || error.codigo === "CZ011");
 }
 
-/** Los departamentos por id de ciudad. Una campaña terminada no deja leerlos (CZ011): sus ciudades quedan sin departamento. */
-async function departamentos(cliente: ClienteRpc, campaniaId: string): Promise<Map<string, string | null>> {
+interface CiudadDeCampania {
+  id: string;
+  nombre: string;
+  departamento: string | null;
+}
+
+/** Las ciudades de la campaña, en el orden de la base (el del topbar). Una campaña terminada no deja leerlas (CZ011): sin ciudades. */
+async function ciudadesDeCampania(cliente: ClienteRpc, campaniaId: string): Promise<CiudadDeCampania[]> {
   try {
     const ciudades = filas(RPC_CIUDADES, await cliente.llamarRpc(RPC_CIUDADES, { p_campania_id: campaniaId }));
-    return new Map(ciudades.map((c) => [cadena(RPC_CIUDADES, c, "ciudad_id"), cadenaONula(RPC_CIUDADES, c, "departamento")]));
+    return ciudades.map((c) => ({
+      id: cadena(RPC_CIUDADES, c, "ciudad_id"),
+      nombre: cadena(RPC_CIUDADES, c, "nombre"),
+      departamento: cadenaONula(RPC_CIUDADES, c, "departamento"),
+    }));
   } catch (error) {
-    if (error instanceof ErrorSupabase && error.codigo === "CZ011") return new Map();
+    if (error instanceof ErrorSupabase && error.codigo === "CZ011") return [];
     throw error;
   }
 }
 
-export function crearFuenteInicioRpc(cliente: ClienteRpc, campaniaElegida: () => Promise<string | null>): FuenteDatosInicio {
+/** @param ahora el reloj, para decidir si la campaña ya empezó (la base cuenta los días en Montevideo). */
+export function crearFuenteInicioRpc(
+  cliente: ClienteRpc,
+  campaniaElegida: () => Promise<string | null>,
+  ahora: () => Date = () => new Date(),
+): FuenteDatosInicio {
   async function obtenerTablero(opciones: OpcionesTablero = {}): Promise<TableroDelDia | null> {
     if (opciones.fecha != null && !FECHA.test(opciones.fecha)) throw new RechazoDelTablero(NO_SE_PUDO_LEER);
     if (opciones.campaniaId !== undefined && !UUID.test(opciones.campaniaId)) throw new RechazoDelTablero(NO_SE_PUDO_LEER);
 
-    const campaniaId = opciones.campaniaId ?? (await campaniaProvisoria(cliente, await campaniaElegida()))?.id;
-    if (!campaniaId) return null;
+    // La campaña pedida (o la elegida en el topbar) tiene que seguir en la lista de la coordinadora: si terminó o se dio de
+    // baja en el medio, es «sin campaña», no un tablero sin nombre.
+    const campania = await campaniaProvisoriaConFechas(cliente, opciones.campaniaId ?? (await campaniaElegida()));
+    if (!campania || (opciones.campaniaId !== undefined && campania.id !== opciones.campaniaId)) return null;
+    const campaniaId = campania.id;
 
     let respuesta: unknown;
-    let porCiudad: Map<string, string | null>;
+    let deLaCampania: CiudadDeCampania[];
     try {
-      [respuesta, porCiudad] = await Promise.all([
+      [respuesta, deLaCampania] = await Promise.all([
         cliente.llamarRpc(RPC, { p_campania_id: campaniaId, p_fecha: opciones.fecha ?? null }),
-        departamentos(cliente, campaniaId),
+        ciudadesDeCampania(cliente, campaniaId),
       ]);
     } catch (error) {
       if (campaniaYaNoVigente(error)) return null;
@@ -132,6 +151,7 @@ export function crearFuenteInicioRpc(cliente: ClienteRpc, campaniaElegida: () =>
       throw error;
     }
 
+    const porCiudad = new Map(deLaCampania.map((c) => [c.id, c.departamento]));
     const tablero = objeto(RPC, respuesta);
     lista(RPC, tablero, "pendientes");
     const ciudades: CiudadDelDia[] = listaDeObjetos(RPC, tablero, "ciudades").map((fila) => {
@@ -146,6 +166,12 @@ export function crearFuenteInicioRpc(cliente: ClienteRpc, campaniaElegida: () =>
 
     return {
       campaniaId,
+      campania: {
+        nombre: campania.nombre,
+        ciudades: (deLaCampania.length > 0 ? deLaCampania : ciudades).map((c) => c.nombre),
+        fechaInicio: campania.fechaInicio,
+        porEmpezar: campania.fechaInicio > hoyEnMontevideo(ahora()),
+      },
       fecha: cadena(RPC, tablero, "fecha"),
       esHoy: booleano(RPC, tablero, "es_hoy"),
       calculadoA: cadena(RPC, tablero, "calculado_a"),

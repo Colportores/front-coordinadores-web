@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import type { AccionesEquipo } from "./acciones";
 import {
   diasSinAcompanar,
+  jornadasAcompanadas,
   nombreDeAcompanante,
   ordenarPorDiasSinAcompanar,
   pluralColportores,
@@ -93,9 +94,10 @@ function Historial({ colportor }: { colportor: ColportorDeEquipo }) {
         <p className="text-chico text-tinta-suave">Todavía no se lo acompañó en esta campaña.</p>
       ) : (
         <ul className="flex flex-col">
-          {lista.map((a) => (
+          {lista.map((a, i) => (
             <li
-              key={a.jornadaId}
+              // Una jornada con varios acompañantes sale una vez por cada uno: la jornada sola no alcanza de clave.
+              key={`${a.jornadaId}:${i}`}
               className="grid min-h-[30px] grid-cols-[96px_70px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)] items-center gap-3.5 border-b border-borde py-1 text-chico last:border-b-0"
             >
               <span className="font-mono">{diaConSemana(a.dia)}</span>
@@ -207,7 +209,7 @@ export function TablaAcompanamientos({
                     <td className="px-2 py-2.5 align-middle">
                       <Semanas colportor={c} semanas={semanas} />
                     </td>
-                    <td className="px-2 py-2.5 text-right align-middle font-mono font-semibold">{c.acompanamientos.length}</td>
+                    <td className="px-2 py-2.5 text-right align-middle font-mono font-semibold">{jornadasAcompanadas(c)}</td>
                     <td className="px-2 py-2.5 align-middle">
                       {aunNoEmpezo ? <span className="text-tinta-suave">La campaña todavía no empezó</span> : <SinAcompanar colportor={c} datos={datos} />}
                     </td>

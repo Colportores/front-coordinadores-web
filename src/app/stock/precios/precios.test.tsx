@@ -45,7 +45,7 @@ describe("Stock · Precios de venta (vista 27)", () => {
 
     render(<ProveedorModoDev activo={false}>{await Precios()}</ProveedorModoDev>);
 
-    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso ni por empezar.");
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés campañas en curso ni por empezar");
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 

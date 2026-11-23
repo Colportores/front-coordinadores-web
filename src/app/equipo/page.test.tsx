@@ -74,7 +74,7 @@ describe("PestanaEquipo", () => {
     render(<ProveedorModoDev activo={false}>{await PestanaEquipo()}</ProveedorModoDev>);
 
     expect(screen.getByRole("heading", { level: 1, name: "Equipo" })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso ni por empezar.");
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés campañas en curso ni por empezar");
     expect(screen.queryByRole("navigation", { name: "Ciudades" })).not.toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });

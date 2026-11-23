@@ -24,30 +24,26 @@ const hayRed = () => typeof navigator === "undefined" || navigator.onLine !== fa
 
 interface Entrada {
   ciudadId: string;
-  /** Las zonas vivas de la ciudad: `casas_de_zona()` se pide de a una. */
-  zonaIds: string[];
-  pedir(zonaIds: string[]): Promise<CasaDeCiudad[]>;
+  pedir(ciudadId: string): Promise<CasaDeCiudad[]>;
   /** Cada vez que sube, se vuelve a pedir (se guardó o eliminó una zona: cambia qué casas incluye cada una). */
   recarga: number;
 }
 
 /**
- * Las casas de la ciudad elegida para el mapa de la vista 24 (HU-CAM-006). Se piden al elegir la ciudad, al cambiar sus zonas y
+ * Las casas de la ciudad elegida para el mapa de la vista 24 (HU-CAM-006), todas, estén o no en una zona. Se piden al elegir la ciudad, al cambiar sus zonas y
  * con «Reintentar» o al volver la red. Una respuesta vieja (otra ciudad, o un pedido que ya se reemplazó) no pisa a la nueva.
  * Si falla, nunca se toma por «no hay casas»: queda `error`, o `sinConexion` si no hay red y ya había casas.
  */
-export function useCasasDeCiudad({ ciudadId, zonaIds, pedir, recarga }: Entrada): CasasDeCiudad & { reintentar(): void } {
+export function useCasasDeCiudad({ ciudadId, pedir, recarga }: Entrada): CasasDeCiudad & { reintentar(): void } {
   const [estado, setEstado] = useState<CasasDeCiudad>(() => sinNada(ciudadId));
   const [reintentos, setReintentos] = useState(0);
   const version = useRef(0);
-  const clave = zonaIds.join(",");
 
   useEffect(() => {
     const miVersion = ++version.current;
-    const ids = clave === "" ? [] : clave.split(",");
-    // Una ciudad sin zonas no tiene casas que pedir (las casas llegan por zona): solo se descarta lo que venga en camino.
-    if (ids.length === 0) return;
-    pedir(ids)
+    // Sin ciudad (la campaña todavía no tiene ninguna) no hay nada que pedir: solo se descarta lo que venga en camino.
+    if (ciudadId === "") return;
+    pedir(ciudadId)
       .then((casas) => {
         if (miVersion !== version.current) return;
         setEstado({ ciudadId, fase: "listo", casas, actualizadoA: new Date(), sinConexion: false });
@@ -60,7 +56,7 @@ export function useCasasDeCiudad({ ciudadId, zonaIds, pedir, recarga }: Entrada)
             : { ciudadId, fase: "error", casas: SIN_CASAS, actualizadoA: null, sinConexion: false },
         );
       });
-  }, [ciudadId, clave, pedir, recarga, reintentos]);
+  }, [ciudadId, pedir, recarga, reintentos]);
 
   /** «Reintentar» o la red que vuelve: se pide de nuevo, y si no hay casas a la vista, el aviso pasa de error a «Cargando…». */
   const volverAPedir = useCallback(() => {
@@ -83,7 +79,7 @@ export function useCasasDeCiudad({ ciudadId, zonaIds, pedir, recarga }: Entrada)
     };
   }, [faltaAlgo, volverAPedir]);
 
-  // Lo que quedó de otra ciudad no se muestra; una ciudad sin zonas no tiene nada que cargar.
-  const vigente = zonaIds.length === 0 ? { ...sinNada(ciudadId), fase: "listo" as const } : estado.ciudadId === ciudadId ? estado : sinNada(ciudadId);
+  // Lo que quedó de otra ciudad no se muestra.
+  const vigente = estado.ciudadId === ciudadId ? estado : sinNada(ciudadId);
   return { ...vigente, reintentar: volverAPedir };
 }

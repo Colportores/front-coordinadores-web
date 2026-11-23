@@ -41,7 +41,7 @@ describe("pestaña Stock · Pedidos y transferencias (vista 35)", () => {
 
     render(<ProveedorModoDev activo={false}>{await PedidosYTransferencias()}</ProveedorModoDev>);
 
-    expect(screen.getByRole("status")).toHaveTextContent("No tenés una campaña en curso ni por empezar.");
+    expect(screen.getByRole("status")).toHaveTextContent("No tenés campañas en curso ni por empezar");
     expect(screen.queryByRole("navigation", { name: "Ciudades" })).not.toBeInTheDocument();
   });
 

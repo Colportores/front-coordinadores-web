@@ -4,7 +4,7 @@ import { SeccionHu } from "@/dev/SeccionHu";
 import { InicioLocal } from "@/features/inicio/InicioLocal";
 import { InicioVista } from "@/features/inicio/InicioVista";
 import { RechazoParaInicio } from "@/features/inicio/RechazoParaInicio";
-import { SinCampaniaParaInicio } from "@/features/inicio/SinCampaniaParaInicio";
+import { AvisoSinCampania } from "@/shell/AvisoSinCampania";
 import { ContenidoPestana } from "@/shell/ContenidoPestana";
 
 // La vista llena el área bajo el topbar: la columna de ciudades va de borde a borde, sin el padding de las demás pestañas.
@@ -42,7 +42,7 @@ export default async function PestanaInicio() {
       return (
         <ContenidoPestana titulo="Inicio" className={SIN_PADDING}>
           <SeccionHu hu="HU-CAM-008" className="min-h-0 flex-1">
-            <SinCampaniaParaInicio />
+            <AvisoSinCampania className="m-[22px]" />
           </SeccionHu>
         </ContenidoPestana>
       );

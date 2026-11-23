@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { CiudadDelDia, ColportorDelDia, TableroDelDia } from "@/datos/inicio";
+import type { CampaniaDelTablero, CiudadDelDia, ColportorDelDia, TableroDelDia } from "@/datos/inicio";
 import {
   claveDe,
   ciudadesDe,
   diaTexto,
   elementosDeLista,
   encabezadoDe,
+  encabezadoDeCampania,
   horaDeActualizacion,
   horasTexto,
   momentoCortoTexto,
@@ -240,6 +241,7 @@ describe("pendientes de acción", () => {
   const art = ciudad("art", "Artigas", "Artigas");
   const base: TableroDelDia = {
     campaniaId: "c",
+    campania: { nombre: "Primavera 2026", ciudades: ["Rivera", "Artigas"], fechaInicio: "2026-09-15", porEmpezar: false },
     fecha: "2026-10-21",
     esHoy: true,
     calculadoA: AHORA,
@@ -303,5 +305,25 @@ describe("pendientes de acción", () => {
     // Cada persona trae su propia acción: la tarjeta no ofrece un botón general que no sabría a quién asignar (#187).
     expect(tarjeta.acciones).toEqual([]);
     expect(tarjetasPendientes({ ...tablero, sinZona: [persona("4", "Baja", "2026-10-21T14:02:00.000Z", true)] }, TODAS)).toEqual([]);
+  });
+});
+
+describe("encabezadoDeCampania (#77, canvas 37)", () => {
+  const enCurso: CampaniaDelTablero = { nombre: "Primavera 2026", ciudades: ["Montevideo", "Las Piedras"], fechaInicio: "2026-09-15", porEmpezar: false };
+
+  it("en curso: «Inicio · <campaña>» y sus ciudades separadas por « · »", () => {
+    expect(encabezadoDeCampania(enCurso)).toEqual({ titulo: "Inicio · Primavera 2026", subtitulo: "Montevideo · Las Piedras" });
+  });
+
+  it("por empezar: la fecha con año y que todavía no hay jornadas, sin las ciudades", () => {
+    expect(encabezadoDeCampania({ ...enCurso, nombre: "Verano 2027", fechaInicio: "2027-01-04", porEmpezar: true })).toEqual({
+      titulo: "Inicio · Verano 2027",
+      subtitulo: "Empieza el 04/01/2027 · todavía no hay jornadas",
+    });
+  });
+
+  it("sin ciudades: segunda línea vacía; una sola ciudad: sin separador", () => {
+    expect(encabezadoDeCampania({ ...enCurso, ciudades: [] }).subtitulo).toBe("");
+    expect(encabezadoDeCampania({ ...enCurso, ciudades: ["Rivera"] }).subtitulo).toBe("Rivera");
   });
 });
