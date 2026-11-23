@@ -217,6 +217,15 @@ describe("QA #81 · reentrada después de un error", () => {
 });
 
 describe("QA #81 · «Otro»: lo que viaja al servidor", () => {
+  it.skip("QA #81: con «Otro», el campo trae el aviso de no poner datos del cliente (decisión de Cristian, 23/11, «Otro panel»)", async () => {
+    const { usuario } = montar();
+    const d = await abrirDialogo(usuario);
+    await usuario.click(d.getByRole("radio", { name: "Otro" }));
+
+    expect(d.getByText(/(no|sin) .*datos del cliente/i)).toBeInTheDocument();
+    expect(d.getByRole("textbox")).toHaveAccessibleDescription(/datos del cliente/i);
+  });
+
   it("solo espacios no deja seguir; con emoji y espacios de más manda el texto recortado", async () => {
     const { usuario, anularCobro } = montar();
     const d = await abrirDialogo(usuario);
