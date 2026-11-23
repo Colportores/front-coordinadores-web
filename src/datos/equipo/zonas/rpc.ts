@@ -36,6 +36,7 @@ import {
   UUID,
   type Objeto,
 } from "@/datos/supabase/respuesta";
+import { llamarRpcPorPaginas } from "@/datos/supabase/paginas";
 
 /**
  * Fuente de la vista 24 (HU-CAM-006) contra las RPC de Supabase (ADR-013): `campanias_del_coordinador()`,
@@ -342,8 +343,8 @@ function aCiudadBase(fila: Objeto): CiudadBase {
  */
 async function leerCiudades(cliente: ClienteRpc, campaniaId: string, soloCiudadId?: string): Promise<CiudadDeCampania[]> {
   const [respuestaCiudades, respuestaInscriptos] = await Promise.all([
-    cliente.llamarRpc("ciudades_de_campania", { p_campania_id: campaniaId }),
-    cliente.llamarRpc("colportores_de_campania", { p_campania_id: campaniaId }),
+    llamarRpcPorPaginas(cliente, "ciudades_de_campania", { p_campania_id: campaniaId }),
+    llamarRpcPorPaginas(cliente, "colportores_de_campania", { p_campania_id: campaniaId }),
   ]);
   const inscriptos = filas("colportores_de_campania", respuestaInscriptos).map(aInscripto);
   const nombres = new Map(inscriptos.map((i) => [i.id, i.nombre]));

@@ -19,6 +19,7 @@ import {
   RespuestaInesperada,
   UUID,
 } from "@/datos/supabase/respuesta";
+import { llamarRpcPorPaginas } from "@/datos/supabase/paginas";
 import { MENSAJE_SESION_VENCIDA } from "@/lib/mensajes";
 
 /**
@@ -137,7 +138,7 @@ export function crearFuentePreciosRpc(
 
       try {
         const rpcCiudades = "ciudades_de_campania";
-        const ciudades = filas(rpcCiudades, await cliente.llamarRpc(rpcCiudades, { p_campania_id: campania.id })).map((fila) => ({
+        const ciudades = (await llamarRpcPorPaginas(cliente, rpcCiudades, { p_campania_id: campania.id })).map((fila) => ({
           id: cadena(rpcCiudades, fila, "campania_ciudad_id"),
           nombre: cadena(rpcCiudades, fila, "nombre"),
         }));

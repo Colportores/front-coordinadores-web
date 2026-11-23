@@ -14,7 +14,6 @@ import {
   booleano,
   cadena,
   cadenaONula,
-  filas,
   lista,
   listaDeObjetos,
   nombreVisible,
@@ -24,6 +23,7 @@ import {
   UUID,
   type Objeto,
 } from "@/datos/supabase/respuesta";
+import { llamarRpcPorPaginas } from "@/datos/supabase/paginas";
 
 /**
  * Fuente de la vista 31 (Inicio, HU-CAM-008) contra las RPC de Supabase (ADR-013): `tablero_de_inicio()` (migraciones
@@ -108,7 +108,7 @@ interface CiudadDeCampania {
 /** Las ciudades de la campaña, en el orden de la base (el del topbar). Una campaña terminada no deja leerlas (CZ011): sin ciudades. */
 async function ciudadesDeCampania(cliente: ClienteRpc, campaniaId: string): Promise<CiudadDeCampania[]> {
   try {
-    const ciudades = filas(RPC_CIUDADES, await cliente.llamarRpc(RPC_CIUDADES, { p_campania_id: campaniaId }));
+    const ciudades = await llamarRpcPorPaginas(cliente, RPC_CIUDADES, { p_campania_id: campaniaId });
     return ciudades.map((c) => ({
       id: cadena(RPC_CIUDADES, c, "ciudad_id"),
       nombre: cadena(RPC_CIUDADES, c, "nombre"),

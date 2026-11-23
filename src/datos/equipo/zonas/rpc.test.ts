@@ -159,8 +159,8 @@ describe("fuente de la vista 24 contra las RPC", () => {
       expect(llamarRpc.mock.calls).toEqual(
         expect.arrayContaining([
           ["campanias_del_coordinador", {}],
-          ["ciudades_de_campania", { p_campania_id: CAMPANIA }],
-          ["colportores_de_campania", { p_campania_id: CAMPANIA }],
+          ["ciudades_de_campania", expect.objectContaining({ p_campania_id: CAMPANIA })],
+          ["colportores_de_campania", expect.objectContaining({ p_campania_id: CAMPANIA })],
           ["zonas_de_ciudad", { p_campania_id: CAMPANIA, p_campania_ciudad_id: MVD }],
           ["zonas_de_ciudad", { p_campania_id: CAMPANIA, p_campania_ciudad_id: LAS_PIEDRAS }],
         ]),
@@ -176,8 +176,8 @@ describe("fuente de la vista 24 contra las RPC", () => {
 
       await crearFuenteZonasRpc(cliente).obtenerZonas();
 
-      expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: CAMPANIA });
-      expect(llamarRpc).not.toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: otra });
+      expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", expect.objectContaining({ p_campania_id: CAMPANIA }));
+      expect(llamarRpc).not.toHaveBeenCalledWith("ciudades_de_campania", expect.objectContaining({ p_campania_id: otra }));
     });
 
     it("trabaja con la campaña que eligió la coordinadora en el topbar (#70), aunque no sea la primera ni haya empezado", async () => {
@@ -189,8 +189,8 @@ describe("fuente de la vista 24 contra las RPC", () => {
       const datos = await crearFuenteZonasRpc(cliente, async () => otra).obtenerZonas();
 
       expect(datos).toMatchObject({ campaniaId: otra, campania: "Otoño" });
-      expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: otra });
-      expect(llamarRpc).not.toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: CAMPANIA });
+      expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", expect.objectContaining({ p_campania_id: otra }));
+      expect(llamarRpc).not.toHaveBeenCalledWith("ciudades_de_campania", expect.objectContaining({ p_campania_id: CAMPANIA }));
     });
 
     it("una elegida que ya no figura en su lista vuelve a la primera", async () => {
@@ -198,7 +198,7 @@ describe("fuente de la vista 24 contra las RPC", () => {
 
       await crearFuenteZonasRpc(cliente, async () => "99999999-9999-4999-8999-999999999999").obtenerZonas();
 
-      expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", { p_campania_id: CAMPANIA });
+      expect(llamarRpc).toHaveBeenCalledWith("ciudades_de_campania", expect.objectContaining({ p_campania_id: CAMPANIA }));
     });
 
     it("sin campaña (ninguna que no haya terminado) devuelve null y no pide nada más", async () => {
