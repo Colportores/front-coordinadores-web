@@ -449,8 +449,8 @@ describe("jornadasParaAcompanar", () => {
       ok: true,
       jornadas: [
         { id: JORNADA, dia: "2026-10-20", horas: 5.5, acompanante: null, acompananteEsVos: false },
-        { id: "otra", dia: "2026-10-20", horas: 5.5, acompanante: "Tomás Ibarra", acompananteEsVos: false },
-        { id: "mia", dia: "2026-10-20", horas: 5.5, acompanante: "Mariana Pérez", acompananteEsVos: true },
+        { id: "otra", dia: "2026-10-20", horas: 5.5, acompanante: "Tomás Ibarra", acompananteEsVos: false, acompanantes: [{ nombre: "Tomás Ibarra", esVos: false }] },
+        { id: "mia", dia: "2026-10-20", horas: 5.5, acompanante: "Mariana Pérez", acompananteEsVos: true, acompanantes: [{ nombre: "Mariana Pérez", esVos: true }] },
       ],
     });
     expect(llamarRpc).toHaveBeenCalledWith("jornadas_cerradas_de_colportor", { p_campania_id: CAMPANIA, p_colportor_id: EMILIANO });
@@ -476,10 +476,31 @@ describe("jornadasParaAcompanar", () => {
       ok: true,
       jornadas: [
         // Con varios, el «(vos)» va en el nombre de quien tiene la sesión y la vista no agrega otro.
-        { id: "dos", dia: "2026-10-20", horas: 5.5, acompanante: "Tomás Ibarra y Mariana Pérez (vos)", acompananteEsVos: false },
-        { id: "tres", dia: "2026-10-20", horas: 5.5, acompanante: "Tomás Ibarra, Marta Gómez y Daniel Ruiz", acompananteEsVos: false },
+        {
+          id: "dos",
+          dia: "2026-10-20",
+          horas: 5.5,
+          acompanante: "Tomás Ibarra y Mariana Pérez (vos)",
+          acompananteEsVos: false,
+          acompanantes: [
+            { nombre: "Tomás Ibarra", esVos: false },
+            { nombre: "Mariana Pérez", esVos: true },
+          ],
+        },
+        {
+          id: "tres",
+          dia: "2026-10-20",
+          horas: 5.5,
+          acompanante: "Tomás Ibarra, Marta Gómez y Daniel Ruiz",
+          acompananteEsVos: false,
+          acompanantes: [
+            { nombre: "Tomás Ibarra", esVos: false },
+            { nombre: "Marta Gómez", esVos: false },
+            { nombre: "Daniel Ruiz", esVos: false },
+          ],
+        },
         // Con uno solo, como siempre: la vista pone el «(vos)».
-        { id: "una", dia: "2026-10-20", horas: 5.5, acompanante: "Mariana Pérez", acompananteEsVos: true },
+        { id: "una", dia: "2026-10-20", horas: 5.5, acompanante: "Mariana Pérez", acompananteEsVos: true, acompanantes: [{ nombre: "Mariana Pérez", esVos: true }] },
         { id: "nadie", dia: "2026-10-20", horas: 5.5, acompanante: null, acompananteEsVos: false },
       ],
     });

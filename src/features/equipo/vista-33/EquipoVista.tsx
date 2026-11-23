@@ -41,14 +41,19 @@ const VISTAS: { valor: VistaEquipo; etiqueta: string }[] = [
   { valor: "acompanamientos", etiqueta: "Acompañamientos" },
 ];
 
+/** Un acompañamiento es una persona en una jornada: una jornada con varios (0177) tiene una fila por cada uno. */
+function esElMismo(a: AcompanamientoDeColportor, b: AcompanamientoDeColportor): boolean {
+  return a.jornadaId === b.jornadaId && a.acompanante === b.acompanante && a.acompananteEsVos === b.acompananteEsVos;
+}
+
 /** Agrega a los datos los acompañamientos que se registraron desde esta pantalla y todavía no volvieron del servidor. */
 function conRegistrados(datos: DatosEquipoPorCiudad, registrados: Record<string, AcompanamientoDeColportor[]>): DatosEquipoPorCiudad {
   if (Object.keys(registrados).length === 0) return datos;
   return {
     ...datos,
     colportores: datos.colportores.map((c) => {
-      const nuevos = (registrados[c.id] ?? []).filter((r) => !c.acompanamientos.some((a) => a.jornadaId === r.jornadaId));
-      return nuevos.length === 0 ? c : { ...c, acompanamientos: [...nuevos, ...c.acompanamientos] };
+      const nuevos = (registrados[c.id] ?? []).filter((r) => !c.acompanamientos.some((a) => esElMismo(a, r)));
+      return nuevos.length === 0 ? c : { ...c, acompanamientos: [...c.acompanamientos, ...nuevos] };
     }),
   };
 }
@@ -153,8 +158,9 @@ export function EquipoVista({ datos, acciones }: { datos: DatosEquipoPorCiudad; 
   const alRegistrar = useCallback((colportorId: string, { jornada, dia, acompanante, acompananteEsVos, origen, cargadoPor, nota }: AcompanamientoRegistrado) => {
     setRegistrados((anteriores) => {
       const delColportor = anteriores[colportorId] ?? [];
-      if (delColportor.some((r) => r.jornadaId === jornada.id)) return anteriores;
-      return { ...anteriores, [colportorId]: [{ jornadaId: jornada.id, dia, horas: jornada.horas, acompanante, acompananteEsVos, origen, cargadoPor, nota }, ...delColportor] };
+      const registrado = { jornadaId: jornada.id, dia, horas: jornada.horas, acompanante, acompananteEsVos, origen, cargadoPor, nota };
+      if (delColportor.some((r) => esElMismo(r, registrado))) return anteriores;
+      return { ...anteriores, [colportorId]: [registrado, ...delColportor] };
     });
   }, []);
 

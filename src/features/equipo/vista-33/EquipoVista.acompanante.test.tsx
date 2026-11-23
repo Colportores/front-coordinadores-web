@@ -278,7 +278,7 @@ describe("la nota sobre un acompañamiento que ya estaba registrado", () => {
     );
     // Ya no queda ninguna jornada libre, pero el campo sigue con lo escrito.
     expect(campoNota()).toHaveValue("Trabajamos juntos");
-    expect(screen.getByText(/Todas sus jornadas terminadas ya figuran acompañadas/)).toBeInTheDocument();
+    expect(screen.getByText(/Todas sus jornadas terminadas ya tienen acompañante/)).toBeInTheDocument();
   });
 
   it("«ya figuraba» sin nota no avisa de ninguna nota perdida", async () => {
@@ -308,14 +308,14 @@ describe("la nota sobre un acompañamiento que ya estaba registrado", () => {
     );
   });
 
-  it("si la jornada ya está acompañada por todos lados no se ofrece el formulario ni la nota", async () => {
+  it("si todas las jornadas ya están acompañadas, el formulario sigue: se puede sumar a otra persona, y lo dice", async () => {
     const acciones = crearAcciones([J2]);
     await abrir({ acciones });
     await screen.findByRole("list", { name: /Jornadas terminadas/ });
 
-    expect(screen.queryByRole("textbox", { name: "Nota (opcional)" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("radio", { name: "Yo" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Todas sus jornadas terminadas ya figuran acompañadas/)).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Nota (opcional)" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Yo" })).toBeInTheDocument();
+    expect(screen.getByText(/Todas sus jornadas terminadas ya tienen acompañante\. Para sumar a otra persona, usá «Sumar otro acompañante»/)).toBeInTheDocument();
   });
 
   it("el origen y la nota que devuelve el servidor son los del historial, no los que se escribieron", async () => {
