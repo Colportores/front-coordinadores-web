@@ -775,8 +775,8 @@ export function deshacerResolucion(datos: DatosDePedidos, tipo: TipoDeSolicitud,
 export function textoDeDecisionDiferida(s: Solicitud, accion: "autorizar" | "rechazar"): string {
   const de = s.transferencia?.deNombre ?? s.colportor;
   const que = `la transferencia ${s.numero} de ${de}`;
-  if (accion === "rechazar") return `Rechazaste ${que}: el colportor recibe el motivo.`;
-  return `Autorizaste ${que}: la deuda de ${money(s.total)} pasa a ${primerNombre(s.transferencia?.aNombre ?? "")}.`;
+  if (accion === "rechazar") return `Rechazaste ${que}. Cuando se cierre este aviso, el colportor recibe el motivo.`;
+  return `Autorizaste ${que}: la deuda de ${money(s.total)} pasa a ${primerNombre(s.transferencia?.aNombre ?? "")} cuando se cierre este aviso.`;
 }
 
 /** Lo que cuenta el botón de «Deshacer» para el lector de pantalla, para distinguirlo de otros avisos abiertos. */

@@ -91,7 +91,7 @@ describe("42A·04 · autorizar una transferencia deja 8 s el aviso con «Deshace
     await abrirTransferencias();
     await autorizar("T-18");
 
-    expect(screen.getByText("Autorizaste la transferencia T-18 de Valentina Silva: la deuda de $U 2.900 pasa a Lucía.")).toBeInTheDocument();
+    expect(screen.getByText("Autorizaste la transferencia T-18 de Valentina Silva: la deuda de $U 2.900 pasa a Lucía cuando se cierre este aviso.")).toBeInTheDocument();
     expect(deshacerDe("T-18")).toHaveTextContent("Deshacer · 8 s");
     expect(within(pasos("T-18")).getByText(/^Autorizada/)).toHaveTextContent("Autorizada (hecho)");
     expect(within(detalle("Transferencia T-18")).queryByRole("button", { name: /^Autorizar/ })).not.toBeInTheDocument();
@@ -227,7 +227,7 @@ describe("42A·04 · rechazar una transferencia («Igual después de rechazar»)
     await abrirTransferencias();
     await rechazar("T-18", "Sin stock");
 
-    expect(screen.getByText("Rechazaste la transferencia T-18 de Valentina Silva: el colportor recibe el motivo.")).toBeInTheDocument();
+    expect(screen.getByText("Rechazaste la transferencia T-18 de Valentina Silva. Cuando se cierre este aviso, el colportor recibe el motivo.")).toBeInTheDocument();
     expect(within(pasos("T-18")).getByText(/^Rechazada/)).toHaveTextContent("Rechazada (hecho)");
     expect(within(detalle("Transferencia T-18")).getByText(/Motivo: “Sin stock”/)).toBeInTheDocument();
     expect(a.decidir).not.toHaveBeenCalled();

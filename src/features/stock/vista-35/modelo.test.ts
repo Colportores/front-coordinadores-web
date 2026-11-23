@@ -465,8 +465,8 @@ describe("«Deshacer» de 8 s de las transferencias (#110)", () => {
 
   it("los textos del aviso dicen qué se decidió, a quién le pasa la deuda y qué botón es", () => {
     const s = solicitud(datos());
-    expect(textoDeDecisionDiferida(s, "autorizar")).toBe("Autorizaste la transferencia T-18 de Valentina Silva: la deuda de $U 2.900 pasa a Lucía.");
-    expect(textoDeDecisionDiferida(s, "rechazar")).toBe("Rechazaste la transferencia T-18 de Valentina Silva: el colportor recibe el motivo.");
+    expect(textoDeDecisionDiferida(s, "autorizar")).toBe("Autorizaste la transferencia T-18 de Valentina Silva: la deuda de $U 2.900 pasa a Lucía cuando se cierre este aviso.");
+    expect(textoDeDecisionDiferida(s, "rechazar")).toBe("Rechazaste la transferencia T-18 de Valentina Silva. Cuando se cierre este aviso, el colportor recibe el motivo.");
     expect(nombreDeDeshacer(s, "autorizar")).toBe("Deshacer · 8 s: autorización de la transferencia T-18");
     expect(nombreDeDeshacer(s, "rechazar")).toBe("Deshacer · 8 s: rechazo de la transferencia T-18");
   });

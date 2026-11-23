@@ -324,7 +324,7 @@ describe("autorizar", () => {
       await userEvent.click(pestana(/^Transferencias/));
       await userEvent.click(within(detalle("Transferencia T-18")).getByRole("button", { name: /^Autorizar/ }));
 
-      expect(screen.getByText("Autorizaste la transferencia T-18 de Valentina Silva: la deuda de $U 2.900 pasa a Lucía.")).toBeInTheDocument();
+      expect(screen.getByText("Autorizaste la transferencia T-18 de Valentina Silva: la deuda de $U 2.900 pasa a Lucía cuando se cierre este aviso.")).toBeInTheDocument();
       expect(a.decidir).not.toHaveBeenCalled();
       await act(async () => {
         vi.advanceTimersByTime(8000);
@@ -640,7 +640,7 @@ describe("rechazar", () => {
     try {
       await userEvent.type(campo, "Sin stock");
       await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
-      expect(screen.getByText("Rechazaste la transferencia T-18 de Valentina Silva: el colportor recibe el motivo.")).toBeInTheDocument();
+      expect(screen.getByText("Rechazaste la transferencia T-18 de Valentina Silva. Cuando se cierre este aviso, el colportor recibe el motivo.")).toBeInTheDocument();
       await act(async () => {
         vi.advanceTimersByTime(8000);
       });
