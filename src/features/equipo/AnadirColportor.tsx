@@ -12,6 +12,7 @@ import type {
   ResultadoInscripcion,
 } from "@/datos/equipo/contrato";
 import {
+  AYUDA_CUENTA_NO_APARECE,
   avisoRol,
   ayudaBloqueo,
   confirmacionDeRol,
@@ -732,11 +733,14 @@ export function AnadirColportor({
                 )}
               </div>
             ) : resultados.length === 0 ? (
-              <p className="px-3.5 py-4 text-cuerpo text-tinta-suave">
-                {hayConsulta
-                  ? "No hay cuentas que coincidan con tu búsqueda."
-                  : "No hay cuentas pendientes de asignación."}
-              </p>
+              <div className="flex flex-col gap-2 px-3.5 py-4 text-cuerpo text-tinta-suave">
+                <p>
+                  {hayConsulta
+                    ? "No hay cuentas que coincidan con tu búsqueda."
+                    : "No hay cuentas pendientes de asignación."}
+                </p>
+                <p data-ayuda-cuenta-no-aparece>{AYUDA_CUENTA_NO_APARECE}</p>
+              </div>
             ) : (
               <>
                 <ul aria-label="Cuentas">

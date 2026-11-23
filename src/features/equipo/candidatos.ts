@@ -16,6 +16,14 @@ export function ayudaBloqueo(c: CandidatoColportor): string | null {
   return null;
 }
 
+/**
+ * La ayuda cuando el coordinador no encuentra a alguien (decisión de Cristian, 11/11, «Sin verificar», HU-CAM-004): una cuenta
+ * con el correo sin verificar no se lista ni se puede añadir (HU-AUTH-002), y esto le dice por qué y qué hacer. La vista 23
+ * la pone debajo de «Sugeridos» cuando no hay ninguno y debajo del resultado cuando la búsqueda no encuentra a nadie.
+ */
+export const AYUDA_CUENTA_NO_APARECE =
+  "¿No encontrás a alguien? Aparece cuando confirma su correo con el enlace que le mandamos. Si no le llegó, que lo pida de nuevo desde la app.";
+
 /** La etiqueta junto al nombre de una cuenta que no es de un colportor. */
 const ETIQUETA_ROL = { coordinador: "Coordinador", administracion: "Administración" } as const;
 
