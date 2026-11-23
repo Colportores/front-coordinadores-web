@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { conPuntosDeMiles, sinBarrasFinales } from "@/lib/texto";
+import { conPuntosDeMiles, sinBarrasFinales, unirNombres } from "@/lib/texto";
 
 describe("sinBarrasFinales", () => {
   it("saca las barras del final y nada más", () => {
@@ -54,5 +54,14 @@ describe("conPuntosDeMiles", () => {
     expect(formateado.replaceAll(".", "")).toBe(texto);
     expect(formateado.split(".").every((grupo) => grupo.length <= 3)).toBe(true);
     expect(Date.now() - inicio).toBeLessThan(1500);
+  });
+});
+
+describe("unirNombres", () => {
+  it("une como se lee: uno, dos o más", () => {
+    expect(unirNombres([])).toBe("");
+    expect(unirNombres(["Daniel"])).toBe("Daniel");
+    expect(unirNombres(["Daniel", "Marta"])).toBe("Daniel y Marta");
+    expect(unirNombres(["Daniel", "Marta", "Luis"])).toBe("Daniel, Marta y Luis");
   });
 });

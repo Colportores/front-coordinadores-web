@@ -17,7 +17,7 @@ import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
 
 import type { AccionesEquipo } from "./acciones";
-import { cortarTexto, largoDeTexto, nombreDeAcompanante, plazoVencido, textoHoras } from "./modelo";
+import { acompanantesDeJornada, conAcompananteSumado, cortarTexto, largoDeTexto, plazoVencido, textoDeAcompanantes, textoHoras } from "./modelo";
 import { CLASE_BOTON_PRIMARIO, CLASE_BOTON_SECUNDARIO } from "./TablaZonas";
 
 type Carga =
@@ -42,6 +42,9 @@ const ACCION_REGISTRAR = "registrar el acompañamiento";
 const ACCION_PERSONAS = "traer los coordinadores y administradores";
 const GRUPO_DE_COORDINACION = "Coordinadores y administradores";
 const FALTA_EL_COLPORTOR = "Elegí al colportor que acompañó, o cambiá a «Yo».";
+const TEXTO_SUMAR = "Sumar otro acompañante";
+const TEXTO_SUMANDO = "Sumando…";
+const AYUDA = "Elegí quién lo acompañó y la jornada. Si la jornada ya tiene a alguien, podés sumar a otra persona al lado; lo ya registrado no se cambia desde acá.";
 const NOTA_NO_GUARDADA = "La nota no se guardó: un acompañamiento ya registrado no se cambia desde acá.";
 // El mismo texto que manda la base (CZ011) cuando ya pasó el plazo; acá se muestra antes de intentar nada.
 const PLAZO_VENCIDO = `La campaña terminó hace más de ${DIAS_DE_GRACIA_ACOMPANAMIENTO} días y sus acompañamientos quedan como están. Elegí una campaña en curso o que haya terminado hace ${DIAS_DE_GRACIA_ACOMPANAMIENTO} días o menos.`;
@@ -61,9 +64,10 @@ export interface AcompanamientoRegistrado {
 
 /**
  * «Registrar acompañamiento» de una fila (HU-JOR-004): quién lo acompañó («Yo» u «Otra persona» de la campaña), una nota
- * opcional y las jornadas terminadas del colportor en la campaña, de la más nueva a la más vieja. Solo se ofrecen las
- * que nadie acompañó; las que ya tienen acompañante figuran con su nombre y no se tocan: el panel nunca pisa un
- * acompañamiento ya registrado. Pasados los 15 días del fin de la campaña no se registra nada y el panel lo dice.
+ * opcional y las jornadas terminadas del colportor en la campaña, de la más nueva a la más vieja. A las que nadie acompañó
+ * se les registra el acompañamiento; a las que ya tienen acompañante se les puede **sumar otro** al lado, sin pisar a nadie
+ * (0177: una jornada puede tener varios). El panel nunca cambia un acompañamiento ya registrado. Pasados los 15 días del fin
+ * de la campaña no se registra nada y el panel lo dice.
  */
 export function RegistrarAcompanamiento(props: {
   colportor: ColportorDeEquipo;
@@ -236,6 +240,8 @@ function PanelDeRegistro({
       ...(escrita.trim() !== "" ? { nota: escrita.trim() } : {}),
     };
     const eraYo = quien === "yo";
+    // Una jornada que ya tenía a alguien y a la que se suma otra persona: el aviso y la lista cambian de texto.
+    const sumando = jornada.acompanante !== null;
     enviando.current.add(jornada.id);
     setEnCurso(new Set(enviando.current));
     setRechazos((actuales) => {
@@ -268,6 +274,12 @@ function PanelDeRegistro({
             tipo: notaPerdida ? "alerta" : "exito",
             texto: `Esa jornada ya figuraba ${aNombreDe}: ${colportor.nombre}, ${cuando}.${notaPerdida ? ` ${NOTA_NO_GUARDADA}` : ""}`,
           });
+        } else if (sumando) {
+          setAviso({
+            tipo: "exito",
+            texto: `${eraYo ? "Te sumaste" : `Sumaste a ${respuesta.acompanante}`} a la jornada de ${colportor.nombre}, ${cuando}.`,
+          });
+          setNota((actual) => (actual === escrita ? "" : actual));
         } else {
           setAviso({
             tipo: "exito",
@@ -280,7 +292,7 @@ function PanelDeRegistro({
           actual.tipo === "lista"
             ? {
                 tipo: "lista",
-                jornadas: actual.jornadas.map((j) => (j.id === jornada.id ? { ...j, acompanante: respuesta.acompanante, acompananteEsVos: eraYo } : j)),
+                jornadas: actual.jornadas.map((j) => (j.id === jornada.id ? conAcompananteSumado(j, { nombre: respuesta.acompanante, esVos: eraYo }) : j)),
               }
             : actual,
         );
@@ -299,8 +311,8 @@ function PanelDeRegistro({
   }
 
   const registrables = carga.tipo === "lista" ? carga.jornadas.filter((j) => j.acompanante === null).length : 0;
-  // El formulario sigue mientras haya algo que registrar o algo escrito que no se guardó (la nota de un «ya estaba» se puede copiar).
-  const conFormulario = carga.tipo === "lista" && (registrables > 0 || nota !== "");
+  // El formulario sigue mientras haya alguna jornada: a las que nadie acompañó se les registra, a las demás se les suma otro.
+  const conFormulario = carga.tipo === "lista" && (carga.jornadas.length > 0 || nota !== "");
   const largoNota = largoDeTexto(nota);
   const idOtro = `${id}-otro`;
   const idNota = `${id}-nota`;
@@ -309,9 +321,7 @@ function PanelDeRegistro({
   return (
     <section aria-label={`Registrar acompañamiento de ${colportor.nombre}`} className={CLASE_PANEL}>
       <Cabecera colportor={colportor} alCerrar={alCerrar} titulo={titulo} />
-      <p className="text-chico text-tinta-2">
-        Elegí quién lo acompañó y la jornada. Un acompañamiento ya registrado no se cambia desde acá.
-      </p>
+      <p className="text-chico text-tinta-2">{AYUDA}</p>
 
       {aviso && (
         <p
@@ -461,7 +471,7 @@ function PanelDeRegistro({
           <>
             {registrables === 0 && (
               <p className="text-chico text-tinta-suave">
-                Todas sus jornadas terminadas ya figuran acompañadas: un acompañamiento ya registrado no se cambia desde acá.
+                Todas sus jornadas terminadas ya tienen acompañante. Para sumar a otra persona, usá «{TEXTO_SUMAR}» en la jornada; lo ya registrado no se cambia desde acá.
               </p>
             )}
             <ul aria-label={`Jornadas terminadas de ${colportor.nombre}`} className="flex max-h-72 flex-col overflow-auto rounded-control border border-borde bg-superficie">
@@ -469,6 +479,7 @@ function PanelDeRegistro({
                 const cuando = diaConSemana(j.dia);
                 const ocupada = enCurso.has(j.id);
                 const rechazo = rechazos.get(j.id);
+                const acompanantes = acompanantesDeJornada(j);
                 return (
                   <li
                     key={j.id}
@@ -479,7 +490,7 @@ function PanelDeRegistro({
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                       <span className="w-24 font-mono text-chico text-tinta">{cuando}</span>
                       <span className="w-16 font-mono text-chico text-tinta-2">{textoHoras(j.horas)}</span>
-                      {j.acompanante === null ? (
+                      {acompanantes.length === 0 ? (
                         <button
                           type="button"
                           aria-disabled={ocupada}
@@ -490,7 +501,20 @@ function PanelDeRegistro({
                           {ocupada ? "Registrando…" : "Registrar"}
                         </button>
                       ) : (
-                        <span className="ml-auto min-w-0 text-chico wrap-anywhere text-tinta-suave">Acompañó {nombreDeAcompanante(j.acompanante, j.acompananteEsVos)}</span>
+                        <>
+                          <span className="ml-auto min-w-0 text-chico wrap-anywhere text-tinta-suave">
+                            {acompanantes.length > 1 ? "Acompañaron" : "Acompañó"} {textoDeAcompanantes(acompanantes)}
+                          </span>
+                          <button
+                            type="button"
+                            aria-disabled={ocupada}
+                            aria-label={`${TEXTO_SUMAR} en la jornada de ${colportor.nombre} del ${cuando}`}
+                            onClick={() => void registrar(j)}
+                            className={`${CLASE_BOTON_SECUNDARIO} flex-none ${ocupada ? "opacity-60" : ""}`}
+                          >
+                            {ocupada ? TEXTO_SUMANDO : TEXTO_SUMAR}
+                          </button>
+                        </>
                       )}
                     </div>
                     {rechazo && (

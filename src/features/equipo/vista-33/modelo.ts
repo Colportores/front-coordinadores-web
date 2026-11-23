@@ -4,12 +4,14 @@ import {
   type CargadoPor,
   type ColportorDeEquipo,
   type DatosEquipoPorCiudad,
+  type JornadaParaAcompanar,
   type MetaDeBeca,
   type OrigenDeAcompanamiento,
   type TipoDeBeca,
 } from "@/datos/equipo/contrato";
 import { formatMonto } from "@/features/cuentas/formato";
 import { diasEntre, lunesDe, sumarDias } from "@/lib/dias";
+import { unirNombres } from "@/lib/texto";
 
 /**
  * Lo que arma la vista 33 a partir de los datos: qué mira (todas las ciudades, un departamento, una ciudad o los que no
@@ -319,6 +321,29 @@ export function textoHoras(horas: number | null): string {
 /** «Mariana Pérez (vos)» cuando quien acompañó es quien tiene la sesión, como en el canvas. */
 export function nombreDeAcompanante(nombre: string, esVos: boolean): string {
   return esVos ? `${nombre} (vos)` : nombre;
+}
+
+/** Quienes figuran como acompañantes de una jornada: la lista si la fuente la separa, o el único nombre que hay. */
+export function acompanantesDeJornada(jornada: JornadaParaAcompanar): { nombre: string; esVos: boolean }[] {
+  if (jornada.acompanantes) return [...jornada.acompanantes];
+  return jornada.acompanante === null ? [] : [{ nombre: jornada.acompanante, esVos: jornada.acompananteEsVos }];
+}
+
+/** «Daniel», «Daniel y Marta (vos)»: los nombres como se leen, con el «(vos)» en el de quien tiene la sesión. */
+export function textoDeAcompanantes(acompanantes: readonly { nombre: string; esVos: boolean }[]): string {
+  return unirNombres(acompanantes.map((a) => nombreDeAcompanante(a.nombre, a.esVos)));
+}
+
+/**
+ * La jornada con un acompañante más, al lado de los que ya figuran (HU-JOR-004, 0177). Si esa persona ya estaba, queda igual.
+ * Con uno solo se muestra como siempre; con varios, `acompanante` los nombra a todos y el «(vos)» va en el nombre.
+ */
+export function conAcompananteSumado(jornada: JornadaParaAcompanar, nuevo: { nombre: string; esVos: boolean }): JornadaParaAcompanar {
+  const lista = acompanantesDeJornada(jornada);
+  if (!lista.some((a) => a.nombre === nuevo.nombre && a.esVos === nuevo.esVos)) lista.push(nuevo);
+  return lista.length === 1
+    ? { ...jornada, acompanante: lista[0].nombre, acompananteEsVos: lista[0].esVos, acompanantes: lista }
+    : { ...jornada, acompanante: textoDeAcompanantes(lista), acompananteEsVos: false, acompanantes: lista };
 }
 
 /**
