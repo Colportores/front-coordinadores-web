@@ -122,6 +122,29 @@ describe("guardarContrasena", () => {
     expect(auth.updateUser).not.toHaveBeenCalled();
   });
 
+  it("una contraseña de más de 72 bytes no sale del servidor y es «contrasena-larga», no «débil»", async () => {
+    const { supabase, auth } = clienteFalso();
+    // 37 «ñ» = 74 bytes; con mayúscula y número cumple las otras reglas.
+    expect(await guardarContrasena(supabase, `Ñ1${"ñ".repeat(36)}`)).toEqual({ tipo: "contrasena-larga" });
+    expect(await guardarContrasena(supabase, `A1${"b".repeat(71)}`)).toEqual({ tipo: "contrasena-larga" });
+    expect(auth.updateUser).not.toHaveBeenCalled();
+    // Con 72 justos sí sale.
+    expect(await guardarContrasena(supabase, `A1${"b".repeat(70)}`)).toEqual({ tipo: "ok" });
+  });
+
+  it("si el servidor la rechaza por largo (400 validation_failed de bcrypt) es «contrasena-larga»; otro validation_failed no", async () => {
+    const { supabase, auth } = clienteFalso();
+    const rechazo = (mensaje: string) => new AuthApiError(mensaje, 400, "validation_failed");
+    auth.updateUser.mockResolvedValue({ error: rechazo("Password cannot be longer than 72 characters") });
+    expect(await guardarContrasena(supabase, "Nueva-clave-1")).toEqual({ tipo: "contrasena-larga" });
+    auth.updateUser.mockResolvedValue({ error: rechazo("Unable to validate email address: invalid format") });
+    expect(await guardarContrasena(supabase, "Nueva-clave-1")).toEqual({ tipo: "no-disponible" });
+    // El texto solo, sin el código ni el 400, tampoco alcanza.
+    auth.updateUser.mockResolvedValue({ error: new AuthApiError("Password cannot be longer than 72 characters", 500, "unexpected_failure") });
+    expect(await guardarContrasena(supabase, "Nueva-clave-1")).toEqual({ tipo: "no-disponible" });
+    expect(auth.signOut).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["la misma de antes", errorApi(422, "same_password"), "misma-contrasena"],
     ["la política del servidor", errorApi(422, "weak_password"), "contrasena-debil"],

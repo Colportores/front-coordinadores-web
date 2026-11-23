@@ -64,6 +64,9 @@ export const TEXTOS_DE_NUEVA_CONTRASENA = {
   sinRevocar: "Cambiaste la contraseña, pero no pudimos cerrar las otras sesiones de tu cuenta. Probá de nuevo.",
   cerrarOtras: "Cerrar las otras sesiones",
   cerrandoOtras: "Cerrando…",
+  /** Sin artboard (mapa §2: texto/aviso): «Ir al login» no pudo cerrar la sesión de este navegador; sin cerrarla no se sale. */
+  noPudoSalir: "No pudimos cerrar la sesión en este navegador. Probá de nuevo.",
+  saliendo: "Saliendo…",
   /** 40B-06: una sola pantalla para vencido, ya usado y otro navegador (HU-AUTH-005); el texto no afirma el motivo (decisión P3). */
   tituloNoValido: "Enlace no válido",
   noValido: "No pudimos abrir este enlace en este navegador. Abrilo en el navegador donde lo pediste, o pedí uno nuevo desde acá.",

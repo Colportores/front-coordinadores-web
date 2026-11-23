@@ -1,5 +1,6 @@
 "use server";
 
+import { cerrarSesion } from "@/auth/acceso";
 import { guardarContrasena, abrirEnlace, cerrarOtrasSesiones, pedirEnlace } from "@/auth/recuperacion";
 import { modoDeAcceso } from "@/auth/modo";
 import {
@@ -29,6 +30,8 @@ export type RespuestaDeGuardado =
   | { tipo: "enlace-no-valido" }
   | { tipo: "misma-contrasena" }
   | { tipo: "contrasena-debil" }
+  /** Pasa de los 72 bytes en UTF-8: la pantalla dice «Es demasiado larga. Acortala.» y nunca recorta lo escrito. */
+  | { tipo: "contrasena-larga" }
   | { tipo: "no-disponible" };
 
 async function conPiso<T>(trabajo: () => Promise<T>, minimoMs: number): Promise<T> {
@@ -72,7 +75,10 @@ export async function abrirEnlaceAccion(codigo: unknown): Promise<RespuestaDeApe
 }
 
 export async function guardarContrasenaAccion(contrasena: unknown): Promise<RespuestaDeGuardado> {
-  if (typeof contrasena !== "string" || !reglasDeContrasena(contrasena).cumple) return { tipo: "contrasena-debil" };
+  if (typeof contrasena !== "string") return { tipo: "contrasena-debil" };
+  const reglas = reglasDeContrasena(contrasena);
+  if (reglas.demasiadoLarga) return { tipo: "contrasena-larga" };
+  if (!reglas.cumple) return { tipo: "contrasena-debil" };
   if (modoDeAcceso() !== "activo") return { tipo: "no-disponible" };
   try {
     // Sin la marca del canje de un enlace (o con la sesión de otra cuenta) no se cambia nada: la sesión sola no alcanza.
@@ -110,4 +116,17 @@ export async function cerrarOtrasSesionesAccion(): Promise<RespuestaDeCierreDeSe
   } catch {
     return { tipo: "ok-sin-revocar" };
   }
+}
+
+/**
+ * «Ir al login» cuando el cierre de las otras sesiones no se pudo confirmar (40B·05): cierra solo la sesión de ESTE navegador
+ * (`scope: "local"`, no toca las de los demás dispositivos) y borra la marca de la recuperación, para que el login no deje
+ * entrar al panel con la sesión de recuperación que sigue abierta. Nunca falla hacia afuera: `cerrarSesion` borra la cookie
+ * aunque el servidor de Supabase no conteste; si ni así se pudo (un throw), la pantalla se queda donde está y puede reintentar.
+ */
+export async function salirDeLaRecuperacionAccion(): Promise<{ tipo: "ok" }> {
+  if (modoDeAcceso() !== "activo") return { tipo: "ok" };
+  await cerrarSesion(await crearSupabaseDeServidor());
+  await quitarMarcaDeRecuperacion();
+  return { tipo: "ok" };
 }

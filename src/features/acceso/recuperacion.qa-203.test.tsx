@@ -30,8 +30,19 @@ function montarNueva(propiedades: Partial<PropiedadesDeNuevaContrasena> = {}) {
   const abrir = vi.fn<PropiedadesDeNuevaContrasena["abrir"]>(async () => ({ tipo: "ok", correo: CORREO }));
   const guardar = vi.fn<PropiedadesDeNuevaContrasena["guardar"]>(async () => ({ tipo: "ok" }));
   const cerrarOtras = vi.fn<PropiedadesDeNuevaContrasena["cerrarOtras"]>(async () => ({ tipo: "ok" }));
-  const resultado = render(<PantallaNuevaContrasena inicial={{ paso: "nueva", correo: CORREO }} abrir={abrir} guardar={guardar} cerrarOtras={cerrarOtras} {...propiedades} />);
-  return { ...resultado, abrir, guardar, cerrarOtras };
+  const salirDeLaRecuperacion = vi.fn<PropiedadesDeNuevaContrasena["salirDeLaRecuperacion"]>(async () => ({ tipo: "ok" }));
+  const resultado = render(
+    <PantallaNuevaContrasena
+      inicial={{ paso: "nueva", correo: CORREO }}
+      abrir={abrir}
+      guardar={guardar}
+      cerrarOtras={cerrarOtras}
+      salirDeLaRecuperacion={salirDeLaRecuperacion}
+      irA={vi.fn()}
+      {...propiedades}
+    />,
+  );
+  return { ...resultado, abrir, guardar, cerrarOtras, salirDeLaRecuperacion };
 }
 
 const nueva = () => screen.getByLabelText(TN.nueva);
@@ -61,12 +72,12 @@ describe("QA #111 · 40B · abrir el enlace una sola vez en el navegador real", 
       return llamadas === 1 ? { tipo: "ok", correo: CORREO } : { tipo: "no-valido" };
     });
     const inicial = { paso: "abrir", codigo: "c-un-solo-uso" } as const;
-    const { rerender } = render(<PantallaNuevaContrasena inicial={inicial} abrir={abrirViejo} guardar={vi.fn()} cerrarOtras={vi.fn()} />);
+    const { rerender } = render(<PantallaNuevaContrasena inicial={inicial} abrir={abrirViejo} guardar={vi.fn()} cerrarOtras={vi.fn()} salirDeLaRecuperacion={vi.fn()} />);
     expect(await screen.findByLabelText(TN.nueva)).toBeVisible();
 
     // La página vuelve del servidor con otra referencia de la misma server action (pasa tras `history.replaceState` en Next).
     const abrirNuevo = vi.fn((codigo: string) => abrirViejo(codigo));
-    await act(async () => rerender(<PantallaNuevaContrasena inicial={inicial} abrir={abrirNuevo} guardar={vi.fn()} cerrarOtras={vi.fn()} />));
+    await act(async () => rerender(<PantallaNuevaContrasena inicial={inicial} abrir={abrirNuevo} guardar={vi.fn()} cerrarOtras={vi.fn()} salirDeLaRecuperacion={vi.fn()} />));
 
     expect(abrirNuevo).not.toHaveBeenCalled();
     expect(screen.getByLabelText(TN.nueva)).toBeVisible();
@@ -78,7 +89,7 @@ describe("QA #111 · 40B · contraseña de más de 72 bytes (HU-AUTH-001 «Topes
   // 37 letras «ñ» = 74 bytes en UTF-8; con una mayúscula y un número cumple las otras reglas.
   const LARGA = `Ñ1${"ñ".repeat(36)}`;
 
-  it("QA #111: el campo no avisa «Es demasiado larga. Acortala.», deja «Guardar» encendido y el servidor la rechaza con un error sin salida", async () => {
+  it("QA #111: el campo avisa «Es demasiado larga. Acortala.», deja «Guardar» apagado y no manda nada al servidor", async () => {
     expect(new TextEncoder().encode(LARGA).length).toBeGreaterThan(72);
     const { guardar } = montarNueva();
     fireEvent.change(nueva(), { target: { value: LARGA } });
@@ -273,7 +284,7 @@ describe("QA #111 · 40B-05 · el cierre de las otras sesiones no se pudo confir
     expect(screen.getByRole("alert")).toHaveTextContent(TN.sinRevocar);
     expect(screen.queryByText(TN.cambiada)).toBeNull();
     expect(cerrarBoton()).not.toHaveAttribute("aria-disabled");
-    expect(screen.getByRole("link", { name: TN.irAlLogin })).toHaveAttribute("href", "/acceso");
+    expect(screen.getByRole("button", { name: TN.irAlLogin })).toBeVisible();
     expect(screen.queryByLabelText(TN.nueva)).toBeNull();
     expect(screen.getByRole("heading", { level: 1, name: TN.tituloCambiada })).toHaveFocus();
   });
