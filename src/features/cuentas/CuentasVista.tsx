@@ -1,20 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import type { AccionesCuentas, DatosDeCuentas, DestinoDeAlquiler, ResultadoDeAccion } from "@/datos/cuentas";
 import { SeccionHu } from "@/dev/SeccionHu";
+import { AVISO_SIN_CONEXION as AVISO_SIN_CONEXION_AL_ANULAR, TEXTO_ANULADO, TEXTO_YA_ESTABA_ANULADO } from "@/features/cuentas/anular-cobro";
 import { ColumnaDeCiudades } from "@/features/cuentas/ColumnaDeCiudades";
 import { DialogoDeAlquiler, type PasoDeDecision } from "@/features/cuentas/DialogoDeAlquiler";
+import { DialogoDeAnularCobro } from "@/features/cuentas/DialogoDeAnularCobro";
 import { AvisoDeAlquiler, CeldaDePagado, EstadoDecidible } from "@/features/cuentas/FilaPorDecidir";
 import { EncabezadoDeCuentas } from "@/features/cuentas/EncabezadoDeCuentas";
 import { Pastilla, TablaDeFilas, type ColumnaDeTabla } from "@/features/cuentas/TablaDeFilas";
 import { TablaDeTickets } from "@/features/cuentas/TablaDeTickets";
 import { formatMonto } from "@/features/cuentas/formato";
+import { escribirPestanaEnUrl, PARAMETRO_PESTANA, PESTANA_POR_DEFECTO, pestanaDeUrl, type PestanaDeCuentas } from "@/features/cuentas/pestana-en-url";
 import type { PreseleccionDeCuentas } from "@/features/cuentas/preseleccion";
 import {
   aplicarAlquiler,
+  aplicarAnulacion,
   aplicarDecision,
   avisoDePendientes,
   ciudadesDe,
@@ -58,12 +63,13 @@ import {
   textosDeConfirmacion,
   textosDeEleccion,
 } from "@/features/cuentas/por-decidir";
+import { useAnularCobro } from "@/features/cuentas/useAnularCobro";
 import { useEnLinea } from "@/lib/en-linea";
 import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
 import { registrarEnvio } from "@/shell/trabajo-pendiente";
 
-type Pestana = "casa-editora" | "alquiler" | "tickets";
+type Pestana = PestanaDeCuentas;
 
 const PESTANAS: Array<{ id: Pestana; rotulo: string }> = [
   { id: "casa-editora", rotulo: "Casa editora" },
@@ -150,7 +156,13 @@ export function CuentasVista({
   const [seleccionada, setSeleccionada] = useState<Seleccion>(preseleccion?.seleccion ?? TODAS);
   const [destacado, setDestacado] = useState<string | null>(preseleccion?.colportorId ?? null);
   const [contraida, setContraida] = useState(false);
-  const [pestana, setPestana] = useState<Pestana>("casa-editora");
+  const parametros = useSearchParams();
+  // La pestaña de la dirección vale al abrir; después manda el estado y cada cambio se escribe en la dirección (39B·05).
+  const [pestana, setPestanaLocal] = useState<Pestana>(() => pestanaDeUrl(parametros?.get(PARAMETRO_PESTANA)) ?? PESTANA_POR_DEFECTO);
+  function setPestana(nueva: Pestana) {
+    setPestanaLocal(nueva);
+    escribirPestanaEnUrl(nueva);
+  }
   const [colportorFiltrado, setColportorFiltrado] = useState("");
   const [abiertos, setAbiertos] = useState<ReadonlySet<string>>(new Set());
   const [ordenes, setOrdenes] = useState<Partial<Record<Pestana, Orden | null>>>({});
@@ -292,6 +304,31 @@ export function CuentasVista({
     setAviso({ tipo: "exito", texto: textoDeDecidido(nombre, decision), forma: "abajo" });
   }
 
+  const anular = useAnularCobro({
+    acciones,
+    escribir,
+    enLinea,
+    ocupado: () => ocupado.current,
+    ticketDe: (id) => datos.tickets.find((t) => t.id === id),
+    alCerrar: (id) => {
+      focoPendiente.current = `anular-${id}`;
+    },
+    alAnulado: (id, anulacion) => {
+      setDatos((previos) => aplicarAnulacion(previos, id, anulacion));
+      setAviso({ tipo: "exito", texto: TEXTO_ANULADO, forma: "abajo" });
+      // El botón ya no existe: el foco vuelve a la fila del ticket.
+      focoPendiente.current = `ticket-${id}`;
+    },
+    alYaEstaba: (id) => {
+      setAviso({ tipo: "exito", texto: TEXTO_YA_ESTABA_ANULADO, forma: "abajo" });
+      focoPendiente.current = `ticket-${id}`;
+    },
+  });
+  const ticketAnulando = anular.anulando ? datos.tickets.find((t) => t.id === anular.anulando?.ticketId) : undefined;
+  const colportorAnulando = ticketAnulando ? datos.colportores.find((c) => c.id === ticketAnulando.colportorId) : undefined;
+  // La franja de «sin conexión» solo sirve si hay algún cobro que se pudiera anular.
+  const hayCobrosPorAnular = tickets.some((f) => f.ticket.cobro !== undefined && !f.ticket.cobro.anulado);
+
   function elegirSeleccion(nueva: Seleccion) {
     setSeleccionada(nueva);
     setDestacado(null);
@@ -417,6 +454,10 @@ export function CuentasVista({
             <AvisoDeAlquiler variante="sin-conexion" texto={TEXTO_SIN_CONEXION} />
           )}
           {pestana === "alquiler" && enLinea && avisoDeAlquiler && <AvisoDeAlquiler variante="por-decidir" texto={avisoDeAlquiler} />}
+
+          {pestana === "tickets" && !enLinea && hayCobrosPorAnular && (
+            <AvisoDeAlquiler variante="sin-conexion" texto={AVISO_SIN_CONEXION_AL_ANULAR} />
+          )}
 
           {pestana === "tickets" && (
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
@@ -575,6 +616,7 @@ export function CuentasVista({
                   return siguientes;
                 })
               }
+              anular={{ enLinea, vencidos: anular.vencidos, ocupado: guardando, alAnular: anular.abrir }}
               textoVacio={
                 filtrado
                   ? `${filtrado.nombre} todavía no tiene tickets. Aparecen cuando sube uno.`
@@ -599,6 +641,21 @@ export function CuentasVista({
           alVolver={() => setDecidiendo((d) => d && { ...d, paso: "elegir", error: null })}
           alCancelar={cerrarDecision}
           alConfirmar={() => void confirmarDecision()}
+        />
+      )}
+
+      {anular.anulando && ticketAnulando && colportorAnulando && (
+        <DialogoDeAnularCobro
+          ticket={ticketAnulando}
+          nombre={colportorAnulando.nombre}
+          estado={anular.anulando}
+          anulando={guardando}
+          alElegir={anular.elegir}
+          alEscribir={anular.escribirDetalle}
+          alSeguir={anular.seguir}
+          alVolver={anular.volver}
+          alCancelar={anular.cerrar}
+          alConfirmar={() => void anular.confirmar()}
         />
       )}
 

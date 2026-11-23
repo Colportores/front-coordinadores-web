@@ -73,3 +73,78 @@ describe("crearAccionesSimuladas", () => {
     expect(await acciones.editarAlquiler(0)).toMatchObject({ ok: false, causa: "rechazado" });
   });
 });
+
+describe("crearAccionesSimuladas · anularCobro (vista 39)", () => {
+  const datos = armarCuentasSimuladas(AHORA);
+  const VIGENTE = "cobro-florencia-pintos-vigente";
+  const PASADO = "cobro-valentina-silva-pasado";
+  const ANULADO = "cobro-joaquin-duarte-anulado";
+
+  it("los ejemplos de la vista 39 están: uno dentro del plazo, uno pasado y uno que anuló la colportora desde el teléfono", () => {
+    const cobros = datos.tickets.flatMap((t) => (t.cobro ? [t.cobro] : []));
+    expect(cobros.find((c) => c.id === VIGENTE)?.anulado).toBeUndefined();
+    expect(cobros.find((c) => c.id === PASADO)?.anulado).toBeUndefined();
+    expect(cobros.find((c) => c.id === ANULADO)?.anulado).toMatchObject({ origen: "telefono", por: "Joaquín Duarte" });
+    // Solo los tickets de tarjeta son cobros: un depósito en banco o un retiro no.
+    for (const t of datos.tickets) {
+      expect(t.cobro !== undefined).toBe(t.medio === "tarjeta-debito" || t.medio === "tarjeta-credito");
+    }
+    expect(new Set(cobros.map((c) => c.id)).size).toBe(cobros.length);
+  });
+
+  it("anula dentro de las 72 h, con quien anula y la hora, y recuerda el doble toque (`yaEstaba`)", async () => {
+    const acciones = crearAccionesSimuladas(datos, () => AHORA.getTime());
+    const resultado = await acciones.anularCobro(VIGENTE, "Monto equivocado");
+    expect(resultado).toEqual({
+      ok: true,
+      valor: { yaEstaba: false, anulacion: { en: AHORA.toISOString(), motivo: "Monto equivocado", por: "Marta Pérez", origen: "panel" } },
+    });
+    expect(await acciones.anularCobro(VIGENTE, "Otro")).toEqual({ ok: true, valor: { yaEstaba: true } });
+  });
+
+  it("con «Otro» guarda el texto escrito, sin espacios de más", async () => {
+    const acciones = crearAccionesSimuladas(datos, () => AHORA.getTime());
+    const resultado = await acciones.anularCobro(VIGENTE, "Otro", "  Se cobró de más  ");
+    expect(resultado).toMatchObject({ ok: true, valor: { anulacion: { motivo: "Otro", detalle: "Se cobró de más" } } });
+  });
+
+  it("pasadas las 72 h rechaza con el código de plazo y no anula, aunque lo intente de nuevo", async () => {
+    const acciones = crearAccionesSimuladas(datos, () => AHORA.getTime());
+    const rechazo = await acciones.anularCobro(PASADO, "Monto equivocado");
+    expect(rechazo).toEqual({
+      ok: false,
+      causa: "rechazado",
+      codigo: "fuera-de-plazo",
+      mensaje: "Pasaron más de 72 h desde el cobro: ya no se puede anular.",
+    });
+    expect(await acciones.anularCobro(PASADO, "Monto equivocado")).toMatchObject({ ok: false, codigo: "fuera-de-plazo" });
+  });
+
+  it("un cobro con la fecha ilegible no se anula (no se toma por dentro del plazo)", async () => {
+    const roto = {
+      ...datos,
+      tickets: datos.tickets.map((t) => (t.cobro?.id === VIGENTE ? { ...t, cobro: { ...t.cobro, fecha: "ayer" } } : t)),
+    };
+    const acciones = crearAccionesSimuladas(roto, () => AHORA.getTime());
+    expect(await acciones.anularCobro(VIGENTE, "Monto equivocado")).toMatchObject({ ok: false, codigo: "fuera-de-plazo" });
+  });
+
+  it("el plazo se mide con la hora de la acción, no con la de la lectura: venció mientras confirmaba", async () => {
+    let ahora = Date.parse("2026-10-24T10:20:00-03:00");
+    const acciones = crearAccionesSimuladas(datos, () => ahora);
+    ahora += 60_000;
+    expect(await acciones.anularCobro(VIGENTE, "Monto equivocado")).toMatchObject({ ok: false, codigo: "fuera-de-plazo" });
+  });
+
+  it("un cobro que no existe, sin datos o con un motivo fuera de la lista da un rechazo con texto que guía", async () => {
+    const acciones = crearAccionesSimuladas(datos, () => AHORA.getTime());
+    expect(await acciones.anularCobro("no-existe", "Otro")).toMatchObject({
+      ok: false,
+      causa: "rechazado",
+      mensaje: "No encontramos ese cobro entre los de tu equipo. Recargá la lista de cuentas.",
+    });
+    expect(await crearAccionesSimuladas().anularCobro(VIGENTE, "Otro")).toMatchObject({ ok: false, causa: "rechazado" });
+    // @ts-expect-error un motivo que no es de la lista
+    expect(await acciones.anularCobro(VIGENTE, "Porque sí")).toMatchObject({ ok: false, causa: "rechazado" });
+  });
+});

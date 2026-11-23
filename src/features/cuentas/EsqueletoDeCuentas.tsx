@@ -1,14 +1,26 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+
+import { PARAMETRO_PESTANA, pestanaDeUrl, type PestanaDeCuentas } from "@/features/cuentas/pestana-en-url";
 import { cn } from "@/lib/utils";
 
-const PESTANAS = ["Casa editora", "Alquiler", "Tickets"] as const;
+const PESTANAS: ReadonlyArray<{ id: PestanaDeCuentas; rotulo: string }> = [
+  { id: "casa-editora", rotulo: "Casa editora" },
+  { id: "alquiler", rotulo: "Alquiler" },
+  { id: "tickets", rotulo: "Tickets" },
+];
+/** La pestaña que dibuja el esqueleto cuando la dirección no trae una (41B·04). */
+const PESTANA_DEL_ESQUELETO: PestanaDeCuentas = "alquiler";
 const ANCHOS_DE_BARRA = ["w-[88%]", "w-[72%]", "w-[80%]", "w-[64%]"] as const;
 
 /**
  * Mientras se traen las cuentas (41B·04): el marco de la vista (la columna de ciudades, el título y las pestañas, con
- * «Alquiler» activa) y unas barras grises en el lugar de la tabla. Las pestañas y las ciudades son dibujo, no controles: todavía
+ * pestaña activa) y unas barras grises en el lugar de la tabla. Las pestañas y las ciudades son dibujo, no controles: todavía
  * no se sabe qué ciudades tiene la campaña. El texto «Cargando las cuentas…» es lo que anuncia el lector de pantalla.
  */
-export function EsqueletoDeCuentas() {
+export function EsqueletoDeCuentas({ pestanaActiva = PESTANA_DEL_ESQUELETO }: { pestanaActiva?: PestanaDeCuentas }) {
   return (
     <div className="grid min-h-0 flex-1 grid-cols-[320px_minmax(0,1fr)]">
       <div aria-hidden className="flex min-h-0 flex-col gap-2.5 border-r border-borde bg-superficie px-[18px] py-3">
@@ -20,12 +32,12 @@ export function EsqueletoDeCuentas() {
       <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-auto px-[22px] pt-[18px] pb-5">
         <h2 className="font-serif text-[22px] font-semibold">Cuentas</h2>
         <div aria-hidden className="flex flex-wrap gap-1.5">
-          {PESTANAS.map((rotulo) => (
+          {PESTANAS.map(({ id, rotulo }) => (
             <span
-              key={rotulo}
+              key={id}
               className={cn(
                 "inline-flex min-h-8 items-center rounded-pastilla border px-3.5 text-chico font-semibold whitespace-nowrap",
-                rotulo === "Alquiler" ? "border-marca bg-marca text-superficie" : "border-borde bg-superficie text-tinta-2",
+                id === pestanaActiva ? "border-marca bg-marca text-superficie" : "border-borde bg-superficie text-tinta-2",
               )}
             >
               {rotulo}
@@ -42,5 +54,22 @@ export function EsqueletoDeCuentas() {
         </div>
       </div>
     </div>
+  );
+}
+
+function EsqueletoSegunLaDireccion() {
+  const parametros = useSearchParams();
+  return <EsqueletoDeCuentas pestanaActiva={pestanaDeUrl(parametros?.get(PARAMETRO_PESTANA)) ?? PESTANA_DEL_ESQUELETO} />;
+}
+
+/**
+ * El esqueleto de la ruta (`loading.tsx`) con la pestaña de la dirección activa (39B·05: `/cuentas?pestana=tickets`). La ruta no
+ * recibe `searchParams`, así que la lee el navegador; sin dirección (o con una pestaña desconocida) dibuja la de 41B·04.
+ */
+export function EsqueletoDeCuentasDeLaRuta() {
+  return (
+    <Suspense fallback={<EsqueletoDeCuentas />}>
+      <EsqueletoSegunLaDireccion />
+    </Suspense>
   );
 }

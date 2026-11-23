@@ -3,6 +3,8 @@
 import Link from "next/link";
 
 import { AccionNoDisponible } from "@/components/AccionNoDisponible";
+import { DetalleDelCobro, type AnularDesdeLaTabla } from "@/features/cuentas/DetalleDelCobro";
+import { tieneCobroAnulado } from "@/features/cuentas/anular-cobro";
 import { EncabezadoDeTabla, Pastilla, type ColumnaDeTabla } from "@/features/cuentas/TablaDeFilas";
 import { formatMonto } from "@/features/cuentas/formato";
 import {
@@ -35,6 +37,7 @@ function seValidaEnLa29(medio: FilaDeTicket["ticket"]["medio"]): boolean {
 
 function EstadoDelTicket({ fila }: { fila: FilaDeTicket }) {
   const { ticket } = fila;
+  if (tieneCobroAnulado(ticket)) return <Pastilla tono="peligro">⊘ Anulado</Pastilla>;
   if (ticket.anulado) return <Pastilla tono="neutro">↩ Devuelto</Pastilla>;
   if (ticket.estado === "PENDIENTE") return <Pastilla tono="alerta">◔ Por validar</Pastilla>;
   if (ticket.estado === "RECHAZADO") return <Pastilla tono="peligro">✕ Rechazado</Pastilla>;
@@ -52,6 +55,7 @@ export function TablaDeTickets({
   abiertos,
   alAlternar,
   textoVacio,
+  anular,
 }: {
   filas: FilaDeTicket[];
   ahoraIso: string;
@@ -59,6 +63,8 @@ export function TablaDeTickets({
   abiertos: ReadonlySet<string>;
   alAlternar: (ticketId: string) => void;
   textoVacio: string;
+  /** «Anular cobro» en el detalle de los cobros con tarjeta (vista 39). */
+  anular: AnularDesdeLaTabla;
 }) {
   return (
     <div role="table" aria-label="Tickets" className="flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-tarjeta border border-borde bg-superficie">
@@ -75,6 +81,7 @@ export function TablaDeTickets({
             const { ticket, colportor, ciudad } = fila;
             const abierto = abiertos.has(ticket.id);
             const numero = textoDeNumero(ticket);
+            const anulado = tieneCobroAnulado(ticket);
             return (
               <div key={ticket.id} role="rowgroup">
                 <div
@@ -93,6 +100,7 @@ export function TablaDeTickets({
                       type="button"
                       aria-expanded={abierto}
                       aria-controls={`detalle-${ticket.id}`}
+                      data-foco={`ticket-${ticket.id}`}
                       onClick={() => alAlternar(ticket.id)}
                       className="flex min-h-6 min-w-0 cursor-pointer items-baseline gap-1 rounded-sm text-left font-semibold focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none"
                     >
@@ -108,7 +116,8 @@ export function TablaDeTickets({
                   <span role="cell" className="min-w-0 truncate">
                     {textoDeDestino(ticket.destino)}
                   </span>
-                  <span role="cell" className="min-w-0 truncate text-right font-mono">
+                  <span role="cell" className={cn("min-w-0 truncate text-right font-mono", anulado && "text-tinta-suave line-through")}>
+                    {anulado && <span className="sr-only">anulado </span>}
                     {formatMonto(ticket.monto)}
                   </span>
                   <span role="cell" className="flex min-w-0 flex-col items-start gap-0.5">
@@ -120,7 +129,7 @@ export function TablaDeTickets({
                     )}
                   </span>
                   <span role="cell" className="flex justify-end">
-                    {ticket.estado === "PENDIENTE" && seValidaEnLa29(ticket.medio) && (
+                    {ticket.estado === "PENDIENTE" && !anulado && seValidaEnLa29(ticket.medio) && (
                       <Link
                         href={`/cuentas/validar-tickets?ticket=${encodeURIComponent(ticket.id)}`}
                         aria-label={`Validar el ticket de ${colportor.nombre}`}
@@ -129,7 +138,7 @@ export function TablaDeTickets({
                         Validar
                       </Link>
                     )}
-                    {ticket.estado === "PENDIENTE" && !seValidaEnLa29(ticket.medio) && (
+                    {ticket.estado === "PENDIENTE" && !anulado && !seValidaEnLa29(ticket.medio) && (
                       <AccionNoDisponible
                         aria-label={`Validar el ticket de ${colportor.nombre}`}
                         className="inline-flex min-h-8 items-center rounded-control border border-marca bg-marca px-3 text-[11.5px] font-semibold text-superficie"
@@ -176,6 +185,7 @@ export function TablaDeTickets({
                       {ticket.estado === "RECHAZADO" && (
                         <p className="text-chico font-semibold text-peligro">{textoDeEstado(ticket)}</p>
                       )}
+                      <DetalleDelCobro ticket={ticket} nombre={colportor.nombre} ahoraIso={ahoraIso} anular={anular} />
                     </div>
                   </div>
                 )}
