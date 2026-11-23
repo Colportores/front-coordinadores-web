@@ -1,13 +1,18 @@
 import { contrasteSobreElMapa } from "@colportores/lib-mapa";
-import { CONTRASTE } from "@colportores/lib-mapa/tokens";
+import { CONTRASTE, ZONA_SIN_COLOR } from "@colportores/lib-mapa/tokens";
 import { describe, expect, it } from "vitest";
 
 import { COLOR_ZONA_SIN_COLOR, colorDeBorde, colorParaZonaNueva, esColorHex, PALETA_ZONAS } from "@/datos/equipo/zonas/paleta";
 
 describe("paleta de zonas", () => {
-  it("sale de los tokens de lib-mapa sin cambiar el aspecto: la misma paleta, en el mismo orden, y el gris provisional", () => {
+  it("sale de los tokens de lib-mapa sin cambiar el aspecto: la misma paleta, en el mismo orden, y el gris de «sin color»", () => {
     expect(PALETA_ZONAS).toEqual(["#13407A", "#1F6E3A", "#A98330", "#5B6B82", "#A8312A", "#3B5C8C"]);
     expect(COLOR_ZONA_SIN_COLOR).toBe("#8A94A6");
+  });
+
+  it("«Zona s/color» es el token de un solo valor de lib-mapa, no una constante del panel", () => {
+    expect(typeof ZONA_SIN_COLOR).toBe("string");
+    expect(COLOR_ZONA_SIN_COLOR).toBe(ZONA_SIN_COLOR);
   });
 
   it("todos los colores de la paleta son #RRGGBB (la base solo guarda eso) y ninguno se repite", () => {
