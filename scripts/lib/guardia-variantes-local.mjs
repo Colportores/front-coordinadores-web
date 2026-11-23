@@ -18,6 +18,8 @@
 /** Páginas con server actions que, por construcción, no tienen una vista con variante `*Local` (el motivo va en el test). */
 export const PAGINAS_SIN_LOCAL = Object.freeze({
   "src/app/acceso/page.tsx": "el sitio de prueba no tiene login: muestra un mensaje fijo y manda al inicio",
+  "src/app/acceso/olvide/page.tsx": "el sitio de prueba no tiene cuentas ni correos que recuperar: muestra el mismo mensaje fijo",
+  "src/app/acceso/nueva-contrasena/page.tsx": "el sitio de prueba no tiene cuentas ni correos que recuperar: muestra el mismo mensaje fijo",
 });
 
 const CONDICION = 'process.env.NEXT_PUBLIC_DEPLOY_PAGES === "1"';

@@ -14,6 +14,7 @@ import { EncabezadoDeCuentas } from "@/features/cuentas/EncabezadoDeCuentas";
 import { Pastilla, TablaDeFilas, type ColumnaDeTabla } from "@/features/cuentas/TablaDeFilas";
 import { TablaDeTickets } from "@/features/cuentas/TablaDeTickets";
 import { formatMonto } from "@/features/cuentas/formato";
+import type { PreseleccionDeCuentas } from "@/features/cuentas/preseleccion";
 import {
   aplicarAlquiler,
   aplicarAnulacion,
@@ -136,9 +137,22 @@ function mensajeDeFalla<T>(resultado: Extract<ResultadoDeAccion<T>, { ok: false 
  * llegan por props y las escrituras (editar el alquiler) por `acciones`, de a una por vez: mientras una
  * está en camino, la otra y el doble toque se ignoran, y si falla todo vuelve a poder usarse.
  */
-export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuentas; acciones: AccionesCuentas }) {
+export function CuentasVista({
+  datos: inicial,
+  acciones,
+  preseleccion,
+}: {
+  datos: DatosDeCuentas;
+  acciones: AccionesCuentas;
+  /**
+   * Con lo que abre la vista cuando se llega desde Stock («Ver en Cuentas →», #91): la ciudad del colportor, su fila resaltada o,
+   * si no se lo encuentra, el aviso que dice qué hacer. Se toma una sola vez, al abrir.
+   */
+  preseleccion?: PreseleccionDeCuentas;
+}) {
   const [datos, setDatos] = useState(inicial);
-  const [seleccionada, setSeleccionada] = useState<Seleccion>(TODAS);
+  const [seleccionada, setSeleccionada] = useState<Seleccion>(preseleccion?.seleccion ?? TODAS);
+  const [destacado, setDestacado] = useState<string | null>(preseleccion?.colportorId ?? null);
   const [contraida, setContraida] = useState(false);
   const [pestana, setPestana] = useState<Pestana>("casa-editora");
   const [colportorFiltrado, setColportorFiltrado] = useState("");
@@ -147,12 +161,20 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
   const [editandoAlquiler, setEditandoAlquiler] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [errorDeAlquiler, setErrorDeAlquiler] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<Aviso | null>(null);
+  const [aviso, setAviso] = useState<Aviso | null>(preseleccion?.aviso ? { tipo: "error", texto: preseleccion.aviso } : null);
   const [decidiendo, setDecidiendo] = useState<Decidiendo | null>(null);
   const [decidida, setDecidida] = useState<string | null>(null);
   const enLinea = useEnLinea();
   const ocupado = useRef(false);
   const focoPendiente = useRef<string | null>(null);
+
+  // Llegó desde Stock a mirar a alguien: su fila queda a la vista, aunque la ciudad tenga muchos colportores.
+  const colportorAMirar = preseleccion?.colportorId ?? null;
+  useEffect(() => {
+    if (colportorAMirar === null) return;
+    const fila = Array.from(document.querySelectorAll<HTMLElement>("[data-colportor]")).find((el) => el.dataset.colportor === colportorAMirar);
+    fila?.scrollIntoView?.({ block: "nearest" });
+  }, [colportorAMirar]);
 
   // Tras un cambio que quita o apaga el botón apretado, el foco vuelve a un lugar con sentido.
   useEffect(() => {
@@ -181,7 +203,7 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
   const avisoDeAlquiler = avisoDePorDecidir(filas, sinAlquiler);
   // La fila del diálogo, mientras siga habiendo algo que decidir en ella.
   const filaDecidiendo = decidiendo ? filasDe(datos, TODAS).find((f) => f.colportor.id === decidiendo.colportorId) : undefined;
-  const resaltada = decidiendo?.colportorId ?? decidida;
+  const resaltada = decidiendo?.colportorId ?? decidida ?? destacado;
 
   /** Una escritura por vez: la segunda mientras la primera está en camino se ignora. Cuenta como trabajo sin contestar. */
   async function escribir<T>(hacer: () => Promise<ResultadoDeAccion<T>>): Promise<ResultadoDeAccion<T> | null> {
@@ -301,6 +323,7 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
 
   function elegirSeleccion(nueva: Seleccion) {
     setSeleccionada(nueva);
+    setDestacado(null);
     setColportorFiltrado("");
   }
 
@@ -464,6 +487,7 @@ export function CuentasVista({ datos: inicial, acciones }: { datos: DatosDeCuent
               orden={orden}
               alOrdenar={(c: ColumnaOrdenable) => setOrdenes((o) => ({ ...o, [pestana]: siguienteOrden(o[pestana] ?? null, c) }))}
               textoVacio={`Todavía no hay colportores inscriptos en ${titulo}. Se suman desde Equipo.`}
+              resaltada={destacado}
               celdas={(f) => {
                 const cobrado = porcentajeCobrado(f.colportor);
                 return [

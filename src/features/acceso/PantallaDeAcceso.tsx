@@ -5,6 +5,8 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } fro
 import type { ResultadoCierre } from "@/auth/acceso";
 import type { RespuestaDeInicio } from "@/auth/acciones";
 import { rutaDeAcceso, type MotivoDeAcceso } from "@/auth/guarda";
+import { Cartel, CLASE_DE_ENLACE, CLASE_DE_ETIQUETA, MarcoDeAcceso, type DatosDelAviso } from "@/features/acceso/MarcoDeAcceso";
+import { guardarCorreoAPedir } from "@/features/acceso/recuperacion-almacen";
 import { TEXTOS_DE_ACCESO as T, textoSinAcceso } from "@/features/acceso/textos";
 import { guardarUltimoCorreo, leerUltimoCorreo, olvidarUltimoCorreo } from "@/features/acceso/ultimo-correo";
 import { contrasenaCorta, normalizarCorreo, problemaDeCorreo } from "@/features/acceso/validacion";
@@ -32,8 +34,8 @@ import { cn } from "@/lib/utils";
  * armado o una contraseña más corta que el mínimo no se mandan. El aviso sale en el propio campo al salir de él con algo
  * escrito o al querer entrar, se corrige solo mientras se escribe, y «Entrar» lleva el foco al primer campo que hay que revisar.
  *
- * Qué NO tiene, a propósito: «¿Olvidaste tu contraseña?» (el canvas lo dibuja sin destino y pregunta adónde lleva: hasta que se
- * decida no hay un enlace sin destino). Ver el archivo de pendientes del PR.
+ * «¿Olvidaste tu contraseña?» (#111): lleva a `/acceso/olvide` (vista 40, recuperar por correo con enlace; decisión de Cristian,
+ * 27/10), con el correo que ya estaba escrito. Hasta que existió ese destino no se dibujaba (un enlace sin destino no va).
  */
 
 export interface PropiedadesDeAcceso {
@@ -89,13 +91,6 @@ function useEnLinea(): boolean {
   );
 }
 
-interface DatosDelAviso {
-  texto: string;
-  /** `alert` para lo que salió mal, `status` para lo informativo. */
-  rol: "alert" | "status";
-  tono: "info" | "error" | "exito" | "sin-red";
-}
-
 function datosDelAviso(aviso: Aviso): DatosDelAviso | null {
   switch (aviso) {
     case "vencida":
@@ -116,32 +111,8 @@ function datosDelAviso(aviso: Aviso): DatosDelAviso | null {
   }
 }
 
-const ESTILO_DE_TONO: Record<DatosDelAviso["tono"], { caja: string; icono: string; glifo: string }> = {
-  info: { caja: "border-tinta-2", icono: "bg-tinta-2", glifo: "i" },
-  error: { caja: "border-peligro", icono: "bg-peligro", glifo: "!" },
-  exito: { caja: "border-exito", icono: "bg-exito", glifo: "✓" },
-  "sin-red": { caja: "border-dashed border-tinta-suave", icono: "bg-tinta-suave", glifo: "✕" },
-};
-
-function Cartel({ aviso }: { aviso: DatosDelAviso }) {
-  const estilo = ESTILO_DE_TONO[aviso.tono];
-  return (
-    <div role={aviso.rol} className={cn("flex items-start gap-3 rounded-lg border-[1.5px] bg-superficie px-3.5 py-3", estilo.caja)}>
-      <span
-        aria-hidden
-        className={cn("grid size-5 flex-none place-items-center rounded-pastilla text-mini font-bold text-superficie", estilo.icono)}
-      >
-        {estilo.glifo}
-      </span>
-      <p className="text-[13.5px] leading-[1.45] wrap-anywhere text-pretty">{aviso.texto}</p>
-    </div>
-  );
-}
-
 /** El correo guardado en la pestaña no cambia mientras se ve la pantalla: no hay nada a qué suscribirse. */
 const sinSuscripcion = () => () => {};
-
-const CLASE_DE_ETIQUETA = "font-mono text-etiqueta tracking-[.14em] text-tinta-suave";
 
 /** El aviso del campo del correo (ya normalizado), o `null` si pasa o si todavía no hay nada escrito. */
 function avisoDelCorreo(correo: string): string | null {
@@ -350,123 +321,111 @@ export function PantallaDeAcceso({ motivo, siguiente, correoSinAcceso = null, in
   else if (aviso === "no-disponible") textoDelBoton = T.reintentar;
 
   return (
-    <main className="grid min-h-screen bg-fondo lg:grid-cols-[420px_minmax(0,1fr)]">
-      <div className="hidden flex-col justify-between bg-marca p-10 text-superficie lg:flex">
-        <div className="flex items-center gap-[11px]">
-          <div aria-hidden className="grid size-8 place-items-center rounded-pastilla bg-superficie font-serif text-chico font-semibold text-marca">
-            UU
-          </div>
-          <span className="font-serif text-titulo font-semibold">Colportaje</span>
-        </div>
-        <div className="flex flex-col gap-2.5">
-          <span className="font-mono text-etiqueta tracking-[.2em] text-marca-clara">PANEL DE COORDINADORES</span>
-          <span className="font-serif text-[28px] leading-tight font-semibold text-pretty">Tu campaña, ciudad por ciudad.</span>
-        </div>
-        <span className="text-chico text-marca-clara">Unión Uruguaya</span>
-      </div>
+    <MarcoDeAcceso>
+      <h1 ref={titulo} tabIndex={-1} className="font-serif text-[28px] font-semibold outline-none">
+        {sinAcceso ? T.tituloSinAcceso : T.tituloFormulario}
+      </h1>
 
-      <div className="flex items-center justify-center p-6 sm:p-10">
-        <div className="flex w-full max-w-[380px] flex-col gap-[22px]">
-          <h1 ref={titulo} tabIndex={-1} className="font-serif text-[28px] font-semibold outline-none">
-            {sinAcceso ? T.tituloSinAcceso : T.tituloFormulario}
-          </h1>
+      {sinAcceso ? <Cartel aviso={{ texto: sinAcceso.suspendida ? T.suspendida : textoSinAcceso(sinAcceso.correo), rol: "alert", tono: "error" }} /> : cartel ? <Cartel aviso={cartel} /> : null}
 
-          {sinAcceso ? <Cartel aviso={{ texto: sinAcceso.suspendida ? T.suspendida : textoSinAcceso(sinAcceso.correo), rol: "alert", tono: "error" }} /> : cartel ? <Cartel aviso={cartel} /> : null}
-
-          <form onSubmit={alEnviar} noValidate className="flex flex-col gap-[22px]">
-            {sinAcceso ? null : (
-              <div className="flex flex-col gap-[18px]">
-                <div className="flex flex-col gap-[7px]">
-                  <label className="flex flex-col gap-[7px]">
-                    <span className={CLASE_DE_ETIQUETA}>{T.correo}</span>
-                    <input
-                      ref={campoCorreo}
-                      type="email"
-                      name="correo"
-                      autoComplete="username"
-                      autoCapitalize="none"
-                      spellCheck={false}
-                      maxLength={254}
-                      required
-                      placeholder={T.placeholderCorreo}
-                      value={correo}
-                      onChange={(evento) => alCambiarElCorreo(evento.target.value)}
-                      onBlur={alSalirDelCorreo}
-                      disabled={enviando}
-                      aria-invalid={avisoDeCorreo || errorDeCampo ? true : undefined}
-                      aria-describedby={avisoDeCorreo ? "aviso-del-correo" : errorDeCampo ? "error-de-acceso" : undefined}
-                      className={cn(
-                        "min-w-0 rounded-control border bg-superficie px-3 py-[11px] text-[14px] text-tinta outline-none focus-visible:ring-2 focus-visible:ring-acento disabled:bg-superficie-suave disabled:text-tinta-suave",
-                        avisoDeCorreo || errorDeCampo ? "border-peligro" : "border-grafico-neutro",
-                      )}
-                    />
-                  </label>
-                  {avisoDeCorreo ? (
-                    <p id="aviso-del-correo" role="alert" className="text-cuerpo text-pretty text-peligro">
-                      {avisoDeCorreo}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex flex-col gap-[7px]">
-                  <label className="flex flex-col gap-[7px]">
-                    <span className={CLASE_DE_ETIQUETA}>{T.contrasena}</span>
-                    <input
-                      ref={campoClave}
-                      type="password"
-                      name="contrasena"
-                      autoComplete="current-password"
-                      required
-                      placeholder={T.placeholderContrasena}
-                      value={contrasena}
-                      onChange={(evento) => alCambiarLaContrasena(evento.target.value)}
-                      onBlur={alSalirDeLaContrasena}
-                      disabled={enviando}
-                      aria-invalid={avisoDeContrasena || errorDeCampo ? true : undefined}
-                      aria-describedby={avisoDeContrasena ? "aviso-de-la-contrasena" : errorDeCampo ? "error-de-acceso" : undefined}
-                      className={cn(
-                        "min-w-0 rounded-control border bg-superficie px-3 py-[11px] text-[14px] text-tinta outline-none focus-visible:ring-2 focus-visible:ring-acento disabled:bg-superficie-suave disabled:text-tinta-suave",
-                        avisoDeContrasena || errorDeCampo ? "border-peligro" : "border-grafico-neutro",
-                      )}
-                    />
-                  </label>
-                  {avisoDeContrasena ? (
-                    <p id="aviso-de-la-contrasena" role="alert" className="text-cuerpo text-pretty text-peligro">
-                      {avisoDeContrasena}
-                    </p>
-                  ) : null}
-                </div>
-                {errorDeCampo ? (
-                  <p id="error-de-acceso" role="alert" className="-mt-2 text-cuerpo text-peligro">
-                    {errorDeCampo}
-                  </p>
-                ) : null}
-              </div>
-            )}
-
-            <button
-              type={sinAcceso ? "button" : "submit"}
-              onClick={sinAcceso ? () => void entrarConOtraCuenta() : undefined}
-              aria-disabled={apagado || undefined}
-              // Apagado no es `disabled`: el botón conserva el foco y un clic o un Enter no hacen nada (`entrar` lo comprueba).
-              className={cn(
-                "flex items-center justify-center gap-2.5 rounded-control px-3 py-[13px] text-[14px] font-semibold text-superficie outline-none focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-offset-2",
-                enviando ? "bg-marca-media" : apagado ? "bg-tinta-tenue" : "bg-marca hover:bg-marca-media",
-              )}
-            >
-              {enviando ? (
-                <span aria-hidden className="size-3.5 animate-spin rounded-pastilla border-2 border-superficie/35 border-t-superficie" />
+      <form onSubmit={alEnviar} noValidate className="flex flex-col gap-[22px]">
+        {sinAcceso ? null : (
+          <div className="flex flex-col gap-[18px]">
+            <div className="flex flex-col gap-[7px]">
+              <label className="flex flex-col gap-[7px]">
+                <span className={CLASE_DE_ETIQUETA}>{T.correo}</span>
+                <input
+                  ref={campoCorreo}
+                  type="email"
+                  name="correo"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  maxLength={254}
+                  required
+                  placeholder={T.placeholderCorreo}
+                  value={correo}
+                  onChange={(evento) => alCambiarElCorreo(evento.target.value)}
+                  onBlur={alSalirDelCorreo}
+                  disabled={enviando}
+                  aria-invalid={avisoDeCorreo || errorDeCampo ? true : undefined}
+                  aria-describedby={avisoDeCorreo ? "aviso-del-correo" : errorDeCampo ? "error-de-acceso" : undefined}
+                  className={cn(
+                    "min-w-0 rounded-control border bg-superficie px-3 py-[11px] text-[14px] text-tinta outline-none focus-visible:ring-2 focus-visible:ring-acento disabled:bg-superficie-suave disabled:text-tinta-suave",
+                    avisoDeCorreo || errorDeCampo ? "border-peligro" : "border-grafico-neutro",
+                  )}
+                />
+              </label>
+              {avisoDeCorreo ? (
+                <p id="aviso-del-correo" role="alert" className="text-cuerpo text-pretty text-peligro">
+                  {avisoDeCorreo}
+                </p>
               ) : null}
-              {textoDelBoton}
-            </button>
-            {/* El lector de pantalla anuncia que se está entrando; a la vista, el botón ya lo dice. */}
-            <span aria-live="polite" className="sr-only">
-              {enviando && !sinAcceso ? T.entrando : null}
-            </span>
-          </form>
+            </div>
+            <div className="flex flex-col gap-[7px]">
+              <label className="flex flex-col gap-[7px]">
+                <span className={CLASE_DE_ETIQUETA}>{T.contrasena}</span>
+                <input
+                  ref={campoClave}
+                  type="password"
+                  name="contrasena"
+                  autoComplete="current-password"
+                  required
+                  placeholder={T.placeholderContrasena}
+                  value={contrasena}
+                  onChange={(evento) => alCambiarLaContrasena(evento.target.value)}
+                  onBlur={alSalirDeLaContrasena}
+                  disabled={enviando}
+                  aria-invalid={avisoDeContrasena || errorDeCampo ? true : undefined}
+                  aria-describedby={avisoDeContrasena ? "aviso-de-la-contrasena" : errorDeCampo ? "error-de-acceso" : undefined}
+                  className={cn(
+                    "min-w-0 rounded-control border bg-superficie px-3 py-[11px] text-[14px] text-tinta outline-none focus-visible:ring-2 focus-visible:ring-acento disabled:bg-superficie-suave disabled:text-tinta-suave",
+                    avisoDeContrasena || errorDeCampo ? "border-peligro" : "border-grafico-neutro",
+                  )}
+                />
+              </label>
+              {avisoDeContrasena ? (
+                <p id="aviso-de-la-contrasena" role="alert" className="text-cuerpo text-pretty text-peligro">
+                  {avisoDeContrasena}
+                </p>
+              ) : null}
+            </div>
+            {errorDeCampo ? (
+              <p id="error-de-acceso" role="alert" className="-mt-2 text-cuerpo text-peligro">
+                {errorDeCampo}
+              </p>
+            ) : null}
+            {/* Vista 40: la recuperación de la contraseña. Lleva el correo escrito, sin pasarlo por la URL. */}
+            <div className="flex justify-end">
+              <a href="/acceso/olvide" onClick={() => guardarCorreoAPedir(correoNormalizado)} className={CLASE_DE_ENLACE}>
+                {T.olvidasteTuContrasena}
+              </a>
+            </div>
+          </div>
+        )}
 
-          {pie ? <p className="text-cuerpo leading-normal text-pretty text-tinta-suave">{pie}</p> : null}
-        </div>
-      </div>
-    </main>
+        <button
+          type={sinAcceso ? "button" : "submit"}
+          onClick={sinAcceso ? () => void entrarConOtraCuenta() : undefined}
+          aria-disabled={apagado || undefined}
+          // Apagado no es `disabled`: el botón conserva el foco y un clic o un Enter no hacen nada (`entrar` lo comprueba).
+          className={cn(
+            "flex items-center justify-center gap-2.5 rounded-control px-3 py-[13px] text-[14px] font-semibold text-superficie outline-none focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-offset-2",
+            enviando ? "bg-marca-media" : apagado ? "bg-tinta-tenue" : "bg-marca hover:bg-marca-media",
+          )}
+        >
+          {enviando ? (
+            <span aria-hidden className="size-3.5 animate-spin rounded-pastilla border-2 border-superficie/35 border-t-superficie" />
+          ) : null}
+          {textoDelBoton}
+        </button>
+        {/* El lector de pantalla anuncia que se está entrando; a la vista, el botón ya lo dice. */}
+        <span aria-live="polite" className="sr-only">
+          {enviando && !sinAcceso ? T.entrando : null}
+        </span>
+      </form>
+
+      {pie ? <p className="text-cuerpo leading-normal text-pretty text-tinta-suave">{pie}</p> : null}
+    </MarcoDeAcceso>
   );
 }

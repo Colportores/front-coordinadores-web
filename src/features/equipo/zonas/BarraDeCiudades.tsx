@@ -2,54 +2,33 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { normalizarBusqueda } from "@/datos/equipo/busqueda";
+import { BuscadorDeCiudades, SinCoincidenciasDeCiudades } from "@/components/BuscadorDeCiudades";
 import type { CiudadDeCampania } from "@/datos/equipo/zonas";
+import {
+  CIUDADES_PARA_BUSCAR,
+  coincidenciasPorNombre,
+  ETIQUETA_BUSCAR_CIUDAD,
+  hayBuscadorDeCiudades,
+  ordenarPorNombre,
+  textoSinCoincidencias,
+} from "@/lib/buscar-ciudades";
 import { cn } from "@/lib/utils";
 
-/**
- * Desde cuántas ciudades la barra suma el campo para buscar entre ellas (#186). Hasta ahí se ven todas de un vistazo y el campo
- * sobra; con más, ubicar una a ojo deja de ser razonable (los evaluadores preguntaron por 150).
- */
-export const CIUDADES_PARA_BUSCAR = 8;
-
-export const ETIQUETA_BUSCAR_CIUDAD = "Buscar entre las ciudades de la campaña";
-
-/** Lo que se anuncia (y se ve) cuando lo escrito no coincide con ninguna ciudad: dice qué hacer. */
-export function textoSinCoincidencias(texto: string): string {
-  return `Ninguna ciudad de la campaña coincide con «${texto.trim()}». Revisá lo escrito o borralo para ver todas.`;
-}
+export { CIUDADES_PARA_BUSCAR, ETIQUETA_BUSCAR_CIUDAD, textoSinCoincidencias };
 
 function textoCantidadZonas(cantidad: number): string {
   if (cantidad === 0) return "sin zonas";
   return cantidad === 1 ? "1 zona" : `${cantidad} zonas`;
 }
 
-/** A-Z en castellano sin mirar tildes ni mayúsculas; mismo nombre, por id, para que el orden no salte entre cargas. */
-function compararCiudades(a: CiudadDeCampania, b: CiudadDeCampania): number {
-  return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-}
-
 /** Las ciudades A-Z. Solo se usa para ordenar los resultados de una búsqueda: sin texto la barra respeta el orden de la fuente (P1 de la QA de #186, 18/11). */
 export function ordenarCiudades(ciudades: readonly CiudadDeCampania[]): CiudadDeCampania[] {
-  return [...ciudades].sort(compararCiudades);
+  return ordenarPorNombre(ciudades, (c) => c.id);
 }
 
-/**
- * Búsqueda blanda: sin distinguir mayúsculas ni tildes, con coincidencia parcial en cualquier parte del nombre. Primero las que
- * empiezan con lo escrito y después las que solo lo contienen, cada grupo A-Z (decisión P4 de #186). Vacío: todas, en el orden de la
- * fuente, como el canvas 24 · 01 (P1 de la QA de #186, 18/11).
- */
+/** La búsqueda blanda compartida con las columnas de las demás pestañas (#195): `@/lib/buscar-ciudades`. */
 export function ciudadesQueCoinciden(ciudades: readonly CiudadDeCampania[], texto: string): CiudadDeCampania[] {
-  const buscado = normalizarBusqueda(texto);
-  if (buscado === "") return [...ciudades];
-  const empiezan: CiudadDeCampania[] = [];
-  const contienen: CiudadDeCampania[] = [];
-  for (const c of ordenarCiudades(ciudades)) {
-    const nombre = normalizarBusqueda(c.nombre);
-    if (nombre.startsWith(buscado)) empiezan.push(c);
-    else if (nombre.includes(buscado)) contienen.push(c);
-  }
-  return [...empiezan, ...contienen];
+  return coincidenciasPorNombre(ciudades, texto, (c) => c.id);
 }
 
 interface Props {
@@ -68,7 +47,7 @@ interface Props {
 export function BarraDeCiudades({ ciudades, ciudadId, deshabilitado, onElegir }: Props) {
   const [texto, setTexto] = useState("");
   const botones = useRef<HTMLDivElement>(null);
-  const conBuscador = ciudades.length > CIUDADES_PARA_BUSCAR;
+  const conBuscador = hayBuscadorDeCiudades(ciudades.length);
   const buscando = conBuscador && texto.trim() !== "";
 
   const coinciden = ciudadesQueCoinciden(ciudades, buscando ? texto : "");
@@ -86,36 +65,21 @@ export function BarraDeCiudades({ ciudades, ciudadId, deshabilitado, onElegir }:
     // buscador ocupa la fila, para que el botón no salte de lugar mientras lo escrito achica la lista.
     <nav aria-label="Ciudades de la campaña" className={cn("flex min-w-0 flex-col gap-2", conBuscador && "flex-1")}>
       {conBuscador ? (
-        <div className="flex flex-col gap-1">
-          <input
-            type="search"
-            value={texto}
-            aria-label={ETIQUETA_BUSCAR_CIUDAD}
-            placeholder="Buscar ciudad…"
-            autoComplete="off"
-            onChange={(e) => setTexto(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape" && texto !== "") {
-                // Ese Esc borra lo escrito y nada más (no cierra la tarjeta de una casa abierta en el mapa).
-                e.stopPropagation();
-                setTexto("");
-              } else if (e.key === "Enter" && !deshabilitado) {
-                // Con lo escrito a la vista, Enter elige la primera ciudad que coincide: se llega sin tocar el mouse.
-                const primera = coinciden[0];
-                if (primera && buscando) onElegir(primera.id);
-              }
-            }}
-            className="min-h-9 max-w-[320px] rounded-control border border-grafico-neutro bg-superficie px-3 text-nav text-tinta outline-none focus-visible:ring-2 focus-visible:ring-acento"
-          />
-          {/* Un solo `role=status` por vista: el recuento se anuncia con `aria-live`. */}
-          <p aria-live="polite" className="text-mini text-tinta-suave">
-            {buscando ? `${coinciden.length} de ${ciudades.length} ciudades` : `${ciudades.length} ciudades`}
-          </p>
-        </div>
+        <BuscadorDeCiudades
+          texto={texto}
+          alCambiar={setTexto}
+          total={ciudades.length}
+          coinciden={coinciden.length}
+          buscando={buscando}
+          alElegirPrimera={() => {
+            if (!deshabilitado && coinciden[0]) onElegir(coinciden[0].id);
+          }}
+          className="max-w-[320px]"
+        />
       ) : null}
 
       {buscando && coinciden.length === 0 ? (
-        <p className="rounded-control bg-fondo px-3 py-2 text-cuerpo break-words wrap-anywhere text-tinta-suave">{textoSinCoincidencias(texto)}</p>
+        <SinCoincidenciasDeCiudades texto={texto} />
       ) : null}
 
       <div

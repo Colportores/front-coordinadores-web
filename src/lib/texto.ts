@@ -24,3 +24,8 @@ export function conPuntosDeMiles(entero: string): string {
   }
   return signo + grupos.reverse().join(".");
 }
+
+/** Une los nombres como se lee: «A», «A y B», «A, B y C». Sin nombres, vacío. */
+export function unirNombres(nombres: readonly string[]): string {
+  return nombres.length <= 1 ? (nombres[0] ?? "") : `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}`;
+}

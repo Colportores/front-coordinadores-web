@@ -1,5 +1,5 @@
 import { fechaYHoraEnMontevideo } from "@/lib/momento";
-import type { ColportorDeStock, DatosDeStock, ProductoDeStock, TipoDeProducto } from "@/datos/stock/contrato";
+import type { AjusteDeStock, ColportorDeStock, DatosDeStock, MotivoDeAjuste, ProductoDeStock, TipoDeProducto } from "@/datos/stock/contrato";
 import { conPuntosDeMiles } from "@/lib/texto";
 
 /**
@@ -14,6 +14,10 @@ import { conPuntosDeMiles } from "@/lib/texto";
  * - Solo hay dos avisos y ninguno tiene umbral: «Agotado en la ciudad» (nadie lo tiene) y «Faltan N para entregar» (lo que
  *   hay en la ciudad no alcanza para lo vendido y no entregado).
  * - La plata no está acá: es de Cuentas. «Por cobrar» se cuenta en unidades.
+ *
+ * Lo que sumó el retoque 42B de Claude Design (`42 Retoques Stock y Pedidos.dc.html`, HU-STK-010, #91): el aviso «N pedidos por
+ * autorizar en <ciudad>» con «Ver pedidos» (cuenta los pedidos a la casa editora, nada más), el «Sincronizó el …» en rojo desde
+ * los dos días, «Ver en Cuentas →» en cada colportor y los ajustes de stock que cargó la colportora.
  */
 
 export type Ambito =
@@ -71,6 +75,26 @@ function cantidad(n: number): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
+/** Pasados estos días sin sincronizar, el «Sincronizó el …» se marca en rojo (42B·01: «en rojo si lleva más de dos días»). */
+export const DIAS_PARA_SINCRONIZACION_VIEJA = 2;
+const MS_POR_DIA = 86_400_000;
+
+/** Un ajuste ya ordenado para mostrar: con la cantidad sin signo, la dirección dicha y la fecha en hora de Montevideo. */
+export interface AjusteDePersona {
+  id: string;
+  productoId: string;
+  /** Unidades, siempre positivas: `entrada` dice para dónde van. */
+  unidades: number;
+  entrada: boolean;
+  /** «Stock inicial», «Libros dañados», «Conteo». */
+  motivo: string;
+  /** «22/10 a las 18:30»; vacío si la fecha no sirve. */
+  cuandoTexto: string;
+  /** El instante, para ordenar (los más nuevos primero); `NaN` si la fecha no sirve. */
+  instante: number;
+  cargadoPor: string;
+}
+
 export interface PersonaDeStock {
   id: string;
   nombre: string;
@@ -78,7 +102,39 @@ export interface PersonaDeStock {
   ciudadNombre: string | null;
   /** «Sincronizó el 22/10 a las 18:30», o «Todavía no sincronizó» si no llegó ningún dato de su teléfono. */
   sincronizo: string;
+  /** Lleva más de dos días sin sincronizar (nunca, sin fecha: ahí no hay día que mostrar). */
+  sincronizoViejo: boolean;
   porProducto: ReadonlyMap<string, Cantidades>;
+  ajustes: AjusteDePersona[];
+}
+
+const MOTIVOS_DE_AJUSTE: Record<MotivoDeAjuste, string> = {
+  STOCK_INICIAL: "Stock inicial",
+  LIBROS_DANADOS: "Libros dañados",
+  CONTEO: "Conteo",
+};
+
+/** `true` si la última sincronización es de hace más de dos días. Una fecha futura (reloj corrido) o que no sirve no cuenta. */
+export function esSincronizacionVieja(ultimoDatoAt: string | null, ahora: Date = new Date()): boolean {
+  if (ultimoDatoAt === null) return false;
+  const instante = new Date(ultimoDatoAt).getTime();
+  if (Number.isNaN(instante)) return false;
+  return ahora.getTime() - instante > DIAS_PARA_SINCRONIZACION_VIEJA * MS_POR_DIA;
+}
+
+function ajusteDe(a: AjusteDeStock, ahora: Date): AjusteDePersona | null {
+  // Un ajuste en cero o que no es un número no cambia nada: no se muestra.
+  if (!Number.isFinite(a.cantidad) || Math.round(a.cantidad) === 0) return null;
+  return {
+    id: a.id,
+    productoId: a.productoId,
+    unidades: Math.abs(Math.round(a.cantidad)),
+    entrada: a.cantidad > 0,
+    motivo: MOTIVOS_DE_AJUSTE[a.motivo] ?? "Ajuste",
+    cuandoTexto: fechaYHoraEnMontevideo(a.cuando, ahora) ?? "",
+    instante: new Date(a.cuando).getTime(),
+    cargadoPor: a.cargadoPor.trim() === "" ? "la colportora" : a.cargadoPor.trim(),
+  };
 }
 
 /** Lo que dice la fila del colportor de cuándo llegó su último dato (hora de Montevideo). */
@@ -113,8 +169,17 @@ export interface TipoDeUnidades {
   productos: number;
 }
 
+/** Los pedidos por autorizar que trae la lectura de Stock: por ciudad y los de colportores sin ciudad. */
+export interface PedidosDelMundo {
+  porCiudad: ReadonlyMap<string, number>;
+  sinCiudad: number;
+}
+
 export interface Mundo {
   campaniaId: string;
+  pedidos: PedidosDelMundo;
+  /** Nombre de cada producto del catálogo, para decir de cuál es un ajuste cuando la fila junta una categoría. */
+  nombresDeProducto: ReadonlyMap<string, string>;
   /** Departamento primero (A-Z), después ciudad (A-Z); las ciudades sin departamento, al final. */
   ciudades: CiudadConGente[];
   sinCiudad: PersonaDeStock[];
@@ -163,12 +228,39 @@ function personaDe(c: ColportorDeStock, ciudadNombre: string | null, ciudadId: s
       porCobrar: antes.porCobrar + cantidad(e.porCobrar),
     });
   }
-  return { id: c.id, nombre: c.nombre, ciudadId, ciudadNombre, sincronizo: textoDeSincronizacion(c.ultimoDatoAt, ahora), porProducto };
+  const ajustes = (c.ajustes ?? [])
+    .map((a) => ajusteDe(a, ahora))
+    .filter((a): a is AjusteDePersona => a !== null)
+    // Los más nuevos primero; los que no tienen fecha, al final.
+    .sort((a, b) => (Number.isNaN(a.instante) ? 1 : 0) - (Number.isNaN(b.instante) ? 1 : 0) || b.instante - a.instante);
+  return {
+    id: c.id,
+    nombre: c.nombre,
+    ciudadId,
+    ciudadNombre,
+    sincronizo: textoDeSincronizacion(c.ultimoDatoAt, ahora),
+    sincronizoViejo: esSincronizacionVieja(c.ultimoDatoAt, ahora),
+    porProducto,
+    ajustes,
+  };
+}
+
+function pedidosDe(datos: DatosDeStock, ciudades: CiudadConGente[]): PedidosDelMundo {
+  const porCiudad = new Map<string, number>();
+  let sinCiudad = 0;
+  for (const p of datos.pedidosPorAutorizar ?? []) {
+    const n = cantidad(p.pedidos);
+    if (n === 0) continue;
+    // Una ciudad que no figura en la lista cuenta como «sin ciudad», igual que el colportor que no tiene a dónde ir.
+    if (p.ciudadId !== null && ciudades.some((c) => c.id === p.ciudadId)) porCiudad.set(p.ciudadId, (porCiudad.get(p.ciudadId) ?? 0) + n);
+    else sinCiudad += n;
+  }
+  return { porCiudad, sinCiudad };
 }
 
 const porNombre = (a: { nombre: string }, b: { nombre: string }) => ORDEN.compare(a.nombre, b.nombre);
 
-/** `ahora` solo decide si la fecha de «Sincronizó el …» lleva el año (cuando el dato no es del año en curso). */
+/** `ahora` decide si la fecha de «Sincronizó el …» lleva el año (cuando el dato no es del año en curso) y si ya es vieja. */
 export function construirMundo(datos: DatosDeStock, ahora: Date = new Date()): Mundo {
   const ciudades: CiudadConGente[] = datos.ciudades.map((c) => ({
     id: c.id,
@@ -195,7 +287,15 @@ export function construirMundo(datos: DatosDeStock, ahora: Date = new Date()): M
   }
   for (const c of ciudades) c.personas.sort(porNombre);
   sinCiudad.sort(porNombre);
-  return { campaniaId: datos.campaniaId, ciudades, sinCiudad, tipos: tiposDe(datos.productos), totalProductos: datos.productos.length };
+  return {
+    campaniaId: datos.campaniaId,
+    pedidos: pedidosDe(datos, ciudades),
+    nombresDeProducto: new Map(datos.productos.map((p) => [p.id, p.nombre])),
+    ciudades,
+    sinCiudad,
+    tipos: tiposDe(datos.productos),
+    totalProductos: datos.productos.length,
+  };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -319,7 +419,7 @@ export interface NodoLista {
   clave: string;
   ambito: Ambito;
   nombre: string;
-  /** «2 avisos», «sin avisos»; vacío en los nodos que juntan varias ciudades. */
+  /** «2 avisos», «sin avisos», «2 por autorizar», «1 aviso · 2 por autorizar»; vacío en los nodos que juntan varias ciudades. */
   detalle: string;
   seleccionado: boolean;
 }
@@ -360,8 +460,14 @@ export function construirLista(mundo: Mundo, resuelto: AmbitoResuelto): ModeloLi
         grupo.nodos.push(nodo(`departamento:${ciudad.claveDepartamento}`, { tipo: "departamento", clave: ciudad.claveDepartamento }, "Todo el departamento", ""));
       }
     }
-    const avisos = avisosDeCiudad(mundo, ciudad.personas);
-    const detalle = ciudad.personas.length === 0 ? "sin colportores" : avisos > 0 ? pluralAvisos(avisos) : "sin avisos";
+    const avisos = ciudad.personas.length === 0 ? 0 : avisosDeCiudad(mundo, ciudad.personas);
+    const pedidos = mundo.pedidos.porCiudad.get(ciudad.id) ?? 0;
+    const porAutorizar = pedidos > 0 ? `${pedidos} por autorizar` : null;
+    // 42B·01 pone el «2 por autorizar» donde iba «sin avisos»; con avisos de producto, van los dos.
+    const detalle =
+      ciudad.personas.length === 0 && porAutorizar === null
+        ? "sin colportores"
+        : [avisos > 0 ? pluralAvisos(avisos) : null, porAutorizar].filter((x) => x !== null).join(" · ") || "sin avisos";
     grupo.nodos.push(nodo(`ciudad:${ciudad.id}`, { tipo: "ciudad", ciudadId: ciudad.id }, ciudad.nombre, detalle));
   }
   if (mundo.sinCiudad.length > 0) {
@@ -494,6 +600,56 @@ export function construirAvisos(mundo: Mundo, resuelto: AmbitoResuelto): AvisoDe
   return avisos;
 }
 
+/**
+ * El aviso «2 pedidos por autorizar en Rivera» con «Ver pedidos» (42B·01, decisión de Cristian del 25/10, «Pedidos stock»): una
+ * franja por ciudad que tiene pedidos esperando, para llegar a la vista 35 donde se autoriza. Sin pedidos no hay aviso (42B·02).
+ */
+export interface AvisoDePedidos {
+  clave: string;
+  /** `null` en los pedidos de colportores sin ciudad: «Ver pedidos» abre la vista 35 sin elegir ciudad. */
+  ciudadId: string | null;
+  ciudadNombre: string;
+  pedidos: number;
+  /** «2 pedidos», en negrita. */
+  negrita: string;
+  /** «por autorizar en Rivera». */
+  texto: string;
+}
+
+export function construirAvisosDePedidos(mundo: Mundo, resuelto: AmbitoResuelto): AvisoDePedidos[] {
+  const avisos: AvisoDePedidos[] = [];
+  for (const ciudad of resuelto.ciudades) {
+    const pedidos = mundo.pedidos.porCiudad.get(ciudad.id) ?? 0;
+    if (pedidos === 0) continue;
+    avisos.push({
+      clave: `pedidos:${ciudad.id}`,
+      ciudadId: ciudad.id,
+      ciudadNombre: ciudad.nombre,
+      pedidos,
+      negrita: plural(pedidos, "pedido", "pedidos"),
+      texto: `por autorizar en ${ciudad.nombre}`,
+    });
+  }
+  const miraSinCiudad = resuelto.ambito.tipo === "todas" || resuelto.ambito.tipo === "sin-ciudad";
+  if (miraSinCiudad && mundo.pedidos.sinCiudad > 0) {
+    const pedidos = mundo.pedidos.sinCiudad;
+    avisos.push({
+      clave: "pedidos:sin-ciudad",
+      ciudadId: null,
+      ciudadNombre: "Sin ciudad",
+      pedidos,
+      negrita: plural(pedidos, "pedido", "pedidos"),
+      texto: "por autorizar de colportores sin ciudad",
+    });
+  }
+  return avisos;
+}
+
+/** Cuántos pedidos esperan autorización en lo que se mira: el número de la pestaña «Pedidos» (42B·01; sin pedidos, sin número). */
+export function totalDePedidosPorAutorizar(avisos: AvisoDePedidos[]): number {
+  return avisos.reduce((suma, a) => suma + a.pedidos, 0);
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Tabla por producto
 // ---------------------------------------------------------------------------------------------------------------------
@@ -504,11 +660,27 @@ export interface QuienTiene {
   nombre: string;
   /** «Sincronizó el 22/10 a las 18:30» (ver `PersonaDeStock`). */
   sincronizo: string;
+  /** Más de dos días sin sincronizar: el texto se marca en rojo (con una señal que no es solo el color). */
+  sincronizoViejo: boolean;
   tiene: number;
   porEntregar: number;
   entregados: number;
   devueltos: number;
   porCobrar: number;
+}
+
+/** Un ajuste de stock de la fila abierta: quién, cuánto, por qué, cuándo y quién lo cargó. */
+export interface AjusteDeUnidad {
+  id: string;
+  /** «Lucía Fernández» o, si el ámbito junta varias ciudades, «Lucía Fernández · Rivera». */
+  colportor: string;
+  /** El producto, cuando la fila junta una categoría (revistas, misioneros); `null` si la fila es de un solo producto. */
+  producto: string | null;
+  unidades: number;
+  entrada: boolean;
+  motivo: string;
+  cuandoTexto: string;
+  cargadoPor: string;
 }
 
 export interface FilaDeUnidad {
@@ -526,6 +698,8 @@ export interface FilaDeUnidad {
   quien: QuienTiene[];
   /** «Nadie lo tiene en Artigas.» cuando `quien` queda vacío. */
   sinNadie: string;
+  /** Los ajustes que cargaron las colportoras de este producto o categoría, los más nuevos primero. */
+  ajustes: AjusteDeUnidad[];
 }
 
 export interface GrupoDeFilas {
@@ -552,8 +726,24 @@ export function construirTabla(mundo: Mundo, resuelto: AmbitoResuelto): GrupoDeF
             id: p.id,
             nombre: resuelto.variosLugares ? `${p.nombre} · ${p.ciudadNombre ?? "Sin ciudad"}` : p.nombre,
             sincronizo: p.sincronizo,
+            sincronizoViejo: p.sincronizoViejo,
             ...c,
           }));
+        const ajustes = resuelto.personas
+          .flatMap((p) => p.ajustes.filter((a) => unidad.productoIds.includes(a.productoId)).map((a) => ({ p, a })))
+          .sort((x, y) => (Number.isNaN(x.a.instante) ? 1 : 0) - (Number.isNaN(y.a.instante) ? 1 : 0) || y.a.instante - x.a.instante)
+          .map(
+            ({ p, a }): AjusteDeUnidad => ({
+              id: `${p.id}:${a.id}`,
+              colportor: resuelto.variosLugares ? `${p.nombre} · ${p.ciudadNombre ?? "Sin ciudad"}` : p.nombre,
+              producto: unidad.agrupada ? (mundo.nombresDeProducto.get(a.productoId) ?? null) : null,
+              unidades: a.unidades,
+              entrada: a.entrada,
+              motivo: a.motivo,
+              cuandoTexto: a.cuandoTexto,
+              cargadoPor: a.cargadoPor,
+            }),
+          );
         return {
           clave: unidad.clave,
           nombre: unidad.nombre,
@@ -568,7 +758,42 @@ export function construirTabla(mundo: Mundo, resuelto: AmbitoResuelto): GrupoDeF
           estado: estadoDe(suma),
           quien,
           sinNadie: `Nadie lo tiene en ${resuelto.titulo}.`,
+          ajustes,
         };
       }),
     }));
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Tabla por colportor (42B·01)
+// ---------------------------------------------------------------------------------------------------------------------
+
+export interface FilaDeColportor {
+  id: string;
+  /** «Lucía Fernández» o, si el ámbito junta varias ciudades, «Lucía Fernández · Rivera». */
+  nombre: string;
+  sincronizo: string;
+  sincronizoViejo: boolean;
+  /** Lo que tiene en mano, en unidades, por tipo: libros, revistas, material y misioneros (en ese orden). */
+  porTipo: Array<{ tipo: TipoDeProducto; etiqueta: string; tiene: number }>;
+}
+
+/**
+ * La tabla del retoque 42B·01: una fila por colportor con lo que tiene de cada tipo, a la vista sin abrir nada. Es la misma
+ * información de la tabla por producto vista desde el otro lado (quién tiene qué); la 42B dibuja libros, revistas y misioneros y
+ * acá se suma «Material», que existe en el catálogo.
+ */
+export function construirPorColportor(mundo: Mundo, resuelto: AmbitoResuelto): FilaDeColportor[] {
+  return resuelto.personas.map((p) => ({
+    id: p.id,
+    nombre: resuelto.variosLugares ? `${p.nombre} · ${p.ciudadNombre ?? "Sin ciudad"}` : p.nombre,
+    sincronizo: p.sincronizo,
+    sincronizoViejo: p.sincronizoViejo,
+    porTipo: mundo.tipos
+      .filter((t) => t.productos > 0)
+      .map((t) => ({ tipo: t.tipo, etiqueta: t.etiqueta, tiene: t.unidades.reduce((suma, u) => suma + cantidadesDe(p, u).tiene, 0) })),
+  }));
+}
+
+/** El subtítulo de la 42B para esta tabla: «10 colportores · lo que tiene cada uno». */
+export const subtituloPorColportor = (personas: number) => `${pluralColportores(personas)} · lo que tiene cada uno`;

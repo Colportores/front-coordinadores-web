@@ -123,9 +123,13 @@ describe("fuente simulada de la vista 33", () => {
     await fuente.registrarAcompanamiento("c", libre.id, { acompananteId: santiago.id, nota: "La primera" });
 
     expect(await fuente.registrarAcompanamiento("c", libre.id, { acompananteId: santiago.id, nota: "Otra" })).toMatchObject({ ok: true, yaEstaba: true, nota: "La primera" });
-    expect(await fuente.registrarAcompanamiento("c", libre.id)).toMatchObject({ ok: false, recargar: true });
+    // Otra persona no pisa a Santiago: se suma al lado (0177), y la nota de Santiago sigue intacta.
+    expect(await fuente.registrarAcompanamiento("c", libre.id)).toMatchObject({ ok: true, yaEstaba: false });
     const despues = (await datosDe(fuente)).colportores.find((c) => c.id === florencia.id);
-    expect(despues?.acompanamientos[0].nota).toBe("La primera");
+    expect(despues?.acompanamientos.slice(0, 2).map((a) => [a.acompanante, a.nota])).toEqual([
+      ["Santiago Pereira", "La primera"],
+      [COORDINADOR_SIMULADO, null],
+    ]);
   });
 
   it("un colportor no puede acompañar su propia jornada (JO004) ni alguien de afuera de la campaña (JO005)", async () => {
@@ -157,16 +161,45 @@ describe("fuente simulada de la vista 33", () => {
     expect(rocio?.contadoDesde).toBe(datos.hoy);
   });
 
-  it("no pisa el acompañamiento de otra persona y pide recargar", async () => {
+  it("suma a otra persona al lado de la que ya figura, sin pisarla (0177): dos filas en el historial y la jornada cuenta una vez", async () => {
     const fuente = crearEquipoSimulado();
     const emiliano = (await datosDe(fuente)).colportores.find((c) => c.nombre === "Emiliano Sosa");
     const deTomas = emiliano?.acompanamientos.find((a) => a.acompanante !== COORDINADOR_SIMULADO);
     if (!deTomas) throw new Error("el diseño tiene un acompañamiento de otra persona");
 
-    const r = await fuente.registrarAcompanamiento("c", deTomas.jornadaId);
+    const r = await fuente.registrarAcompanamiento("c", deTomas.jornadaId, { nota: "Vino de Salto." });
 
-    expect(r).toMatchObject({ ok: false, recargar: true });
-    expect(r.ok === false && r.mensaje).toContain(`ya figura acompañada por ${deTomas.acompanante}`);
+    expect(r).toMatchObject({ ok: true, acompanante: COORDINADOR_SIMULADO, yaEstaba: false, origen: "COORDINADOR", nota: "Vino de Salto." });
+    const despues = (await datosDe(fuente)).colportores.find((c) => c.nombre === "Emiliano Sosa");
+    const deLaJornada = despues?.acompanamientos.filter((a) => a.jornadaId === deTomas.jornadaId);
+    expect(deLaJornada?.map((a) => [a.acompanante, a.origen, a.cargadoPor, a.nota])).toEqual([
+      [deTomas.acompanante, "COLPORTOR", null, null],
+      [COORDINADOR_SIMULADO, "COORDINADOR", { esVos: true }, "Vino de Salto."],
+    ]);
+    expect(new Set(despues?.acompanamientos.map((a) => a.jornadaId)).size).toBe(2);
+    const jornadas = await fuente.jornadasParaAcompanar("c", emiliano?.id ?? "");
+    const lista = jornadas.ok ? jornadas.jornadas.find((j) => j.id === deTomas.jornadaId) : undefined;
+    expect(lista).toMatchObject({
+      acompanante: `${deTomas.acompanante} y ${COORDINADOR_SIMULADO} (vos)`,
+      acompananteEsVos: false,
+      acompanantes: [
+        { nombre: deTomas.acompanante, esVos: false },
+        { nombre: COORDINADOR_SIMULADO, esVos: true },
+      ],
+    });
+  });
+
+  it("sumar a quien ya figura devuelve «ya estaba» sin tocar la fila ni la nota", async () => {
+    const fuente = crearEquipoSimulado();
+    const emiliano = (await datosDe(fuente)).colportores.find((c) => c.nombre === "Emiliano Sosa");
+    const deVos = emiliano?.acompanamientos.find((a) => a.acompanante === COORDINADOR_SIMULADO);
+    if (!deVos) throw new Error("el diseño tiene un acompañamiento de quien tiene la sesión");
+
+    const r = await fuente.registrarAcompanamiento("c", deVos.jornadaId, { nota: "Otra nota" });
+
+    expect(r).toMatchObject({ ok: true, yaEstaba: true, nota: deVos.nota });
+    const despues = (await datosDe(fuente)).colportores.find((c) => c.nombre === "Emiliano Sosa");
+    expect(despues?.acompanamientos).toEqual(emiliano?.acompanamientos);
   });
 
   it("una jornada que no existe pide recargar", async () => {

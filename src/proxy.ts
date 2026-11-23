@@ -33,6 +33,11 @@ function esPantallaDeAcceso(ruta: string): boolean {
   return ruta === RUTA_ACCESO || ruta.startsWith(`${RUTA_ACCESO}/`);
 }
 
+/** `/acceso` a secas (con o sin barra al final), no sus pantallas hijas. */
+function esLaPantallaDeAcceso(ruta: string): boolean {
+  return ruta === RUTA_ACCESO || ruta === `${RUTA_ACCESO}/`;
+}
+
 /** Dónde estaba la persona, para volver ahí después de entrar. Sin `_rsc`: es el parámetro con que el navegador pide el payload. */
 function destinoDelPedido(request: NextRequest): string {
   const consulta = new URLSearchParams(request.nextUrl.search);
@@ -92,7 +97,10 @@ export async function proxy(request: NextRequest) {
   if (enAcceso) {
     // Quien ya tiene una sesión buena y abre la pantalla de acceso sin un motivo, no tiene nada que hacer ahí. Con motivo
     // (sin acceso, no disponible, cerrada…) la pantalla se muestra tal cual: es justamente la respuesta a lo que pasó.
-    if (!noEsNavegacion(request) && !request.nextUrl.searchParams.has("motivo")) {
+    // Solo la pantalla de acceso en sí: las de recuperar la contraseña (`/acceso/olvide`, `/acceso/nueva-contrasena`) se muestran
+    // con la sesión que sea, porque abrir el enlace del correo deja una sesión de recuperación abierta y esa es justo la que
+    // tiene que ver «Nueva contraseña» (issue #111).
+    if (esLaPantallaDeAcceso(request.nextUrl.pathname) && !noEsNavegacion(request) && !request.nextUrl.searchParams.has("motivo")) {
       const resultado = await verificarAcceso(supabase);
       if (resultado.tipo === "ok") {
         return aplicar(NextResponse.redirect(new URL(destinoSeguro(request.nextUrl.searchParams.get("siguiente")), request.nextUrl.origin)));

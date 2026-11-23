@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { fuenteStock } from "@/datos/stock";
-import { crearDatosDeStockSimulados, fuenteStockSimulada } from "@/datos/stock/simulado";
+import { crearAccionesSimuladas, crearDatosDeStockSimulados, fuenteStockSimulada } from "@/datos/stock/simulado";
 
 describe("fuente simulada de Stock", () => {
   it("tiene las tres ciudades del canvas, 25 colportores y 11 productos", () => {
@@ -57,5 +57,45 @@ describe("fuente simulada de Stock", () => {
 
   it("el selector apunta a la simulada hasta que se conecte la RPC (V2)", () => {
     expect(fuenteStock).toBe(fuenteStockSimulada);
+  });
+});
+
+describe("pedirTransferencia simulado (como `pedir_transferencia_de_stock`, 0139)", () => {
+  const datos = crearDatosDeStockSimulados();
+  const lineas = [{ productoId: "ddg", cantidad: 2 }];
+  const rechazo = (causa: string | undefined) => expect(causa).toBeDefined();
+
+  it("numera de a una desde T-19, en orden", async () => {
+    const acciones = crearAccionesSimuladas(datos);
+    const a = await acciones.pedirTransferencia({ origenId: "lucia-fernandez", destinoId: "bruno-techera", lineas });
+    const b = await acciones.pedirTransferencia({ origenId: "bruno-techera", destinoId: "lucia-fernandez", lineas });
+    expect(a).toMatchObject({ ok: true, valor: { numero: "T-19" } });
+    expect(b).toMatchObject({ ok: true, valor: { numero: "T-20" } });
+  });
+
+  it("rechaza puntas iguales, sin elegir o desconocidas con el texto de la base", async () => {
+    const acciones = crearAccionesSimuladas(datos);
+    for (const [origenId, destinoId] of [["lucia-fernandez", "lucia-fernandez"], ["", "bruno-techera"], ["lucia-fernandez", ""], ["nadie", "bruno-techera"]]) {
+      const r = await acciones.pedirTransferencia({ origenId, destinoId, lineas });
+      expect(r).toMatchObject({ ok: false, causa: "rechazado", mensaje: "Elegí dos colportores distintos: el que da los libros y el que los recibe." });
+    }
+  });
+
+  it("rechaza sin líneas, con un producto repetido o con una cantidad que no sirve", async () => {
+    const acciones = crearAccionesSimuladas(datos);
+    const punta = { origenId: "lucia-fernandez", destinoId: "bruno-techera" };
+    for (const malas of [[], [...lineas, ...lineas], [{ productoId: "ddg", cantidad: 0 }], [{ productoId: "ddg", cantidad: -1 }], [{ productoId: "ddg", cantidad: 1.5 }]]) {
+      const r = await acciones.pedirTransferencia({ ...punta, lineas: malas });
+      expect(r.ok).toBe(false);
+      rechazo(r.ok ? undefined : r.mensaje);
+    }
+  });
+
+  it("rechaza un producto que ya no está en el catálogo, y un rechazo no gasta el número", async () => {
+    const acciones = crearAccionesSimuladas(datos);
+    const punta = { origenId: "lucia-fernandez", destinoId: "bruno-techera" };
+    const mal = await acciones.pedirTransferencia({ ...punta, lineas: [{ productoId: "fantasma", cantidad: 1 }] });
+    expect(mal).toMatchObject({ ok: false, mensaje: expect.stringContaining("ya no está en el catálogo") });
+    expect(await acciones.pedirTransferencia({ ...punta, lineas })).toMatchObject({ ok: true, valor: { numero: "T-19" } });
   });
 });

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AccionNoDisponible } from "@/components/AccionNoDisponible";
+import { useValidacionesDiferidas } from "@/features/cuentas/vista-29/useValidacionesDiferidas";
 import type { AccionesPedidos, DatosDePedidos, ResultadoDeAccion, SolicitudResuelta } from "@/datos/stock/pedidos";
 import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ import { DetalleDePedido } from "./DetalleDePedido";
 import {
   AMBITO_TODAS,
   aplicarResolucion,
+  aplicarResolucionConEfecto,
   claveQueLaReemplaza,
   claveVigente,
   construirDetalle,
@@ -23,15 +25,20 @@ import {
   construirMundo,
   contarPestanas,
   decisionDe,
+  deshacerResolucion,
   estaEnPestana,
   estadoDeResolucion,
   mismoAmbito,
   money,
+  nombreDeDeshacer,
+  resolucionProvisional,
   resolverAmbito,
   solicitudesDe,
   textoDeDecision,
+  textoDeDecisionDiferida,
   textoDePestanaVacia,
   type Ambito,
+  type EfectoEnLaDeuda,
   type Pestana,
   type Solicitud,
 } from "./modelo";
@@ -40,6 +47,17 @@ interface Aviso {
   id: number;
   tipo: "exito" | "error";
   texto: string;
+}
+
+/**
+ * Una decisión sobre una transferencia que está dentro de sus 8 s de «Deshacer» (35 · 42A·04): la bandeja ya la muestra
+ * decidida, pero recién sale al servidor cuando se cierra el plazo. `id` es la clave de la solicitud.
+ */
+interface DecisionDiferida {
+  id: string;
+  solicitud: Solicitud;
+  accion: "autorizar" | "rechazar";
+  motivo: string;
 }
 
 /** Cuántos avisos quedan a la vista a la vez: los más viejos de lo que salió bien se van primero, los errores se quedan. */
@@ -61,11 +79,25 @@ function mensajeDeFalla(resultado: Extract<ResultadoDeAccion<unknown>, { ok: fal
  * ignora) y en orden entre pedidos, así dos seguidas no se pisan ni se pierde ninguna; si una falla, el botón vuelve a
  * poder usarse y el aviso dice qué pasó.
  */
-export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedidos; acciones: AccionesPedidos }) {
+export function PedidosVista({
+  datos: inicial,
+  acciones,
+  ciudadInicialId,
+  pestanaInicial,
+}: {
+  datos: DatosDePedidos;
+  acciones: AccionesPedidos;
+  /** La ciudad con la que abre la vista cuando se llega desde Stock («Ver pedidos»); si ya no figura, abre en «todas». */
+  ciudadInicialId?: string | null;
+  /** La pestaña con la que abre (la de siempre, «Por autorizar», si no se pide otra). */
+  pestanaInicial?: Pestana | null;
+}) {
   const [datos, setDatos] = useState(inicial);
-  const [ambito, setAmbito] = useState<Ambito>(AMBITO_TODAS);
+  const [ambito, setAmbito] = useState<Ambito>(() =>
+    ciudadInicialId && inicial.ciudades.some((c) => c.id === ciudadInicialId) ? { tipo: "ciudad", ciudadId: ciudadInicialId } : AMBITO_TODAS,
+  );
   const [listaAbierta, setListaAbierta] = useState(true);
-  const [pestana, setPestana] = useState<Pestana>("PEND");
+  const [pestana, setPestana] = useState<Pestana>(pestanaInicial ?? "PEND");
   const [elegida, setElegida] = useState<string | null>(null);
   const [rechazando, setRechazando] = useState<ReadonlySet<string>>(new Set());
   const [borradores, setBorradores] = useState<Readonly<Record<string, string>>>({});
@@ -77,6 +109,8 @@ export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedid
   const enCursoRef = useRef(new Set<string>());
   const cola = useRef<Promise<unknown>>(Promise.resolve());
   const numeroDeAviso = useRef(0);
+  // Lo que cada decisión dentro de su plazo movió en la deuda, para devolverlo exacto si se deshace o no sale.
+  const efectos = useRef(new Map<string, EfectoEnLaDeuda>());
 
   const mundo = useMemo(() => construirMundo(datos), [datos]);
   const resuelto = useMemo(() => resolverAmbito(mundo, ambito), [mundo, ambito]);
@@ -183,6 +217,71 @@ export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedid
     registrarEnvio(trabajo);
   };
 
+  /** Lo que queda escrito para volver a intentar un rechazo que no salió o que se deshizo: el motivo no se pierde. */
+  const reabrirRechazo = useCallback((d: DecisionDiferida) => {
+    if (d.accion !== "rechazar") return;
+    setRechazando((previos) => new Set(previos).add(d.id));
+    setBorradores((previos) => ({ ...previos, [d.id]: d.motivo }));
+  }, []);
+
+  /** Vuelve la transferencia a «por autorizar» con la deuda como estaba antes de la decisión. */
+  const devolverDeuda = useCallback((d: DecisionDiferida) => {
+    const efecto = efectos.current.get(d.id) ?? {};
+    efectos.current.delete(d.id);
+    setDatos((previos) => deshacerResolucion(previos, d.solicitud.tipo, d.solicitud.id, efecto));
+  }, []);
+
+  // Autorizar o rechazar una transferencia no sale al toque: se ve decidida, queda 8 s el aviso con «Deshacer» y recién ahí se
+  // manda. Si no sale, vuelve a «por autorizar» con el aviso de qué pasó y el botón otra vez disponible.
+  const diferidas = useValidacionesDiferidas<DecisionDiferida>({
+    enviar: async (d) => {
+      let resultado: ResultadoDeAccion<SolicitudResuelta>;
+      try {
+        resultado = await acciones.decidir(decisionDe(d.solicitud, d.accion, d.motivo));
+      } catch {
+        resultado = { ok: false, causa: "sin-conexion" };
+      }
+      if (resultado.ok) {
+        efectos.current.delete(d.id);
+        return true;
+      }
+      const verbo = d.accion === "autorizar" ? "autorizar" : "rechazar";
+      devolverDeuda(d);
+      reabrirRechazo(d);
+      avisar("error", `${mensajeDeFalla(resultado, `${verbo} la transferencia ${d.solicitud.numero}`)} Sigue por autorizar.`);
+      return false;
+    },
+  });
+
+  const decidirConDeshacer = (s: Solicitud, accion: "autorizar" | "rechazar", motivo = "") => {
+    if (!diferidas.programar({ id: s.clave, solicitud: s, accion, motivo })) return;
+    const { clave: abiertaAhora } = ultimo.current;
+    const provisional = resolucionProvisional(s, accion, motivo, new Date().toISOString());
+    setDatos((previos) => {
+      const aplicada = aplicarResolucionConEfecto(previos, provisional);
+      efectos.current.set(s.clave, aplicada.efecto);
+      return aplicada.datos;
+    });
+    setRechazando((previos) => {
+      const siguientes = new Set(previos);
+      siguientes.delete(s.clave);
+      return siguientes;
+    });
+    setBorradores((previos) => sinClave(previos, s.clave));
+    // La transferencia sigue en su pestaña, decidida: el foco va al detalle, como con un pedido.
+    if (abiertaAhora === s.clave) focoPendiente.current = "detalle";
+  };
+
+  const deshacer = (d: DecisionDiferida) => {
+    if (!diferidas.deshacer(d.id)) return;
+    devolverDeuda(d);
+    reabrirRechazo(d);
+    // Vuelve a verse, aunque se haya cambiado de pestaña mientras corría el plazo, con el foco donde se retoma.
+    setPestana("TRF");
+    setElegida(d.id);
+    focoPendiente.current = d.accion === "rechazar" ? "motivo" : "autorizar";
+  };
+
   const abrirRechazo = (s: Solicitud) => {
     setRechazando((previos) => new Set(previos).add(s.clave));
     focoPendiente.current = "motivo";
@@ -246,6 +345,21 @@ export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedid
         </div>
 
         <div aria-live="polite" className="flex flex-col gap-2 empty:hidden">
+          {diferidas.avisos.map((d) => (
+            <div key={`deshacer-${d.id}`} className="flex items-center justify-between gap-3 rounded-control bg-exito-fondo px-3 py-2 text-chico text-exito">
+              <span className="wrap-anywhere">{textoDeDecisionDiferida(d.solicitud, d.accion)}</span>
+              <button
+                type="button"
+                aria-label={nombreDeDeshacer(d.solicitud, d.accion)}
+                onClick={() => deshacer(d)}
+                onFocus={() => diferidas.pausar(d.id)}
+                onBlur={() => diferidas.reanudar(d.id)}
+                className="inline-flex min-h-7 flex-none cursor-pointer items-center rounded-control px-2 font-semibold whitespace-nowrap underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-marca-media"
+              >
+                Deshacer · 8 s
+              </button>
+            </div>
+          ))}
           {avisos.map((aviso) => (
             <div
               key={aviso.id}
@@ -293,10 +407,10 @@ export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedid
                   ocupado={enCurso.has(detalle.clave)}
                   rechazando={rechazando.has(detalle.clave)}
                   motivoInicial={borradores[detalle.clave] ?? ""}
-                  alAutorizar={() => decidir(abierta, "autorizar")}
+                  alAutorizar={() => (abierta.tipo === "transferencia" ? decidirConDeshacer(abierta, "autorizar") : decidir(abierta, "autorizar"))}
                   alAbrirRechazo={() => abrirRechazo(abierta)}
                   alCancelarRechazo={() => cancelarRechazo(abierta)}
-                  alConfirmarRechazo={(motivo) => decidir(abierta, "rechazar", motivo)}
+                  alConfirmarRechazo={(motivo) => (abierta.tipo === "transferencia" ? decidirConDeshacer(abierta, "rechazar", motivo) : decidir(abierta, "rechazar", motivo))}
                   alCambiarMotivo={(texto) => setBorradores((previos) => ({ ...previos, [abierta.clave]: texto }))}
                 />
               ) : (

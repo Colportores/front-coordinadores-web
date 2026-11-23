@@ -471,7 +471,9 @@ describe("EquipoVista · registrar un acompañamiento", () => {
     expect(items[0]).toHaveTextContent("5,5 h");
     expect(botonDe("mar 20/10")).toBeInTheDocument();
     expect(items[1]).toHaveTextContent("Acompañó Tomás Ibarra");
-    expect(within(items[1]).queryByRole("button")).not.toBeInTheDocument();
+    // La ya acompañada no se registra de nuevo: se le puede sumar otro (0177), pero no pisar a Tomás.
+    expect(within(items[1]).queryByRole("button", { name: /^Registrar/ })).not.toBeInTheDocument();
+    expect(within(items[1]).getByRole("button", { name: /^Sumar otro acompañante/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "REGISTRAR ACOMPAÑAMIENTO · FLORENCIA PINTOS" })).toHaveFocus();
   });
 

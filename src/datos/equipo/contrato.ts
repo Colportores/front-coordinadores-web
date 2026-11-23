@@ -220,10 +220,16 @@ export interface JornadaParaAcompanar {
   /** `AAAA-MM-DD` */
   dia: string;
   horas: number;
-  /** Quien ya la acompañó; `null` si nadie: solo esas se pueden registrar. */
+  /** Quien ya la acompañó (con varios, sus nombres juntos); `null` si nadie. Una con acompañantes admite sumar a otro, sin pisar a nadie. */
   acompanante: string | null;
   /** Ver `AcompanamientoDeColportor.acompananteEsVos`. */
   acompananteEsVos: boolean;
+  /**
+   * Todos los que figuran (desde la 0177 una jornada puede tener varios; HU-JOR-004), con el «(vos)» aparte. Con ellos el panel
+   * escribe «Daniel y Marta» y, al sumar a otro, arma la lista nueva sin volver a pedirla. Ausente en una fuente que no los
+   * separa: entonces `acompanante` es todo lo que hay.
+   */
+  acompanantes?: readonly { nombre: string; esVos: boolean }[];
 }
 
 export type ResultadoJornadas = { ok: true; jornadas: JornadaParaAcompanar[] } | { ok: false; mensaje: string };
@@ -351,7 +357,8 @@ export interface FuenteDatosEquipo {
   acompanantesDelPanel(campaniaId: string): Promise<ResultadoAcompanantes>;
   /**
    * Registra el acompañamiento de esa jornada: a nombre del coordinador de la sesión («Yo») o, con `acompananteId`, de otro
-   * colportor de la campaña, de un coordinador o de un administrador, con una nota opcional.
+   * colportor de la campaña, de un coordinador o de un administrador, con una nota opcional. Si la jornada ya tiene acompañantes
+   * suma uno al lado, sin pisar a nadie (0177); si esa misma persona ya figura vuelve `yaEstaba`.
    */
   registrarAcompanamiento(campaniaId: string, jornadaId: string, datos?: DatosDeAcompanamiento): Promise<ResultadoAcompanamiento>;
   /**

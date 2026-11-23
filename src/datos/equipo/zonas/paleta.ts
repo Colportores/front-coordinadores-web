@@ -9,11 +9,11 @@ export const PALETA_ZONAS: readonly string[] = PALETA_DE_LA_LIBRERIA;
 
 /**
  * El color con el que se dibuja una zona que el backend guardó sin color (`zona.color` es nulo, lo permite
- * `guardar_zona()`). No se guarda: es solo para pintarla. El token `zonaSinColor` de lib-mapa todavía no tiene un valor
- * único (decisión de Cristian pendiente, front-coordinadores-web#148): mientras tanto el panel usa el suyo, el gris
- * que no se confunde con ninguna de la paleta.
+ * `guardar_zona()`). No se guarda: es solo para pintarla. Sale del token `zonaSinColor` de lib-mapa (desde v1.1.0 es un solo
+ * valor, el gris `#8A94A6`, el mismo que usa el celular; decisión de Cristian del 11/11): el gris que no se confunde con
+ * ninguna de la paleta.
  */
-export const COLOR_ZONA_SIN_COLOR: string = ZONA_SIN_COLOR.panel;
+export const COLOR_ZONA_SIN_COLOR: string = ZONA_SIN_COLOR;
 
 /** El color de la zona nueva número `cantidadDeZonas + 1` de la ciudad: recorre la paleta. */
 export function colorParaZonaNueva(cantidadDeZonas: number): string {

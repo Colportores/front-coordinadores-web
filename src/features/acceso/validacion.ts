@@ -75,3 +75,33 @@ export function contrasenaCorta(contrasena: string): boolean {
   // Con 8 unidades o más todavía puede haber menos de 8 visibles (un emoji ocupa 2 o más); con menos, seguro que no llega.
   return contrasena.length < LARGO_MINIMO_CONTRASENA || largoVisible(contrasena) < LARGO_MINIMO_CONTRASENA;
 }
+
+/**
+ * Las reglas de una contraseña nueva (HU-AUTH-005, la regla del registro, Supuesto S1): al menos 8 caracteres visibles, una
+ * letra mayúscula (cualquiera, también con tilde y Ñ) y un número. Las usa la pantalla «Nueva contraseña» (vista 40B) y la
+ * acción de servidor que la guarda, para que el panel no mande una contraseña que el celular no aceptaría.
+ */
+export interface ReglasDeContrasena {
+  /** Cuántos caracteres visibles le faltan para el mínimo (0 si llega). */
+  faltan: number;
+  largo: boolean;
+  mayuscula: boolean;
+  numero: boolean;
+  /** Pasa del tope de 72 bytes en UTF-8 (HU-AUTH-001, «Topes de largo»): el servidor no la acepta y nunca se recorta. */
+  demasiadoLarga: boolean;
+  /** Cumple las tres reglas y no pasa del tope. */
+  cumple: boolean;
+}
+
+/** El tope de la contraseña, en bytes de UTF-8 (límite de bcrypt), el mismo que el registro del teléfono. */
+export const TOPE_DE_CONTRASENA_BYTES = 72;
+
+export function reglasDeContrasena(contrasena: string): ReglasDeContrasena {
+  const visibles = largoVisible(contrasena);
+  const faltan = Math.max(0, LARGO_MINIMO_CONTRASENA - visibles);
+  const largo = faltan === 0;
+  const mayuscula = /\p{Lu}/u.test(contrasena);
+  const numero = /[0-9]/.test(contrasena);
+  const demasiadoLarga = new TextEncoder().encode(contrasena).length > TOPE_DE_CONTRASENA_BYTES;
+  return { faltan, largo, mayuscula, numero, demasiadoLarga, cumple: largo && mayuscula && numero && !demasiadoLarga };
+}
