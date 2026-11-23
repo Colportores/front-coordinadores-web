@@ -87,9 +87,14 @@ export interface ReglasDeContrasena {
   largo: boolean;
   mayuscula: boolean;
   numero: boolean;
-  /** Cumple las tres. */
+  /** Pasa del tope de 72 bytes en UTF-8 (HU-AUTH-001, «Topes de largo»): el servidor no la acepta y nunca se recorta. */
+  demasiadoLarga: boolean;
+  /** Cumple las tres reglas y no pasa del tope. */
   cumple: boolean;
 }
+
+/** El tope de la contraseña, en bytes de UTF-8 (límite de bcrypt), el mismo que el registro del teléfono. */
+export const TOPE_DE_CONTRASENA_BYTES = 72;
 
 export function reglasDeContrasena(contrasena: string): ReglasDeContrasena {
   const visibles = largoVisible(contrasena);
@@ -97,5 +102,6 @@ export function reglasDeContrasena(contrasena: string): ReglasDeContrasena {
   const largo = faltan === 0;
   const mayuscula = /\p{Lu}/u.test(contrasena);
   const numero = /[0-9]/.test(contrasena);
-  return { faltan, largo, mayuscula, numero, cumple: largo && mayuscula && numero };
+  const demasiadoLarga = new TextEncoder().encode(contrasena).length > TOPE_DE_CONTRASENA_BYTES;
+  return { faltan, largo, mayuscula, numero, demasiadoLarga, cumple: largo && mayuscula && numero && !demasiadoLarga };
 }

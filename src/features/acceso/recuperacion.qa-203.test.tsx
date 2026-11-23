@@ -52,7 +52,7 @@ describe("QA #111 · decisión P3 (22/11): el aviso del enlace que no se pudo ab
 });
 
 describe("QA #111 · 40B · abrir el enlace una sola vez en el navegador real", () => {
-  it.skip("QA #111: tras abrir bien el enlace, Next re-renderiza la página con otra referencia de la acción (replaceState) y el código se canjea de nuevo: «Enlace no válido» con un enlace bueno", async () => {
+  it("QA #111: tras abrir bien el enlace, Next re-renderiza la página con otra referencia de la acción (replaceState) y el código se canjea de nuevo: «Enlace no válido» con un enlace bueno", async () => {
     let llamadas = 0;
     const abrirViejo = vi.fn(async (codigo: string): Promise<RespuestaDeApertura> => {
       expect(codigo).toBe("c-un-solo-uso");
@@ -78,7 +78,7 @@ describe("QA #111 · 40B · contraseña de más de 72 bytes (HU-AUTH-001 «Topes
   // 37 letras «ñ» = 74 bytes en UTF-8; con una mayúscula y un número cumple las otras reglas.
   const LARGA = `Ñ1${"ñ".repeat(36)}`;
 
-  it.skip("QA #111: el campo no avisa «Es demasiado larga. Acortala.», deja «Guardar» encendido y el servidor la rechaza con un error sin salida", async () => {
+  it("QA #111: el campo no avisa «Es demasiado larga. Acortala.», deja «Guardar» encendido y el servidor la rechaza con un error sin salida", async () => {
     expect(new TextEncoder().encode(LARGA).length).toBeGreaterThan(72);
     const { guardar } = montarNueva();
     fireEvent.change(nueva(), { target: { value: LARGA } });
@@ -102,7 +102,7 @@ describe("QA #111 · 40B · contraseña de más de 72 bytes (HU-AUTH-001 «Topes
 });
 
 describe("QA #111 · 40B · el foco tras un error al guardar con Enter", () => {
-  it.skip("QA #111: al fallar el guardado con Enter en «Repetila», los campos se apagan y el foco cae al <body> (Chromium); nadie lo devuelve al campo ni al botón", async () => {
+  it("QA #111: al fallar el guardado con Enter en «Repetila», los campos se apagan y el foco cae al <body> (Chromium); nadie lo devuelve al campo ni al botón", async () => {
     const usuario = userEvent.setup();
     let fallar!: (r: { tipo: "no-disponible" }) => void;
     const guardar = vi.fn(() => new Promise<{ tipo: "no-disponible" }>((r) => (fallar = r)));
@@ -115,7 +115,6 @@ describe("QA #111 · 40B · el foco tras un error al guardar con Enter", () => {
     await act(async () => fallar({ tipo: "no-disponible" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(TN.errorAlGuardar);
     expect(document.activeElement).not.toBe(document.body);
-    expect(screen.getByRole("form", { hidden: true }) ?? document.body).toBeTruthy();
     expect(document.activeElement?.closest("form")).not.toBeNull();
   });
 });
@@ -137,14 +136,15 @@ describe("QA #111 · 40B · validación de entradas", () => {
     expect(guardarBoton()).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("pegar un texto larguísimo (20 mil caracteres) no cuelga la pantalla y se guarda tal cual, sin recortar", async () => {
+  it("pegar un texto larguísimo (20 mil caracteres) no cuelga la pantalla, no se recorta y avisa que es demasiado larga (tope de 72 bytes)", async () => {
     const enorme = `Aa1${"z".repeat(20_000)}`;
     const { guardar } = montarNueva();
     fireEvent.change(nueva(), { target: { value: enorme } });
     fireEvent.change(repetida(), { target: { value: enorme } });
     expect(nueva()).toHaveValue(enorme);
+    expect(screen.getByRole("alert")).toHaveTextContent(TN.demasiadaLarga);
     await act(async () => fireEvent.click(guardarBoton()));
-    expect(guardar).toHaveBeenCalledWith(enorme);
+    expect(guardar).not.toHaveBeenCalled();
   });
 
   it("después de un error del servidor, lo tipeado no se pierde y al reintentar sale el segundo guardado", async () => {

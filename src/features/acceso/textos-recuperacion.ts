@@ -80,6 +80,8 @@ export const TEXTOS_DE_NUEVA_CONTRASENA = {
   tituloNoSePudoAbrir: "No pudimos abrir el enlace",
   noSePudoAbrir: "No pudimos comprobar el enlace en este momento. Probá de nuevo en unos minutos.",
   /** Sin artboard: Supabase rechazó la contraseña por ser la misma que la actual (HU-AUTH-005: no puede ser igual a la anterior). */
+  /** Tope de 72 bytes (HU-AUTH-001 «Topes de largo»): el mismo texto que el registro del teléfono. */
+  demasiadaLarga: "Es demasiado larga. Acortala.",
   mismaContrasena: "La contraseña nueva tiene que ser distinta de la actual. Elegí otra.",
   /** Sin artboard: el servidor aplica la política y no la aceptó. */
   contrasenaDebil: `La contraseña no cumple los requisitos: al menos ${LARGO_MINIMO_CONTRASENA} caracteres, una mayúscula y un número.`,

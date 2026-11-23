@@ -172,12 +172,19 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar, cerrarOtras }
 
   // Canjea el código del enlace. El resultado llega por una promesa: el estado no se cambia en el cuerpo del efecto.
   const codigo = inicial.paso === "abrir" ? inicial.codigo : null;
+  /**
+   * El código que ya dio un resultado definitivo (abierto o no válido). El código vale una sola vez: tras `history.replaceState`
+   * Next vuelve a renderizar con otra referencia de la server action (`abrir`) y el efecto correría de nuevo, canjearía un código
+   * ya usado y pisaría el paso «nueva» con «Enlace no válido». Una falla de red o servicio no cuenta: ahí «Reintentar» canjea otra vez.
+   */
+  const resuelto = useRef<string | null>(null);
   useEffect(() => {
-    if (codigo === null) return;
+    if (codigo === null || resuelto.current === codigo) return;
     let vigente = true;
     canjearUnaVez(codigo, abrir)
       .then((respuesta) => {
         if (!vigente) return;
+        if (respuesta.tipo !== "no-disponible") resuelto.current = codigo;
         if (respuesta.tipo === "ok") {
           setCorreo(respuesta.correo);
           setPaso("nueva");
@@ -252,11 +259,14 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar, cerrarOtras }
           return;
         case "no-disponible":
           setAviso("error");
+          // Los campos se apagaron mientras se guardaba: el foco volvió al <body>; vuelve al campo (como en 40A).
+          focoPendiente.current = "nueva";
           return;
       }
     } catch {
       // La acción no llegó al servidor o se cortó a mitad de camino: no se sabe si se guardó. Lo escrito queda para reintentar.
       setAviso("error");
+      focoPendiente.current = "nueva";
     } finally {
       enCurso.current = false;
       setGuardando(false);
@@ -304,7 +314,13 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar, cerrarOtras }
   else if (!enLinea) cartel = { texto: T.sinConexion, rol: "status", tono: "sin-red" };
   else if (aviso === "error") cartel = { texto: T.errorAlGuardar, rol: "alert", tono: "error" };
 
-  const errorDelCampo = aviso === "misma" ? T.mismaContrasena : aviso === "debil" ? T.contrasenaDebil : null;
+  const errorDelCampo = reglas.demasiadoLarga
+    ? T.demasiadaLarga
+    : aviso === "misma"
+      ? T.mismaContrasena
+      : aviso === "debil"
+        ? T.contrasenaDebil
+        : null;
 
   const botonPrincipal = "flex items-center justify-center gap-2.5 rounded-control px-3 py-[13px] text-[14px] font-semibold text-superficie outline-none focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-offset-2";
 

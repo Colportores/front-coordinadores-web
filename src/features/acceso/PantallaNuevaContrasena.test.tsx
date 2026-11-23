@@ -434,11 +434,28 @@ describe("40B · datos límite", () => {
     const largo = `${"x".repeat(60)}@${"y".repeat(60)}.com`;
     const { guardar } = montar({ inicial: { paso: "nueva", correo: largo } });
     expect(screen.getByText(T.para(largo)).className).toContain("wrap-anywhere");
-    const clave = `A1${"b".repeat(500)}`;
+    // Con el tope justo (72 bytes) se guarda; con más, no (HU-AUTH-001 «Topes de largo»).
+    const clave = `A1${"b".repeat(70)}`;
     fireEvent.change(nueva(), { target: { value: clave } });
     fireEvent.change(repetida(), { target: { value: clave } });
     await act(async () => fireEvent.click(guardarBoton()));
     expect(guardar).toHaveBeenCalledWith(clave);
+  });
+
+  it("una contraseña de más de 72 bytes avisa «Es demasiado larga. Acortala.», apaga «Guardar», no se recorta y el aviso se va al acortarla", async () => {
+    const { guardar } = montar();
+    const larga = `A1${"b".repeat(71)}`;
+    fireEvent.change(nueva(), { target: { value: larga } });
+    fireEvent.change(repetida(), { target: { value: larga } });
+    expect(screen.getByRole("alert")).toHaveTextContent(T.demasiadaLarga);
+    expect(nueva()).toHaveAttribute("aria-invalid", "true");
+    expect(nueva()).toHaveValue(larga);
+    expect(guardarBoton()).toHaveAttribute("aria-disabled", "true");
+    await act(async () => fireEvent.click(guardarBoton()));
+    expect(guardar).not.toHaveBeenCalled();
+
+    fireEvent.change(nueva(), { target: { value: larga.slice(0, 70) } });
+    expect(screen.queryByText(T.demasiadaLarga)).toBeNull();
   });
 });
 
