@@ -239,14 +239,14 @@ describe("la deuda que se ve al autorizar y al deshacer", () => {
 });
 
 describe("texto del aviso mientras la decisión no es firme (decisión del orquestador, P1 de QA, 22/11)", () => {
-  it.skip("QA #110: el aviso de una autorización dice que la deuda pasa «cuando se cierre este aviso»", async () => {
+  it("QA #110: el aviso de una autorización dice que la deuda pasa «cuando se cierre este aviso»", async () => {
     montar();
     await abrirTransferencias();
     await tocar(botonAutorizar());
     expect(deshacerDe().closest("div")).toHaveTextContent(/pasa a Lucía cuando se cierre este aviso\./);
   });
 
-  it.skip("QA #110: el aviso de un rechazo dice que el colportor recibe el motivo «cuando se cierre este aviso», no antes", async () => {
+  it("QA #110: el aviso de un rechazo dice que el colportor recibe el motivo «cuando se cierre este aviso», no antes", async () => {
     montar();
     await abrirTransferencias();
     await tocar(botonRechazar());
