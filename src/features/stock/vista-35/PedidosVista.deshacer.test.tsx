@@ -179,6 +179,48 @@ describe("accesibilidad del aviso", () => {
   });
 });
 
+describe("la deuda vuelve exacta (el piso en cero de quien da)", () => {
+  /** Valentina (quien da en T-18) debe $U 1.000, menos que los $U 2.900 que se transfieren: al autorizar queda en 0. */
+  const conDeudaChica = () => {
+    const base = datosConTransferencias();
+    return { ...base, pedidos: base.pedidos.map((p) => (p.numero === "#224" ? { ...p, cuenta: { ...p.cuenta, deuda: 1000 } } : p)) };
+  };
+  const deudaActualDe = async (numero: string) => {
+    await tocar(pestana(/^Todos/));
+    await tocar(fila(numero));
+    return within(detalle(`Pedido ${numero}`)).getByText("Deuda actual").closest("div")!;
+  };
+
+  it("«Deshacer» deja a Valentina en $U 1.000 y a Lucía en $U 14.300", async () => {
+    montar(conDeudaChica());
+    await abrirTransferencias();
+    await autorizar("T-18");
+    await tocar(deshacerDe("T-18"));
+
+    expect(await deudaActualDe("#224")).toHaveTextContent("$U 1.000");
+    expect(await deudaActualDe("#230")).toHaveTextContent("$U 14.300");
+  });
+
+  it("si la decisión no sale, también vuelve a $U 1.000 y $U 14.300", async () => {
+    montar(conDeudaChica(), acciones(async () => ({ ok: false, causa: "sin-conexion" })));
+    await abrirTransferencias();
+    await autorizar("T-18");
+    await avanzar(MS_DESHACER);
+
+    expect(await deudaActualDe("#224")).toHaveTextContent("$U 1.000");
+    expect(await deudaActualDe("#230")).toHaveTextContent("$U 14.300");
+  });
+
+  it("mientras corre el plazo la deuda ya muestra lo decidido", async () => {
+    montar(conDeudaChica());
+    await abrirTransferencias();
+    await autorizar("T-18");
+
+    expect(await deudaActualDe("#224")).toHaveTextContent("$U 0");
+    expect(await deudaActualDe("#230")).toHaveTextContent("$U 17.200");
+  });
+});
+
 describe("42A·04 · rechazar una transferencia («Igual después de rechazar»)", () => {
   it("se ve rechazada con su aviso y el motivo sale a los 8 s", async () => {
     const { acciones: a } = montar();

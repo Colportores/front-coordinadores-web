@@ -16,6 +16,7 @@ import { DetalleDePedido } from "./DetalleDePedido";
 import {
   AMBITO_TODAS,
   aplicarResolucion,
+  aplicarResolucionConEfecto,
   claveQueLaReemplaza,
   claveVigente,
   construirDetalle,
@@ -37,6 +38,7 @@ import {
   textoDeDecisionDiferida,
   textoDePestanaVacia,
   type Ambito,
+  type EfectoEnLaDeuda,
   type Pestana,
   type Solicitud,
 } from "./modelo";
@@ -93,6 +95,8 @@ export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedid
   const enCursoRef = useRef(new Set<string>());
   const cola = useRef<Promise<unknown>>(Promise.resolve());
   const numeroDeAviso = useRef(0);
+  // Lo que cada decisión dentro de su plazo movió en la deuda, para devolverlo exacto si se deshace o no sale.
+  const efectos = useRef(new Map<string, EfectoEnLaDeuda>());
 
   const mundo = useMemo(() => construirMundo(datos), [datos]);
   const resuelto = useMemo(() => resolverAmbito(mundo, ambito), [mundo, ambito]);
@@ -206,6 +210,13 @@ export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedid
     setBorradores((previos) => ({ ...previos, [d.id]: d.motivo }));
   }, []);
 
+  /** Vuelve la transferencia a «por autorizar» con la deuda como estaba antes de la decisión. */
+  const devolverDeuda = useCallback((d: DecisionDiferida) => {
+    const efecto = efectos.current.get(d.id) ?? {};
+    efectos.current.delete(d.id);
+    setDatos((previos) => deshacerResolucion(previos, d.solicitud.tipo, d.solicitud.id, efecto));
+  }, []);
+
   // Autorizar o rechazar una transferencia no sale al toque: se ve decidida, queda 8 s el aviso con «Deshacer» y recién ahí se
   // manda. Si no sale, vuelve a «por autorizar» con el aviso de qué pasó y el botón otra vez disponible.
   const diferidas = useValidacionesDiferidas<DecisionDiferida>({
@@ -216,9 +227,12 @@ export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedid
       } catch {
         resultado = { ok: false, causa: "sin-conexion" };
       }
-      if (resultado.ok) return true;
+      if (resultado.ok) {
+        efectos.current.delete(d.id);
+        return true;
+      }
       const verbo = d.accion === "autorizar" ? "autorizar" : "rechazar";
-      setDatos((previos) => deshacerResolucion(previos, d.solicitud.tipo, d.solicitud.id));
+      devolverDeuda(d);
       reabrirRechazo(d);
       avisar("error", `${mensajeDeFalla(resultado, `${verbo} la transferencia ${d.solicitud.numero}`)} Sigue por autorizar.`);
       return false;
@@ -228,7 +242,12 @@ export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedid
   const decidirConDeshacer = (s: Solicitud, accion: "autorizar" | "rechazar", motivo = "") => {
     if (!diferidas.programar({ id: s.clave, solicitud: s, accion, motivo })) return;
     const { clave: abiertaAhora } = ultimo.current;
-    setDatos((previos) => aplicarResolucion(previos, resolucionProvisional(s, accion, motivo, new Date().toISOString())));
+    const provisional = resolucionProvisional(s, accion, motivo, new Date().toISOString());
+    setDatos((previos) => {
+      const aplicada = aplicarResolucionConEfecto(previos, provisional);
+      efectos.current.set(s.clave, aplicada.efecto);
+      return aplicada.datos;
+    });
     setRechazando((previos) => {
       const siguientes = new Set(previos);
       siguientes.delete(s.clave);
@@ -241,7 +260,7 @@ export function PedidosVista({ datos: inicial, acciones }: { datos: DatosDePedid
 
   const deshacer = (d: DecisionDiferida) => {
     if (!diferidas.deshacer(d.id)) return;
-    setDatos((previos) => deshacerResolucion(previos, d.solicitud.tipo, d.solicitud.id));
+    devolverDeuda(d);
     reabrirRechazo(d);
     // Vuelve a verse, aunque se haya cambiado de pestaña mientras corría el plazo, con el foco donde se retoma.
     setPestana("TRF");

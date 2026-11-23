@@ -734,19 +734,40 @@ export function resolucionProvisional(s: Solicitud, accion: "autorizar" | "recha
   };
 }
 
+/** Cuánto cambió la deuda de cada pedido al decidir (id del pedido → después menos antes), para poder devolverla tal cual. */
+export type EfectoEnLaDeuda = Readonly<Record<string, number>>;
+
+/**
+ * `aplicarResolucion` más lo que movió: la deuda no baja de cero, así que lo que se descontó puede ser menos que el costo, y
+ * deshacer tiene que devolver lo que realmente se descontó (no el costo entero).
+ */
+export function aplicarResolucionConEfecto(datos: DatosDePedidos, r: SolicitudResuelta): { datos: DatosDePedidos; efecto: EfectoEnLaDeuda } {
+  const despues = aplicarResolucion(datos, r);
+  const antes = new Map(datos.pedidos.map((p) => [p.id, p.cuenta.deuda]));
+  const efecto: Record<string, number> = {};
+  for (const p of despues.pedidos) {
+    const cambio = p.cuenta.deuda - (antes.get(p.id) ?? p.cuenta.deuda);
+    if (cambio !== 0) efecto[p.id] = cambio;
+  }
+  return { datos: despues, efecto };
+}
+
 /**
  * Vuelve una transferencia autorizada o rechazada a «por autorizar» (lo inverso de `aplicarResolucion`): si estaba autorizada,
- * la deuda vuelve de quien recibió a quien dio; si estaba rechazada, se borra el motivo. Una que ya está por autorizar, o que no
- * existe, no se toca. Solo mueve lo suyo: lo que se decidió en el medio con los mismos colportores queda como está.
+ * a cada pedido se le saca el cambio de deuda que le hizo (`efecto`, de `aplicarResolucionConEfecto`); si estaba rechazada, se
+ * borra el motivo. Una que ya está por autorizar, o que no existe, no se toca. Solo mueve lo suyo: lo que se decidió en el
+ * medio con los mismos colportores queda como está.
  */
-export function deshacerResolucion(datos: DatosDePedidos, tipo: TipoDeSolicitud, id: string): DatosDePedidos {
+export function deshacerResolucion(datos: DatosDePedidos, tipo: TipoDeSolicitud, id: string, efecto: EfectoEnLaDeuda = {}): DatosDePedidos {
   if (tipo !== "transferencia") return datos;
   const transferencia = datos.transferencias.find((t) => t.id === id && t.estado !== "POR_AUTORIZAR");
   if (!transferencia) return datos;
   const transferencias: TransferenciaDeStock[] = datos.transferencias.map((t) => (t === transferencia ? { ...t, estado: "POR_AUTORIZAR", resueltaEn: null, motivoDeRechazo: null } : t));
   if (transferencia.estado !== "AUTORIZADA") return { ...datos, transferencias };
-  const deuda = totalDe(lineasDe(transferencia.lineas));
-  const pedidos = conDeudaDe(conDeudaDe(datos.pedidos, transferencia.aId, -deuda), transferencia.deId, deuda);
+  const pedidos = datos.pedidos.map((p) => {
+    const cambio = efecto[p.id];
+    return cambio === undefined ? p : { ...p, cuenta: { ...p.cuenta, deuda: monto(p.cuenta.deuda - cambio) } };
+  });
   return { ...datos, pedidos, transferencias };
 }
 

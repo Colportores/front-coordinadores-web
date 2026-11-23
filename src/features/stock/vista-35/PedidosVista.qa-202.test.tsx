@@ -214,9 +214,9 @@ describe("la deuda que se ve al autorizar y al deshacer", () => {
     expect(deudaDeLucia()).toHaveTextContent("$U 14.300");
   });
 
-  // El «Deshacer» dice ser la inversa de autorizar (HU-STK-006: «revierte stock y deuda»), pero la deuda de quien da no baja de
-  // cero al autorizar y sube lo entero al deshacer: si debía menos que lo transferido, vuelve con más deuda de la que tenía.
-  it.skip("QA #110: si quien da debe menos que lo transferido, deshacer le devuelve la deuda que tenía, no más", async () => {
+  // El «Deshacer» es la inversa exacta de autorizar (HU-STK-006): la deuda de quien da no baja de cero al autorizar, así que
+  // deshacer devuelve lo que realmente se descontó (el efecto guardado), no el costo entero.
+  it("QA #110: si quien da debe menos que lo transferido, deshacer le devuelve la deuda que tenía, no más", async () => {
     const base = crearDatosDePedidosSimulados(AHORA);
     // Valentina (quien da) debe $U 1.000 y le transfiere $U 2.900 a Lucía. El pedido #224 es suyo.
     const datos: DatosDePedidos = {

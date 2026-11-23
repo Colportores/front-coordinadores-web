@@ -6,6 +6,7 @@ import { crearDatosDePedidosSimulados } from "@/datos/stock/pedidos/simulado";
 import {
   AMBITO_TODAS,
   aplicarResolucion,
+  aplicarResolucionConEfecto,
   claveQueLaReemplaza,
   claveVigente,
   construirDetalle,
@@ -413,8 +414,8 @@ describe("«Deshacer» de 8 s de las transferencias (#110)", () => {
   it("deshacer una autorización devuelve la deuda y deja la transferencia por autorizar", () => {
     const d = datos();
     const s = solicitud(d);
-    const autorizada = aplicarResolucion(d, resolucionProvisional(s, "autorizar", "", instante));
-    const vuelta = deshacerResolucion(autorizada, "transferencia", t18().id);
+    const { datos: autorizada, efecto } = aplicarResolucionConEfecto(d, resolucionProvisional(s, "autorizar", "", instante));
+    const vuelta = deshacerResolucion(autorizada, "transferencia", t18().id, efecto);
 
     expect(vuelta).toEqual(d);
     expect(deuda(vuelta, "#224")).toBe(31_000);
@@ -423,16 +424,36 @@ describe("«Deshacer» de 8 s de las transferencias (#110)", () => {
 
   it("deshacer un rechazo borra el motivo y no toca ninguna deuda", () => {
     const d = datos();
-    const rechazada = aplicarResolucion(d, resolucionProvisional(solicitud(d), "rechazar", "Sin stock", instante));
+    const { datos: rechazada, efecto } = aplicarResolucionConEfecto(d, resolucionProvisional(solicitud(d), "rechazar", "Sin stock", instante));
     expect(rechazada.transferencias.find((x) => x.id === t18().id)).toMatchObject({ estado: "RECHAZADA", motivoDeRechazo: "Sin stock" });
-    expect(deshacerResolucion(rechazada, "transferencia", t18().id)).toEqual(d);
+    expect(deshacerResolucion(rechazada, "transferencia", t18().id, efecto)).toEqual(d);
   });
 
   it("solo mueve lo suyo: otra decisión sobre los mismos colportores en el medio se conserva", () => {
     const d = datos();
-    const autorizada = aplicarResolucion(d, resolucionProvisional(solicitud(d), "autorizar", "", instante));
+    const { datos: autorizada, efecto } = aplicarResolucionConEfecto(d, resolucionProvisional(solicitud(d), "autorizar", "", instante));
     const conOtra = { ...autorizada, pedidos: autorizada.pedidos.map((p) => (p.numero === "#230" ? { ...p, cuenta: { ...p.cuenta, deuda: p.cuenta.deuda + 1_000 } } : p)) };
-    expect(deuda(deshacerResolucion(conOtra, "transferencia", t18().id), "#230")).toBe(14_300 + 1_000);
+    expect(deuda(deshacerResolucion(conOtra, "transferencia", t18().id, efecto), "#230")).toBe(14_300 + 1_000);
+  });
+
+  it("si la deuda de quien da era menor que lo transferido (el piso en cero), deshacer devuelve lo que se descontó, no el costo entero", () => {
+    const d = datos();
+    const chica = { ...d, pedidos: d.pedidos.map((p) => (p.numero === "#224" ? { ...p, cuenta: { ...p.cuenta, deuda: 1_000 } } : p)) };
+    const { datos: autorizada, efecto } = aplicarResolucionConEfecto(chica, resolucionProvisional(solicitud(chica), "autorizar", "", instante));
+    expect(deuda(autorizada, "#224")).toBe(0);
+    expect(deuda(autorizada, "#230")).toBe(14_300 + 2_900);
+
+    const vuelta = deshacerResolucion(autorizada, "transferencia", t18().id, efecto);
+    expect(vuelta).toEqual(chica);
+    expect(deuda(vuelta, "#224")).toBe(1_000);
+    expect(deuda(vuelta, "#230")).toBe(14_300);
+  });
+
+  it("el efecto trae solo los pedidos que cambiaron y un rechazo no mueve nada", () => {
+    const d = datos();
+    const { efecto } = aplicarResolucionConEfecto(d, resolucionProvisional(solicitud(d), "autorizar", "", instante));
+    expect(Object.keys(efecto).sort()).toEqual(d.pedidos.filter((p) => p.numero === "#224" || p.numero === "#230").map((p) => p.id).sort());
+    expect(aplicarResolucionConEfecto(d, resolucionProvisional(solicitud(d), "rechazar", "No", instante)).efecto).toEqual({});
   });
 
   it("lo que está por autorizar, no existe o es un pedido no se toca", () => {
