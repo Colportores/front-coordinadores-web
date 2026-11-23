@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AccionesCuentas, DatosDeCuentas, ResultadoDeAccion, ResultadoDeAnulacion } from "@/datos/cuentas";
 import { armarCuentasSimuladas, crearAccionesSimuladas } from "@/datos/cuentas/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
+import { AVISO_DEL_CAMPO_OTRO } from "@/features/cuentas/anular-cobro";
 import { CuentasVista } from "@/features/cuentas/CuentasVista";
 import { hayTrabajoPendiente } from "@/shell/trabajo-pendiente";
 
@@ -178,7 +179,7 @@ describe("39A·03 · el motivo «Otro»", () => {
     expect(campo).toHaveAttribute("placeholder", "Escribí el motivo");
     expect(campo).toBeInvalid();
     expect(d.getByRole("alert")).toHaveTextContent("Escribí el motivo para seguir.");
-    expect(campo).toHaveAccessibleDescription("Escribí el motivo para seguir.");
+    expect(campo).toHaveAccessibleDescription(`Escribí el motivo para seguir. ${AVISO_DEL_CAMPO_OTRO}`);
     expect(d.getByRole("button", { name: "Seguir" })).toHaveAttribute("aria-disabled", "true");
 
     // Solo espacios es lo mismo que nada.

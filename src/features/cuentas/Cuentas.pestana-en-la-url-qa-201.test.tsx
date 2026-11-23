@@ -25,7 +25,7 @@ function vista() {
 }
 
 describe("39B·05: la pestaña elegida va en la dirección", () => {
-  it.skip("QA #81: el esqueleto de carga de `/cuentas?pestana=tickets` dibuja «Tickets» activa, no «Alquiler»", () => {
+  it("QA #81: el esqueleto de carga de `/cuentas?pestana=tickets` dibuja «Tickets» activa, no «Alquiler»", () => {
     buscar.actual = "pestana=tickets";
     render(<CargandoCuentas />);
 
@@ -33,7 +33,7 @@ describe("39B·05: la pestaña elegida va en la dirección", () => {
     expect(screen.getByText("Alquiler").className).not.toMatch(/bg-marca/);
   });
 
-  it.skip("QA #81: la vista abre con la pestaña de `?pestana=tickets` (sin la dirección, la de siempre)", () => {
+  it("QA #81: la vista abre con la pestaña de `?pestana=tickets` (sin la dirección, la de siempre)", () => {
     buscar.actual = "pestana=tickets";
     const { unmount } = render(vista());
     expect(screen.getByRole("tab", { name: /^Tickets/ })).toHaveAttribute("aria-selected", "true");

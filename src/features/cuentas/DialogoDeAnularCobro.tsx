@@ -5,6 +5,7 @@ import { useEffect, useRef, type KeyboardEvent } from "react";
 import { MOTIVOS_DE_ANULACION } from "@/datos/cuentas/contrato";
 import type { MotivoDeAnulacion, TicketDeCuentas } from "@/datos/cuentas";
 import {
+  AVISO_DEL_CAMPO_OTRO,
   ERROR_DEL_CAMPO_OTRO,
   MAX_DETALLE_DE_OTRO,
   MOTIVO_OTRO,
@@ -199,7 +200,7 @@ export function DialogoDeAnularCobro({
                   placeholder={PLACEHOLDER_DEL_CAMPO_OTRO}
                   aria-required="true"
                   aria-invalid={!completo}
-                  aria-describedby={completo ? undefined : "error-motivo-otro-anular-cobro"}
+                  aria-describedby={completo ? "aviso-motivo-otro-anular-cobro" : "error-motivo-otro-anular-cobro aviso-motivo-otro-anular-cobro"}
                   onChange={(e) => alEscribir(e.target.value)}
                   className={cn(
                     "min-h-10 rounded-control border bg-superficie px-3 py-2.5 text-[14px] text-tinta placeholder:text-tinta-suave",
@@ -207,6 +208,9 @@ export function DialogoDeAnularCobro({
                     completo ? "border-grafico-neutro" : "border-peligro",
                   )}
                 />
+                <span id="aviso-motivo-otro-anular-cobro" className="text-[12.5px] text-tinta-suave">
+                  {AVISO_DEL_CAMPO_OTRO}
+                </span>
                 {!completo && (
                   <span id="error-motivo-otro-anular-cobro" role="alert" className="text-[12.5px] text-peligro">
                     {ERROR_DEL_CAMPO_OTRO}

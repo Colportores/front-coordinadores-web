@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import type { AccionesCuentas, DatosDeCuentas, DestinoDeAlquiler, ResultadoDeAccion } from "@/datos/cuentas";
@@ -14,6 +15,7 @@ import { EncabezadoDeCuentas } from "@/features/cuentas/EncabezadoDeCuentas";
 import { Pastilla, TablaDeFilas, type ColumnaDeTabla } from "@/features/cuentas/TablaDeFilas";
 import { TablaDeTickets } from "@/features/cuentas/TablaDeTickets";
 import { formatMonto } from "@/features/cuentas/formato";
+import { escribirPestanaEnUrl, PARAMETRO_PESTANA, PESTANA_POR_DEFECTO, pestanaDeUrl, type PestanaDeCuentas } from "@/features/cuentas/pestana-en-url";
 import type { PreseleccionDeCuentas } from "@/features/cuentas/preseleccion";
 import {
   aplicarAlquiler,
@@ -67,7 +69,7 @@ import { mensajeSinConexion } from "@/lib/mensajes";
 import { cn } from "@/lib/utils";
 import { registrarEnvio } from "@/shell/trabajo-pendiente";
 
-type Pestana = "casa-editora" | "alquiler" | "tickets";
+type Pestana = PestanaDeCuentas;
 
 const PESTANAS: Array<{ id: Pestana; rotulo: string }> = [
   { id: "casa-editora", rotulo: "Casa editora" },
@@ -154,7 +156,13 @@ export function CuentasVista({
   const [seleccionada, setSeleccionada] = useState<Seleccion>(preseleccion?.seleccion ?? TODAS);
   const [destacado, setDestacado] = useState<string | null>(preseleccion?.colportorId ?? null);
   const [contraida, setContraida] = useState(false);
-  const [pestana, setPestana] = useState<Pestana>("casa-editora");
+  const parametros = useSearchParams();
+  // La pestaña de la dirección vale al abrir; después manda el estado y cada cambio se escribe en la dirección (39B·05).
+  const [pestana, setPestanaLocal] = useState<Pestana>(() => pestanaDeUrl(parametros?.get(PARAMETRO_PESTANA)) ?? PESTANA_POR_DEFECTO);
+  function setPestana(nueva: Pestana) {
+    setPestanaLocal(nueva);
+    escribirPestanaEnUrl(nueva);
+  }
   const [colportorFiltrado, setColportorFiltrado] = useState("");
   const [abiertos, setAbiertos] = useState<ReadonlySet<string>>(new Set());
   const [ordenes, setOrdenes] = useState<Partial<Record<Pestana, Orden | null>>>({});

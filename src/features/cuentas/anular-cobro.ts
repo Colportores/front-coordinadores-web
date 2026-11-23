@@ -95,6 +95,8 @@ function medioEnFrase(t: TicketDeCuentas): string {
 export const MOTIVO_OTRO = "Otro" satisfies MotivoDeAnulacion;
 export const ROTULO_DEL_CAMPO_OTRO = "¿POR QUÉ?";
 export const PLACEHOLDER_DEL_CAMPO_OTRO = "Escribí el motivo";
+/** Decisión de Cristian (23/11, «Otro panel»): el texto lo leen solo coordinadores y administración y no es lugar para datos del cliente. */
+export const AVISO_DEL_CAMPO_OTRO = "No pongas datos del cliente (nombre, teléfono ni dirección). Este motivo lo leen solo coordinadores y administración.";
 export const ERROR_DEL_CAMPO_OTRO = "Escribí el motivo para seguir.";
 /** Tope del texto de «Otro»: lo escrito se muestra en el detalle y no puede ser una pared de texto. */
 export const MAX_DETALLE_DE_OTRO = 200;
