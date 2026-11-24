@@ -61,7 +61,7 @@ describe("AvisoVersionDePrueba", () => {
       render(<AvisoVersionDePrueba />);
 
       const aviso = screen.getByRole("note");
-      expect(aviso).toHaveTextContent("Stock y Cuentas: datos simulados, salvo Validar tickets.");
+      expect(aviso).toHaveTextContent("Stock y Cuentas: datos simulados, salvo Pedidos y transferencias, y Validar tickets.");
       expect(aviso).toHaveTextContent("Esas pestañas todavía no están conectadas");
     });
 
@@ -100,7 +100,7 @@ describe("AvisoVersionDePrueba", () => {
 
       const aviso = screen.getByRole("note");
       expect(aviso).toHaveTextContent(TEXTO_DEMO);
-      expect(aviso).toHaveTextContent("Stock y Cuentas: datos simulados, salvo Validar tickets.");
+      expect(aviso).toHaveTextContent("Stock y Cuentas: datos simulados, salvo Pedidos y transferencias, y Validar tickets.");
     });
 
     it("el sitio de prueba de Pages sigue con su propio aviso, no con el de la demo", () => {

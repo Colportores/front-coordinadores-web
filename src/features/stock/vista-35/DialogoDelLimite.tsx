@@ -16,7 +16,8 @@ type Error = { texto: string; deCampo: boolean };
 
 /**
  * Editar el límite de deuda de la campaña (42A·02): un solo límite para todos los colportores, que avisa cuando un pedido lo pasa
- * y no lo bloquea. Debajo del campo, lo que pasaría con los pedidos por autorizar con el valor escrito. El foco arranca en el
+ * y no lo bloquea. El 0 es un límite (cualquier pedido avisa); «Quitar el límite» (decisión del 24/11, regla R6, #215) lo deja sin
+ * límite y ningún pedido avisa. Debajo del campo, lo que pasaría con los pedidos por autorizar con el valor escrito. El foco arranca en el
  * campo; Esc cancela y Tab no sale del diálogo. Mientras guarda no se puede cerrar; si no se pudo guardar, el diálogo sigue
  * abierto con lo escrito, dice qué pasó y «Guardar» vuelve a poder usarse. Un valor igual al de hoy cierra sin guardar nada.
  */
@@ -24,6 +25,7 @@ export function DialogoDelLimite({
   limiteActual,
   campaniaNombre,
   notaPara,
+  puedeQuitar,
   alGuardar,
   alCerrar,
 }: {
@@ -31,8 +33,10 @@ export function DialogoDelLimite({
   campaniaNombre: string | null;
   /** Qué pasa con los pedidos por autorizar si el límite fuera este. */
   notaPara: (limite: number) => string;
-  /** Guarda el límite; si sale bien la vista cierra el diálogo. */
-  alGuardar: (limite: number) => Promise<{ ok: true } | { ok: false; mensaje: string }>;
+  /** Si hay un límite que quitar (o no se sabe cuál es): muestra «Quitar el límite». */
+  puedeQuitar: boolean;
+  /** Guarda el límite, o lo quita con `null`; si sale bien la vista cierra el diálogo. */
+  alGuardar: (limite: number | null) => Promise<{ ok: true } | { ok: false; mensaje: string }>;
   alCerrar: () => void;
 }) {
   const [texto, setTexto] = useState(limiteActual === null ? "" : formatearCantidad(limiteActual));
@@ -53,6 +57,23 @@ export function DialogoDelLimite({
   const valido = validarLimite(texto);
   const nota = valido.ok ? notaPara(valido.limite) : null;
 
+  /** Manda `limite` (o `null` para quitarlo): uno por vez, sin perder lo escrito si no sale. */
+  const enviar = async (limite: number | null) => {
+    enCamino.current = true;
+    setError(null);
+    setEnviando(true);
+    try {
+      const resultado = await alGuardar(limite);
+      if (!resultado.ok) {
+        setError({ texto: resultado.mensaje, deCampo: false });
+        campo.current?.focus();
+      }
+    } finally {
+      enCamino.current = false;
+      setEnviando(false);
+    }
+  };
+
   const guardarLimite = async () => {
     if (enCamino.current || !enLinea) return;
     const dicho = validarLimite(texto);
@@ -65,19 +86,12 @@ export function DialogoDelLimite({
       alCerrar();
       return;
     }
-    enCamino.current = true;
-    setError(null);
-    setEnviando(true);
-    try {
-      const resultado = await alGuardar(dicho.limite);
-      if (!resultado.ok) {
-        setError({ texto: resultado.mensaje, deCampo: false });
-        campo.current?.focus();
-      }
-    } finally {
-      enCamino.current = false;
-      setEnviando(false);
-    }
+    await enviar(dicho.limite);
+  };
+
+  const quitarLimite = async () => {
+    if (enCamino.current || !enLinea) return;
+    await enviar(null);
   };
 
   const cerrar = () => {
@@ -171,7 +185,17 @@ export function DialogoDelLimite({
             {mensajeSinConexion("guardar el límite")}
           </span>
         )}
-        <div className="flex flex-wrap justify-end gap-2.5">
+        <div className="flex flex-wrap items-center justify-end gap-2.5">
+          {puedeQuitar && (
+            <button
+              type="button"
+              aria-disabled={enviando || !enLinea}
+              onClick={() => void quitarLimite()}
+              className="mr-auto inline-flex min-h-10 cursor-pointer items-center rounded-control px-2 text-nav font-semibold text-tinta-2 underline underline-offset-2 focus-visible:ring-[3px] focus-visible:ring-acento/50 focus-visible:outline-none aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
+            >
+              Quitar el límite
+            </button>
+          )}
           <button
             ref={cancelar}
             type="button"

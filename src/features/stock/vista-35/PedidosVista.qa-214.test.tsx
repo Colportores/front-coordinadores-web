@@ -164,8 +164,6 @@ describe("QA #93 · lo que se escribe en el límite", () => {
     ["negativo", "-5000"],
     ["notación científica", "1e5"],
     ["dígitos de otro alfabeto", "٣٥٠٠٠"],
-    ["cero", "0"],
-    ["ceros", "000"],
     ["pasa el máximo por uno", "1.000.000.000"],
     ["HTML pegado", "<script>alert(1)</script>"],
     ["pegado de 5.000 dígitos", "9".repeat(5000)],
@@ -190,6 +188,8 @@ describe("QA #93 · lo que se escribe en el límite", () => {
     [" $ 35 000 ", 35_000],
     ["0035000", 35_000],
     ["1", 1],
+    ["0", 0],
+    ["000", 0],
     ["999.999.999", 999_999_999],
   ];
 
@@ -215,7 +215,7 @@ describe("QA #93 · lo que se escribe en el límite", () => {
     await tocar(screen.getByRole("button", { name: "Editar límite" }));
     await escribir(campo(), "999.999.999");
     await tocar(screen.getByRole("button", { name: "Guardar" }));
-    expect(a.editarLimite).toHaveBeenCalledWith(999_999_999);
+    expect(a.editarLimite).toHaveBeenCalledWith(999_999_999, expect.any(String));
     expect(screen.getByText(/^Límite de deuda de la campaña:/)).toHaveTextContent("$U 999.999.999 por colportor");
   });
 });

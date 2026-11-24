@@ -2538,10 +2538,16 @@
           "400"
         ],
         [
-          "Deuda con este pedido",
+          "Deuda con el pedido",
           "$U 58.140",
-          "límite $U 50.000",
+          "Pasa el límite por $U 8.140",
           "600"
+        ],
+        [
+          "Límite de la campaña",
+          "$U 50.000",
+          null,
+          "400"
         ],
         [
           "Por cobrar",
@@ -2620,10 +2626,16 @@
           "400"
         ],
         [
-          "Deuda con este pedido",
+          "Deuda con el pedido",
           "$U 30.850",
-          "límite $U 50.000",
+          null,
           "600"
+        ],
+        [
+          "Límite de la campaña",
+          "$U 50.000",
+          null,
+          "400"
         ],
         [
           "Por cobrar",
@@ -2708,10 +2720,16 @@
           "400"
         ],
         [
-          "Deuda con este pedido",
+          "Deuda con el pedido",
           "$U 39.500",
-          "límite $U 50.000",
+          null,
           "600"
+        ],
+        [
+          "Límite de la campaña",
+          "$U 50.000",
+          null,
+          "400"
         ],
         [
           "Por cobrar",
@@ -2784,10 +2802,16 @@
           "400"
         ],
         [
-          "Deuda con este pedido",
+          "Deuda con el pedido",
           "$U 45.800",
-          "límite $U 50.000",
+          null,
           "600"
+        ],
+        [
+          "Límite de la campaña",
+          "$U 50.000",
+          null,
+          "400"
         ],
         [
           "Por cobrar",
@@ -2860,10 +2884,16 @@
           "400"
         ],
         [
-          "Deuda con este pedido",
+          "Deuda con el pedido",
           "$U 48.400",
-          "límite $U 50.000",
+          null,
           "600"
+        ],
+        [
+          "Límite de la campaña",
+          "$U 50.000",
+          null,
+          "400"
         ],
         [
           "Por cobrar",
@@ -2942,10 +2972,16 @@
           "400"
         ],
         [
-          "Deuda con este pedido",
+          "Deuda con el pedido",
           "$U 66.700",
-          "límite $U 50.000",
+          "Pasa el límite por $U 16.700",
           "600"
+        ],
+        [
+          "Límite de la campaña",
+          "$U 50.000",
+          null,
+          "400"
         ],
         [
           "Por cobrar",
@@ -3018,10 +3054,16 @@
           "400"
         ],
         [
-          "Deuda con este pedido",
+          "Deuda con el pedido",
           "$U 37.500",
-          "límite $U 50.000",
+          null,
           "600"
+        ],
+        [
+          "Límite de la campaña",
+          "$U 50.000",
+          null,
+          "400"
         ],
         [
           "Por cobrar",
@@ -3094,10 +3136,16 @@
           "400"
         ],
         [
-          "Deuda con este pedido",
+          "Deuda con el pedido",
           "$U 37.200",
-          "límite $U 50.000",
+          null,
           "600"
+        ],
+        [
+          "Límite de la campaña",
+          "$U 50.000",
+          null,
+          "400"
         ],
         [
           "Por cobrar",
@@ -3170,10 +3218,16 @@
           "400"
         ],
         [
-          "Deuda con este pedido",
+          "Deuda con el pedido",
           "$U 36.700",
-          "límite $U 50.000",
+          null,
           "600"
+        ],
+        [
+          "Límite de la campaña",
+          "$U 50.000",
+          null,
+          "400"
         ],
         [
           "Por cobrar",
@@ -3238,10 +3292,16 @@
           "400"
         ],
         [
-          "Deuda con este pedido",
+          "Deuda con el pedido",
           "$U 64.960",
-          "límite $U 50.000",
+          "Pasa el límite por $U 14.960",
           "600"
+        ],
+        [
+          "Límite de la campaña",
+          "$U 50.000",
+          null,
+          "400"
         ],
         [
           "Por cobrar",

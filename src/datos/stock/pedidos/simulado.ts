@@ -206,8 +206,10 @@ export function crearAccionesSimuladas(): AccionesPedidos {
       };
     },
     async editarLimite(limite) {
-      if (!Number.isInteger(limite) || limite < 1 || limite > LIMITE_DE_DEUDA_MAXIMO) {
-        return { ok: false, causa: "rechazado", mensaje: "El límite tiene que ser un monto entero mayor que cero." };
+      // `null` quita el límite y el 0 es un límite (cualquier pedido avisa), como en la base.
+      if (limite === null) return { ok: true, valor: { limiteDeDeuda: null } };
+      if (!Number.isInteger(limite) || limite < 0 || limite > LIMITE_DE_DEUDA_MAXIMO) {
+        return { ok: false, causa: "rechazado", mensaje: "El límite tiene que ser un monto entero de cero o más." };
       }
       return { ok: true, valor: { limiteDeDeuda: limite } };
     },

@@ -48,7 +48,7 @@ import {
 
 interface Aviso {
   id: number;
-  tipo: "exito" | "error";
+  tipo: "exito" | "error" | "info";
   texto: string;
 }
 
@@ -245,7 +245,13 @@ export function PedidosVista({
   };
 
   const deshacer = (d: DecisionDiferida) => {
-    if (!diferidas.deshacer(d.id)) return;
+    if (!diferidas.deshacer(d.id)) {
+      // El plazo se cerró entre que se vio «Deshacer» y el toque: la decisión ya salió (o está saliendo) y queda como se decidió
+      // (HU-STK-003, «Deshacer fuera de plazo»; la base daría PE005 / TR006). No pasa en silencio.
+      const que = d.solicitud.tipo === "pedido" ? `el pedido ${d.solicitud.numero}` : `la transferencia ${d.solicitud.numero}`;
+      avisar("info", `Ya pasó el plazo para deshacer: ${que} quedó como lo decidiste.`);
+      return;
+    }
     devolverDeuda(d);
     reabrirRechazo(d);
     reabrirReduccion(d);
@@ -281,24 +287,25 @@ export function PedidosVista({
   };
 
   /** Guarda el límite de la campaña (42A·02): uno por vez, cuenta como trabajo sin contestar y no pierde lo escrito si falla. */
-  const guardarLimite = async (limite: number): Promise<{ ok: true } | { ok: false; mensaje: string }> => {
+  const guardarLimite = async (limite: number | null): Promise<{ ok: true } | { ok: false; mensaje: string }> => {
     const editar = acciones.editarLimite;
     if (!editar) return { ok: false, mensaje: "Todavía no se puede editar el límite." };
     if (guardandoLimite.current) return { ok: false, mensaje: "Ya se está guardando el límite." };
     guardandoLimite.current = true;
     const envio = (async (): Promise<{ ok: true } | { ok: false; mensaje: string }> => {
-      let resultado: ResultadoDeAccion<{ limiteDeDeuda: number }>;
+      let resultado: ResultadoDeAccion<{ limiteDeDeuda: number | null }>;
       try {
-        resultado = await editar(limite);
+        // La campaña es la que se está mirando: si en el topbar eligieron otra, el límite no se cambia en ella.
+        resultado = await editar(limite, datos.campaniaId);
       } catch {
         resultado = { ok: false, causa: "sin-conexion" };
       }
-      if (!resultado.ok) return { ok: false, mensaje: mensajeDeFalla(resultado, "guardar el límite") };
+      if (!resultado.ok) return { ok: false, mensaje: mensajeDeFalla(resultado, limite === null ? "quitar el límite" : "guardar el límite") };
       const quedo = resultado.valor.limiteDeDeuda;
-      setDatos((previos) => ({ ...previos, limiteDeDeuda: quedo }));
+      setDatos((previos) => ({ ...previos, limiteDeDeuda: quedo, limiteSinLeer: false }));
       setEditandoLimite(false);
       focoPendiente.current = "editar-limite";
-      avisar("exito", `Límite de deuda de la campaña: ${money(quedo)} por colportor.`);
+      avisar("exito", quedo === null ? "Sin límite de deuda fijado: ningún pedido avisa por el límite." : `Límite de deuda de la campaña: ${money(quedo)} por colportor.`);
       return { ok: true };
     })().finally(() => {
       guardandoLimite.current = false;
@@ -354,7 +361,9 @@ export function PedidosVista({
           </div>
           <div className="flex flex-none items-center gap-2.5">
             <span className="text-chico text-tinta-2">
-              {mundo.limite === null ? (
+              {mundo.limiteSinLeer ? (
+                "Límite de deuda de la campaña: todavía no se puede mostrar"
+              ) : mundo.limite === null ? (
                 "Sin límite de deuda fijado"
               ) : (
                 <>
@@ -405,7 +414,7 @@ export function PedidosVista({
               role={aviso.tipo === "error" ? "alert" : "status"}
               className={cn(
                 "flex items-center justify-between gap-3 rounded-control px-3 py-2 text-chico",
-                aviso.tipo === "error" ? "bg-peligro-fondo text-peligro" : "bg-exito-fondo text-exito",
+                aviso.tipo === "error" ? "bg-peligro-fondo text-peligro" : aviso.tipo === "info" ? "bg-alerta-fondo text-tinta" : "bg-exito-fondo text-exito",
               )}
             >
               <span className="wrap-anywhere">{aviso.tipo === "exito" ? `✓ ${aviso.texto}` : aviso.texto}</span>
@@ -467,6 +476,7 @@ export function PedidosVista({
         <DialogoDelLimite
           limiteActual={mundo.limite}
           campaniaNombre={datos.campaniaNombre ?? null}
+          puedeQuitar={mundo.limite !== null || mundo.limiteSinLeer}
           notaPara={(nuevo) => notaDelLimite(mundo, nuevo)}
           alGuardar={guardarLimite}
           alCerrar={() => {

@@ -1,4 +1,4 @@
-import { cuentasConValidarTicketsConectada, datosSimulados, pestanasSimuladasVisibles } from "@/config/datos-simulados";
+import { cuentasConValidarTicketsConectada, datosSimulados, pestanasSimuladasVisibles, stockConPedidosConectada } from "@/config/datos-simulados";
 import { demoSupabaseDevActivo, sitioDePruebaActivo } from "@/config/flags";
 
 /**
@@ -60,15 +60,24 @@ function AvisoSinConexion() {
 function AvisoDePestanas() {
   const nombres = pestanasSimuladasVisibles();
   const lista = nombres.length > 1 ? `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}` : nombres.join("");
+  // Las vistas que guardan de verdad aunque su pestaña sea simulada: la franja sigue y las nombra (P4 del QA de #173, 10/11; #215).
+  const conectadas: Array<{ vista: string; texto: string }> = [];
+  if (nombres.includes("Stock") && stockConPedidosConectada()) {
+    conectadas.push({ vista: "Pedidos y transferencias", texto: "Pedidos y transferencias sí está conectada: lo que autorizás o rechazás ahí se guarda." });
+  }
   if (nombres.includes("Cuentas") && cuentasConValidarTicketsConectada()) {
-    // Decisión P4 del QA de #173 (10/11): la franja sigue y nombra la excepción, porque la 29 guarda de verdad.
+    conectadas.push({ vista: "Validar tickets", texto: "Validar tickets sí está conectada: lo que validás o rechazás ahí se guarda." });
+  }
+  if (conectadas.length > 0) {
     const varias = nombres.length > 1;
     return (
       <p>
-        <strong className="font-semibold">{lista}: datos simulados, salvo Validar tickets.</strong>{" "}
+        <strong className="font-semibold">
+          {lista}: datos simulados, salvo {conectadas.map((c) => c.vista).join(", y ")}.
+        </strong>{" "}
         {varias ? "Esas pestañas todavía no están conectadas" : "Esa pestaña todavía no está conectada"} a la base de datos: lo
-        que {varias ? "muestran" : "muestra"} es de ejemplo y lo que hagas en {varias ? "ellas" : "ella"} no se guarda. Validar
-        tickets sí está conectada: lo que validás o rechazás ahí se guarda.
+        que {varias ? "muestran" : "muestra"} es de ejemplo y lo que hagas en {varias ? "ellas" : "ella"} no se guarda.{" "}
+        {conectadas.map((c) => c.texto).join(" ")}
       </p>
     );
   }

@@ -109,6 +109,8 @@ const ESTADO_DE_PEDIDO = { POR_AUTORIZAR: "PEND", AUTORIZADO: "AUT", DESPACHADO:
 const ESTADO_DE_TRANSFERENCIA = { POR_AUTORIZAR: "PEND", AUTORIZADA: "AUT", RECHAZADA: "RECH" } as const;
 
 export interface Linea {
+  /** El producto de la base, si la fuente lo trae (lo que recibe `autorizar_pedido`). */
+  productoId?: string;
   nombre: string;
   /** Lo que pidió el colportor. */
   pedida: number;
@@ -147,11 +149,14 @@ export interface Solicitud {
  * Las líneas de un pedido o una transferencia. Con `conAutorizada`, lo autorizado reemplaza a lo pedido (nunca lo pasa); sin
  * él (un pedido que todavía no se autorizó, o rechazado) cuenta lo pedido.
  */
-function lineasDe(xs: ReadonlyArray<{ nombre: string; cantidad: number; costoUnitario: number; cantidadAutorizada?: number | null }>, conAutorizada = false): Linea[] {
+function lineasDe(
+  xs: ReadonlyArray<{ productoId?: string; nombre: string; cantidad: number; costoUnitario: number; cantidadAutorizada?: number | null }>,
+  conAutorizada = false,
+): Linea[] {
   return xs.map((l) => {
     const pedida = cantidad(l.cantidad);
     const autorizada = conAutorizada && typeof l.cantidadAutorizada === "number" ? Math.min(cantidad(l.cantidadAutorizada), pedida) : pedida;
-    return { nombre: l.nombre, pedida, cantidad: autorizada, costo: monto(l.costoUnitario) };
+    return { ...(l.productoId === undefined ? {} : { productoId: l.productoId }), nombre: l.nombre, pedida, cantidad: autorizada, costo: monto(l.costoUnitario) };
   });
 }
 
@@ -171,6 +176,8 @@ export interface CiudadConSolicitudes {
 export interface Mundo {
   campaniaId: string;
   limite: number | null;
+  /** La fuente no pudo leer el límite (`DatosDePedidos.limiteSinLeer`): `limite` no dice nada. */
+  limiteSinLeer: boolean;
   ahora: Date;
   /** Departamento primero (A-Z), después ciudad (A-Z); las ciudades sin departamento, al final. */
   ciudades: CiudadConSolicitudes[];
@@ -263,6 +270,7 @@ export function construirMundo(datos: DatosDePedidos): Mundo {
   return {
     campaniaId: datos.campaniaId,
     limite,
+    limiteSinLeer: datos.limiteSinLeer === true && limite === null,
     ahora: Number.isNaN(ahora.getTime()) ? new Date(0) : ahora,
     ciudades,
     sinCiudad,
@@ -588,7 +596,17 @@ function contextoDeUnPedido(s: Solicitud, limite: number | null): FilaDeContexto
   return [
     // Una vez autorizado, la deuda de hoy ya lleva este pedido: «con este pedido» sería contarlo dos veces.
     fila("Deuda actual", money(deuda), s.estado === "AUT" || s.estado === "DES" || s.estado === "REC" ? { nota: "incluye este pedido" } : {}),
-    ...(porAutorizarAun ? [fila("Deuda con este pedido", money(deuda + s.total), { negrita: true, nota: limite !== null ? `límite ${money(limite)}` : undefined })] : []),
+    // Los rótulos del retoque 42A (decisión del 24/11, P7 de #93: gana el canvas aprobado más reciente): el aviso de cuánto pasa
+    // va en la fila de la deuda y el límite tiene su propia fila.
+    ...(porAutorizarAun
+      ? [
+          fila("Deuda con el pedido", money(deuda + s.total), {
+            negrita: true,
+            nota: limite !== null && deuda + s.total > limite ? `Pasa el límite por ${money(deuda + s.total - limite)}` : undefined,
+          }),
+          ...(limite !== null ? [fila("Límite de la campaña", money(limite))] : []),
+        ]
+      : []),
     fila("Por cobrar", money(monto(p.cuenta.porCobrar))),
     fila("Libros por entregar", String(cantidad(p.cuenta.librosPorEntregar))),
     fila("Último depósito", deposito ? `${diaYMes(deposito.dia)} · ${money(monto(deposito.monto))}` : "Todavía no depositó"),
@@ -656,7 +674,11 @@ export const acotarCantidad = (elegida: number, pedida: number) => Math.min(cant
 
 /** Lo que se manda al autorizar reducido: cada producto con lo que se le autoriza. */
 export function cantidadesAutorizadas(s: Solicitud, elegidas: ReadonlyArray<number>): CantidadAutorizada[] {
-  return s.lineas.map((l, i) => ({ nombre: l.nombre, cantidad: acotarCantidad(elegidas[i] ?? l.pedida, l.pedida) }));
+  return s.lineas.map((l, i) => ({
+    nombre: l.nombre,
+    ...(l.productoId === undefined ? {} : { productoId: l.productoId }),
+    cantidad: acotarCantidad(elegidas[i] ?? l.pedida, l.pedida),
+  }));
 }
 
 /** El pedido como quedaría con esas cantidades (el total, la deuda con el pedido y el aviso salen de acá). */
@@ -936,14 +958,13 @@ export function nombreDeDeshacer(s: Solicitud, accion: "autorizar" | "rechazar")
 // El límite de deuda de la campaña (42A·02)
 // ---------------------------------------------------------------------------------------------------------------------
 
-/** El límite que escribió, en pesos enteros: acepta «35000», «35.000», «$U 35.000» o «$ 35 000». */
+/** El límite que escribió, en pesos enteros: acepta «35000», «35.000», «$U 35.000» o «$ 35 000». El 0 es un límite (cualquier pedido avisa). */
 export function validarLimite(texto: string): { ok: true; limite: number } | { ok: false; error: string } {
   const limpio = texto.replace(/\$\s*U?/gi, "").replace(/\s+/g, "");
   if (limpio === "") return { ok: false, error: "Escribí el límite por colportor, en pesos." };
   const digitos = /^\d{1,3}(\.\d{3})+$/.test(limpio) ? limpio.replace(/\./g, "") : limpio;
   if (!/^\d+$/.test(digitos)) return { ok: false, error: "Escribí solo el monto, en pesos enteros y sin centavos. Por ejemplo: 35.000." };
   const limite = Number(digitos);
-  if (limite < 1) return { ok: false, error: "El límite tiene que ser mayor que cero." };
   if (limite > LIMITE_DE_DEUDA_MAXIMO) return { ok: false, error: `El límite es demasiado alto: usá hasta ${money(LIMITE_DE_DEUDA_MAXIMO)}.` };
   return { ok: true, limite };
 }
@@ -958,7 +979,9 @@ export function notaDelLimite(mundo: Mundo, nuevo: number): string {
   const pasan = (limite: number) => deudas.filter((d) => d > limite);
   const actual = mundo.limite;
   const hoy =
-    actual === null
+    mundo.limiteSinLeer
+      ? "Hoy no se puede mostrar el límite de la campaña."
+      : actual === null
       ? "Hoy no hay límite fijado, así que ningún pedido avisa."
       : pasan(actual).length === 0
         ? `Hoy ningún pedido por autorizar pasa el límite de ${money(actual)}.`

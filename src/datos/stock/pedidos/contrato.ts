@@ -31,6 +31,11 @@ export interface CiudadDePedidos {
 }
 
 export interface LineaDePedido {
+  /**
+   * El producto del catálogo, para decirle a la base cuál es (`autorizar_pedido` recibe `producto_id`, no el nombre). Lo trae
+   * la fuente real; la simulada no lo necesita.
+   */
+  productoId?: string;
   /** Producto del catálogo (nunca un combo: se piden sus productos). */
   nombre: string;
   /** Lo que pidió el colportor. */
@@ -118,6 +123,11 @@ export interface DatosDePedidos {
   campaniaId: string;
   /** Límite de deuda por colportor, con el pedido incluido; `null` si no hay. Solo avisa. Único para toda la campaña. */
   limiteDeDeuda: number | null;
+  /**
+   * La fuente no pudo leer el límite (hoy ninguna RPC se lo da al panel: front-coordinadores-web#215, pendiente P1): `limiteDeDeuda`
+   * no dice nada y la vista no afirma «sin límite fijado» ni avisa de nada con él. Ausente = el límite se leyó.
+   */
+  limiteSinLeer?: boolean;
   /** El nombre de la campaña («Primavera 2026»), para el aviso de quien edita el límite; ausente si no se sabe. */
   campaniaNombre?: string | null;
   /** El instante en que se armaron estos datos (ISO): de acá salen los «hace 3 h» y los «ayer». */
@@ -141,6 +151,8 @@ export type TipoDeSolicitud = "pedido" | "transferencia";
 /** Cuánto se autoriza de un producto de un pedido reducido (0 = se saca del pedido). */
 export interface CantidadAutorizada {
   nombre: string;
+  /** El producto (`producto_id`) de la línea, si la fuente lo trae: es lo que recibe `autorizar_pedido`. */
+  productoId?: string;
   cantidad: number;
 }
 
@@ -174,8 +186,10 @@ export type ResultadoDeAccion<T> = { ok: true; valor: T } | { ok: false; causa: 
 export interface AccionesPedidos {
   decidir(decision: DecisionDeSolicitud): Promise<ResultadoDeAccion<SolicitudResuelta>>;
   /**
-   * Cambia el límite de deuda por colportor, único para toda la campaña (42A·02). Devuelve el límite que quedó. Si la fuente no
-   * lo trae, la vista deja «Editar» como una acción no disponible.
+   * Cambia el límite de deuda por colportor, único para toda la campaña (42A·02), o lo quita con `null` («Quitar el límite»; el
+   * 0 es un límite: cualquier pedido avisa). Devuelve el límite que quedó (`null` = sin límite). Si la fuente no lo trae, la vista
+   * deja «Editar» como una acción no disponible. `campaniaId` es la campaña que la vista tiene abierta: la fuente real cambia el
+   * límite de ESA campaña, no de la que haya elegido después en el topbar.
    */
-  editarLimite?(limite: number): Promise<ResultadoDeAccion<{ limiteDeDeuda: number }>>;
+  editarLimite?(limite: number | null, campaniaId?: string): Promise<ResultadoDeAccion<{ limiteDeDeuda: number | null }>>;
 }
