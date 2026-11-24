@@ -8,6 +8,7 @@ import { fuentePedidosSimulada } from "./simulado";
 
 export type {
   AccionesPedidos,
+  CantidadAutorizada,
   CausaDeFalla,
   CiudadDePedidos,
   CuentaDelColportor,
@@ -18,6 +19,7 @@ export type {
   FuenteDatosPedidos,
   LineaDePedido,
   LineaDeTransferencia,
+  LineaDeUnPedido,
   PedidoDeColportor,
   ResultadoDeAccion,
   SolicitudResuelta,
@@ -25,5 +27,7 @@ export type {
   TipoDeSolicitud,
   TransferenciaDeStock,
 } from "./contrato";
+
+export { LIMITE_DE_DEUDA_MAXIMO } from "./contrato";
 
 export const fuentePedidos: FuenteDatosPedidos = fuentePedidosSimulada;

@@ -83,14 +83,15 @@ describe("pestaña Stock · Pedidos y transferencias (vista 35)", () => {
       expect(obtenerPedidos).not.toHaveBeenCalled();
     });
 
-    it("y se puede autorizar un pedido contra las acciones simuladas", async () => {
+    it("y se puede autorizar un pedido contra las acciones simuladas (queda 8 s con «Deshacer»)", async () => {
       vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "1");
 
       render(<ProveedorModoDev activo={false}>{await PedidosYTransferencias()}</ProveedorModoDev>);
       await screen.findByRole("heading", { level: 2, name: "Todas las ciudades" });
       await userEvent.click(screen.getByRole("button", { name: /^Autorizar el pedido #231/ }));
 
-      expect(await screen.findByText(/Pedido #231 de Emiliano Sosa autorizado/)).toBeInTheDocument();
+      expect(await screen.findByText(/Autorizaste el pedido #231 de Emiliano Sosa/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Deshacer · 8 s: autorización del pedido #231" })).toBeInTheDocument();
     });
   });
 });

@@ -463,12 +463,14 @@ describe("casos límite", () => {
   }, 30_000);
 });
 
-describe("lo que no cambia", () => {
-  it("un pedido se sigue decidiendo al toque, sin «Deshacer» (el de los pedidos es #93)", async () => {
+describe("lo que se suma con los pedidos", () => {
+  it("un pedido también deja 8 s el aviso con «Deshacer» y sale recién al cerrarse el plazo (el detalle, en PedidosVista.reducir.test)", async () => {
     const { acciones: a } = montar();
     await tocar(within(screen.getByRole("region", { name: "Pedido #231" })).getByRole("button", { name: /^Autorizar/ }));
 
+    expect(a.decidir).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Deshacer · 8 s: autorización del pedido #231" })).toBeInTheDocument();
+    await avanzar(MS_DESHACER);
     expect(a.decidir).toHaveBeenCalledWith({ tipo: "pedido", id: "pedido-231", accion: "autorizar" });
-    expect(screen.queryByRole("button", { name: /^Deshacer/ })).not.toBeInTheDocument();
   });
 });

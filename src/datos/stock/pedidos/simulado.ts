@@ -1,15 +1,16 @@
 import { hoyEnMontevideo, sumarDias } from "@/lib/dias";
 
-import type {
-  AccionesPedidos,
-  CiudadDePedidos,
-  DatosDePedidos,
-  EstadoDePedido,
-  FuenteDatosPedidos,
-  LineaDePedido,
-  PedidoDeColportor,
-  StockDelProducto,
-  TransferenciaDeStock,
+import {
+  LIMITE_DE_DEUDA_MAXIMO,
+  type AccionesPedidos,
+  type CiudadDePedidos,
+  type DatosDePedidos,
+  type EstadoDePedido,
+  type FuenteDatosPedidos,
+  type LineaDePedido,
+  type PedidoDeColportor,
+  type StockDelProducto,
+  type TransferenciaDeStock,
 } from "./contrato";
 
 /**
@@ -158,6 +159,7 @@ export function crearDatosDePedidosSimulados(ahora: Date = new Date()): DatosDeP
 
   return {
     campaniaId: "campania-primavera-2026",
+    campaniaNombre: "Primavera 2026",
     limiteDeDeuda: LIMITE_DE_EJEMPLO,
     ahora: ahora.toISOString(),
     ciudades: CIUDADES.map((c) => ({ ...c })),
@@ -183,6 +185,14 @@ export function crearAccionesSimuladas(): AccionesPedidos {
       if (decision.accion === "rechazar" && decision.motivo.trim() === "") {
         return { ok: false, causa: "rechazado", mensaje: "Escribí el motivo para rechazar." };
       }
+      const cantidades = decision.accion === "autorizar" ? decision.cantidades : undefined;
+      if (cantidades) {
+        if (!esPedido) return { ok: false, causa: "rechazado", mensaje: "Solo un pedido se puede autorizar con cantidades menores." };
+        const validas = cantidades.every((c) => Number.isInteger(c.cantidad) && c.cantidad >= 0);
+        if (!validas || cantidades.every((c) => c.cantidad === 0)) {
+          return { ok: false, causa: "rechazado", mensaje: "Las cantidades no son válidas: dejá al menos un producto con cantidad." };
+        }
+      }
       return {
         ok: true,
         valor: {
@@ -191,8 +201,15 @@ export function crearAccionesSimuladas(): AccionesPedidos {
           estado: decision.accion === "autorizar" ? (esPedido ? "AUTORIZADO" : "AUTORIZADA") : esPedido ? "RECHAZADO" : "RECHAZADA",
           resueltoEn: new Date().toISOString(),
           motivoDeRechazo: decision.accion === "rechazar" ? decision.motivo.trim() : null,
+          ...(cantidades ? { cantidades: cantidades.map((c) => ({ nombre: c.nombre, cantidad: c.cantidad })) } : {}),
         },
       };
+    },
+    async editarLimite(limite) {
+      if (!Number.isInteger(limite) || limite < 1 || limite > LIMITE_DE_DEUDA_MAXIMO) {
+        return { ok: false, causa: "rechazado", mensaje: "El límite tiene que ser un monto entero mayor que cero." };
+      }
+      return { ok: true, valor: { limiteDeDeuda: limite } };
     },
   };
 }
