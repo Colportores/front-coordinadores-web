@@ -74,7 +74,8 @@ describe("artboard 35A·01 · por autorizar, pedido que supera el límite", () =
     expect(within(d).getByRole("note")).toHaveTextContent(
       "Con este pedido la deuda queda en $U 58.140 y supera el límite de $U 50.000 por $U 8.140. Podés autorizarlo igual.",
     );
-    expect(within(d).getByText("Deuda con este pedido").closest("div")).toHaveTextContent("límite $U 50.000");
+    expect(within(d).getByText("Deuda con el pedido").closest("div")).toHaveTextContent("Pasa el límite por $U 8.140");
+    expect(within(d).getByText("Límite de la campaña").closest("div")).toHaveTextContent("$U 50.000");
     expect(within(d).getByText("COSTO CES")).toBeInTheDocument();
     expect(within(d).getByText("Al autorizar se suma $U 36.040 a la deuda de Emiliano.")).toBeInTheDocument();
     expect(within(d).getByRole("button", { name: /^Autorizar/ })).toBeInTheDocument();
@@ -198,7 +199,7 @@ describe("pestañas, estados y casos vacíos", () => {
     await userEvent.click(pestana(/^Autorizados/));
 
     const d = detalle("Pedido #224");
-    expect(within(d).queryByText("Deuda con este pedido")).not.toBeInTheDocument();
+    expect(within(d).queryByText("Deuda con el pedido")).not.toBeInTheDocument();
     expect(within(d).getByText("Deuda actual").closest("div")).toHaveTextContent("incluye este pedido");
   });
 

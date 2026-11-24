@@ -623,8 +623,12 @@ describe("el límite de deuda de la campaña (#93, 42A·02)", () => {
     expect(validarLimite("35,50")).toMatchObject({ ok: false });
     expect(validarLimite("35.5")).toMatchObject({ ok: false });
     expect(validarLimite("-5")).toMatchObject({ ok: false });
-    expect(validarLimite("0")).toEqual({ ok: false, error: "El límite tiene que ser mayor que cero." });
     expect(validarLimite("1.000.000.000")).toEqual({ ok: false, error: "El límite es demasiado alto: usá hasta $U 999.999.999." });
+  });
+
+  it("el cero es un límite: cualquier pedido con deuda avisa", () => {
+    expect(validarLimite("0")).toEqual({ ok: true, limite: 0 });
+    expect(validarLimite("000")).toEqual({ ok: true, limite: 0 });
   });
 
   it("la nota cuenta qué pasa con los pedidos por autorizar de toda la campaña", () => {

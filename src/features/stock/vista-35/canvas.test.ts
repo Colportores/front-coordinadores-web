@@ -111,8 +111,8 @@ describe("vista 35 contra el canvas", () => {
       expect(detalle?.tituloContexto).toBe(esperado.ctxTitle);
       const mias = (detalle?.contexto ?? []).map((c) => [c.rotulo, c.valor, c.nota, c.negrita ? "600" : "400"]);
       if (solicitud?.tipo === "pedido" && solicitud.estado !== "PEND") {
-        // Ya autorizado (o rechazado), «Deuda con este pedido» no existe: la deuda de hoy ya lleva el pedido (o nunca lo llevó).
-        const sinConPedido = esperado.ctx.filter(([rotulo]) => rotulo !== "Deuda con este pedido");
+        // Ya autorizado (o rechazado), «Deuda con el pedido» (ni el límite) no existe: la deuda de hoy ya lleva el pedido (o nunca lo llevó).
+        const sinConPedido = esperado.ctx.filter(([rotulo]) => rotulo !== "Deuda con el pedido" && rotulo !== "Límite de la campaña");
         expect(mias.map((f) => f[0])).toEqual(sinConPedido.map((f) => f[0]));
         expect(mias.filter((f) => f[0] !== "Deuda actual")).toEqual(sinConPedido.filter((f) => f[0] !== "Deuda actual"));
         expect(mias.find((f) => f[0] === "Deuda actual")?.[1]).toBe(sinConPedido[0][1]);

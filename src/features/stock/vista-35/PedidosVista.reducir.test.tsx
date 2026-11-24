@@ -163,7 +163,7 @@ describe("42A·02 · editar el límite", () => {
     await escribir(campo(), "60.000");
     await tocar(screen.getByRole("button", { name: "Guardar" }));
 
-    expect(a.editarLimite).toHaveBeenCalledExactlyOnceWith(60_000);
+    expect(a.editarLimite).toHaveBeenCalledExactlyOnceWith(60_000, "campania-primavera-2026");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByText(/^Límite de deuda de la campaña:/)).toHaveTextContent("$U 60.000 por colportor");
     expect(screen.getByText("✓ Límite de deuda de la campaña: $U 60.000 por colportor.")).toBeInTheDocument();
@@ -178,15 +178,14 @@ describe("42A·02 · editar el límite", () => {
     await abrir();
     await escribir(campo(), "70000");
     await act(async () => fireEvent.keyDown(campo(), { key: "Enter" }));
-    expect(a.editarLimite).toHaveBeenCalledExactlyOnceWith(70_000);
+    expect(a.editarLimite).toHaveBeenCalledExactlyOnceWith(70_000, "campania-primavera-2026");
   });
 
-  it("con el campo vacío, en cero o con algo que no es un monto no guarda: lo dice y deja el foco en el campo", async () => {
+  it("con el campo vacío o con algo que no es un monto no guarda: lo dice y deja el foco en el campo", async () => {
     const { acciones: a } = montar();
     await abrir();
     for (const [escrito, mensaje] of [
       ["", "Escribí el límite por colportor, en pesos."],
-      ["0", "El límite tiene que ser mayor que cero."],
       ["35,50", "Escribí solo el monto, en pesos enteros y sin centavos. Por ejemplo: 35.000."],
     ] as const) {
       await escribir(campo(), escrito);
@@ -314,7 +313,7 @@ describe("42A·02 · editar el límite", () => {
       window.dispatchEvent(new Event("online"));
     });
     await tocar(screen.getByRole("button", { name: "Guardar" }));
-    expect(a.editarLimite).toHaveBeenCalledWith(65_000);
+    expect(a.editarLimite).toHaveBeenCalledWith(65_000, "campania-primavera-2026");
   });
 
   it("sin límite fijado el campo arranca vacío y fijarlo hace que los pedidos avisen", async () => {
@@ -339,7 +338,10 @@ describe("42A·02 · editar el límite", () => {
   it("con la fuente simulada guarda y rechaza lo que no es un monto entero", async () => {
     const simulada = crearAccionesSimuladas();
     expect(await simulada.editarLimite?.(40_000)).toEqual({ ok: true, valor: { limiteDeDeuda: 40_000 } });
-    expect(await simulada.editarLimite?.(0)).toMatchObject({ ok: false, causa: "rechazado" });
+    // El 0 es un límite y `null` lo quita (decisión del 24/11, #215).
+    expect(await simulada.editarLimite?.(0)).toEqual({ ok: true, valor: { limiteDeDeuda: 0 } });
+    expect(await simulada.editarLimite?.(null)).toEqual({ ok: true, valor: { limiteDeDeuda: null } });
+    expect(await simulada.editarLimite?.(-1)).toMatchObject({ ok: false, causa: "rechazado" });
     expect(await simulada.editarLimite?.(1.5)).toMatchObject({ ok: false });
     expect(await simulada.editarLimite?.(10_000_000_000)).toMatchObject({ ok: false });
   });
@@ -395,7 +397,7 @@ describe("42A·03 · reducir antes de autorizar", () => {
 
     expect(within(d).getByText("Monto reducido").closest("div")).toHaveTextContent("$U 20.870");
     expect(within(d).getByRole("note")).toHaveTextContent("Reducido a 39 de 48. Con este monto la deuda queda en $U 42.970 y ya no pasa el límite de $U 50.000.");
-    expect(within(d).getByText("Deuda con este pedido").closest("div")).toHaveTextContent("$U 42.970");
+    expect(within(d).getByText("Deuda con el pedido").closest("div")).toHaveTextContent("$U 42.970");
     expect(within(d).getByText(DESEADO).closest("li")).toHaveTextContent("$U 7.920");
     expect(within(d).queryByText("△ Supera el límite")).not.toBeInTheDocument();
   });
@@ -550,7 +552,7 @@ describe("42A·04 · autorizar reducido y «Deshacer» de 8 s", () => {
     expect(cantidadDe(ESPERANZA)).toHaveTextContent("5");
     expect(cantidadDe(DESEADO)).toHaveTextContent("4");
     expect(boton("Pedido #231", /^Autorizar reducido/)).toHaveFocus();
-    expect(within(detalle("Pedido #231")).getByText("Deuda con este pedido").closest("div")).toHaveTextContent("$U 42.970");
+    expect(within(detalle("Pedido #231")).getByText("Deuda con el pedido").closest("div")).toHaveTextContent("$U 42.970");
     await avanzar(MS_DESHACER * 3);
     expect(a.decidir).not.toHaveBeenCalled();
     expect(hayTrabajoPendiente()).toBe(false);
