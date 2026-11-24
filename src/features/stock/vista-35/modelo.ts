@@ -1,11 +1,13 @@
-import type {
-  DatosDePedidos,
-  DecisionDeSolicitud,
-  PedidoDeColportor,
-  SolicitudResuelta,
-  TipoDeSolicitud,
-  TransferenciaDeStock,
-} from "@/datos/stock/pedidos";
+import {
+  LIMITE_DE_DEUDA_MAXIMO,
+  type CantidadAutorizada,
+  type DatosDePedidos,
+  type DecisionDeSolicitud,
+  type PedidoDeColportor,
+  type SolicitudResuelta,
+  type TipoDeSolicitud,
+  type TransferenciaDeStock,
+} from "@/datos/stock/pedidos/contrato";
 import { diasEntre, diaYMes } from "@/lib/dias";
 
 import {
@@ -108,6 +110,9 @@ const ESTADO_DE_TRANSFERENCIA = { POR_AUTORIZAR: "PEND", AUTORIZADA: "AUT", RECH
 
 export interface Linea {
   nombre: string;
+  /** Lo que pidió el colportor. */
+  pedida: number;
+  /** Lo que cuenta: lo autorizado si el pedido se autorizó reducido, y si no lo pedido. */
   cantidad: number;
   costo: number;
 }
@@ -128,18 +133,32 @@ export interface Solicitud {
   resueltoEn: string | null;
   motivoDeRechazo: string | null;
   lineas: Linea[];
+  /** Lo que cuesta lo que cuenta (`cantidad`), no lo pedido. */
   total: number;
+  /** Se autorizó con menos de lo que pidió (alguna línea con `cantidad` menor que `pedida`). */
+  reducido: boolean;
   /** Solo en un pedido. */
   pedido: PedidoDeColportor | null;
   /** Solo en una transferencia. */
   transferencia: TransferenciaDeStock | null;
 }
 
-function lineasDe(xs: ReadonlyArray<{ nombre: string; cantidad: number; costoUnitario: number }>): Linea[] {
-  return xs.map((l) => ({ nombre: l.nombre, cantidad: cantidad(l.cantidad), costo: monto(l.costoUnitario) }));
+/**
+ * Las líneas de un pedido o una transferencia. Con `conAutorizada`, lo autorizado reemplaza a lo pedido (nunca lo pasa); sin
+ * él (un pedido que todavía no se autorizó, o rechazado) cuenta lo pedido.
+ */
+function lineasDe(xs: ReadonlyArray<{ nombre: string; cantidad: number; costoUnitario: number; cantidadAutorizada?: number | null }>, conAutorizada = false): Linea[] {
+  return xs.map((l) => {
+    const pedida = cantidad(l.cantidad);
+    const autorizada = conAutorizada && typeof l.cantidadAutorizada === "number" ? Math.min(cantidad(l.cantidadAutorizada), pedida) : pedida;
+    return { nombre: l.nombre, pedida, cantidad: autorizada, costo: monto(l.costoUnitario) };
+  });
 }
 
 const totalDe = (lineas: Linea[]) => lineas.reduce((suma, l) => suma + l.cantidad * l.costo, 0);
+const unidadesDe = (lineas: Linea[]) => lineas.reduce((suma, l) => suma + l.cantidad, 0);
+const unidadesPedidasDe = (lineas: Linea[]) => lineas.reduce((suma, l) => suma + l.pedida, 0);
+const hayReduccion = (lineas: Linea[]) => lineas.some((l) => l.cantidad < l.pedida);
 
 export interface CiudadConSolicitudes {
   id: string;
@@ -185,7 +204,8 @@ export function construirMundo(datos: DatosDePedidos): Mundo {
     // El mismo pedido dos veces cuenta una sola.
     if (!base(`pedido:${p.id}`)) continue;
     const ciudad = ubicar(p.ciudadId);
-    const lineas = lineasDe(p.lineas);
+    // Lo autorizado solo cuenta cuando el pedido pasó por «Autorizado» (o más adelante): por autorizar o rechazado, vale lo pedido.
+    const lineas = lineasDe(p.lineas, p.estado === "AUTORIZADO" || p.estado === "DESPACHADO" || p.estado === "RECIBIDO");
     solicitudes.push({
       clave: `pedido:${p.id}`,
       tipo: "pedido",
@@ -200,6 +220,7 @@ export function construirMundo(datos: DatosDePedidos): Mundo {
       motivoDeRechazo: p.motivoDeRechazo,
       lineas,
       total: totalDe(lineas),
+      reducido: hayReduccion(lineas),
       pedido: p,
       transferencia: null,
     });
@@ -222,6 +243,7 @@ export function construirMundo(datos: DatosDePedidos): Mundo {
       motivoDeRechazo: t.motivoDeRechazo,
       lineas,
       total: totalDe(lineas),
+      reducido: false,
       pedido: null,
       transferencia: t,
     });
@@ -437,8 +459,10 @@ export interface Fila {
 }
 
 function resumenDeLineas(s: Solicitud): string {
-  const unidades = s.lineas.reduce((suma, l) => suma + l.cantidad, 0);
+  const unidades = unidadesDe(s.lineas);
   if (s.tipo === "transferencia" && s.lineas.length === 1) return `${s.lineas[0].cantidad} × ${s.lineas[0].nombre}`;
+  // Reducido (42A·01): «27 de 32 unidades · reducido», con los productos que de verdad se autorizaron.
+  if (s.reducido) return `${pluralProductos(s.lineas.filter((l) => l.cantidad > 0).length)} · ${unidades} de ${unidadesPedidasDe(s.lineas)} unidades · reducido`;
   return `${pluralProductos(s.lineas.length)} · ${plural(unidades, "unidad", "unidades")}`;
 }
 
@@ -481,8 +505,22 @@ export interface Paso {
 export interface ItemDelDetalle {
   nombre: string;
   cantidad: string;
+  /** Lo mismo que `cantidad`, como número, para los botones de sumar y quitar. */
+  cantidadNumero: number;
+  /** Lo que pidió el colportor. */
+  pedida: number;
   unidad: string;
   subtotal: string;
+}
+
+/** Cómo va un pedido que se está reduciendo antes de autorizarlo (42A·03). */
+export interface EstadoDeReduccion {
+  unidadesPedidas: number;
+  unidadesAutorizadas: number;
+  /** No se bajó nada: autorizar «reducido» sería autorizar sin más. */
+  sinCambios: boolean;
+  /** Todo en cero: no hay nada que autorizar. */
+  sinNada: boolean;
 }
 
 export interface FilaDeContexto {
@@ -500,6 +538,8 @@ export interface Detalle {
   quien: string;
   pasos: Paso[];
   aviso: string | null;
+  /** `exito` cuando el aviso dice que ya no pasa el límite (ícono ✓ y verde); si no, `alerta` (△ y ámbar). */
+  avisoTono: "alerta" | "exito";
   tituloItems: string;
   items: ItemDelDetalle[];
   rotuloDelTotal: string;
@@ -507,6 +547,10 @@ export interface Detalle {
   tituloContexto: string;
   contexto: FilaDeContexto[];
   puedeDecidir: boolean;
+  /** Un pedido por autorizar se puede autorizar con menos cantidad («Reducir cantidades»); una transferencia, no. */
+  puedeReducir: boolean;
+  /** `null` salvo cuando se está reduciendo. */
+  reduccion: EstadoDeReduccion | null;
   notaDeAccion: string;
   nota: string | null;
   /** Para el aria-label de los botones: «el pedido #231 de Emiliano Sosa». */
@@ -601,19 +645,66 @@ function notaDeEstado(s: Solicitud): string | null {
   }
 }
 
-export function construirDetalle(mundo: Mundo, s: Solicitud): Detalle {
+/** Un pedido que todavía se puede autorizar con menos: está por autorizar y pidió algo. */
+export const sePuedeReducir = (s: Solicitud) => s.tipo === "pedido" && s.estado === "PEND" && s.lineas.some((l) => l.pedida > 0);
+
+/** Las cantidades con las que arranca «Reducir cantidades»: lo pedido, línea por línea. */
+export const cantidadesPedidas = (s: Solicitud): number[] => s.lineas.map((l) => l.pedida);
+
+/** Una cantidad elegida, dentro de lo posible: entera, no negativa y nunca más de lo que pidió. */
+export const acotarCantidad = (elegida: number, pedida: number) => Math.min(cantidad(elegida), cantidad(pedida));
+
+/** Lo que se manda al autorizar reducido: cada producto con lo que se le autoriza. */
+export function cantidadesAutorizadas(s: Solicitud, elegidas: ReadonlyArray<number>): CantidadAutorizada[] {
+  return s.lineas.map((l, i) => ({ nombre: l.nombre, cantidad: acotarCantidad(elegidas[i] ?? l.pedida, l.pedida) }));
+}
+
+/** El pedido como quedaría con esas cantidades (el total, la deuda con el pedido y el aviso salen de acá). */
+function conCantidades(s: Solicitud, elegidas: ReadonlyArray<number>): Solicitud {
+  const lineas = s.lineas.map((l, i) => ({ ...l, cantidad: acotarCantidad(elegidas[i] ?? l.pedida, l.pedida) }));
+  return { ...s, lineas, total: totalDe(lineas), reducido: hayReduccion(lineas) };
+}
+
+/**
+ * El detalle de lo elegido. Con `elegidas` (una cantidad por línea) y un pedido por autorizar, es el detalle de «Reducir
+ * cantidades» (42A·03): lo que se autorizaría, el monto y la deuda recalculados y si todavía pasa el límite.
+ */
+export function construirDetalle(mundo: Mundo, original: Solicitud, elegidas: ReadonlyArray<number> | null = null): Detalle {
   const { limite, ahora } = mundo;
+  const reduciendo = elegidas !== null && sePuedeReducir(original) && elegidas.length === original.lineas.length;
+  const s = reduciendo ? conCantidades(original, elegidas) : original;
   const etiqueta = etiquetaDe(s, limite);
   const lugar = s.ciudadNombre ?? "Sin ciudad";
+  const autorizadoYReducido = s.tipo === "pedido" && s.estado !== "PEND" && s.estado !== "RECH" && s.reducido;
   const items: ItemDelDetalle[] = s.lineas.map((l) => ({
     nombre: l.nombre,
     cantidad: String(l.cantidad),
-    unidad: `${money(l.costo)} c/u`,
+    cantidadNumero: l.cantidad,
+    pedida: l.pedida,
+    unidad: `${money(l.costo)} c/u${autorizadoYReducido && l.cantidad < l.pedida ? ` · pidió ${l.pedida}` : ""}`,
     subtotal: money(l.cantidad * l.costo),
   }));
   const pasos = pasosDe(s);
   const pendiente = s.estado === "PEND";
-  const comun = { clave: s.clave, tipo: s.tipo, etiqueta, pasos, items, total: money(s.total), puedeDecidir: pendiente, nota: notaDeEstado(s) };
+  const unidadesPedidas = unidadesPedidasDe(s.lineas);
+  const unidadesAutorizadas = unidadesDe(s.lineas);
+  const reduccion: EstadoDeReduccion | null = reduciendo
+    ? { unidadesPedidas, unidadesAutorizadas, sinCambios: !s.reducido, sinNada: unidadesAutorizadas === 0 }
+    : null;
+  const notaDeReduccion = autorizadoYReducido ? `Reducido: autorizaste ${unidadesAutorizadas} de los ${unidadesPedidas} que pidió.` : null;
+  const notaDeEstadoDe = notaDeEstado(s);
+  const comun = {
+    clave: s.clave,
+    tipo: s.tipo,
+    etiqueta,
+    pasos,
+    items,
+    total: money(s.total),
+    puedeDecidir: pendiente,
+    puedeReducir: sePuedeReducir(original),
+    reduccion,
+    nota: [notaDeReduccion, notaDeEstadoDe].filter((x) => x !== null).join(" ") || null,
+  };
 
   if (s.transferencia) {
     const de = primerNombre(s.transferencia.deNombre);
@@ -623,6 +714,7 @@ export function construirDetalle(mundo: Mundo, s: Solicitud): Detalle {
       titulo: `Transferencia ${s.numero}`,
       quien: `${s.transferencia.deNombre} → ${s.transferencia.aNombre} · ${lugar} · pedida ${textoDeCuando(s.desde, ahora)}`,
       aviso: null,
+      avisoTono: "alerta",
       tituloItems: "LO QUE SE TRANSFIERE",
       rotuloDelTotal: "Deuda que se transfiere",
       tituloContexto: "STOCK DE LOS DOS",
@@ -632,19 +724,41 @@ export function construirDetalle(mundo: Mundo, s: Solicitud): Detalle {
     };
   }
   const con = deudaConElPedido(s);
+  const nombre = primerNombre(s.colportor);
+  const supera = limite !== null && superaElLimite(s, limite);
+  let aviso: string | null = supera
+    ? `Con este pedido la deuda queda en ${money(con)} y supera el límite de ${money(limite)} por ${money(con - limite)}. Podés autorizarlo igual.`
+    : null;
+  let avisoTono: "alerta" | "exito" = "alerta";
+  let notaDeAccion = `Al autorizar se suma ${money(s.total)} a la deuda de ${nombre}.`;
+  if (reduccion) {
+    notaDeAccion = `No se puede subir por encima de lo pedido. Al autorizar se suman ${money(s.total)} a la deuda de ${nombre}.`;
+    if (reduccion.sinNada) {
+      aviso = "No queda nada para autorizar: subí alguna cantidad, o cancelá y rechazá el pedido.";
+      notaDeAccion = "Dejá al menos un producto con cantidad para autorizar.";
+    } else if (reduccion.sinCambios) {
+      notaDeAccion = "Bajá alguna cantidad para autorizar reducido; no se puede subir por encima de lo pedido.";
+    } else {
+      const resumen = `Reducido a ${unidadesAutorizadas} de ${unidadesPedidas}.`;
+      if (supera) {
+        aviso = `${resumen} La deuda con el pedido todavía pasa el límite por ${money(con - limite)}.`;
+      } else {
+        aviso = limite === null ? `${resumen} Con este monto la deuda queda en ${money(con)}.` : `${resumen} Con este monto la deuda queda en ${money(con)} y ya no pasa el límite de ${money(limite)}.`;
+        avisoTono = "exito";
+      }
+    }
+  }
   return {
     ...comun,
     titulo: `Pedido ${s.numero}`,
     quien: `${s.colportor} · ${lugar} · enviado ${textoDeCuando(s.desde, ahora)}`,
-    aviso:
-      limite !== null && superaElLimite(s, limite)
-        ? `Con este pedido la deuda queda en ${money(con)} y supera el límite de ${money(limite)} por ${money(con - limite)}. Podés autorizarlo igual.`
-        : null,
-    tituloItems: "LO QUE PIDE",
-    rotuloDelTotal: "Total del pedido",
-    tituloContexto: `CUENTA DE ${primerNombre(s.colportor).toLocaleUpperCase("es")}`,
+    aviso,
+    avisoTono,
+    tituloItems: reduccion ? "LO QUE AUTORIZÁS" : autorizadoYReducido ? "LO QUE AUTORIZASTE" : "LO QUE PIDE",
+    rotuloDelTotal: reduccion ? "Monto reducido" : autorizadoYReducido ? "Monto autorizado" : "Total del pedido",
+    tituloContexto: `CUENTA DE ${nombre.toLocaleUpperCase("es")}`,
     contexto: contextoDeUnPedido(s, limite),
-    notaDeAccion: `Al autorizar se suma ${money(s.total)} a la deuda de ${primerNombre(s.colportor)}.`,
+    notaDeAccion,
     nombreCorto: `el pedido ${s.numero} de ${s.colportor}`,
   };
 }
@@ -665,8 +779,10 @@ export function validarMotivo(texto: string, tipo: TipoDeSolicitud): { ok: true;
   return { ok: true, motivo };
 }
 
-export function decisionDe(s: Solicitud, accion: "autorizar" | "rechazar", motivo = ""): DecisionDeSolicitud {
-  return accion === "autorizar" ? { tipo: s.tipo, id: s.id, accion } : { tipo: s.tipo, id: s.id, accion, motivo };
+/** `cantidades` solo cuenta al autorizar un pedido reducido: sin ellas se autoriza lo pedido. */
+export function decisionDe(s: Solicitud, accion: "autorizar" | "rechazar", motivo = "", cantidades?: CantidadAutorizada[]): DecisionDeSolicitud {
+  if (accion === "rechazar") return { tipo: s.tipo, id: s.id, accion, motivo };
+  return cantidades ? { tipo: s.tipo, id: s.id, accion, cantidades } : { tipo: s.tipo, id: s.id, accion };
 }
 
 /** Mueve la deuda de un colportor en todas las cuentas que lo muestran (cada pedido trae la suya). Nunca baja de cero. */
@@ -687,8 +803,15 @@ export function aplicarResolucion(datos: DatosDePedidos, r: SolicitudResuelta): 
     if (estado === null) return datos;
     const pedido = datos.pedidos.find((p) => p.id === r.id && p.estado === "POR_AUTORIZAR");
     if (!pedido) return datos;
-    const resueltos: PedidoDeColportor[] = datos.pedidos.map((p) => (p === pedido ? { ...p, estado, resueltoEn: r.resueltoEn, motivoDeRechazo: r.motivoDeRechazo } : p));
-    const costo = estado === "AUTORIZADO" ? totalDe(lineasDe(pedido.lineas)) : 0;
+    // Autorizado reducido: se guarda lo autorizado junto a lo pedido, y a la deuda se suma solo lo autorizado.
+    const lineasResueltas: PedidoDeColportor["lineas"] =
+      estado === "AUTORIZADO" && r.cantidades
+        ? pedido.lineas.map((l) => ({ ...l, cantidadAutorizada: acotarCantidad(r.cantidades?.find((c) => c.nombre === l.nombre)?.cantidad ?? l.cantidad, l.cantidad) }))
+        : pedido.lineas;
+    const resueltos: PedidoDeColportor[] = datos.pedidos.map((p) =>
+      p === pedido ? { ...p, estado, resueltoEn: r.resueltoEn, motivoDeRechazo: r.motivoDeRechazo, lineas: lineasResueltas } : p,
+    );
+    const costo = estado === "AUTORIZADO" ? totalDe(lineasDe(lineasResueltas, true)) : 0;
     return { ...datos, pedidos: conDeudaDe(resueltos, pedido.colportorId, costo) };
   }
   const estado = r.estado === "AUTORIZADA" ? "AUTORIZADA" : r.estado === "RECHAZADA" ? "RECHAZADA" : null;
@@ -707,30 +830,30 @@ export function estadoDeResolucion(r: SolicitudResuelta): Estado {
   return r.estado === "AUTORIZADO" || r.estado === "AUTORIZADA" ? "AUT" : "RECH";
 }
 
-/** «Pedido #231 de Emiliano Sosa autorizado.» para el aviso de lo que salió bien. */
-export function textoDeDecision(s: Solicitud, accion: "autorizar" | "rechazar"): string {
-  const femenino = s.tipo === "transferencia";
-  const que = femenino ? `Transferencia ${s.numero} de ${s.transferencia?.deNombre ?? s.colportor}` : `Pedido ${s.numero} de ${s.colportor}`;
-  if (accion === "rechazar") return `${que} ${femenino ? "rechazada" : "rechazado"}: el colportor recibe el motivo.`;
-  if (femenino) return `${que} autorizada: la deuda de ${money(s.total)} pasó a ${primerNombre(s.transferencia?.aNombre ?? "")}.`;
-  return `${que} autorizado: se sumaron ${money(s.total)} a su deuda.`;
-}
-
 // ---------------------------------------------------------------------------------------------------------------------
-// «Deshacer» de 8 s de las transferencias (HU-STK-005, decisión de Cristian del 27/10, «Deshacer tr.»; canvas 42A·04)
+// «Deshacer» de 8 s de las decisiones (transferencias: HU-STK-005, «Deshacer tr.» del 27/10; pedidos: HU-STK-003, «Reducir ped.» del
+// 25/10; canvas 42A·04)
 // ---------------------------------------------------------------------------------------------------------------------
 
 /**
  * Lo que la bandeja muestra durante los 8 s de «Deshacer», antes de que la decisión salga al servidor: la misma respuesta que
- * daría una decisión aceptada, con el instante de ahora. Solo para transferencias.
+ * daría una decisión aceptada, con el instante de ahora. Vale para pedidos (con las cantidades si se redujeron) y transferencias.
  */
-export function resolucionProvisional(s: Solicitud, accion: "autorizar" | "rechazar", motivo: string, instante: string): SolicitudResuelta {
+export function resolucionProvisional(
+  s: Solicitud,
+  accion: "autorizar" | "rechazar",
+  motivo: string,
+  instante: string,
+  cantidades?: CantidadAutorizada[],
+): SolicitudResuelta {
+  const pedido = s.tipo === "pedido";
   return {
     tipo: s.tipo,
     id: s.id,
-    estado: accion === "autorizar" ? "AUTORIZADA" : "RECHAZADA",
+    estado: accion === "autorizar" ? (pedido ? "AUTORIZADO" : "AUTORIZADA") : pedido ? "RECHAZADO" : "RECHAZADA",
     resueltoEn: instante,
     motivoDeRechazo: accion === "rechazar" ? motivo : null,
+    ...(accion === "autorizar" && cantidades ? { cantidades } : {}),
   };
 }
 
@@ -753,26 +876,50 @@ export function aplicarResolucionConEfecto(datos: DatosDePedidos, r: SolicitudRe
 }
 
 /**
- * Vuelve una transferencia autorizada o rechazada a «por autorizar» (lo inverso de `aplicarResolucion`): si estaba autorizada,
- * a cada pedido se le saca el cambio de deuda que le hizo (`efecto`, de `aplicarResolucionConEfecto`); si estaba rechazada, se
- * borra el motivo. Una que ya está por autorizar, o que no existe, no se toca. Solo mueve lo suyo: lo que se decidió en el
- * medio con los mismos colportores queda como está.
+ * Vuelve un pedido o una transferencia autorizados o rechazados a «por autorizar» (lo inverso de `aplicarResolucion`): si estaba
+ * autorizado, a cada pedido se le saca el cambio de deuda que le hizo (`efecto`, de `aplicarResolucionConEfecto`) y un pedido
+ * pierde lo autorizado; si estaba rechazado, se borra el motivo. Uno que ya está por autorizar, o que no existe, no se toca.
+ * Solo mueve lo suyo: lo que se decidió en el medio con los mismos colportores queda como está.
  */
 export function deshacerResolucion(datos: DatosDePedidos, tipo: TipoDeSolicitud, id: string, efecto: EfectoEnLaDeuda = {}): DatosDePedidos {
-  if (tipo !== "transferencia") return datos;
+  const sinElEfecto = (pedidos: PedidoDeColportor[]) =>
+    pedidos.map((p) => {
+      const cambio = efecto[p.id];
+      return cambio === undefined ? p : { ...p, cuenta: { ...p.cuenta, deuda: monto(p.cuenta.deuda - cambio) } };
+    });
+  if (tipo === "pedido") {
+    const pedido = datos.pedidos.find((p) => p.id === id && (p.estado === "AUTORIZADO" || p.estado === "RECHAZADO"));
+    if (!pedido) return datos;
+    const vuelto: PedidoDeColportor[] = datos.pedidos.map((p) =>
+      p === pedido ? { ...p, estado: "POR_AUTORIZAR", resueltoEn: null, motivoDeRechazo: null, lineas: p.lineas.map((l) => ({ ...l, cantidadAutorizada: null })) } : p,
+    );
+    return { ...datos, pedidos: pedido.estado === "AUTORIZADO" ? sinElEfecto(vuelto) : vuelto };
+  }
   const transferencia = datos.transferencias.find((t) => t.id === id && t.estado !== "POR_AUTORIZAR");
   if (!transferencia) return datos;
   const transferencias: TransferenciaDeStock[] = datos.transferencias.map((t) => (t === transferencia ? { ...t, estado: "POR_AUTORIZAR", resueltaEn: null, motivoDeRechazo: null } : t));
   if (transferencia.estado !== "AUTORIZADA") return { ...datos, transferencias };
-  const pedidos = datos.pedidos.map((p) => {
-    const cambio = efecto[p.id];
-    return cambio === undefined ? p : { ...p, cuenta: { ...p.cuenta, deuda: monto(p.cuenta.deuda - cambio) } };
-  });
-  return { ...datos, pedidos, transferencias };
+  return { ...datos, pedidos: sinElEfecto(datos.pedidos), transferencias };
 }
 
-/** El aviso con «Deshacer»: dice qué se decidió y cómo queda, en pasado y con lo que todavía no es firme en futuro. */
-export function textoDeDecisionDiferida(s: Solicitud, accion: "autorizar" | "rechazar"): string {
+/** Cuánto cuesta lo que se autoriza del pedido con esas cantidades. */
+function totalAutorizado(s: Solicitud, cantidades: ReadonlyArray<CantidadAutorizada> | undefined): number {
+  if (!cantidades) return s.total;
+  return s.lineas.reduce((suma, l) => suma + acotarCantidad(cantidades.find((c) => c.nombre === l.nombre)?.cantidad ?? l.pedida, l.pedida) * l.costo, 0);
+}
+
+/**
+ * El aviso con «Deshacer»: dice qué se decidió y cómo queda, en pasado y con lo que todavía no es firme en futuro.
+ * `cantidades` son las de un pedido autorizado reducido.
+ */
+export function textoDeDecisionDiferida(s: Solicitud, accion: "autorizar" | "rechazar", cantidades?: ReadonlyArray<CantidadAutorizada>): string {
+  if (s.tipo === "pedido") {
+    const quien = primerNombre(s.colportor);
+    const que = `el pedido ${s.numero} de ${s.colportor}`;
+    if (accion === "rechazar") return `Rechazaste ${que}. Cuando se cierre este aviso, ${quien} recibe el motivo.`;
+    const reducido = cantidades ? `, reducido a ${cantidades.reduce((suma, c) => suma + cantidad(c.cantidad), 0)} de ${unidadesPedidasDe(s.lineas)} unidades` : "";
+    return `Autorizaste ${que}${reducido}: se suman ${money(totalAutorizado(s, cantidades))} a la deuda de ${quien} cuando se cierre este aviso.`;
+  }
   const de = s.transferencia?.deNombre ?? s.colportor;
   const que = `la transferencia ${s.numero} de ${de}`;
   if (accion === "rechazar") return `Rechazaste ${que}. Cuando se cierre este aviso, el colportor recibe el motivo.`;
@@ -781,5 +928,50 @@ export function textoDeDecisionDiferida(s: Solicitud, accion: "autorizar" | "rec
 
 /** Lo que cuenta el botón de «Deshacer» para el lector de pantalla, para distinguirlo de otros avisos abiertos. */
 export function nombreDeDeshacer(s: Solicitud, accion: "autorizar" | "rechazar"): string {
-  return `Deshacer · 8 s: ${accion === "autorizar" ? "autorización" : "rechazo"} de la transferencia ${s.numero}`;
+  const que = s.tipo === "pedido" ? `del pedido ${s.numero}` : `de la transferencia ${s.numero}`;
+  return `Deshacer · 8 s: ${accion === "autorizar" ? "autorización" : "rechazo"} ${que}`;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// El límite de deuda de la campaña (42A·02)
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** El límite que escribió, en pesos enteros: acepta «35000», «35.000», «$U 35.000» o «$ 35 000». */
+export function validarLimite(texto: string): { ok: true; limite: number } | { ok: false; error: string } {
+  const limpio = texto.replace(/\$\s*U?/gi, "").replace(/\s+/g, "");
+  if (limpio === "") return { ok: false, error: "Escribí el límite por colportor, en pesos." };
+  const digitos = /^\d{1,3}(\.\d{3})+$/.test(limpio) ? limpio.replace(/\./g, "") : limpio;
+  if (!/^\d+$/.test(digitos)) return { ok: false, error: "Escribí solo el monto, en pesos enteros y sin centavos. Por ejemplo: 35.000." };
+  const limite = Number(digitos);
+  if (limite < 1) return { ok: false, error: "El límite tiene que ser mayor que cero." };
+  if (limite > LIMITE_DE_DEUDA_MAXIMO) return { ok: false, error: `El límite es demasiado alto: usá hasta ${money(LIMITE_DE_DEUDA_MAXIMO)}.` };
+  return { ok: true, limite };
+}
+
+/**
+ * Lo que pasa con los pedidos por autorizar de TODA la campaña (el límite es uno solo) con el límite de hoy y con el nuevo:
+ * «Hoy 1 pedido por autorizar pasa el límite de $U 30.000. Con $U 35.000 lo sigue pasando, por $U 5.360.»
+ */
+export function notaDelLimite(mundo: Mundo, nuevo: number): string {
+  const porAutorizar = mundo.todas.filter((s) => s.tipo === "pedido" && s.estado === "PEND");
+  const deudas = porAutorizar.map(deudaConElPedido);
+  const pasan = (limite: number) => deudas.filter((d) => d > limite);
+  const actual = mundo.limite;
+  const hoy =
+    actual === null
+      ? "Hoy no hay límite fijado, así que ningún pedido avisa."
+      : pasan(actual).length === 0
+        ? `Hoy ningún pedido por autorizar pasa el límite de ${money(actual)}.`
+        : pasan(actual).length === 1
+          ? `Hoy 1 pedido por autorizar pasa el límite de ${money(actual)}.`
+          : `Hoy ${pasan(actual).length} pedidos por autorizar pasan el límite de ${money(actual)}.`;
+  const despues = pasan(nuevo);
+  const antes = actual === null ? 0 : pasan(actual).length;
+  const con =
+    despues.length === 0
+      ? `Con ${money(nuevo)} ninguno lo pasa.`
+      : despues.length === 1
+        ? `Con ${money(nuevo)} ${antes === 1 ? "lo sigue pasando" : "1 lo pasa"}, por ${money(despues[0] - nuevo)}.`
+        : `Con ${money(nuevo)} lo pasan ${despues.length}, el que más por ${money(Math.max(...despues) - nuevo)}.`;
+  return `${hoy} ${con}`;
 }

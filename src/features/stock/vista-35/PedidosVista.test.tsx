@@ -1,8 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { TEXTO_ACCION_NO_DISPONIBLE } from "@/components/AccionNoDisponible";
 import type { AccionesPedidos, DatosDePedidos, DecisionDeSolicitud, ResultadoDeAccion, SolicitudResuelta } from "@/datos/stock/pedidos";
 import { crearDatosDePedidosSimulados } from "@/datos/stock/pedidos/simulado";
 import { hayTrabajoPendiente, reiniciarTrabajoPendiente } from "@/shell/trabajo-pendiente";
@@ -29,6 +28,12 @@ function acciones(responder: (d: DecisionDeSolicitud) => Promise<Resultado> | Re
   const decidir = vi.fn(async (d: DecisionDeSolicitud) => responder(d));
   return { decidir } satisfies AccionesPedidos;
 }
+
+/** Lo que se decide queda 8 s con «Deshacer» (42A·04) y recién ahí sale: los tests de decisiones corren con el reloj falso. */
+const plazo = () =>
+  act(async () => {
+    vi.advanceTimersByTime(8000);
+  });
 
 /** Una respuesta que se resuelve a mano: sirve para probar lo que pasa mientras la acción está en camino. */
 function diferida() {
@@ -76,13 +81,11 @@ describe("artboard 35A·01 · por autorizar, pedido que supera el límite", () =
     expect(within(d).getByRole("button", { name: /^Rechazar/ })).toBeInTheDocument();
   });
 
-  it("muestra el límite y «Editar límite», que todavía no hace nada y lo explica", async () => {
+  it("muestra el límite de la campaña por colportor y «Editar» (la edición, en PedidosVista.reducir.test)", async () => {
     montar();
 
-    expect(screen.getByText(/Límite de deuda por colportor:/)).toHaveTextContent("$U 50.000");
-    const editar = screen.getByRole("button", { name: "Editar límite" });
-    expect(editar).toHaveAttribute("aria-disabled", "true");
-    expect(editar).toHaveAttribute("title", TEXTO_ACCION_NO_DISPONIBLE);
+    expect(screen.getByText(/Límite de deuda de la campaña:/)).toHaveTextContent("$U 50.000 por colportor");
+    expect(screen.getByRole("button", { name: "Editar límite" })).toHaveTextContent("Editar");
   });
 
   it("«Ver en Cuentas →» tampoco tiene destino todavía", () => {
@@ -99,7 +102,7 @@ describe("artboard 35A·01 · por autorizar, pedido que supera el límite", () =
   it("un límite en cero se muestra como cero y avisa (no es «sin límite»)", () => {
     montar({ ...simulados(), limiteDeDeuda: 0 });
     expect(screen.queryByText("Sin límite de deuda fijado")).not.toBeInTheDocument();
-    expect(screen.getByText(/Límite de deuda por colportor:/)).toHaveTextContent("$U 0");
+    expect(screen.getByText(/Límite de deuda de la campaña:/)).toHaveTextContent("$U 0 por colportor");
     expect(within(detalle("Pedido #231")).getByRole("note")).toHaveTextContent("supera el límite de $U 0");
   });
 
@@ -279,12 +282,19 @@ describe("pestañas, estados y casos vacíos", () => {
 });
 
 describe("autorizar", () => {
-  it("manda la decisión, avisa lo que pasó con la deuda y pasa al siguiente con el foco en su detalle", async () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("deja el aviso con «Deshacer», manda la decisión a los 8 s, corrige los conteos y pasa al siguiente con el foco en su detalle", async () => {
     const { acciones: a } = montar();
     await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
 
-    expect(a.decidir).toHaveBeenCalledExactlyOnceWith({ tipo: "pedido", id: "pedido-231", accion: "autorizar" });
-    expect(await screen.findByText("✓ Pedido #231 de Emiliano Sosa autorizado: se sumaron $U 36.040 a su deuda.")).toBeInTheDocument();
+    expect(screen.getByText("Autorizaste el pedido #231 de Emiliano Sosa: se suman $U 36.040 a la deuda de Emiliano cuando se cierre este aviso.")).toBeInTheDocument();
+    expect(a.decidir).not.toHaveBeenCalled();
     // Salió de «Por autorizar»: la lista y los conteos se corrigen y se abre el que sigue.
     expect(screen.queryByRole("button", { name: /^#231,/ })).not.toBeInTheDocument();
     expect(pestana(/^Por autorizar/)).toHaveTextContent("3");
@@ -292,6 +302,10 @@ describe("autorizar", () => {
     expect(screen.getByText("4 por autorizar · 12 en la campaña")).toBeInTheDocument();
     expect(fila("#230")).toHaveAttribute("aria-current", "true");
     expect(screen.getByRole("heading", { level: 3, name: "Pedido #230" })).toHaveFocus();
+
+    await plazo();
+    expect(a.decidir).toHaveBeenCalledExactlyOnceWith({ tipo: "pedido", id: "pedido-231", accion: "autorizar" });
+    expect(screen.queryByRole("button", { name: /^Deshacer/ })).not.toBeInTheDocument();
   });
 
   it("desde «Todos» el pedido se queda abierto, ahora autorizado y sin botones", async () => {
@@ -299,10 +313,10 @@ describe("autorizar", () => {
     await userEvent.click(pestana(/^Todos/));
     await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
 
-    await screen.findByText(/autorizado: se sumaron/);
     const d = detalle("Pedido #231");
     expect(within(within(d).getByRole("list", { name: "Estado del pedido" })).getByText(/^Autorizado/)).toHaveTextContent("Autorizado (estado actual)");
     expect(within(d).queryByRole("button", { name: /^Autorizar/ })).not.toBeInTheDocument();
+    expect(within(d).queryByRole("button", { name: /^Reducir/ })).not.toBeInTheDocument();
     expect(within(d).getByRole("heading", { level: 3 })).toHaveFocus();
   });
 
@@ -311,28 +325,20 @@ describe("autorizar", () => {
     await userEvent.click(pestana(/^Todos/));
     await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
 
-    await screen.findByText(/autorizado: se sumaron/);
     const fila = within(detalle("Pedido #231")).getByText("Deuda actual").closest("div")!;
     expect(fila).toHaveTextContent("$U 58.140");
     expect(fila).toHaveTextContent("incluye este pedido");
   });
 
   it("autoriza una transferencia: se ve autorizada con su «Deshacer» y sale a los 8 s (el detalle del plazo, en PedidosVista.deshacer.test)", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    try {
-      const { acciones: a } = montar();
-      await userEvent.click(pestana(/^Transferencias/));
-      await userEvent.click(within(detalle("Transferencia T-18")).getByRole("button", { name: /^Autorizar/ }));
+    const { acciones: a } = montar();
+    await userEvent.click(pestana(/^Transferencias/));
+    await userEvent.click(within(detalle("Transferencia T-18")).getByRole("button", { name: /^Autorizar/ }));
 
-      expect(screen.getByText("Autorizaste la transferencia T-18 de Valentina Silva: la deuda de $U 2.900 pasa a Lucía cuando se cierre este aviso.")).toBeInTheDocument();
-      expect(a.decidir).not.toHaveBeenCalled();
-      await act(async () => {
-        vi.advanceTimersByTime(8000);
-      });
-      expect(a.decidir).toHaveBeenCalledWith({ tipo: "transferencia", id: "transferencia-18", accion: "autorizar" });
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(screen.getByText("Autorizaste la transferencia T-18 de Valentina Silva: la deuda de $U 2.900 pasa a Lucía cuando se cierre este aviso.")).toBeInTheDocument();
+    expect(a.decidir).not.toHaveBeenCalled();
+    await plazo();
+    expect(a.decidir).toHaveBeenCalledWith({ tipo: "transferencia", id: "transferencia-18", accion: "autorizar" });
     expect(within(within(detalle("Transferencia T-18")).getByRole("list", { name: "Estado de la transferencia" })).getByText(/^Autorizada/)).toHaveTextContent("Autorizada (hecho)");
   });
 
@@ -341,7 +347,6 @@ describe("autorizar", () => {
     montar({ ...base, pedidos: base.pedidos.filter((p) => p.numero === "#231"), transferencias: [] });
     await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
 
-    await screen.findByText(/autorizado: se sumaron/);
     expect(screen.getByText("No hay pedidos por autorizar en la campaña.")).toBeInTheDocument();
     expect(pestana(/^Por autorizar/)).toHaveFocus();
   });
@@ -374,58 +379,63 @@ describe("«Por autorizar» vacía con transferencias por autorizar (decisión d
     montar({ ...base, pedidos: base.pedidos.filter((p) => p.numero === "#231") });
     await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
 
-    await screen.findByText(/autorizado: se sumaron/);
     expect(screen.getByText(/Tenés 1 transferencia por autorizar/)).toBeInTheDocument();
   });
 });
 
 describe("doble toque, falla y acciones seguidas", () => {
-  it("doble toque en Autorizar: sale una sola vez y el botón avisa que está guardando", async () => {
-    const espera = diferida();
-    const a = acciones(() => espera.promesa);
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const autorizar231 = () => within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ });
+
+  it("doble toque en Autorizar: queda un solo aviso y sale una sola vez", async () => {
+    const a = acciones();
     montar(simulados(), a);
-    const boton = within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ });
 
-    await userEvent.dblClick(boton);
+    await userEvent.dblClick(autorizar231());
+    expect(screen.getAllByText(/^Autorizaste el pedido #231/)).toHaveLength(1);
+    await plazo();
 
-    expect(a.decidir).toHaveBeenCalledTimes(1);
-    expect(boton).toHaveAttribute("aria-disabled", "true");
-    expect(boton).toHaveTextContent("Guardando…");
-    expect(within(detalle("Pedido #231")).getByRole("button", { name: /^Rechazar/ })).toHaveAttribute("aria-disabled", "true");
-
-    await act(async () => espera.resolver(ok({ tipo: "pedido", id: "pedido-231", accion: "autorizar" })));
-    await screen.findByText(/autorizado: se sumaron/);
     expect(a.decidir).toHaveBeenCalledTimes(1);
   });
 
   it("mientras está en camino cuenta como trabajo pendiente (cerrar la pestaña avisa) y al terminar deja de contar", async () => {
     const espera = diferida();
     montar(simulados(), acciones(() => espera.promesa));
-    await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
+    await userEvent.click(autorizar231());
 
+    // Dentro del plazo ya cuenta: si se cierra la pestaña, sale en ese momento.
+    expect(hayTrabajoPendiente()).toBe(true);
+    await plazo();
     expect(hayTrabajoPendiente()).toBe(true);
     await act(async () => espera.resolver(ok({ tipo: "pedido", id: "pedido-231", accion: "autorizar" })));
-    await screen.findByText(/autorizado: se sumaron/);
     await waitFor(() => expect(hayTrabajoPendiente()).toBe(false));
   });
 
-  it("si falla por falta de conexión avisa qué hacer, el botón vuelve a poder usarse y el pedido sigue por autorizar", async () => {
+  it("si falla por falta de conexión avisa qué hacer, vuelve a «por autorizar» con el botón disponible y se puede reintentar", async () => {
     const respuestas: Resultado[] = [{ ok: false, causa: "sin-conexion" }];
     const a = acciones((d) => respuestas.shift() ?? ok(d));
     montar(simulados(), a);
-    const boton = () => within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ });
 
-    await userEvent.click(boton());
+    await userEvent.click(autorizar231());
+    await plazo();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Necesitás conexión para autorizar el pedido #231. Revisá la conexión y probá de nuevo.");
-    expect(boton()).toHaveAttribute("aria-disabled", "false");
-    expect(boton()).toHaveTextContent("Autorizar");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Necesitás conexión para autorizar el pedido #231. Revisá la conexión y probá de nuevo. Sigue por autorizar.");
     expect(pestana(/^Por autorizar/)).toHaveTextContent("4");
+    await userEvent.click(fila("#231"));
+    expect(autorizar231()).not.toHaveAttribute("aria-disabled");
+    expect(autorizar231()).toHaveTextContent("Autorizar");
 
-    await userEvent.click(boton());
-    await screen.findByText(/autorizado: se sumaron/);
+    await userEvent.click(autorizar231());
+    await plazo();
     expect(a.decidir).toHaveBeenCalledTimes(2);
     expect(pestana(/^Por autorizar/)).toHaveTextContent("3");
+    expect(pestana(/^Autorizados/)).toHaveTextContent("2");
   });
 
   it("si la acción tira una excepción también cuenta como falla de conexión y no deja nada trabado", async () => {
@@ -433,30 +443,33 @@ describe("doble toque, falla y acciones seguidas", () => {
       throw new Error("se cayó");
     });
     montar(simulados(), a);
-    await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
+    await userEvent.click(autorizar231());
+    await plazo();
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Necesitás conexión para autorizar el pedido #231");
-    expect(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ })).toHaveAttribute("aria-disabled", "false");
+    expect(pestana(/^Por autorizar/)).toHaveTextContent("4");
     await waitFor(() => expect(hayTrabajoPendiente()).toBe(false));
   });
 
   it("si el servidor lo rechaza muestra su texto (por ejemplo, que otro ya lo resolvió)", async () => {
     montar(simulados(), acciones(() => ({ ok: false, causa: "rechazado", mensaje: "Este pedido ya no está por autorizar." })));
-    await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
+    await userEvent.click(autorizar231());
+    await plazo();
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Este pedido ya no está por autorizar.");
   });
 
   it("un aviso se puede cerrar", async () => {
     montar(simulados(), acciones(() => ({ ok: false, causa: "sin-conexion" })));
-    await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
+    await userEvent.click(autorizar231());
+    await plazo();
     await screen.findByRole("alert");
 
     await userEvent.click(screen.getByRole("button", { name: "Cerrar el aviso" }));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("dos pedidos seguidos antes de que termine el primero: el segundo espera su turno y no se pierde ninguno", async () => {
+  it("dos pedidos seguidos antes de que termine el primero: cada uno sale con su plazo y no se pierde ninguno", async () => {
     const primera = diferida();
     const orden: string[] = [];
     const a = acciones((d) => {
@@ -465,19 +478,13 @@ describe("doble toque, falla y acciones seguidas", () => {
     });
     montar(simulados(), a);
 
-    await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
-    await userEvent.click(fila("#230"));
+    await userEvent.click(autorizar231());
     await userEvent.click(within(detalle("Pedido #230")).getByRole("button", { name: /^Autorizar/ }));
+    await plazo();
 
-    // El primero sigue en camino: el segundo está anotado pero todavía no salió.
-    expect(orden).toEqual(["pedido-231"]);
-    expect(within(detalle("Pedido #230")).getByRole("button", { name: /^Autorizar/ })).toHaveAttribute("aria-disabled", "true");
-
-    await act(async () => primera.resolver(ok({ tipo: "pedido", id: "pedido-231", accion: "autorizar" })));
-
-    await screen.findByText(/Pedido #230 de Lucía Fernández autorizado/);
+    // El primero sigue en camino y el segundo sale igual: cada decisión corre por su cuenta.
     expect(orden).toEqual(["pedido-231", "pedido-230"]);
-    expect(screen.getByText(/Pedido #231 de Emiliano Sosa autorizado/)).toBeInTheDocument();
+    await act(async () => primera.resolver(ok({ tipo: "pedido", id: "pedido-231", accion: "autorizar" })));
     expect(pestana(/^Por autorizar/)).toHaveTextContent("2");
     expect(pestana(/^Autorizados/)).toHaveTextContent("3");
   });
@@ -486,30 +493,38 @@ describe("doble toque, falla y acciones seguidas", () => {
     const a = acciones((d) => (d.id === "pedido-231" ? { ok: false, causa: "sin-conexion" } : ok(d)));
     montar(simulados(), a);
 
-    await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
-    await userEvent.click(fila("#230"));
+    await userEvent.click(autorizar231());
     await userEvent.click(within(detalle("Pedido #230")).getByRole("button", { name: /^Autorizar/ }));
+    await plazo();
 
-    await screen.findByText(/Pedido #230 de Lucía Fernández autorizado/);
-    expect(screen.getByRole("alert")).toHaveTextContent("autorizar el pedido #231");
+    expect(await screen.findByRole("alert")).toHaveTextContent("autorizar el pedido #231");
+    expect(a.decidir).toHaveBeenCalledTimes(2);
     expect(pestana(/^Por autorizar/)).toHaveTextContent("3");
+    expect(pestana(/^Autorizados/)).toHaveTextContent("2");
   });
 
   it("si mientras tanto se pasó a mirar otro pedido, no se le roba el foco ni se le cambia la selección", async () => {
     const espera = diferida();
     montar(simulados(), acciones(() => espera.promesa));
-    await userEvent.click(within(detalle("Pedido #231")).getByRole("button", { name: /^Autorizar/ }));
+    await userEvent.click(autorizar231());
     await userEvent.click(fila("#229"));
 
+    await plazo();
     await act(async () => espera.resolver(ok({ tipo: "pedido", id: "pedido-231", accion: "autorizar" })));
 
-    await screen.findByText(/Pedido #231 de Emiliano Sosa autorizado/);
     expect(fila("#229")).toHaveAttribute("aria-current", "true");
     expect(screen.getByRole("heading", { level: 3, name: "Pedido #229" })).not.toHaveFocus();
   });
 });
 
 describe("rechazar", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const abrir = async (titulo = "Pedido #231") => {
     await userEvent.click(within(detalle(titulo)).getByRole("button", { name: /^Rechazar/ }));
     return screen.getByRole("textbox", { name: /MOTIVO DEL RECHAZO/ });
@@ -548,7 +563,9 @@ describe("rechazar", () => {
     await userEvent.type(campo, "  Excede la capacidad de pago actual ");
     await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
 
-    expect(await screen.findByText("✓ Pedido #231 de Emiliano Sosa rechazado: el colportor recibe el motivo.")).toBeInTheDocument();
+    expect(screen.getByText("Rechazaste el pedido #231 de Emiliano Sosa. Cuando se cierre este aviso, Emiliano recibe el motivo.")).toBeInTheDocument();
+    expect(a.decidir).not.toHaveBeenCalled();
+    await plazo();
     expect(a.decidir).toHaveBeenCalledExactlyOnceWith({ tipo: "pedido", id: "pedido-231", accion: "rechazar", motivo: "Excede la capacidad de pago actual" });
     expect(fila("#230")).toHaveAttribute("aria-current", "true");
     expect(pestana(/^Rechazados/)).toHaveTextContent("2");
@@ -584,36 +601,37 @@ describe("rechazar", () => {
     expect(within(detalle("Pedido #231")).getByRole("button", { name: /^Rechazar/ })).toHaveFocus();
   });
 
-  it("si falla a mitad del rechazo, el motivo escrito se conserva y se puede reintentar", async () => {
+  it("si falla a mitad del rechazo, el pedido vuelve con el motivo escrito y se puede reintentar", async () => {
     const respuestas: Resultado[] = [{ ok: false, causa: "sin-conexion" }];
     const a = acciones((d) => respuestas.shift() ?? ok(d));
     montar(simulados(), a);
     const campo = await abrir();
     await userEvent.type(campo, "No corresponde");
     await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
+    await plazo();
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Necesitás conexión para rechazar el pedido #231");
-    expect(campo).toHaveValue("No corresponde");
+    await userEvent.click(fila("#231"));
+    expect(screen.getByRole("textbox", { name: /MOTIVO DEL RECHAZO/ })).toHaveValue("No corresponde");
     const confirmar = screen.getByRole("button", { name: "Confirmar rechazo" });
-    expect(confirmar).toHaveAttribute("aria-disabled", "false");
+    expect(confirmar).not.toHaveAttribute("aria-disabled", "true");
 
     await userEvent.click(confirmar);
-    await screen.findByText(/rechazado: el colportor recibe el motivo/);
+    await plazo();
     expect(a.decidir).toHaveBeenCalledTimes(2);
+    expect(pestana(/^Rechazados/)).toHaveTextContent("2");
   });
 
   it("doble toque en «Confirmar rechazo»: sale una sola vez", async () => {
-    const espera = diferida();
-    const a = acciones(() => espera.promesa);
+    const a = acciones();
     montar(simulados(), a);
     const campo = await abrir();
     await userEvent.type(campo, "No corresponde");
     await userEvent.dblClick(screen.getByRole("button", { name: "Confirmar rechazo" }));
+    expect(screen.getAllByText(/^Rechazaste el pedido #231/)).toHaveLength(1);
+    await plazo();
 
     expect(a.decidir).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Guardando…" })).toHaveAttribute("aria-disabled", "true");
-    await act(async () => espera.resolver(ok({ tipo: "pedido", id: "pedido-231", accion: "rechazar", motivo: "No corresponde" })));
-    await screen.findByText(/rechazado: el colportor recibe el motivo/);
   });
 
   it("el borrador es de cada pedido: al ir y volver se conserva", async () => {
@@ -636,18 +654,11 @@ describe("rechazar", () => {
     await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Escribí el motivo para rechazar la transferencia.");
 
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    try {
-      await userEvent.type(campo, "Sin stock");
-      await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
-      expect(screen.getByText("Rechazaste la transferencia T-18 de Valentina Silva. Cuando se cierre este aviso, el colportor recibe el motivo.")).toBeInTheDocument();
-      await act(async () => {
-        vi.advanceTimersByTime(8000);
-      });
-      expect(a.decidir).toHaveBeenCalledWith({ tipo: "transferencia", id: "transferencia-18", accion: "rechazar", motivo: "Sin stock" });
-    } finally {
-      vi.useRealTimers();
-    }
+    await userEvent.type(campo, "Sin stock");
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
+    expect(screen.getByText("Rechazaste la transferencia T-18 de Valentina Silva. Cuando se cierre este aviso, el colportor recibe el motivo.")).toBeInTheDocument();
+    await plazo();
+    expect(a.decidir).toHaveBeenCalledWith({ tipo: "transferencia", id: "transferencia-18", accion: "rechazar", motivo: "Sin stock" });
     expect(within(within(detalle("Transferencia T-18")).getByRole("list", { name: "Estado de la transferencia" })).getByText(/^Rechazada/)).toHaveTextContent("Rechazada (hecho)");
   });
 });

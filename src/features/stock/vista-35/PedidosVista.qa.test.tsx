@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AccionesPedidos, DatosDePedidos, DecisionDeSolicitud, ResultadoDeAccion, SolicitudResuelta } from "@/datos/stock/pedidos";
 import { crearDatosDePedidosSimulados } from "@/datos/stock/pedidos/simulado";
@@ -54,7 +54,18 @@ const abrirRechazo = async () => {
   return screen.getByRole("textbox", { name: /MOTIVO DEL RECHAZO/ });
 };
 
+/** Lo que se decide queda 8 s con «Deshacer» y recién ahí sale (#93, 42A·04): estos tests corren con el reloj falso. */
+const plazo = () =>
+  act(async () => {
+    vi.advanceTimersByTime(8000);
+  });
+
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+});
+
 afterEach(() => {
+  vi.useRealTimers();
   reiniciarTrabajoPendiente();
 });
 
@@ -136,7 +147,8 @@ describe("PedidosVista · QA · motivo del rechazo", () => {
 
     expect((campo as HTMLTextAreaElement).value.length).toBeLessThanOrEqual(500);
     await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
-    await waitFor(() => expect(a.decidir).toHaveBeenCalledTimes(1));
+    await plazo();
+    expect(a.decidir).toHaveBeenCalledTimes(1);
     const decision = a.decidir.mock.calls[0][0];
     expect(decision.accion === "rechazar" && decision.motivo.length).toBeLessThanOrEqual(500);
   });
@@ -146,8 +158,9 @@ describe("PedidosVista · QA · motivo del rechazo", () => {
     const campo = await abrirRechazo();
     await userEvent.type(campo, "<b>no</b> & \"comillas\" ñandú ✓");
     await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
+    await plazo();
 
-    await waitFor(() => expect(a.decidir).toHaveBeenCalledTimes(1));
+    expect(a.decidir).toHaveBeenCalledTimes(1);
     expect(a.decidir.mock.calls[0][0]).toMatchObject({ accion: "rechazar", motivo: '<b>no</b> & "comillas" ñandú ✓' });
     expect(Array.from(document.querySelectorAll("b")).some((b) => b.textContent === "no")).toBe(false);
   });
@@ -163,9 +176,12 @@ describe("PedidosVista · QA · motivo del rechazo", () => {
     await userEvent.type(campo, "Falta el depósito");
     expect(screen.queryByText(/Escribí el motivo/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
+    await plazo();
 
-    expect(await screen.findByText("Otro coordinador ya resolvió este pedido.")).toBeInTheDocument();
-    expect(campo).toHaveValue("Falta el depósito");
+    expect(await screen.findByText(/Otro coordinador ya resolvió este pedido\./)).toBeInTheDocument();
+    // El pedido vuelve a «por autorizar» con el motivo que se había escrito.
+    await userEvent.click(screen.getByRole("button", { name: /^#231,/ }));
+    expect(screen.getByRole("textbox", { name: /MOTIVO DEL RECHAZO/ })).toHaveValue("Falta el depósito");
   });
 });
 
@@ -175,81 +191,66 @@ describe("PedidosVista · QA · avisos de error", () => {
   it("si el servidor rechaza sin texto propio, el aviso dice qué pasó y qué hacer (no un mensaje vacío)", async () => {
     montar(simulados(), acciones(() => ({ ok: false, causa: "rechazado" })));
     await userEvent.click(autorizar());
+    await plazo();
 
     const aviso = await screen.findByRole("alert");
     expect(aviso).toHaveTextContent("No se pudo autorizar el pedido #231");
     expect(aviso).toHaveTextContent(/Probá de nuevo/);
   });
 
-  it("tras una falla el foco queda en el botón (no se pierde al <body>) y se puede reintentar con el teclado", async () => {
+  it("tras una falla el pedido vuelve y se puede reintentar con el teclado", async () => {
     const respuestas: Resultado[] = [{ ok: false, causa: "sin-conexion" }];
     const a = acciones((d) => respuestas.shift() ?? ok(d));
     montar(simulados(), a);
     autorizar().focus();
     await userEvent.keyboard("{Enter}");
+    await plazo();
     await screen.findByRole("alert");
 
-    expect(autorizar()).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: /^#231,/ }));
+    autorizar().focus();
     await userEvent.keyboard("{Enter}");
-    await screen.findByText(/autorizado: se sumaron/);
+    await plazo();
     expect(a.decidir).toHaveBeenCalledTimes(2);
-  });
-
-  it.skip("QA #66: el aviso de falla de un intento anterior no queda a la vista junto al «✓ autorizado» del reintento", async () => {
-    // Hoy el error de «Necesitás conexión…» sigue ahí, contradiciendo al éxito, hasta que se lo cierra a mano.
-    const respuestas: Resultado[] = [{ ok: false, causa: "sin-conexion" }];
-    const a = acciones((d) => respuestas.shift() ?? ok(d));
-    montar(simulados(), a);
-    await userEvent.click(autorizar());
-    await screen.findByRole("alert");
-
-    await userEvent.click(autorizar());
-    await screen.findByText(/autorizado: se sumaron/);
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
-  it.skip("un mismo error repetido no se apila: tres toques fallidos dejan un solo aviso", async () => {
-    montar(simulados(), acciones(() => ({ ok: false, causa: "sin-conexion" })));
-    for (let i = 0; i < 3; i++) {
-      await userEvent.click(autorizar());
-      await waitFor(() => expect(autorizar()).toHaveAttribute("aria-disabled", "false"));
-    }
-
-    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByRole("tab", { name: /^Autorizados/ })).toHaveTextContent("2");
   });
 });
 
 // --- acciones superpuestas ---------------------------------------------------------------------------------------------
 
 describe("PedidosVista · QA · acciones superpuestas", () => {
-  it("QA #66: con el rechazo en camino, «Esc» en el campo no lo cancela ni descarta el motivo (si falla, se conserva)", async () => {
+  it("con el rechazo en camino el pedido ya se ve rechazado, y si falla vuelve con el motivo escrito", async () => {
     const espera = diferida();
     const a = acciones(() => espera.promesa);
     montar(simulados(), a);
     const campo = await abrirRechazo();
     await userEvent.type(campo, "Falta el depósito del 10/10");
     await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
+    await plazo();
     expect(a.decidir).toHaveBeenCalledTimes(1);
 
-    // «Cancelar» está apagado mientras se guarda; Esc en el campo hace lo mismo y tiene que estarlo también.
-    campo.focus();
-    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByRole("tab", { name: /^Rechazados/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^#231,/ }));
+    expect(within(detalle("Pedido #231")).queryByRole("button", { name: /^(Autorizar|Rechazar|Reducir)/ })).not.toBeInTheDocument();
+
     await act(async () => espera.resolver({ ok: false, causa: "sin-conexion" }));
     await screen.findByRole("alert");
-
+    await userEvent.click(screen.getByRole("tab", { name: /^Por autorizar/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^#231,/ }));
     expect(screen.getByRole("textbox", { name: /MOTIVO DEL RECHAZO/ })).toHaveValue("Falta el depósito del 10/10");
   });
 
-  it("«Autorizar» y «Rechazar» de otro pedido siguen disponibles mientras uno se guarda, y cada uno cuenta su «Guardando…»", async () => {
+  it("«Autorizar» y «Rechazar» de otro pedido siguen disponibles mientras uno se guarda", async () => {
     const espera = diferida();
     montar(simulados(), acciones(() => espera.promesa));
     await userEvent.click(autorizar());
-    expect(autorizar()).toHaveTextContent("Guardando…");
+    await plazo();
 
-    await userEvent.click(screen.getByRole("button", { name: /^#230,/ }));
+    // Se abrió el que seguía: sus botones están disponibles aunque el anterior todavía esté en camino.
     const otro = within(detalle("Pedido #230")).getByRole("button", { name: /^Autorizar/ });
-    expect(otro).toHaveAttribute("aria-disabled", "false");
+    expect(otro).not.toHaveAttribute("aria-disabled", "true");
     expect(otro).toHaveTextContent("Autorizar");
+    expect(within(detalle("Pedido #230")).getByRole("button", { name: /^Rechazar/ })).not.toHaveAttribute("aria-disabled", "true");
     await act(async () => espera.resolver({ ok: false, causa: "sin-conexion" }));
     await screen.findByRole("alert");
   });
@@ -258,27 +259,13 @@ describe("PedidosVista · QA · acciones superpuestas", () => {
     const espera = diferida();
     montar(simulados(), acciones(() => espera.promesa));
     await userEvent.click(autorizar());
+    await plazo();
 
     await userEvent.click(screen.getByRole("tab", { name: /^Transferencias/ }));
     expect(screen.getByRole("tab", { name: /^Transferencias/ })).toHaveAttribute("aria-selected", "true");
     await act(async () => espera.resolver(ok({ tipo: "pedido", id: "pedido-231", accion: "autorizar" })));
-    await screen.findByText(/autorizado: se sumaron/);
     expect(screen.getByRole("tab", { name: /^Transferencias/ })).toHaveAttribute("aria-selected", "true");
-  });
-});
-
-// --- accesibilidad del botón que guarda --------------------------------------------------------------------------------
-
-describe("PedidosVista · QA · «Guardando…»", () => {
-  it.skip("QA #66: el texto visible «Guardando…» forma parte del nombre accesible (WCAG 2.5.3) o se anuncia", async () => {
-    const espera = diferida();
-    montar(simulados(), acciones(() => espera.promesa));
-    await userEvent.click(autorizar());
-
-    const boton = autorizar();
-    expect(boton).toHaveTextContent("Guardando…");
-    expect(boton).toHaveAccessibleName(/Guardando/);
-    await act(async () => espera.resolver({ ok: false, causa: "sin-conexion" }));
+    expect(screen.getByRole("tab", { name: /^Autorizados/ })).toHaveTextContent("2");
   });
 });
 
@@ -292,7 +279,7 @@ describe("PedidosVista · QA · datos límite", () => {
 
     expect(detalle("Pedido #231")).toBeInTheDocument();
     await userEvent.click(autorizar());
-    expect(await screen.findByText(/Pedido #231 de 👩‍🌾 autorizado/)).toBeInTheDocument();
+    expect(await screen.findByText(/Autorizaste el pedido #231 de 👩‍🌾/)).toBeInTheDocument();
   });
 
   it("montos enormes se muestran enteros, con separador de miles y sin notación científica", () => {
