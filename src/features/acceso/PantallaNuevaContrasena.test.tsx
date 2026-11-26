@@ -31,10 +31,20 @@ function montar(propiedades: Partial<PropiedadesDeNuevaContrasena> = {}) {
   const abrir = vi.fn<PropiedadesDeNuevaContrasena["abrir"]>(async () => ({ tipo: "ok", correo: CORREO }));
   const guardar = vi.fn<PropiedadesDeNuevaContrasena["guardar"]>(async () => ({ tipo: "ok" }));
   const cerrarOtras = vi.fn<PropiedadesDeNuevaContrasena["cerrarOtras"]>(async () => ({ tipo: "ok" }));
+  const salirDeLaRecuperacion = vi.fn<PropiedadesDeNuevaContrasena["salirDeLaRecuperacion"]>(async () => ({ tipo: "ok" }));
+  const irA = vi.fn<(ruta: string) => void>();
   const resultado = render(
-    <PantallaNuevaContrasena inicial={{ paso: "nueva", correo: CORREO }} abrir={abrir} guardar={guardar} cerrarOtras={cerrarOtras} {...propiedades} />,
+    <PantallaNuevaContrasena
+      inicial={{ paso: "nueva", correo: CORREO }}
+      abrir={abrir}
+      guardar={guardar}
+      cerrarOtras={cerrarOtras}
+      salirDeLaRecuperacion={salirDeLaRecuperacion}
+      irA={irA}
+      {...propiedades}
+    />,
   );
-  return { ...resultado, abrir, guardar, cerrarOtras };
+  return { ...resultado, abrir, guardar, cerrarOtras, salirDeLaRecuperacion, irA };
 }
 
 const nueva = () => screen.getByLabelText(T.nueva);
@@ -194,7 +204,7 @@ describe("40B · 05 contraseña cambiada", () => {
     await usuario.click(guardarBoton());
 
     expect(screen.getByRole("status")).toHaveTextContent(T.cambiada);
-    expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso");
+    expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso?motivo=cerrada");
     expect(screen.queryByLabelText(T.nueva)).toBeNull();
     expect(screen.queryByDisplayValue(CLAVE)).toBeNull();
   });
@@ -216,8 +226,92 @@ describe("40B · 05 contraseña cambiada", () => {
       expect(screen.getByRole("alert")).toHaveTextContent(T.sinRevocar);
       expect(screen.queryByText(T.cambiada)).toBeNull();
       expect(botonCerrar()).not.toHaveAttribute("aria-disabled");
-      expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso");
+      // «Ir al login» es un botón: un enlace al login dejaría entrar al panel con la sesión de recuperación abierta.
+      expect(screen.getByRole("button", { name: T.irAlLogin })).toBeVisible();
+      expect(screen.queryByRole("link", { name: T.irAlLogin })).toBeNull();
       expect(screen.queryByDisplayValue(CLAVE)).toBeNull();
+    });
+
+    describe("«Ir al login» (decisión del 22/11, P2 del QA de #111)", () => {
+      const botonIr = () => screen.getByRole("button", { name: new RegExp(`^(${T.irAlLogin}|${T.saliendo})$`) });
+
+      it("cierra la sesión de este navegador y recién ahí va al login con el correo escrito; no entra al panel", async () => {
+        const { salirDeLaRecuperacion, irA, usuario } = await llegarASinRevocar();
+        const orden: string[] = [];
+        salirDeLaRecuperacion.mockImplementation(async () => {
+          orden.push("cerrar");
+          expect(irA).not.toHaveBeenCalled();
+          return { tipo: "ok" };
+        });
+        irA.mockImplementation((ruta) => orden.push(`ir:${ruta}`));
+        await usuario.click(botonIr());
+        expect(orden).toEqual(["cerrar", "ir:/acceso?motivo=cerrada"]);
+        // El correo queda escrito para el login de esta pestaña, y la contraseña nunca viaja.
+        expect(window.sessionStorage.getItem("panel-ultimo-correo")).toBe(CORREO);
+        expect(JSON.stringify({ ...window.sessionStorage, ...window.localStorage })).not.toContain(CLAVE);
+        // Y el destino no es el panel.
+        expect(irA).not.toHaveBeenCalledWith(expect.stringMatching(/^\/(?!acceso)/));
+      });
+
+      it("«Cerrar las otras sesiones» sigue disponible mientras no se haya ido de esa pantalla", async () => {
+        const { cerrarOtras, salirDeLaRecuperacion, usuario } = await llegarASinRevocar();
+        salirDeLaRecuperacion.mockRejectedValueOnce(new Error("se cortó"));
+        await usuario.click(botonIr());
+        expect(botonCerrar()).not.toHaveAttribute("aria-disabled");
+        await usuario.click(botonCerrar());
+        expect(cerrarOtras).toHaveBeenCalledTimes(1);
+      });
+
+      it("un doble toque cierra una sola vez y el botón queda ocupado hasta la respuesta", async () => {
+        const respuesta = diferida<{ tipo: "ok" }>();
+        const { salirDeLaRecuperacion, irA, usuario } = await llegarASinRevocar();
+        salirDeLaRecuperacion.mockReturnValueOnce(respuesta.promesa);
+        await usuario.dblClick(botonIr());
+        expect(salirDeLaRecuperacion).toHaveBeenCalledTimes(1);
+        expect(botonIr()).toHaveAttribute("aria-disabled", "true");
+        expect(botonIr()).toHaveTextContent(T.saliendo);
+        // Ocupado: «Cerrar las otras sesiones» no se pisa con él.
+        expect(botonCerrar()).toHaveAttribute("aria-disabled", "true");
+        await act(async () => respuesta.resolver({ tipo: "ok" }));
+        expect(irA).toHaveBeenCalledTimes(1);
+      });
+
+      it("si el cierre no llega, avisa, no navega y el botón vuelve a habilitarse (a la segunda sale)", async () => {
+        const { salirDeLaRecuperacion, irA, usuario } = await llegarASinRevocar();
+        salirDeLaRecuperacion.mockRejectedValueOnce(new Error("se cortó"));
+        await usuario.click(botonIr());
+        expect(irA).not.toHaveBeenCalled();
+        expect(screen.getByText(T.noPudoSalir)).toBeVisible();
+        expect(botonIr()).not.toHaveAttribute("aria-disabled");
+        expect(botonIr()).toHaveTextContent(T.irAlLogin);
+
+        await usuario.click(botonIr());
+        expect(salirDeLaRecuperacion).toHaveBeenCalledTimes(2);
+        expect(irA).toHaveBeenCalledOnce();
+        expect(screen.queryByText(T.noPudoSalir)).toBeNull();
+      });
+
+      it("dos acciones seguidas: con «Cerrar las otras sesiones» en curso, «Ir al login» espera y no se pierde ninguna", async () => {
+        const cierre = diferida<RespuestaDeCierreDeSesiones>();
+        const { cerrarOtras, salirDeLaRecuperacion, usuario } = await llegarASinRevocar();
+        cerrarOtras.mockReturnValueOnce(cierre.promesa);
+        await usuario.click(botonCerrar());
+        await usuario.click(botonIr());
+        expect(salirDeLaRecuperacion).not.toHaveBeenCalled();
+        expect(botonIr()).toHaveAttribute("aria-disabled", "true");
+        await act(async () => cierre.resolver({ tipo: "ok" }));
+        // El cierre salió bien: es el éxito de siempre, con su enlace al login.
+        expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso?motivo=cerrada");
+      });
+
+      it("sin conexión queda apagado y no llama al servidor", async () => {
+        const { salirDeLaRecuperacion, irA, usuario } = await llegarASinRevocar();
+        sinRed(true);
+        expect(botonIr()).toHaveAttribute("aria-disabled", "true");
+        await usuario.click(botonIr());
+        expect(salirDeLaRecuperacion).not.toHaveBeenCalled();
+        expect(irA).not.toHaveBeenCalled();
+      });
     });
 
     it("el reintento no pide la contraseña y, si sale bien, sigue el éxito de siempre", async () => {
@@ -227,7 +321,7 @@ describe("40B · 05 contraseña cambiada", () => {
       expect(guardar).toHaveBeenCalledTimes(1);
       expect(screen.getByRole("status")).toHaveTextContent(T.cambiada);
       expect(screen.queryByRole("button", { name: T.cerrarOtras })).toBeNull();
-      expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso");
+      expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso?motivo=cerrada");
     });
 
     it("si el reintento sigue sin poder (respuesta o falla de la acción), el aviso queda y el botón se vuelve a habilitar", async () => {
@@ -393,9 +487,9 @@ describe("abrir el enlace del correo", () => {
     const respuesta = diferida<RespuestaDeApertura>();
     const abrir = vi.fn(() => respuesta.promesa);
     const inicial = { paso: "abrir", codigo: "c-doble" } as const;
-    const { unmount } = render(<PantallaNuevaContrasena inicial={inicial} abrir={abrir} guardar={vi.fn()} cerrarOtras={vi.fn()} />);
+    const { unmount } = render(<PantallaNuevaContrasena inicial={inicial} abrir={abrir} guardar={vi.fn()} cerrarOtras={vi.fn()} salirDeLaRecuperacion={vi.fn()} />);
     unmount();
-    render(<PantallaNuevaContrasena inicial={inicial} abrir={abrir} guardar={vi.fn()} cerrarOtras={vi.fn()} />);
+    render(<PantallaNuevaContrasena inicial={inicial} abrir={abrir} guardar={vi.fn()} cerrarOtras={vi.fn()} salirDeLaRecuperacion={vi.fn()} />);
     expect(abrir).toHaveBeenCalledOnce();
     await act(async () => respuesta.resolver({ tipo: "ok", correo: CORREO }));
     expect(screen.getByText(T.para(CORREO))).toBeVisible();
@@ -426,6 +520,28 @@ describe("abrir el enlace del correo", () => {
     primera.unmount();
     montar({ inicial: { paso: "abrir", codigo: "c-usado" }, abrir });
     expect(await screen.findByRole("heading", { level: 1, name: T.tituloNoValido })).toBeVisible();
+  });
+});
+
+describe("40B · contraseña de más de 72 bytes que el servidor rechaza (decisión del 22/11, P1 del QA de #111)", () => {
+  it("el rechazo por largo dice «Es demasiado larga. Acortala.» y no «No pudimos guardar la contraseña»; lo escrito queda y el aviso se va al cambiarla", async () => {
+    const { guardar } = montar();
+    guardar.mockResolvedValueOnce({ tipo: "contrasena-larga" });
+    const usuario = userEvent.setup();
+    await escribir(usuario);
+    await usuario.click(guardarBoton());
+
+    expect(screen.getByRole("alert")).toHaveTextContent(T.demasiadaLarga);
+    expect(screen.queryByText(T.errorAlGuardar)).toBeNull();
+    expect(nueva()).toHaveAttribute("aria-invalid", "true");
+    expect(nueva()).toHaveValue(CLAVE);
+    expect(nueva()).toHaveFocus();
+    // El botón no queda trabado.
+    expect(guardarBoton()).toHaveTextContent(T.guardar);
+    expect(guardarBoton()).not.toHaveAttribute("aria-disabled");
+
+    await usuario.type(nueva(), "x");
+    expect(screen.queryByText(T.demasiadaLarga)).toBeNull();
   });
 });
 
