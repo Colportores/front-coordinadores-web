@@ -35,7 +35,7 @@ const abrirFila = async () => {
 
 describe("PR #104 · texto literal de la decisión del 25/10", () => {
   it("«Sincronizó el 22/10 a las 18:30» sale con ese texto exacto (día/mes, 24 h, sin año ni «hs»)", async () => {
-    render(<StockVista datos={datos(col("ana", "Ana", "2026-10-22T21:30:00Z"))} />);
+    render(<StockVista vistaInicial="producto" datos={datos(col("ana", "Ana", "2026-10-22T21:30:00Z"))} />);
     const quien = await abrirFila();
     expect(within(quien).getByText("Sincronizó el 22/10 a las 18:30")).toBeInTheDocument();
   });
@@ -66,7 +66,7 @@ describe("PR #104 · texto literal de la decisión del 25/10", () => {
 
 describe("PR #104 · la fila abierta con la línea nueva", () => {
   it("el nombre sigue siendo el encabezado de fila y la fecha vive en el mismo encabezado (se lee junto al número)", async () => {
-    render(<StockVista datos={datos(col("ana", "Ana Pérez", "2026-10-22T21:30:00Z"))} />);
+    render(<StockVista vistaInicial="producto" datos={datos(col("ana", "Ana Pérez", "2026-10-22T21:30:00Z"))} />);
     const quien = await abrirFila();
     const cabecera = within(quien).getByRole("rowheader", { name: /^Ana Pérez/ });
     expect(cabecera).toHaveTextContent("Ana Pérez");
@@ -80,6 +80,7 @@ describe("PR #104 · la fila abierta con la línea nueva", () => {
   it("dos colportores con fechas distintas y uno sin dato: cada fila lleva la suya, sin cruzarse", async () => {
     render(
       <StockVista
+        vistaInicial="producto"
         datos={datos(col("ana", "Ana", "2026-10-22T21:30:00Z"), col("beto", "Beto", "2026-10-19T13:05:00Z"), col("cris", "Cris", null))}
       />,
     );
@@ -91,13 +92,13 @@ describe("PR #104 · la fila abierta con la línea nueva", () => {
   });
 
   it("un colportor sin existencias (tiene 0) no aparece, así que tampoco su fecha (no se inventa una fila)", async () => {
-    render(<StockVista datos={datos(col("ana", "Ana", "2026-10-22T21:30:00Z"), col("cero", "Cero", "2026-10-20T12:00:00Z", 0))} />);
+    render(<StockVista vistaInicial="producto" datos={datos(col("ana", "Ana", "2026-10-22T21:30:00Z"), col("cero", "Cero", "2026-10-20T12:00:00Z", 0))} />);
     const quien = await abrirFila();
     expect(within(quien).queryByText(/^Cero/)).toBeNull();
   });
 
   it("la línea no agrega plata ni datos de clientes: solo la fecha (R-RP01)", async () => {
-    render(<StockVista datos={datos(col("ana", "Ana", "2026-10-22T21:30:00Z"))} />);
+    render(<StockVista vistaInicial="producto" datos={datos(col("ana", "Ana", "2026-10-22T21:30:00Z"))} />);
     const quien = await abrirFila();
     expect(quien.textContent).not.toMatch(/\$|UYU|cliente/i);
   });

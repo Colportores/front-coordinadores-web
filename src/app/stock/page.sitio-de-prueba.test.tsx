@@ -31,6 +31,6 @@ describe("PestanaStock en el build del sitio de prueba (export estático, sin se
 
     expect(screen.getByRole("heading", { level: 1, name: "Stock" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Todas las ciudades" })).toBeInTheDocument();
-    expect(screen.getByRole("table", { name: "Stock por producto en Todas las ciudades" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Stock por colportor en Todas las ciudades" })).toBeInTheDocument();
   });
 });

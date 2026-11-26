@@ -12,8 +12,11 @@ import { reglasDeContrasena } from "@/features/acceso/validacion";
  * - **Pedir el enlace** nunca revela si el correo tiene cuenta (OWASP): el límite de pedidos y la dirección que el servidor no
  *   acepta para mandar correos se tratan igual que un envío (HU-AUTH-004, «el rechazo se enmascara»). Solo una falla del servicio
  *   o de la red se dice como tal.
- * - **Abrir el enlace** canjea el código de la URL por una sesión de recuperación. Vencido, ya usado o abierto en otro navegador
- *   (sin el verificador PKCE) es una sola respuesta, `no-valido`: Supabase no deja distinguirlos y no se adivina.
+ * - **Abrir el enlace** canjea el código de la URL por una sesión de recuperación. Hay dos clases de enlace (#217): el de la
+ *   plantilla de correo nueva lleva un código de un solo uso (`token_hash`) que se canjea con `verifyOtp` y abre en CUALQUIER
+ *   navegador, sin depender del verificador PKCE del que pidió el correo; el `?code=` de los correos viejos (PKCE) sigue
+ *   canjeándose con `exchangeCodeForSession` mientras no venza. Vencido, ya usado o (solo el PKCE) abierto en otro navegador es una
+ *   sola respuesta, `no-valido`: Supabase no deja distinguirlos y no se adivina.
  * - **Guardar la contraseña** la cambia y cierra TODAS las sesiones de la cuenta (HU-AUTH-005): el panel no entra directo, pasa
  *   por el login.
  */
@@ -59,19 +62,39 @@ export async function pedirEnlace(
 export type ResultadoDeAbrir =
   /** Hay una sesión de recuperación abierta (cookie `httpOnly`). `correo` es el de la cuenta: se nombra en la pantalla. */
   | { tipo: "ok"; correo: string; usuarioId: string }
-  /** Vencido, ya usado, abierto en otro navegador o sin código: una sola respuesta. */
-  | { tipo: "no-valido" }
+  /**
+   * Vencido, ya usado o sin código: una sola respuesta. `sinVerificador` es el caso aparte de un `?code=` PKCE viejo abierto en
+   * un navegador que no lo pidió (falta el verificador): ahí sí se sabe por qué falló y la pantalla lo dice (decisión P2 de #217).
+   */
+  | { tipo: "no-valido"; sinVerificador?: true }
   /** No se pudo comprobar (sin red, servicio caído): no es lo mismo que un enlace vencido. */
   | { tipo: "no-disponible" };
 
-/** Canjea el código del enlace del correo por una sesión de recuperación. */
-export async function abrirEnlace(supabase: SupabaseClient, codigo: string, tiempoMaximoMs: number = TIEMPO_MAXIMO_MS): Promise<ResultadoDeAbrir> {
+/** La clase de código que trae el enlace: `pkce` (`?code=`, correos viejos) o `un-solo-uso` (`?token_hash=`, la plantilla nueva). */
+export type TipoDeEnlace = "pkce" | "un-solo-uso";
+
+/**
+ * Canjea el código del enlace del correo por una sesión de recuperación. El de un solo uso (`token_hash` + `type=recovery`) se
+ * verifica con `verifyOtp`: no necesita el verificador PKCE, así que sirve en un navegador distinto del que pidió el correo.
+ */
+export async function abrirEnlace(
+  supabase: SupabaseClient,
+  codigo: string,
+  tiempoMaximoMs: number = TIEMPO_MAXIMO_MS,
+  tipo: TipoDeEnlace = "pkce",
+): Promise<ResultadoDeAbrir> {
   const fallo: ResultadoDeAbrir = { tipo: "no-disponible" };
   return conTiempoMaximo<ResultadoDeAbrir>(
     (async () => {
       try {
-        const { data, error } = await supabase.auth.exchangeCodeForSession(codigo);
-        if (error) return esDelServicio(error) || error.status === 429 ? fallo : { tipo: "no-valido" };
+        const { data, error } =
+          tipo === "un-solo-uso"
+            ? await supabase.auth.verifyOtp({ token_hash: codigo, type: "recovery" })
+            : await supabase.auth.exchangeCodeForSession(codigo);
+        if (error) {
+          if (esDelServicio(error) || error.status === 429) return fallo;
+          return error.name === "AuthPKCECodeVerifierMissingError" ? { tipo: "no-valido", sinVerificador: true } : { tipo: "no-valido" };
+        }
         const usuario = data.session?.user;
         if (!usuario?.email) return { tipo: "no-valido" };
         return { tipo: "ok", correo: usuario.email, usuarioId: usuario.id };

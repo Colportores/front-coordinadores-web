@@ -18,7 +18,7 @@ async function violaciones(raiz: Element) {
 
 describe("retoque 42B · accesibilidad (axe A/AA, sin contraste)", () => {
   it("con el aviso de pedidos, el número en la pestaña y la fila abierta con enlaces y ajustes", async () => {
-    const { container } = render(<StockVista datos={crearDatosDeStockSimulados()} acciones={crearAccionesSimuladas()} />);
+    const { container } = render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} acciones={crearAccionesSimuladas()} />);
     await userEvent.click(within(screen.getByRole("navigation", { name: "Ciudades" })).getByRole("button", { name: /^Rivera/ }));
     await userEvent.click(within(screen.getByRole("table", { name: /^Stock por producto/ })).getByRole("button", { name: /El Deseado de Todas las Gentes/ }));
     expect(screen.getByRole("list", { name: /^Ajustes de stock de/ })).toBeInTheDocument();
@@ -26,7 +26,7 @@ describe("retoque 42B · accesibilidad (axe A/AA, sin contraste)", () => {
   });
 
   it("el formulario de «Pedir transferencia de materiales», vacío, con errores y con el aviso de lo armado", async () => {
-    const { container } = render(<StockVista datos={crearDatosDeStockSimulados()} acciones={crearAccionesSimuladas()} />);
+    const { container } = render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} acciones={crearAccionesSimuladas()} />);
     await userEvent.click(screen.getByRole("button", { name: "Pedir transferencia de materiales" }));
     expect(await violaciones(container)).toEqual([]);
 
@@ -44,7 +44,7 @@ describe("retoque 42B · accesibilidad (axe A/AA, sin contraste)", () => {
   });
 
   it("los botones y los campos nuevos miden al menos 32 px de alto (objetivo táctil AA)", async () => {
-    const { container } = render(<StockVista datos={crearDatosDeStockSimulados()} acciones={crearAccionesSimuladas()} />);
+    const { container } = render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} acciones={crearAccionesSimuladas()} />);
     await userEvent.click(screen.getByRole("button", { name: "Pedir transferencia de materiales" }));
     for (const control of container.querySelectorAll("button, select, input")) {
       expect(control.className, control.getAttribute("aria-label") ?? control.textContent ?? "").toMatch(/min-h-8|min-h-9|min-h-10|size-8/);

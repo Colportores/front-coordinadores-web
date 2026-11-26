@@ -20,7 +20,7 @@ import { normalizarCorreo, problemaDeCorreo, reglasDeContrasena } from "@/featur
 
 export type RespuestaDelPedido = { tipo: "enviado" } | { tipo: "correo-invalido" } | { tipo: "no-disponible" };
 
-export type RespuestaDeApertura = { tipo: "ok"; correo: string } | { tipo: "no-valido" } | { tipo: "no-disponible" };
+export type RespuestaDeApertura = { tipo: "ok"; correo: string } | { tipo: "no-valido"; sinVerificador?: true } | { tipo: "no-disponible" };
 
 export type RespuestaDeGuardado =
   | { tipo: "ok" }
@@ -58,11 +58,12 @@ export async function pedirEnlaceAccion(correo: unknown): Promise<RespuestaDelPe
   }, piso.pedidoMs);
 }
 
-export async function abrirEnlaceAccion(codigo: unknown): Promise<RespuestaDeApertura> {
+/** `tipo` llega del navegador: lo que no es «un-solo-uso» se trata como el `?code=` de siempre (PKCE). */
+export async function abrirEnlaceAccion(codigo: unknown, tipo?: unknown): Promise<RespuestaDeApertura> {
   if (typeof codigo !== "string" || codigo === "" || codigo.length > LARGO_MAXIMO_DEL_CODIGO) return { tipo: "no-valido" };
   if (modoDeAcceso() !== "activo") return { tipo: "no-disponible" };
   try {
-    const resultado = await abrirEnlace(await crearSupabaseDeServidor(), codigo);
+    const resultado = await abrirEnlace(await crearSupabaseDeServidor(), codigo, undefined, tipo === "un-solo-uso" ? "un-solo-uso" : "pkce");
     if (resultado.tipo !== "ok") return resultado;
     await ponerMarcaDeRecuperacion(resultado.usuarioId);
     return { tipo: "ok", correo: resultado.correo };

@@ -19,7 +19,7 @@ export const TEXTOS_DE_OLVIDE = {
   /** 40A-05: la respuesta es la misma tenga o no cuenta ese correo (no se revela si existe). */
   tituloEnviado: "Revisá tu correo",
   textoEnviado: (correo: string) =>
-    `Si ${correo} tiene una cuenta de coordinador, te mandamos un enlace para elegir una contraseña nueva. Si no lo encontrás, mirá la carpeta de spam.`,
+    `Si ${correo} tiene una cuenta, te mandamos un enlace para elegir una contraseña nueva. Si no lo encontrás, mirá la carpeta de spam.`,
   reenviarEn: (segundos: number) => `Reenviar en ${segundos} s`,
   /** Sin artboard: pasados los 60 s el botón de la pantalla 05 vuelve a servir. */
   reenviar: "Reenviar enlace",
@@ -64,9 +64,14 @@ export const TEXTOS_DE_NUEVA_CONTRASENA = {
   sinRevocar: "Cambiaste la contraseña, pero no pudimos cerrar las otras sesiones de tu cuenta. Probá de nuevo.",
   cerrarOtras: "Cerrar las otras sesiones",
   cerrandoOtras: "Cerrando…",
-  /** 40B-06: una sola pantalla para vencido, ya usado y otro navegador (HU-AUTH-005); el texto no afirma el motivo (decisión P3). */
+  /**
+   * 40B-06: una sola pantalla para vencido y ya usado (HU-AUTH-005), con el banner del canvas. Desde #217 el enlace abre en cualquier
+   * navegador (Cristian, «Enlace otro n», 24/11), así que ya no se manda a «abrirlo donde lo pediste» (decisión P2 de #217).
+   */
   tituloNoValido: "Enlace no válido",
-  noValido: "No pudimos abrir este enlace en este navegador. Abrilo en el navegador donde lo pediste, o pedí uno nuevo desde acá.",
+  noValido: "Este enlace ya no sirve: venció o ya se usó. Solicitá uno nuevo.",
+  /** Solo para un enlace viejo con `?code=` (PKCE) abierto en un navegador que no lo pidió: ahí sí se sabe por qué falló (decisión P2 de #217). */
+  noValidoSinVerificador: "No pudimos abrir este enlace en este navegador. Abrilo en el navegador donde lo pediste, o pedí uno nuevo desde acá.",
   solicitarNuevo: "Solicitar un enlace nuevo",
   /** 40B-07 */
   errorAlGuardar: "No pudimos guardar la contraseña. Probá de nuevo.",

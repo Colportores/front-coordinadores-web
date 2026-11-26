@@ -88,6 +88,16 @@ describe("40A · 01 pedir el enlace", () => {
     expect(screen.queryByLabelText(T.correo)).toBeNull();
     expect(window.localStorage.getItem("panel-recuperacion-ultimo-envio")).not.toBeNull();
   });
+
+  it("#217: el texto de «Revisá tu correo» vale para toda cuenta: «Si <correo> tiene una cuenta, …», sin decir de qué rol", async () => {
+    montar();
+    const usuario = userEvent.setup();
+    await usuario.type(campo(), CORREO);
+    await usuario.click(boton());
+    const texto = screen.getByText(/^Si .* tiene una cuenta, te mandamos un enlace para elegir una contraseña nueva\./);
+    expect(texto).toHaveTextContent(`Si ${CORREO} tiene una cuenta, te mandamos un enlace para elegir una contraseña nueva. Si no lo encontrás, mirá la carpeta de spam.`);
+    expect(texto).not.toHaveTextContent(/coordinador/);
+  });
 });
 
 describe("40A · 02 correo vacío", () => {

@@ -47,6 +47,8 @@ const CLASE_ACCION =
 /** Cuántos avisos de «Armaste la transferencia…» quedan a la vista: las últimas, para que la segunda no tape a la primera. */
 const MAXIMO_DE_AVISOS = 3;
 
+type VistaDeLaTabla = "producto" | "colportor";
+
 interface AvisoDeTransferencia {
   id: number;
   texto: string;
@@ -62,16 +64,26 @@ function textoVacio(titulo: string, esTodas: boolean, sinProductos: boolean): st
 /**
  * Vista 34 (HU-STK-010): el stock de la campaña por ciudad. A la izquierda la lista de ciudades por departamento (que se
  * contrae); a la derecha las tarjetas por tipo, los avisos de pedidos por autorizar, de producto agotado o que no alcanza y la
- * tabla por producto, donde cada fila se abre para ver quién lo tiene (con su «Ver en Cuentas →») y los ajustes que cargó la
- * colportora. Es de lectura: cambiar de ciudad o abrir una fila no pide nada al servidor. Lo único que escribe es «Pedir
+ * tabla, que abre por colportor (42B·01) y a un toque pasa a «Por producto» (la 34), donde cada fila se abre para ver quién lo
+ * tiene (con su «Ver en Cuentas →») y los ajustes que cargó la colportora. Es de lectura: cambiar de ciudad o abrir una fila no pide nada al servidor. Lo único que escribe es «Pedir
  * transferencia de materiales», por `acciones` y una a la vez (sin `acciones`, la vista es solo de lectura y el botón no está).
  */
-export function StockVista({ datos, acciones }: { datos: DatosDeStock; acciones?: AccionesDeStock }) {
+export function StockVista({
+  datos,
+  acciones,
+  vistaInicial = "colportor",
+}: {
+  datos: DatosDeStock;
+  acciones?: AccionesDeStock;
+  /** Cómo abre la tabla: «colportor» (42B·01, desde el 24/11) o «producto» (la 34). Lo normal es no pasarlo. */
+  vistaInicial?: VistaDeLaTabla;
+}) {
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_TODAS);
   const [listaAbierta, setListaAbierta] = useState(true);
   const [abiertas, setAbiertas] = useState<ReadonlySet<string>>(new Set());
-  // Cómo se mira la tabla: producto por producto (la 34) o colportor por colportor (42B·01).
-  const [vista, setVista] = useState<"producto" | "colportor">("producto");
+  // Cómo se mira la tabla: colportor por colportor (42B·01, la que abre desde el 24/11, «Stock 42B», #217) o producto por producto
+  // (la 34, a un toque en «Por producto»).
+  const [vista, setVista] = useState<VistaDeLaTabla>(vistaInicial);
   const [pidiendo, setPidiendo] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [errorDeTransferencia, setErrorDeTransferencia] = useState<string | null>(null);

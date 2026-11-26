@@ -38,16 +38,34 @@ const nueva = () => screen.getByLabelText(TN.nueva);
 const repetida = () => screen.getByLabelText(TN.repetida);
 const guardarBoton = () => screen.getByRole("button", { name: new RegExp(`^(${TN.guardar}|${TN.guardando}|${TN.reintentar})$`) });
 
-describe("QA #111 · decisión P3 (22/11): el aviso del enlace que no se pudo abrir en este navegador", () => {
-  it("el enlace no válido dice el texto de la decisión P3 (22/11) y no afirma «venció o ya se usó»", () => {
+describe("#217 · decisión P2: el aviso del enlace no válido", () => {
+  it("el enlace no válido dice el texto del canvas 40B·06 y ya no culpa al navegador", () => {
     montarNueva({ inicial: { paso: "no-valido" } });
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "No pudimos abrir este enlace en este navegador. Abrilo en el navegador donde lo pediste, o pedí uno nuevo desde acá.",
-    );
-    expect(screen.queryByText(/venció|ya se usó/)).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent("Este enlace ya no sirve: venció o ya se usó. Solicitá uno nuevo.");
+    expect(screen.queryByText(/navegador/)).toBeNull();
     // La salida sigue: pedir uno nuevo y volver al login.
     expect(screen.getByRole("link", { name: TN.solicitarNuevo })).toHaveAttribute("href", "/acceso/olvide");
     expect(screen.getByRole("link", { name: TN.volverAlLogin })).toHaveAttribute("href", "/acceso");
+  });
+
+  it("un `?code=` viejo sin el verificador PKCE de este navegador conserva el texto del 22/11 (ahí sí se sabe por qué)", async () => {
+    const abrir = vi.fn(async (): Promise<RespuestaDeApertura> => ({ tipo: "no-valido", sinVerificador: true }));
+    montarNueva({ inicial: { paso: "abrir", codigo: "c-viejo" }, abrir });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No pudimos abrir este enlace en este navegador. Abrilo en el navegador donde lo pediste, o pedí uno nuevo desde acá.",
+    );
+  });
+
+  it("un código de un solo uso se canjea con su tipo y un código viejo, con un solo argumento", async () => {
+    const abrir = vi.fn<PropiedadesDeNuevaContrasena["abrir"]>(async () => ({ tipo: "ok", correo: CORREO }));
+    const { unmount } = montarNueva({ inicial: { paso: "abrir", codigo: "hash-1", tipo: "un-solo-uso" }, abrir });
+    expect(await screen.findByText(TN.para(CORREO))).toBeVisible();
+    expect(abrir).toHaveBeenCalledWith("hash-1", "un-solo-uso");
+    unmount();
+    const abrirViejo = vi.fn<PropiedadesDeNuevaContrasena["abrir"]>(async () => ({ tipo: "ok", correo: CORREO }));
+    montarNueva({ inicial: { paso: "abrir", codigo: "c-viejo-2" }, abrir: abrirViejo });
+    expect(await screen.findByText(TN.para(CORREO))).toBeVisible();
+    expect(abrirViejo).toHaveBeenCalledWith("c-viejo-2");
   });
 });
 

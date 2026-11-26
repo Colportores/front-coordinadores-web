@@ -1,5 +1,6 @@
 import { claveDe, type CambioDePrecio, type DatosDePrecios, type ItemDePrecio } from "@/datos/precios";
 import { formatMonto } from "@/features/cuentas/formato";
+import { coincidenciasPorNombre } from "@/lib/buscar-ciudades";
 
 /**
  * Lógica pura de la vista 27 (precios: general y excepciones por ciudad, HU-CAT-005). Sin React: se prueba sola.
@@ -493,6 +494,29 @@ export function armarPestanas(datos: DatosDePrecios, borradores: BorradoresPorCi
       sinGuardar: resumirBorrador(datos, c.id, borradores[c.id] ?? {}).cambios.length,
     })),
   ];
+}
+
+/** Las pestañas de las ciudades (todas menos «General»). */
+export function pestanasDeCiudades(pestanas: readonly PestanaDePrecios[]): PestanaDePrecios[] {
+  return pestanas.filter((p) => p.id !== ID_PESTANA_GENERAL);
+}
+
+/**
+ * Las pestañas que se dibujan mientras se busca una ciudad (#217): «General» siempre, la pestaña abierta aunque no coincida
+ * (no se pierde de vista cuál es; si coincide, queda en su lugar para que las flechas no la muevan) y las ciudades que coinciden, con la regla de Ciudades (#189): primero las que empiezan con lo
+ * escrito y después las que lo contienen, cada grupo A-Z. Una ciudad con cambios sin guardar no desaparece aunque no coincida:
+ * va al final, para que el aviso «N sin guardar» no se pierda de vista. Sin texto: todas, en el orden de la fuente.
+ */
+export function pestanasVisibles(pestanas: readonly PestanaDePrecios[], texto: string, activa: string): PestanaDePrecios[] {
+  if (texto.trim() === "") return [...pestanas];
+  const ciudades = pestanasDeCiudades(pestanas);
+  const coinciden = coincidenciasPorNombre(ciudades, texto, (p) => p.id);
+  const abierta = ciudades.find((p) => p.id === activa);
+  const general = pestanas.filter((p) => p.id === ID_PESTANA_GENERAL);
+  const abiertaFuera = abierta && !coinciden.some((p) => p.id === abierta.id) ? [abierta] : [];
+  const principales = [...general, ...abiertaFuera, ...coinciden];
+  const yaEstan = new Set(principales.map((p) => p.id));
+  return [...principales, ...ciudades.filter((p) => p.sinGuardar > 0 && !yaEstan.has(p.id))];
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
