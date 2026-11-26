@@ -7,7 +7,8 @@ import { crearDatosDeStockSimulados } from "@/datos/stock/simulado";
 
 import { StockVista } from "./StockVista";
 
-const simulados = () => crearDatosDeStockSimulados();
+// Sin los pedidos por autorizar: el canvas 34 no dibuja ese aviso (es del retoque 42B, con su propio test).
+const simulados = () => ({ ...crearDatosDeStockSimulados(), pedidosPorAutorizar: [] });
 
 const ex = (productoId: string, tiene: number, porEntregar = 0): ExistenciaDeStock => ({ productoId, tiene, porEntregar, entregados: 0, devueltos: 0, porCobrar: 0 });
 const col = (id: string, ciudadId: string | null, ...existencias: ExistenciaDeStock[]): ColportorDeStock => ({ id, nombre: id, ciudadId, ultimoDatoAt: null, existencias });
@@ -75,8 +76,8 @@ describe("StockVista", () => {
       const detalle = screen.getByRole("table", { name: "Quién tiene Libro uno en Todas las ciudades" });
       const filas = within(detalle).getAllByRole("row").slice(1);
       expect(filas.map((f) => [...f.querySelectorAll("th span:first-child, td")].map((c) => c.textContent))).toEqual([
-        ["ana", "3", "0", "1.500", "1.234", "2"],
-        ["beto", "1", "0", "4", "0", "0"],
+        ["ana", "3", "0", "1.500", "1.234", "2", "Ver en Cuentas →"],
+        ["beto", "1", "0", "4", "0", "0", "Ver en Cuentas →"],
       ]);
       expect(within(filas[1]).getAllByRole("cell")[3].firstElementChild).toHaveClass("text-tinta-suave");
     });
@@ -162,6 +163,7 @@ describe("StockVista", () => {
         "ENTREGADOS",
         "DEVUELTOS",
         "POR COBRAR",
+        "CUENTAS",
       ]);
       const filas = within(detalle).getAllByRole("row").slice(1);
       expect(filas.map((f) => f.querySelector("th span")?.textContent)).toEqual([
@@ -276,18 +278,20 @@ describe("StockVista", () => {
       expect(screen.getByRole("link", { name: "Ver pedidos de Misioneros · todos" })).toHaveAttribute("href", "/stock/pedidos");
     });
 
-    it("«Pedidos y transferencias →» lleva a la vista 35", () => {
+    it("las pastillas «Pedidos» y «Transferencias» llevan a la vista 35, con «Stock» como la actual (42B·01)", () => {
       render(<StockVista datos={simulados()} />);
 
-      expect(screen.getByRole("link", { name: "Pedidos y transferencias →" })).toHaveAttribute("href", "/stock/pedidos");
+      const secciones = screen.getByRole("navigation", { name: "Secciones de Stock" });
+      expect(within(secciones).getByText("Stock")).toHaveAttribute("aria-current", "page");
+      expect(within(secciones).getByRole("link", { name: "Pedidos" })).toHaveAttribute("href", "/stock/pedidos");
+      expect(within(secciones).getByRole("link", { name: "Transferencias" })).toHaveAttribute("href", "/stock/pedidos?pestana=transferencias");
     });
 
-    it("«Precios de venta →» lleva a la vista 27, junto al de pedidos", () => {
+    it("«Precios de venta →» lleva a la vista 27", () => {
       render(<StockVista datos={simulados()} />);
 
       const otras = screen.getByRole("navigation", { name: "Otras vistas de stock" });
       expect(within(otras).getByRole("link", { name: "Precios de venta →" })).toHaveAttribute("href", "/stock/precios");
-      expect(within(otras).getByRole("link", { name: "Pedidos y transferencias →" })).toHaveAttribute("href", "/stock/pedidos");
     });
 
     it("sin avisos no hay franja", async () => {

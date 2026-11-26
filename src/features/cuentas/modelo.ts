@@ -1,4 +1,5 @@
 import type {
+  AnulacionDeCobro,
   CiudadDeCuentas,
   ColportorDeCuentas,
   DatosDeCuentas,
@@ -7,6 +8,7 @@ import type {
   TicketDeCuentas,
 } from "@/datos/cuentas";
 import { textoFechaDeTicket } from "@/datos/cuentas/fechas";
+import { tieneCobroAnulado } from "@/features/cuentas/anular-cobro";
 import { formatMonto } from "@/features/cuentas/formato";
 import {
   alquilerDecidible,
@@ -175,7 +177,7 @@ export function ticketsDe(datos: DatosDeCuentas, seleccion: Seleccion, colportor
 }
 
 export function pendientesDe(datos: DatosDeCuentas, seleccion: Seleccion): FilaDeTicket[] {
-  return ticketsDe(datos, seleccion, "").filter((f) => f.ticket.estado === "PENDIENTE");
+  return ticketsDe(datos, seleccion, "").filter((f) => f.ticket.estado === "PENDIENTE" && !tieneCobroAnulado(f.ticket));
 }
 
 export function textoDeMedio(t: TicketDeCuentas): string {
@@ -197,6 +199,7 @@ export function textoDeNumero(t: TicketDeCuentas): string {
 export const textoDeDestino = (destino: DestinoDeTicket) => (destino === "alquiler" ? "Alquiler" : "Casa editora");
 
 export function textoDeEstado(t: TicketDeCuentas): string {
+  if (tieneCobroAnulado(t)) return "Cobro anulado";
   if (t.anulado) return "Devuelto al colportor";
   if (t.estado === "PENDIENTE") return "Por validar";
   if (t.estado === "RECHAZADO") return t.motivoRechazo ? `Rechazado · ${t.motivoRechazo}` : "Rechazado";
@@ -256,7 +259,7 @@ export function filasDe(datos: DatosDeCuentas, seleccion: Seleccion): FilaDeCuen
   const ultimo = new Map<string, string | null>();
   const ultimoAlquiler = new Map<string, string | null>();
   for (const t of datos.tickets) {
-    if (t.estado !== "VALIDADO") continue;
+    if (t.estado !== "VALIDADO" || tieneCobroAnulado(t)) continue;
     ultimo.set(t.colportorId, masReciente(ultimo.get(t.colportorId) ?? null, t.fecha));
     if (t.destino === "alquiler") ultimoAlquiler.set(t.colportorId, masReciente(ultimoAlquiler.get(t.colportorId) ?? null, t.fecha));
   }
@@ -423,9 +426,9 @@ export function kpisDeAlquiler(todas: FilaDeCuenta[], alquiler: number): Kpi[] {
 
 export function kpisDeTickets(tickets: FilaDeTicket[]): Kpi[] {
   // Un pago devuelto al colportor (anulado) queda como historia: no cuenta como validado, igual que en «Depositado».
-  const validados = tickets.filter((f) => f.ticket.estado === "VALIDADO" && !f.ticket.anulado);
+  const validados = tickets.filter((f) => f.ticket.estado === "VALIDADO" && !f.ticket.anulado && !tieneCobroAnulado(f.ticket));
   return [
-    { rotulo: "POR VALIDAR", valor: String(tickets.filter((f) => f.ticket.estado === "PENDIENTE").length), extra: "", detalle: "se validan en «Validar tickets»" },
+    { rotulo: "POR VALIDAR", valor: String(tickets.filter((f) => f.ticket.estado === "PENDIENTE" && !tieneCobroAnulado(f.ticket)).length), extra: "", detalle: "se validan en «Validar tickets»" },
     {
       rotulo: "VALIDADOS",
       valor: String(validados.length),
@@ -546,6 +549,36 @@ export function aplicarTicket(datos: DatosDeCuentas, ticket: TicketDeCuentas): D
       : datos.colportores,
   };
   return acredita && ticket.destino === "alquiler" ? moverTraslados(datos, conTicket) : conTicket;
+}
+
+/**
+ * Anula el cobro de un ticket (`anular_cobro`, vista 39): el ticket queda anulado y, si estaba validado, deja de acreditar:
+ * baja «Depositado», el saldo de la venta vuelve a «Por cobrar» y, según el destino, la deuda con la casa editora sube (primero
+ * se quita de lo que había quedado «a favor») o el alquiler pagado baja (con su traslado). Sin cobro o ya anulado, no toca nada.
+ */
+export function aplicarAnulacion(datos: DatosDeCuentas, ticketId: string, anulacion: AnulacionDeCobro): DatosDeCuentas {
+  const ticket = datos.tickets.find((t) => t.id === ticketId);
+  if (!ticket?.cobro || ticket.cobro.anulado) return datos;
+  const anulado: TicketDeCuentas = { ...ticket, cobro: { ...ticket.cobro, anulado: anulacion } };
+  const conTicket: DatosDeCuentas = { ...datos, tickets: datos.tickets.map((t) => (t.id === ticketId ? anulado : t)) };
+  // Solo un pago validado y vigente había acreditado algo; uno por validar, rechazado o ya devuelto no mueve la plata.
+  if (ticket.estado !== "VALIDADO" || ticket.anulado) return conTicket;
+  const casaEditora = ticket.destino === "casa-editora";
+  const conPlata: DatosDeCuentas = {
+    ...conTicket,
+    colportores: datos.colportores.map((c) => {
+      if (c.id !== ticket.colportorId) return c;
+      const delFavor = casaEditora ? Math.min(c.aFavor ?? 0, ticket.monto) : 0;
+      return {
+        ...c,
+        depositado: Math.max(0, c.depositado - ticket.monto),
+        porCobrar: c.porCobrar + ticket.monto,
+        deuda: casaEditora ? c.deuda + ticket.monto - delFavor : c.deuda,
+        ...(casaEditora ? conFavor(c, (c.aFavor ?? 0) - delFavor) : {}),
+      };
+    }),
+  };
+  return casaEditora ? conPlata : moverTraslados(datos, conPlata);
 }
 
 /**

@@ -7,12 +7,16 @@ import type {
   DestinoDeAlquiler,
   FuenteDatosCuentas,
   MedioDeTicket,
+  MotivoDeAnulacion,
   ResultadoDeAccion,
+  ResultadoDeAnulacion,
   ResultadoDeDecision,
   TicketDeCuentas,
 } from "@/datos/cuentas/contrato";
+import { MOTIVOS_DE_ANULACION } from "@/datos/cuentas/contrato";
 import { instanteHaceDias } from "@/datos/cuentas/fechas";
-import { aplicarAlquiler, aplicarDecision } from "@/features/cuentas/modelo";
+import { limiteDeAnulacion } from "@/features/cuentas/anular-cobro";
+import { aplicarAlquiler, aplicarAnulacion, aplicarDecision } from "@/features/cuentas/modelo";
 import { alquilerDecidible, hayPagosDeAlquiler, TEXTO_ALQUILER_CON_PAGOS } from "@/features/cuentas/por-decidir";
 import { generadorDeAzar } from "@/lib/azar";
 
@@ -92,6 +96,11 @@ const TARJETAS: Array<{ medio: MedioDeTicket; entidad: string }> = [
   { medio: "tarjeta-debito", entidad: "Mastercard" },
 ];
 
+/** Un ticket de tarjeta es el de un cobro (`cobranza`): lleva su id y la fecha en que se registró (vista 39). */
+function conCobro(ticketId: string, medio: MedioDeTicket, fecha: string): Pick<TicketDeCuentas, "cobro"> {
+  return medio === "tarjeta-debito" || medio === "tarjeta-credito" ? { cobro: { id: `cobro-${ticketId}`, fecha } } : {};
+}
+
 function armarColportor(
   ciudad: CiudadDeCuentas,
   nombre: string,
@@ -114,12 +123,14 @@ function armarColportor(
     resto: Pick<TicketDeCuentas, "fecha" | "monto" | "destino" | "medio"> & Partial<Pick<TicketDeCuentas, "entidad" | "numero">>,
   ) => {
     n += 1;
+    const ticketId = `${id}-${n}`;
     tickets.push({
-      id: `${id}-${n}`,
+      id: ticketId,
       colportorId: id,
       estado: "VALIDADO",
       tieneFoto: resto.medio !== "retiro-coordinador",
       ...resto,
+      ...conCobro(ticketId, resto.medio, resto.fecha),
     });
   };
   const comoLlego = (): Pick<TicketDeCuentas, "medio" | "entidad" | "numero"> => {
@@ -186,6 +197,7 @@ export function armarCuentasSimuladas(ahora: Date = new Date()): DatosDeCuentas 
       destino: "casa-editora",
       estado: "PENDIENTE",
       tieneFoto: true,
+      cobro: { id: "cobro-sofia-cabral-por-validar", fecha: instanteHaceDias(ahoraIso, 0, 9, 15) },
     },
     {
       id: "bruno-techera-rechazado",
@@ -201,6 +213,7 @@ export function armarCuentasSimuladas(ahora: Date = new Date()): DatosDeCuentas 
       tieneFoto: true,
     },
   );
+  tickets.push(...cobrosDeEjemplo(ahoraIso));
   return conAlquilerPorDecidir({
     campaniaId: "campania-simulada",
     ahora: ahoraIso,
@@ -209,6 +222,34 @@ export function armarCuentasSimuladas(ahora: Date = new Date()): DatosDeCuentas 
     colportores,
     tickets,
   });
+}
+
+/**
+ * Los cobros que deja a la vista la vista 39 en Rivera: uno validado dentro de las 72 h (se puede anular: 39A·01), uno pasado
+ * del plazo (39B·01) y uno que la colportora ya anuló desde su teléfono (39A·07).
+ */
+function cobrosDeEjemplo(ahoraIso: string): TicketDeCuentas[] {
+  const base = { destino: "casa-editora", estado: "VALIDADO", tieneFoto: true, medio: "tarjeta-debito", entidad: "Visa" } as const;
+  const dentro = instanteHaceDias(ahoraIso, 1, 10, 20);
+  const pasado = instanteHaceDias(ahoraIso, 6, 10, 20);
+  const delTelefono = instanteHaceDias(ahoraIso, 2, 15, 40);
+  return [
+    { ...base, id: "florencia-pintos-cobro-vigente", colportorId: "florencia-pintos", fecha: dentro, monto: 4800, numero: "483920", cobro: { id: "cobro-florencia-pintos-vigente", fecha: dentro } },
+    { ...base, id: "valentina-silva-cobro-pasado", colportorId: "valentina-silva", fecha: pasado, monto: 12400, numero: "771204", cobro: { id: "cobro-valentina-silva-pasado", fecha: pasado } },
+    {
+      ...base,
+      id: "joaquin-duarte-cobro-anulado",
+      colportorId: "joaquin-duarte",
+      fecha: delTelefono,
+      monto: 7500,
+      numero: "351902",
+      cobro: {
+        id: "cobro-joaquin-duarte-anulado",
+        fecha: delTelefono,
+        anulado: { en: instanteHaceDias(ahoraIso, 1, 18, 12), motivo: "Lo registré dos veces", por: "Joaquín Duarte", origen: "telefono" },
+      },
+    },
+  ];
 }
 
 /** Quien mira el sitio de prueba y decide lo pagado «por decidir» (vista 41). */
@@ -314,7 +355,7 @@ export const fuenteCuentasSimulada: FuenteDatosCuentas = {
  * Las escrituras de la vista contra la fuente simulada: se resuelven en el navegador y no se guardan (al recargar vuelven
  * los datos de ejemplo). Cuando se conecten las RPC, lo reemplazan las server actions con el mismo contrato.
  */
-export function crearAccionesSimuladas(inicial?: DatosDeCuentas): AccionesCuentas {
+export function crearAccionesSimuladas(inicial?: DatosDeCuentas, ahora: () => number = Date.now): AccionesCuentas {
   // Como el servidor, la fuente simulada recuerda lo que ya se decidió: el doble toque contesta `yaEstaba`.
   let datos = inicial;
   return {
@@ -360,6 +401,36 @@ export function crearAccionesSimuladas(inicial?: DatosDeCuentas): AccionesCuenta
       };
       datos = aplicarDecision(datos, decision);
       return { ok: true, valor: { yaEstaba: false, decision } };
+    },
+    async anularCobro(cobroId: string, motivo: MotivoDeAnulacion, detalle?: string): Promise<ResultadoDeAccion<ResultadoDeAnulacion>> {
+      // Como `anular_cobro` (0072): el motivo es de la lista, un cobro ajeno o inexistente da el mismo aviso, anular dos veces
+      // contesta `yaEstaba` y pasadas las 72 h desde el cobro rechaza (CB001), sin excepciones.
+      const ticket = datos?.tickets.find((t) => t.cobro?.id === cobroId);
+      if (!datos || !ticket?.cobro) {
+        return { ok: false, causa: "rechazado", mensaje: "No encontramos ese cobro entre los de tu equipo. Recargá la lista de cuentas." };
+      }
+      if (!MOTIVOS_DE_ANULACION.includes(motivo)) {
+        return {
+          ok: false,
+          causa: "rechazado",
+          mensaje: "Elegí el motivo de la anulación: Monto equivocado, Cliente equivocado, Lo registré dos veces u Otro.",
+        };
+      }
+      if (ticket.cobro.anulado) return { ok: true, valor: { yaEstaba: true } };
+      // Una fecha ilegible tampoco deja anular (como el panel).
+      if (!(ahora() <= limiteDeAnulacion(ticket.cobro.fecha))) {
+        return { ok: false, causa: "rechazado", codigo: "fuera-de-plazo", mensaje: "Pasaron más de 72 h desde el cobro: ya no se puede anular." };
+      }
+      const escrito = detalle?.trim();
+      const anulacion = {
+        en: new Date(ahora()).toISOString(),
+        motivo,
+        ...(motivo === "Otro" && escrito ? { detalle: escrito } : {}),
+        por: COORDINADORA_SIMULADA,
+        origen: "panel",
+      } as const;
+      datos = aplicarAnulacion(datos, ticket.id, anulacion);
+      return { ok: true, valor: { yaEstaba: false, anulacion } };
     },
   };
 }

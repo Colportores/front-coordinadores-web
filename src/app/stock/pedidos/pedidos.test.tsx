@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { isValidElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ErrorPedidos from "@/app/stock/pedidos/error";
@@ -10,16 +11,26 @@ import type * as ModuloPedidos from "@/datos/stock/pedidos";
 import { crearDatosDePedidosSimulados } from "@/datos/stock/pedidos/simulado";
 import { ProveedorModoDev } from "@/dev/ProveedorModoDev";
 
+const conexion = vi.hoisted(() => ({ acciones: null as unknown }));
+
 // El selector se reemplaza por uno que se puede controlar; en el sitio de prueba tiene que explotar si alguien lo usa:
 // ahí la fuente es siempre la simulada, aunque el día de mañana `index.ts` apunte a la real.
 vi.mock("@/datos/stock/pedidos", async (importOriginal) => {
   const original = await importOriginal<typeof ModuloPedidos>();
-  return { ...original, fuentePedidos: { obtenerPedidos: vi.fn() } };
+  return {
+    ...original,
+    fuentePedidos: { obtenerPedidos: vi.fn() },
+    // `accionesPedidos`: null = sin Supabase (las simuladas del navegador); un objeto = conectada (server actions, #215).
+    get accionesPedidos() {
+      return conexion.acciones;
+    },
+  };
 });
 
 const obtenerPedidos = vi.mocked(fuentePedidos.obtenerPedidos);
 
 afterEach(() => {
+  conexion.acciones = null;
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
   obtenerPedidos.mockReset();
@@ -34,6 +45,39 @@ describe("pestaña Stock · Pedidos y transferencias (vista 35)", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Pedidos y transferencias" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Todas las ciudades" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /^Por autorizar/ })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("conectada a Supabase (#215): la vista recibe las server actions, que llaman a las acciones reales", async () => {
+    const decidir = vi.fn(async () => ({ ok: true, valor: { tipo: "pedido", id: "x", estado: "AUTORIZADO", resueltoEn: "2026-11-24T15:00:00Z", motivoDeRechazo: null } }));
+    const editarLimite = vi.fn(async () => ({ ok: true, valor: { limiteDeDeuda: null } }));
+    conexion.acciones = { decidir, editarLimite };
+    obtenerPedidos.mockResolvedValue(crearDatosDePedidosSimulados());
+
+    const jsx = await PedidosYTransferencias();
+    let actual: unknown = jsx;
+    let acciones: { decidir: (d: unknown) => Promise<unknown>; editarLimite: (l: unknown, c?: unknown) => Promise<unknown> } | undefined;
+    while (isValidElement(actual)) {
+      const props = actual.props as { acciones?: typeof acciones; children?: unknown };
+      if (props.acciones) {
+        acciones = props.acciones;
+        break;
+      }
+      actual = props.children;
+    }
+
+    expect(acciones).toBeDefined();
+    await acciones?.decidir({ tipo: "pedido", id: "dddddddd-dddd-4ddd-8ddd-000000000001", accion: "autorizar", monto: 5 });
+    expect(decidir).toHaveBeenCalledWith({ tipo: "pedido", id: "dddddddd-dddd-4ddd-8ddd-000000000001", accion: "autorizar" });
+    await acciones?.editarLimite(null, "11111111-1111-4111-8111-111111111111");
+    expect(editarLimite).toHaveBeenCalledWith(null, "11111111-1111-4111-8111-111111111111");
+    render(<ProveedorModoDev activo={false}>{jsx}</ProveedorModoDev>);
+    expect(screen.getByRole("heading", { level: 2, name: "Todas las ciudades" })).toBeInTheDocument();
+  });
+
+  it("sin Supabase la página no pasa acciones: la vista usa las simuladas del navegador", async () => {
+    obtenerPedidos.mockResolvedValue(crearDatosDePedidosSimulados());
+    const vista = JSON.stringify(await PedidosYTransferencias(), (clave, valor) => (clave === "_owner" || clave === "_store" ? undefined : valor));
+    expect(vista).not.toContain('"acciones"');
   });
 
   it("sin campaña dice por qué no hay nada que autorizar", async () => {
@@ -83,14 +127,15 @@ describe("pestaña Stock · Pedidos y transferencias (vista 35)", () => {
       expect(obtenerPedidos).not.toHaveBeenCalled();
     });
 
-    it("y se puede autorizar un pedido contra las acciones simuladas", async () => {
+    it("y se puede autorizar un pedido contra las acciones simuladas (queda 8 s con «Deshacer»)", async () => {
       vi.stubEnv("NEXT_PUBLIC_DEPLOY_PAGES", "1");
 
       render(<ProveedorModoDev activo={false}>{await PedidosYTransferencias()}</ProveedorModoDev>);
       await screen.findByRole("heading", { level: 2, name: "Todas las ciudades" });
       await userEvent.click(screen.getByRole("button", { name: /^Autorizar el pedido #231/ }));
 
-      expect(await screen.findByText(/Pedido #231 de Emiliano Sosa autorizado/)).toBeInTheDocument();
+      expect(await screen.findByText(/Autorizaste el pedido #231 de Emiliano Sosa/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Deshacer · 8 s: autorización del pedido #231" })).toBeInTheDocument();
     });
   });
 });

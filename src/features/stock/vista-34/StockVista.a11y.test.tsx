@@ -39,7 +39,9 @@ describe("StockVista · accesibilidad (axe A/AA, sin contraste)", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Contraer ciudades" }));
     expect(await violaciones(container)).toEqual([]);
-  });
+    // Dos corridas de axe sobre la tabla completa más tres clics: ~2,5 s en local (igual en develop y en esta rama),
+    // pero en el CI, con cobertura y los demás archivos en paralelo, pasa de los 5 s por defecto de vitest.
+  }, 20_000);
 
   it("el estado no depende solo del color: lleva un símbolo y un texto", () => {
     render(<StockVista datos={crearDatosDeStockSimulados()} />);

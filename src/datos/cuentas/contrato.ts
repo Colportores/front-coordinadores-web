@@ -78,6 +78,36 @@ export interface DecisionDeAlquiler {
 /** Lo que contesta la decisión: la que quedó registrada, o `yaEstaba` si no había nada por decidir (doble toque u otra persona). */
 export type ResultadoDeDecision = { yaEstaba: false; decision: DecisionDeAlquiler } | { yaEstaba: true };
 
+/** Los motivos de la lista de anulación: los del teléfono (vista 30 B) y los que acepta `anular_cobro` (0072). */
+export const MOTIVOS_DE_ANULACION = ["Monto equivocado", "Cliente equivocado", "Lo registré dos veces", "Otro"] as const;
+export type MotivoDeAnulacion = (typeof MOTIVOS_DE_ANULACION)[number];
+
+/** Cómo quedó un cobro anulado (`cobranza.anulado_at` y `motivo_anulacion`; HU-COB-006). */
+export interface AnulacionDeCobro {
+  /** Instante ISO 8601 de la anulación. */
+  en: string;
+  motivo: MotivoDeAnulacion;
+  /** Lo que escribió quien anuló con «Otro». El servidor guarda solo «Otro»: este texto no viaja (pendiente al conectar). */
+  detalle?: string;
+  /** Nombre de quien anuló. */
+  por: string;
+  /** Desde dónde se anuló: el panel (el coordinador, con la hora del servidor) o el teléfono de la colportora. */
+  origen: "panel" | "telefono";
+}
+
+/**
+ * El cobro con tarjeta que está detrás de un ticket (`cobranza`): lo que hace falta para anularlo desde el panel
+ * (`anular_cobro(p_cobranza_id, p_motivo)`, 0072). Sin él, el ticket no ofrece «Anular cobro» (un depósito no es un cobro).
+ */
+export interface CobroDeTicket {
+  /** `cobranza.id`. */
+  id: string;
+  /** Instante ISO 8601 en que se registró el cobro: desde acá corren las 72 h. */
+  fecha: string;
+  /** Presente cuando el cobro está anulado (por el coordinador o por la colportora desde su teléfono). */
+  anulado?: AnulacionDeCobro;
+}
+
 export interface TicketDeCuentas {
   id: string;
   colportorId: string;
@@ -102,6 +132,8 @@ export interface TicketDeCuentas {
    * como depositado. `en` es el instante ISO de la anulación.
    */
   anulado?: { en: string };
+  /** El cobro con tarjeta de este ticket, si lo hay: es lo que se puede anular desde el panel (vista 39). */
+  cobro?: CobroDeTicket;
 }
 
 export interface DatosDeCuentas {
@@ -125,7 +157,16 @@ export interface FuenteDatosCuentas {
 /** Por qué no se pudo guardar: sin conexión (se reintenta igual) o rechazado por el servidor (trae su texto). */
 export type CausaDeFalla = "sin-conexion" | "rechazado";
 
-export type ResultadoDeAccion<T> = { ok: true; valor: T } | { ok: false; causa: CausaDeFalla; mensaje?: string };
+/**
+ * `codigo` solo cuando el servidor da una razón que la vista trata distinto: `fuera-de-plazo` (CB001, pasaron las 72 h del
+ * cobro: no se reintenta).
+ */
+export type CodigoDeRechazo = "fuera-de-plazo";
+
+export type ResultadoDeAccion<T> = { ok: true; valor: T } | { ok: false; causa: CausaDeFalla; mensaje?: string; codigo?: CodigoDeRechazo };
+
+/** Lo que contesta la anulación: quedó anulado, o `yaEstaba` si ya lo estaba (doble toque u otra persona; idempotente). */
+export type ResultadoDeAnulacion = { yaEstaba: false; anulacion: AnulacionDeCobro } | { yaEstaba: true };
 
 /** Escrituras de la vista. La fuente simulada las resuelve en el navegador; la real serán server actions. */
 export interface AccionesCuentas {
@@ -136,4 +177,9 @@ export interface AccionesCuentas {
    * El servidor registra quién y cuándo.
    */
   decidirAlquiler(colportorId: string, destino: DestinoDeAlquiler): Promise<ResultadoDeAccion<ResultadoDeDecision>>;
+  /**
+   * Anula un cobro dentro de las 72 h desde que se registró (`anular_cobro`, 0072; «Anular 72 h», Cristian 23/10). El servidor
+   * decide el plazo: pasado, rechaza con `codigo: "fuera-de-plazo"`. Con «Otro», `detalle` es lo que escribió quien anula.
+   */
+  anularCobro(cobroId: string, motivo: MotivoDeAnulacion, detalle?: string): Promise<ResultadoDeAccion<ResultadoDeAnulacion>>;
 }

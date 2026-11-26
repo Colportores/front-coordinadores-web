@@ -1,6 +1,7 @@
 import { modoDeAcceso } from "@/auth/modo";
 import { demoSupabaseDevActivo, pestanaVisible, sitioDePruebaActivo } from "@/config/flags";
 import { validarTicketsConectada } from "@/datos/cuentas/validar/conexion";
+import { pedidosConectada } from "@/datos/stock/pedidos/conexion";
 import { leerConfigSupabase } from "@/datos/supabase/config";
 
 /**
@@ -49,6 +50,15 @@ export function hayAvisoDeVersionDePrueba(): boolean {
  */
 export function cuentasConValidarTicketsConectada(): boolean {
   return pestanaVisible("cuentas") && validarTicketsConectada();
+}
+
+/**
+ * Si la franja tiene que nombrar la excepción de Stock: «Pedidos y transferencias» (vista 35) está conectada y guarda de verdad
+ * aunque el resto de Stock (la vista 34) sea simulado (#215). Solo cuando Stock está a la vista y la 35 usa la fuente real, con
+ * la misma regla que su página.
+ */
+export function stockConPedidosConectada(): boolean {
+  return pestanaVisible("stock") && pedidosConectada();
 }
 
 /** Nombres de las pestañas visibles que muestran datos simulados aunque el resto esté conectado. */

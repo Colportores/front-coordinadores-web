@@ -7,6 +7,8 @@ import {
   AMBITO_TODAS,
   aplicarResolucion,
   aplicarResolucionConEfecto,
+  cantidadesAutorizadas,
+  cantidadesPedidas,
   claveQueLaReemplaza,
   claveVigente,
   construirDetalle,
@@ -22,14 +24,15 @@ import {
   MAXIMO_DEL_MOTIVO,
   money,
   nombreDeDeshacer,
+  notaDelLimite,
   resolucionProvisional,
   resolverAmbito,
   solicitudesDe,
   superaElLimite,
   textoDeCuando,
-  textoDeDecision,
   textoDeDecisionDiferida,
   textoDePestanaVacia,
+  validarLimite,
   validarMotivo,
 } from "./modelo";
 
@@ -386,14 +389,6 @@ describe("decidir", () => {
     expect(det.puedeDecidir).toBe(false);
   });
 
-  it("los avisos de lo que salió bien dicen qué pasó con la deuda", () => {
-    const m = mundo();
-    const por = (n: string) => m.todas.find((s) => s.numero === n)!;
-    expect(textoDeDecision(por("#231"), "autorizar")).toBe("Pedido #231 de Emiliano Sosa autorizado: se sumaron $U 36.040 a su deuda.");
-    expect(textoDeDecision(por("#231"), "rechazar")).toBe("Pedido #231 de Emiliano Sosa rechazado: el colportor recibe el motivo.");
-    expect(textoDeDecision(por("T-18"), "autorizar")).toBe("Transferencia T-18 de Valentina Silva autorizada: la deuda de $U 2.900 pasó a Lucía.");
-  });
-
   it("money junta miles con punto", () => {
     expect(money(1234567)).toBe("$U 1.234.567");
   });
@@ -469,5 +464,189 @@ describe("«Deshacer» de 8 s de las transferencias (#110)", () => {
     expect(textoDeDecisionDiferida(s, "rechazar")).toBe("Rechazaste la transferencia T-18 de Valentina Silva. Cuando se cierre este aviso, el colportor recibe el motivo.");
     expect(nombreDeDeshacer(s, "autorizar")).toBe("Deshacer · 8 s: autorización de la transferencia T-18");
     expect(nombreDeDeshacer(s, "rechazar")).toBe("Deshacer · 8 s: rechazo de la transferencia T-18");
+  });
+});
+
+describe("reducir cantidades y «Deshacer» de los pedidos (#93, 42A·03 y 42A·04)", () => {
+  const instante = "2026-10-22T21:00:00.000Z";
+  const p231 = () => datos().pedidos.find((p) => p.numero === "#231")!;
+  const solicitud = (d: DatosDePedidos = datos(), numero = "#231") => construirMundo(d).todas.find((s) => s.numero === numero)!;
+  const deuda = (xs: DatosDePedidos, numero: string) => xs.pedidos.find((p) => p.numero === numero)!.cuenta.deuda;
+  // #231 pidió 10 + 8 + 30 = 48 unidades por $U 36.040: lo autorizado, 5 + 4 + 30 = 39.
+  const reducidas = [5, 4, 30];
+
+  it("arranca con lo pedido y nunca pasa de ahí ni baja de cero", () => {
+    const s = solicitud();
+    expect(cantidadesPedidas(s)).toEqual([10, 8, 30]);
+    expect(cantidadesAutorizadas(s, [99, -3, 7.9])).toEqual([
+      { nombre: "La Gran Esperanza", cantidad: 10 },
+      { nombre: "El Deseado de Todas las Gentes", cantidad: 0 },
+      { nombre: "Revista Vida Feliz", cantidad: 7 },
+    ]);
+  });
+
+  it("el detalle recalcula el monto, la deuda con el pedido y dice si todavía pasa el límite", () => {
+    const m = mundo();
+    const s = solicitud();
+    const det = construirDetalle(m, s, reducidas);
+    // 5 × 1.450 + 4 × 1.980 + 30 × 190 = 20.870 → deuda 22.100 + 20.870 = 42.970: ya no pasa los $U 50.000.
+    expect(det.reduccion).toEqual({ unidadesPedidas: 48, unidadesAutorizadas: 39, sinCambios: false, sinNada: false });
+    expect(det.tituloItems).toBe("LO QUE AUTORIZÁS");
+    expect(det.rotuloDelTotal).toBe("Monto reducido");
+    expect(det.total).toBe("$U 20.870");
+    expect(det.aviso).toBe("Reducido a 39 de 48. Con este monto la deuda queda en $U 42.970 y ya no pasa el límite de $U 50.000.");
+    expect(det.avisoTono).toBe("exito");
+    expect(det.etiqueta.texto).toBe("Por autorizar");
+    expect(det.items.map((i) => [i.cantidad, i.pedida])).toEqual([["5", 10], ["4", 8], ["30", 30]]);
+  });
+
+  it("si reducido todavía pasa el límite lo dice con cuánto", () => {
+    const m = mundo({ ...datos(), limiteDeDeuda: 30_000 });
+    const det = construirDetalle(m, m.todas.find((s) => s.numero === "#231")!, reducidas);
+    expect(det.aviso).toBe("Reducido a 39 de 48. La deuda con el pedido todavía pasa el límite por $U 12.970.");
+    expect(det.avisoTono).toBe("alerta");
+    expect(det.etiqueta.texto).toBe("△ Supera el límite");
+  });
+
+  it("sin bajar nada o con todo en cero no se puede autorizar reducido", () => {
+    const m = mundo();
+    const s = solicitud();
+    expect(construirDetalle(m, s, [10, 8, 30]).reduccion).toMatchObject({ sinCambios: true, sinNada: false });
+    const nada = construirDetalle(m, s, [0, 0, 0]);
+    expect(nada.reduccion).toMatchObject({ sinNada: true });
+    expect(nada.aviso).toBe("No queda nada para autorizar: subí alguna cantidad, o cancelá y rechazá el pedido.");
+    expect(nada.notaDeAccion).toBe("Dejá al menos un producto con cantidad para autorizar.");
+  });
+
+  it("solo un pedido por autorizar se puede reducir (no una transferencia ni un pedido ya autorizado)", () => {
+    const m = mundo();
+    expect(construirDetalle(m, solicitud()).puedeReducir).toBe(true);
+    expect(construirDetalle(m, solicitud(datos(), "T-18")).puedeReducir).toBe(false);
+    expect(construirDetalle(m, solicitud(datos(), "#224")).puedeReducir).toBe(false);
+    expect(construirDetalle(m, solicitud(datos(), "T-18"), [1]).reduccion).toBeNull();
+    expect(construirDetalle(m, solicitud(), [1, 2]).reduccion).toBeNull();
+  });
+
+  it("autorizar reducido guarda lo autorizado junto a lo pedido y suma a la deuda solo lo autorizado", () => {
+    const d = datos();
+    const r = resolucionProvisional(solicitud(d), "autorizar", "", instante, cantidadesAutorizadas(solicitud(d), reducidas));
+    expect(r.cantidades).toHaveLength(3);
+    const despues = aplicarResolucion(d, r);
+
+    expect(despues.pedidos.find((p) => p.numero === "#231")?.lineas.map((l) => [l.cantidad, l.cantidadAutorizada])).toEqual([[10, 5], [8, 4], [30, 30]]);
+    expect(deuda(despues, "#231")).toBe(22_100 + 20_870);
+    const s = solicitud(despues);
+    expect(s.estado).toBe("AUT");
+    expect(s.reducido).toBe(true);
+    expect(s.total).toBe(20_870);
+
+    const det = construirDetalle(construirMundo(despues), s);
+    expect(det.tituloItems).toBe("LO QUE AUTORIZASTE");
+    expect(det.rotuloDelTotal).toBe("Monto autorizado");
+    expect(det.nota).toBe("Reducido: autorizaste 39 de los 48 que pidió.");
+    expect(det.items[0]).toMatchObject({ cantidad: "5", unidad: "$U 1.450 c/u · pidió 10" });
+    expect(det.items[2].unidad).toBe("$U 190 c/u");
+    expect(construirFilas(construirMundo(despues), [s])[0]).toMatchObject({ que: "3 productos · 39 de 48 unidades · reducido", monto: "$U 20.870" });
+  });
+
+  it("un producto sacado (en cero) no cuenta como producto en la fila", () => {
+    const d = datos();
+    const despues = aplicarResolucion(d, resolucionProvisional(solicitud(d), "autorizar", "", instante, cantidadesAutorizadas(solicitud(d), [0, 8, 30])));
+    expect(construirFilas(construirMundo(despues), [solicitud(despues)])[0].que).toBe("2 productos · 38 de 48 unidades · reducido");
+  });
+
+  it("autorizar sin reducir sigue igual: la fila y el detalle no hablan de reducción", () => {
+    const d = datos();
+    const despues = aplicarResolucion(d, resolucionProvisional(solicitud(d), "autorizar", "", instante));
+    const s = solicitud(despues);
+    expect(s.reducido).toBe(false);
+    expect(deuda(despues, "#231")).toBe(22_100 + 36_040);
+    expect(construirDetalle(construirMundo(despues), s).tituloItems).toBe("LO QUE PIDE");
+  });
+
+  it("deshacer una autorización reducida devuelve la deuda y las líneas; un rechazo, el estado", () => {
+    const d = datos();
+    const id = p231().id;
+    const cant = cantidadesAutorizadas(solicitud(d), reducidas);
+    const { datos: autorizado, efecto } = aplicarResolucionConEfecto(d, resolucionProvisional(solicitud(d), "autorizar", "", instante, cant));
+    const vuelta = deshacerResolucion(autorizado, "pedido", id, efecto);
+    expect(deuda(vuelta, "#231")).toBe(22_100);
+    expect(vuelta.pedidos.find((p) => p.id === id)).toMatchObject({ estado: "POR_AUTORIZAR", resueltoEn: null });
+    expect(solicitud(vuelta).total).toBe(36_040);
+
+    const { datos: rechazado, efecto: sinEfecto } = aplicarResolucionConEfecto(d, resolucionProvisional(solicitud(d), "rechazar", "No", instante));
+    expect(sinEfecto).toEqual({});
+    expect(rechazado.pedidos.find((p) => p.id === id)).toMatchObject({ estado: "RECHAZADO", motivoDeRechazo: "No" });
+    expect(deshacerResolucion(rechazado, "pedido", id, sinEfecto).pedidos.find((p) => p.id === id)).toMatchObject({ estado: "POR_AUTORIZAR", motivoDeRechazo: null });
+  });
+
+  it("lo autorizado de un pedido que no se autorizó, o que se autorizó de más, no cuenta", () => {
+    const d = datos();
+    const raro = { ...d, pedidos: d.pedidos.map((p) => (p.numero === "#231" ? { ...p, lineas: p.lineas.map((l) => ({ ...l, cantidadAutorizada: 1 })) } : p)) };
+    expect(solicitud(raro).total).toBe(36_040);
+    const pasado = { ...d, pedidos: d.pedidos.map((p) => (p.numero === "#224" ? { ...p, lineas: p.lineas.map((l) => ({ ...l, cantidadAutorizada: 99 })) } : p)) };
+    expect(solicitud(pasado, "#224").total).toBe(12 * 1450);
+  });
+
+  it("los avisos de un pedido dicen qué se decidió, con las cantidades y a quién le llega", () => {
+    const s = solicitud();
+    const cant = cantidadesAutorizadas(s, reducidas);
+    expect(textoDeDecisionDiferida(s, "autorizar")).toBe("Autorizaste el pedido #231 de Emiliano Sosa: se suman $U 36.040 a la deuda de Emiliano cuando se cierre este aviso.");
+    expect(textoDeDecisionDiferida(s, "autorizar", cant)).toBe(
+      "Autorizaste el pedido #231 de Emiliano Sosa, reducido a 39 de 48 unidades: se suman $U 20.870 a la deuda de Emiliano cuando se cierre este aviso.",
+    );
+    expect(textoDeDecisionDiferida(s, "rechazar")).toBe("Rechazaste el pedido #231 de Emiliano Sosa. Cuando se cierre este aviso, Emiliano recibe el motivo.");
+    expect(nombreDeDeshacer(s, "autorizar")).toBe("Deshacer · 8 s: autorización del pedido #231");
+    expect(nombreDeDeshacer(s, "rechazar")).toBe("Deshacer · 8 s: rechazo del pedido #231");
+  });
+
+  it("la decisión lleva las cantidades solo si se redujo", () => {
+    const s = solicitud();
+    expect(decisionDe(s, "autorizar")).toEqual({ tipo: "pedido", id: p231().id, accion: "autorizar" });
+    expect(decisionDe(s, "autorizar", "", [{ nombre: "x", cantidad: 1 }])).toMatchObject({ cantidades: [{ nombre: "x", cantidad: 1 }] });
+    expect(decisionDe(s, "rechazar", "No")).toEqual({ tipo: "pedido", id: p231().id, accion: "rechazar", motivo: "No" });
+  });
+});
+
+describe("el límite de deuda de la campaña (#93, 42A·02)", () => {
+  it("valida lo que se escribe: pesos enteros con o sin puntos y con «$U»", () => {
+    expect(validarLimite("35000")).toEqual({ ok: true, limite: 35_000 });
+    expect(validarLimite("35.000")).toEqual({ ok: true, limite: 35_000 });
+    expect(validarLimite(" $U 1.235.000 ")).toEqual({ ok: true, limite: 1_235_000 });
+    expect(validarLimite("$ 35 000")).toEqual({ ok: true, limite: 35_000 });
+  });
+
+  it("rechaza lo vacío, lo que no es un monto, los centavos, el cero y lo desmedido, y dice qué hacer", () => {
+    expect(validarLimite("")).toEqual({ ok: false, error: "Escribí el límite por colportor, en pesos." });
+    expect(validarLimite("   ")).toMatchObject({ ok: false });
+    expect(validarLimite("mucho")).toMatchObject({ ok: false, error: expect.stringContaining("pesos enteros") });
+    expect(validarLimite("35,50")).toMatchObject({ ok: false });
+    expect(validarLimite("35.5")).toMatchObject({ ok: false });
+    expect(validarLimite("-5")).toMatchObject({ ok: false });
+    expect(validarLimite("1.000.000.000")).toEqual({ ok: false, error: "El límite es demasiado alto: usá hasta $U 999.999.999." });
+  });
+
+  it("el cero es un límite: cualquier pedido con deuda avisa", () => {
+    expect(validarLimite("0")).toEqual({ ok: true, limite: 0 });
+    expect(validarLimite("000")).toEqual({ ok: true, limite: 0 });
+  });
+
+  it("la nota cuenta qué pasa con los pedidos por autorizar de toda la campaña", () => {
+    // Con $U 50.000: #231 (58.140) y #228 (26.000 + 19.800 = 45.800 no) → solo #231 lo pasa.
+    const m = mundo();
+    expect(notaDelLimite(m, 60_000)).toBe("Hoy 1 pedido por autorizar pasa el límite de $U 50.000. Con $U 60.000 ninguno lo pasa.");
+    expect(notaDelLimite(m, 55_000)).toBe("Hoy 1 pedido por autorizar pasa el límite de $U 50.000. Con $U 55.000 lo sigue pasando, por $U 3.140.");
+    expect(notaDelLimite(m, 20_000)).toMatch(/^Hoy 1 pedido por autorizar pasa el límite de \$U 50\.000\. Con \$U 20\.000 lo pasan \d+, el que más por \$U 38\.140\.$/);
+  });
+
+  it("sin límite fijado o con un límite que nadie pasa lo dice distinto", () => {
+    expect(notaDelLimite(mundo({ ...datos(), limiteDeDeuda: null }), 30_000)).toMatch(/^Hoy no hay límite fijado, así que ningún pedido avisa\. Con \$U 30\.000 (1 lo pasa|lo pasan \d+)/);
+    expect(notaDelLimite(mundo({ ...datos(), limiteDeDeuda: 900_000 }), 800_000)).toBe("Hoy ningún pedido por autorizar pasa el límite de $U 900.000. Con $U 800.000 ninguno lo pasa.");
+  });
+
+  it("los pedidos ya resueltos y las transferencias no cuentan", () => {
+    const d = datos();
+    const solo = { ...d, pedidos: d.pedidos.filter((p) => p.estado !== "POR_AUTORIZAR") };
+    expect(notaDelLimite(mundo(solo), 10)).toBe("Hoy ningún pedido por autorizar pasa el límite de $U 50.000. Con $U 10 ninguno lo pasa.");
   });
 });

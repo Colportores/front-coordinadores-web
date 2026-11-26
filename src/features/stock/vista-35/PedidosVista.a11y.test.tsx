@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { describe, expect, it, vi } from "vitest";
@@ -42,8 +42,17 @@ describe("PedidosVista · accesibilidad (axe A/AA, sin contraste)", () => {
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(await violaciones(container)).toEqual([]);
 
-    await userEvent.type(screen.getByRole("textbox"), "No");
-    await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
+    // El rechazo sale a los 8 s: con el reloj falso hasta que falla (axe se cuelga con el reloj falso).
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await userEvent.type(screen.getByRole("textbox"), "No");
+      await userEvent.click(screen.getByRole("button", { name: "Confirmar rechazo" }));
+      await act(async () => {
+        vi.advanceTimersByTime(8000);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
     await screen.findByText(/Necesitás conexión/);
     expect(await violaciones(container)).toEqual([]);
 

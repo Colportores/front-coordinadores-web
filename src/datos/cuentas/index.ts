@@ -8,7 +8,10 @@ import { fuenteCuentasSimulada } from "@/datos/cuentas/simulado";
 
 export type {
   AccionesCuentas,
+  AnulacionDeCobro,
   CausaDeFalla,
+  CobroDeTicket,
+  CodigoDeRechazo,
   CiudadDeCuentas,
   ColportorDeCuentas,
   DatosDeCuentas,
@@ -18,7 +21,9 @@ export type {
   EstadoDeTicket,
   FuenteDatosCuentas,
   MedioDeTicket,
+  MotivoDeAnulacion,
   ResultadoDeAccion,
+  ResultadoDeAnulacion,
   ResultadoDeDecision,
   TicketDeCuentas,
 } from "@/datos/cuentas/contrato";

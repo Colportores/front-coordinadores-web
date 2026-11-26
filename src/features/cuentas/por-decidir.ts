@@ -25,11 +25,13 @@ export const decideElCoordinador = (datos: DatosDeCuentas, colportor: ColportorD
 /** Cuándo se validó un pago (si no se sabe, su fecha): con eso se sabe si llegó después de una decisión. */
 export const instanteDeValidacion = (t: TicketDeCuentas) => t.validadoEn ?? t.fecha;
 
-/** Un pago de alquiler que cuenta: validado y no devuelto. */
-export const esPagoDeAlquilerVigente = (t: TicketDeCuentas) => t.estado === "VALIDADO" && t.destino === "alquiler" && !t.anulado;
+/** Un pago de alquiler que cuenta: validado, no devuelto y con el cobro sin anular (vista 39). */
+export const esPagoDeAlquilerVigente = (t: TicketDeCuentas) =>
+  t.estado === "VALIDADO" && t.destino === "alquiler" && !t.anulado && !t.cobro?.anulado;
 
-/** Un pago de alquiler vivo: por validar o validado, sin contar los rechazados ni los devueltos (anulados). */
-export const esPagoDeAlquilerVivo = (t: TicketDeCuentas) => t.destino === "alquiler" && t.estado !== "RECHAZADO" && !t.anulado;
+/** Un pago de alquiler vivo: por validar o validado, sin contar los rechazados, los devueltos ni los de un cobro anulado. */
+export const esPagoDeAlquilerVivo = (t: TicketDeCuentas) =>
+  t.destino === "alquiler" && t.estado !== "RECHAZADO" && !t.anulado && !t.cobro?.anulado;
 
 /**
  * La campaña ya tiene pagos de alquiler (de cualquier colportor, también de quien se dio de baja). Con pagos, el alquiler no
