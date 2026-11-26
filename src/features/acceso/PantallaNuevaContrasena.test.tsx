@@ -204,7 +204,7 @@ describe("40B · 05 contraseña cambiada", () => {
     await usuario.click(guardarBoton());
 
     expect(screen.getByRole("status")).toHaveTextContent(T.cambiada);
-    expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso");
+    expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso?motivo=cerrada");
     expect(screen.queryByLabelText(T.nueva)).toBeNull();
     expect(screen.queryByDisplayValue(CLAVE)).toBeNull();
   });
@@ -301,7 +301,7 @@ describe("40B · 05 contraseña cambiada", () => {
         expect(botonIr()).toHaveAttribute("aria-disabled", "true");
         await act(async () => cierre.resolver({ tipo: "ok" }));
         // El cierre salió bien: es el éxito de siempre, con su enlace al login.
-        expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso");
+        expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso?motivo=cerrada");
       });
 
       it("sin conexión queda apagado y no llama al servidor", async () => {
@@ -321,7 +321,7 @@ describe("40B · 05 contraseña cambiada", () => {
       expect(guardar).toHaveBeenCalledTimes(1);
       expect(screen.getByRole("status")).toHaveTextContent(T.cambiada);
       expect(screen.queryByRole("button", { name: T.cerrarOtras })).toBeNull();
-      expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso");
+      expect(screen.getByRole("link", { name: T.irAlLogin })).toHaveAttribute("href", "/acceso?motivo=cerrada");
     });
 
     it("si el reintento sigue sin poder (respuesta o falla de la acción), el aviso queda y el botón se vuelve a habilitar", async () => {

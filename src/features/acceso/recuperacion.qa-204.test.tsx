@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RespuestaDeCierreDeSesiones, RespuestaDeGuardado } from "@/auth/acciones-recuperacion";
 import { PantallaNuevaContrasena, type PropiedadesDeNuevaContrasena } from "@/features/acceso/PantallaNuevaContrasena";
 import { TEXTOS_DE_NUEVA_CONTRASENA as TN } from "@/features/acceso/textos-recuperacion";
+import { leerUltimoCorreo } from "@/features/acceso/ultimo-correo";
 
 /**
  * QA de #204 (PR #212, vista 40): tope de 72 bytes en la contraseña nueva y «Ir al login» tras el cierre fallido de sesiones.
@@ -226,7 +227,7 @@ describe("QA #204 · P2 · «Ir al login» con el cierre de las otras sesiones s
     await usuario.click(botonCerrar());
     expect(await screen.findByText(TN.cambiada)).toBeVisible();
     expect(screen.queryByText(TN.noPudoSalir)).toBeNull();
-    expect(screen.getByRole("link", { name: TN.irAlLogin })).toHaveAttribute("href", "/acceso");
+    expect(screen.getByRole("link", { name: TN.irAlLogin })).toHaveAttribute("href", "/acceso?motivo=cerrada");
   });
 
   it.skip("QA #204: al reintentar «Cerrar las otras sesiones», el aviso viejo de «Ir al login» sigue en pantalla (cerrarOtrasAhora no lo limpia)", async () => {
@@ -251,14 +252,15 @@ describe("QA #204 · P2 · «Ir al login» con el cierre de las otras sesiones s
     expect(irA).toHaveBeenCalledOnce();
   });
 
-  it.skip("QA #204: sin conexión con el cierre fallido, los dos botones quedan apagados y ningún texto dice por qué", async () => {
+  it("QA #204: sin conexión con el cierre fallido, los dos botones quedan apagados y la línea de sin conexión dice por qué", async () => {
     const { usuario } = await llegarASinRevocar();
     vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
     act(() => window.dispatchEvent(new Event("offline")));
     expect(botonIr()).toHaveAttribute("aria-disabled", "true");
     expect(botonCerrar()).toHaveAttribute("aria-disabled", "true");
     await usuario.click(botonIr());
-    expect(document.body).toHaveTextContent(/conexión/i);
+    expect(screen.getByRole("status")).toHaveTextContent(TN.sinConexionParaSalir);
+    expect(screen.getByRole("alert")).toHaveTextContent(TN.sinRevocar);
   });
 
   it("«Ir al login» respeta el orden con «Cerrar las otras» en curso: al terminar con falla, queda disponible y funciona", async () => {
@@ -281,7 +283,20 @@ describe("QA #204 · P2 · «Ir al login» con el cierre de las otras sesiones s
     await usuario.type(nueva(), CLAVE);
     await usuario.type(repetida(), CLAVE);
     await usuario.click(guardarBoton());
-    expect(await screen.findByRole("link", { name: TN.irAlLogin })).toHaveAttribute("href", "/acceso");
+    expect(await screen.findByRole("link", { name: TN.irAlLogin })).toHaveAttribute("href", "/acceso?motivo=cerrada");
     expect(salirDeLaRecuperacion).not.toHaveBeenCalled();
+  });
+
+  it("con el cierre bien hecho, «Ir al login» deja el correo para el login (mismo final que tras el cierre fallido)", async () => {
+    const usuario = userEvent.setup();
+    montarNueva();
+    await usuario.type(nueva(), CLAVE);
+    await usuario.type(repetida(), CLAVE);
+    await usuario.click(guardarBoton());
+    const enlace = await screen.findByRole("link", { name: TN.irAlLogin });
+    // jsdom no navega: se frena el clic para mirar solo lo que dejó antes de irse.
+    enlace.addEventListener("click", (evento) => evento.preventDefault());
+    await usuario.click(enlace);
+    expect(leerUltimoCorreo()).toBe(CORREO);
   });
 });

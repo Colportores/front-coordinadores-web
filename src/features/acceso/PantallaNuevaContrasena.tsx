@@ -476,11 +476,18 @@ export function PantallaNuevaContrasena({
               {T.noPudoSalir}
             </p>
           ) : null}
+          {/* Sin red los dos botones quedan apagados: la línea dice por qué (tono de 40B·08). */}
+          {!enLinea ? <Cartel aviso={{ texto: T.sinConexionParaSalir, rol: "status", tono: "sin-red" }} /> : null}
         </>
       ) : null}
 
       {paso === "cambiada" && !sinRevocar ? (
-        <a href="/acceso" className={cn(botonPrincipal, "bg-marca hover:bg-marca-media")}>
+        // Mismo final que «Ir al login» tras el cierre fallido (decisión del 26/11, 38·07): el login con el correo y «Cerraste sesión.».
+        <a
+          href={RUTA_DEL_LOGIN_TRAS_SALIR}
+          onClick={() => guardarUltimoCorreo(correo)}
+          className={cn(botonPrincipal, "bg-marca hover:bg-marca-media")}
+        >
           {T.irAlLogin}
         </a>
       ) : null}
