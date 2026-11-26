@@ -23,6 +23,7 @@ const acciones = vi.hoisted(() => ({
   abrirEnlaceAccion: vi.fn(async () => ({ tipo: "ok", correo: "marta@correo.com" })),
   guardarContrasenaAccion: vi.fn(),
   cerrarOtrasSesionesAccion: vi.fn(),
+  salirDeLaRecuperacionAccion: vi.fn(),
 }));
 vi.mock("@/auth/acciones-recuperacion", () => acciones);
 vi.mock("@/auth/recuperacion-servidor", () => ({ recuperacionEnCurso: vi.fn(async () => null) }));

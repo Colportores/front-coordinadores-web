@@ -17,7 +17,10 @@ const CORREO = "marta.perez@correo.com";
 function montar(abrir: PropiedadesDeNuevaContrasena["abrir"], inicial: PropiedadesDeNuevaContrasena["inicial"], estricto = false) {
   const guardar = vi.fn<PropiedadesDeNuevaContrasena["guardar"]>(async () => ({ tipo: "ok" }));
   const cerrarOtras = vi.fn<PropiedadesDeNuevaContrasena["cerrarOtras"]>(async () => ({ tipo: "ok" }));
-  const pantalla = <PantallaNuevaContrasena inicial={inicial} abrir={abrir} guardar={guardar} cerrarOtras={cerrarOtras} />;
+  const salirDeLaRecuperacion = vi.fn<PropiedadesDeNuevaContrasena["salirDeLaRecuperacion"]>(async () => ({ tipo: "ok" }));
+  const pantalla = (
+    <PantallaNuevaContrasena inicial={inicial} abrir={abrir} guardar={guardar} cerrarOtras={cerrarOtras} salirDeLaRecuperacion={salirDeLaRecuperacion} />
+  );
   return render(estricto ? <StrictMode>{pantalla}</StrictMode> : pantalla);
 }
 

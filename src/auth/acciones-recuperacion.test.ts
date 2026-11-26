@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { abrirEnlaceAccion, cerrarOtrasSesionesAccion, guardarContrasenaAccion, pedirEnlaceAccion } from "@/auth/acciones-recuperacion";
+import {
+  abrirEnlaceAccion,
+  cerrarOtrasSesionesAccion,
+  guardarContrasenaAccion,
+  pedirEnlaceAccion,
+  salirDeLaRecuperacionAccion,
+} from "@/auth/acciones-recuperacion";
 import { COOKIE_DE_RECUPERACION, piso, recuperacionEnCurso } from "@/auth/recuperacion-servidor";
 import { CONFIG_PRUEBA } from "@/test/cookies-supabase";
 import { errorDeAuth, json, respuestaDeSesion, type LlamadaFalsa } from "@/test/supabase";
@@ -279,6 +285,18 @@ describe("guardarContrasenaAccion", () => {
     expect(llamadas.some((l) => l.metodo === "PUT")).toBe(false);
   });
 
+  it("una contraseña de más de 72 bytes no se manda y es «contrasena-larga»", async () => {
+    const { llamadas } = await conEnlaceAbierto();
+    expect(await guardarContrasenaAccion(`Ñ1${"ñ".repeat(36)}`)).toEqual({ tipo: "contrasena-larga" });
+    expect(llamadas.some((l) => l.metodo === "PUT")).toBe(false);
+  });
+
+  it("el rechazo del servidor por largo (400 validation_failed) es «contrasena-larga» y conserva la marca para reintentar", async () => {
+    await conEnlaceAbierto({ cambiar: () => errorDeAuth(400, "validation_failed", "Password cannot be longer than 72 characters") });
+    expect(await guardarContrasenaAccion(CLAVE)).toEqual({ tipo: "contrasena-larga" });
+    expect(pedido.cookies.has(COOKIE_DE_RECUPERACION)).toBe(true);
+  });
+
   it("la misma contraseña de antes, la política del servidor y el servicio caído conservan la marca para reintentar", async () => {
     for (const [respuesta, esperado] of [
       [errorDeAuth(422, "same_password", "igual"), "misma-contrasena"],
@@ -331,5 +349,33 @@ describe("cerrarOtrasSesionesAccion", () => {
     const { llamadas } = prenderServidor();
     expect(await cerrarOtrasSesionesAccion()).toEqual({ tipo: "ok-sin-revocar" });
     expect(llamadas.some((l) => l.ruta === "/auth/v1/logout")).toBe(false);
+  });
+});
+
+describe("salirDeLaRecuperacionAccion", () => {
+  it("tras un «ok-sin-revocar» cierra solo la sesión de este navegador y borra la marca: el login no deja entrar", async () => {
+    const { llamadas } = prenderServidor({ revocar: (llamada) => (llamada.url.searchParams.get("scope") === "others" ? errorDeAuth(500, "unexpected_failure", "caído") : new Response(null, { status: 204 })) });
+    await pedirEnlaceAccion(CORREO);
+    await abrirEnlaceAccion("codigo-del-correo");
+    expect(await guardarContrasenaAccion(CLAVE)).toEqual({ tipo: "ok-sin-revocar" });
+    expect(hayCookieDeSesion()).toBe(true);
+
+    expect(await salirDeLaRecuperacionAccion()).toEqual({ tipo: "ok" });
+    expect(hayCookieDeSesion()).toBe(false);
+    expect(pedido.cookies.has(COOKIE_DE_RECUPERACION)).toBe(false);
+    // Solo la de este navegador: nunca un cierre global desde acá.
+    const cierres = llamadas.filter((l) => l.ruta === "/auth/v1/logout").map((l) => l.url.searchParams.get("scope"));
+    expect(cierres).toContain("local");
+    expect(cierres.filter((alcance) => alcance === "global")).toEqual([]);
+  });
+
+  it("aunque Supabase no conteste, la sesión de este navegador se borra igual", async () => {
+    prenderServidor({ revocar: () => errorDeAuth(500, "unexpected_failure", "caído") });
+    await pedirEnlaceAccion(CORREO);
+    await abrirEnlaceAccion("codigo-del-correo");
+    expect(await guardarContrasenaAccion(CLAVE)).toEqual({ tipo: "ok-sin-revocar" });
+    expect(await salirDeLaRecuperacionAccion()).toEqual({ tipo: "ok" });
+    expect(hayCookieDeSesion()).toBe(false);
+    expect(pedido.cookies.has(COOKIE_DE_RECUPERACION)).toBe(false);
   });
 });

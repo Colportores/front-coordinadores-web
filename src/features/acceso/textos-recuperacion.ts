@@ -64,6 +64,11 @@ export const TEXTOS_DE_NUEVA_CONTRASENA = {
   sinRevocar: "Cambiaste la contraseña, pero no pudimos cerrar las otras sesiones de tu cuenta. Probá de nuevo.",
   cerrarOtras: "Cerrar las otras sesiones",
   cerrandoOtras: "Cerrando…",
+  /** Sin artboard (mapa §2: texto/aviso): «Ir al login» no pudo cerrar la sesión de este navegador; sin cerrarla no se sale. */
+  noPudoSalir: "No pudimos cerrar la sesión en este navegador. Probá de nuevo.",
+  saliendo: "Saliendo…",
+  /** Sin artboard (decisión del 23/11, opción a; tono de 40B-08): con el cierre fallido y sin red, los dos botones quedan apagados. */
+  sinConexionParaSalir: "Sin conexión. Revisá tu internet para cerrar la sesión.",
   /**
    * 40B-06: una sola pantalla para vencido y ya usado (HU-AUTH-005), con el banner del canvas. Desde #217 el enlace abre en cualquier
    * navegador (Cristian, «Enlace otro n», 24/11), así que ya no se manda a «abrirlo donde lo pediste» (decisión P2 de #217).

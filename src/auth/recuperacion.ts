@@ -107,6 +107,14 @@ export async function abrirEnlace(
   );
 }
 
+/**
+ * El tope de bcrypt: GoTrue contesta 400 `validation_failed` con un texto fijo («Password cannot be longer than 72 characters»,
+ * sin datos de la cuenta), así que se distingue de los demás `validation_failed` por el mensaje, como hace el celular.
+ */
+function esRechazoPorLargo(error: AuthError): boolean {
+  return error.status === 400 && error.code === "validation_failed" && /password cannot be longer/i.test(error.message);
+}
+
 export type ResultadoDeGuardar =
   /** Contraseña cambiada y todas las sesiones de la cuenta cerradas. */
   | { tipo: "ok" }
@@ -121,6 +129,8 @@ export type ResultadoDeGuardar =
   | { tipo: "misma-contrasena" }
   /** No cumple la política (largo, mayúscula, número): la pantalla ya lo avisa; esto es la red de seguridad del servidor. */
   | { tipo: "contrasena-debil" }
+  /** Pasa del tope de 72 bytes en UTF-8 (HU-AUTH-001 «Topes de largo»): lo dice la pantalla, o lo rechazó el servidor (bcrypt). */
+  | { tipo: "contrasena-larga" }
   | { tipo: "no-disponible" };
 
 /**
@@ -133,7 +143,9 @@ export async function guardarContrasena(
   contrasena: string,
   tiempoMaximoMs: number = TIEMPO_MAXIMO_MS,
 ): Promise<ResultadoDeGuardar> {
-  if (!reglasDeContrasena(contrasena).cumple) return { tipo: "contrasena-debil" };
+  const reglas = reglasDeContrasena(contrasena);
+  if (reglas.demasiadoLarga) return { tipo: "contrasena-larga" };
+  if (!reglas.cumple) return { tipo: "contrasena-debil" };
   const fallo: ResultadoDeGuardar = { tipo: "no-disponible" };
   const cambio = await conTiempoMaximo<ResultadoDeGuardar>(
     (async () => {
@@ -142,6 +154,7 @@ export async function guardarContrasena(
         if (!error) return { tipo: "ok" };
         if (error.code === "same_password") return { tipo: "misma-contrasena" };
         if (error.code === "weak_password") return { tipo: "contrasena-debil" };
+        if (esRechazoPorLargo(error)) return { tipo: "contrasena-larga" };
         if (error.name === "AuthSessionMissingError" || error.code === "session_not_found" || error.code === "bad_jwt" || error.status === 401 || error.status === 403) {
           return { tipo: "sin-sesion" };
         }

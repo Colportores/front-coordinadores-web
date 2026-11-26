@@ -6,6 +6,7 @@ import type { RespuestaDeApertura, RespuestaDeCierreDeSesiones, RespuestaDeGuard
 import type { TipoDeEnlace } from "@/auth/recuperacion";
 import { Cartel, CLASE_DE_CAMPO, CLASE_DE_ENLACE, CLASE_DE_ETIQUETA, MarcoDeAcceso, type DatosDelAviso } from "@/features/acceso/MarcoDeAcceso";
 import { TEXTOS_DE_NUEVA_CONTRASENA as T } from "@/features/acceso/textos-recuperacion";
+import { guardarUltimoCorreo } from "@/features/acceso/ultimo-correo";
 import { reglasDeContrasena } from "@/features/acceso/validacion";
 import { useEnLinea } from "@/lib/en-linea";
 import { cn } from "@/lib/utils";
@@ -20,7 +21,7 @@ import { cn } from "@/lib/utils";
  * | 02 no cumple las reglas | «Guardar contraseña» apagado; cada regla dice si cumple |
  * | 03 no coinciden | el aviso sale en «Repetila» y «Guardar» sigue apagado |
  * | 04 guardando | campos y botón apagados hasta la respuesta |
- * | 05 contraseña cambiada | «Ir al login»: se cerraron todas las sesiones, el panel no entra directo (HU-AUTH-005). Si el cierre de las otras sesiones no se pudo confirmar, no es un éxito: aviso + «Cerrar las otras sesiones» (reintenta sin pedir la contraseña) |
+ * | 05 contraseña cambiada | «Ir al login»: se cerraron todas las sesiones, el panel no entra directo (HU-AUTH-005). Si el cierre de las otras sesiones no se pudo confirmar, no es un éxito: aviso + «Cerrar las otras sesiones» (reintenta sin pedir la contraseña); «Ir al login» ahí cierra la sesión de este navegador (alcance local) y pasa por el login con el correo escrito: nunca entra al panel |
  * | 06 enlace no válido | vencido, ya usado o sin código: una sola pantalla, sin adivinar cuál (HU-AUTH-005) |
  * | 07 error al guardar | «Reintentar», con lo escrito intacto |
  * | 08 sin conexión | el navegador está sin red |
@@ -53,11 +54,18 @@ export interface PropiedadesDeNuevaContrasena {
   guardar: (contrasena: string) => Promise<RespuestaDeGuardado>;
   /** Server action `cerrarOtrasSesionesAccion`: reintenta el cierre global tras un guardado `ok-sin-revocar`. */
   cerrarOtras: () => Promise<RespuestaDeCierreDeSesiones>;
+  /** Server action `salirDeLaRecuperacionAccion`: cierra la sesión de ESTE navegador antes de «Ir al login» tras un `ok-sin-revocar`. */
+  salirDeLaRecuperacion: () => Promise<{ tipo: "ok" }>;
+  /** A dónde ir (se cambia en los tests); por defecto, una navegación completa. */
+  irA?: (ruta: string) => void;
 }
 
 type Paso = "abriendo" | "no-se-pudo-abrir" | "nueva" | "cambiada" | "no-valido";
 
-type AvisoDeGuardado = "error" | "misma" | "debil" | null;
+type AvisoDeGuardado = "error" | "misma" | "debil" | "larga" | null;
+
+/** El login con el correo de esta pestaña escrito (`motivo=cerrada`: la sesión de este navegador se cerró). */
+const RUTA_DEL_LOGIN_TRAS_SALIR = "/acceso?motivo=cerrada";
 
 /** Los canjes en vuelo, por código: el código vale una sola vez y React (en desarrollo) monta el efecto dos veces. */
 const canjes = new Map<string, Promise<RespuestaDeApertura>>();
@@ -150,7 +158,14 @@ function CampoDeContrasena({
   );
 }
 
-export function PantallaNuevaContrasena({ inicial, abrir, guardar, cerrarOtras }: PropiedadesDeNuevaContrasena) {
+export function PantallaNuevaContrasena({
+  inicial,
+  abrir,
+  guardar,
+  cerrarOtras,
+  salirDeLaRecuperacion,
+  irA = (ruta) => window.location.assign(ruta),
+}: PropiedadesDeNuevaContrasena) {
   const [paso, setPaso] = useState<Paso>(inicial.paso === "abrir" ? "abriendo" : inicial.paso === "nueva" ? "nueva" : "no-valido");
   const [correo, setCorreo] = useState(inicial.paso === "nueva" ? inicial.correo : "");
   const [intento, setIntento] = useState(0);
@@ -164,10 +179,14 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar, cerrarOtras }
   /** La contraseña cambió pero el cierre de las otras sesiones no se confirmó. */
   const [sinRevocar, setSinRevocar] = useState(false);
   const [cerrando, setCerrando] = useState(false);
+  /** «Ir al login» cerrando la sesión de este navegador, y si no pudo. */
+  const [saliendo, setSaliendo] = useState(false);
+  const [noPudoSalir, setNoPudoSalir] = useState(false);
   const enLinea = useEnLinea();
 
   const enCurso = useRef(false);
   const cerrandoAhora = useRef(false);
+  const saliendoAhora = useRef(false);
   const titulo = useRef<HTMLHeadingElement>(null);
   const campoNueva = useRef<HTMLInputElement>(null);
   const focoPendiente = useRef<"titulo" | "nueva" | null>(null);
@@ -266,6 +285,10 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar, cerrarOtras }
           setAviso("debil");
           focoPendiente.current = "nueva";
           return;
+        case "contrasena-larga":
+          setAviso("larga");
+          focoPendiente.current = "nueva";
+          return;
         case "no-disponible":
           setAviso("error");
           // Los campos se apagaron mientras se guardaba: el foco volvió al <body>; vuelve al campo (como en 40A).
@@ -284,7 +307,7 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar, cerrarOtras }
 
   /** «Cerrar las otras sesiones»: una a la vez; si falla (devuelve `ok-sin-revocar` o no llega) el aviso queda y el botón se rehabilita. */
   async function cerrarOtrasAhora() {
-    if (cerrandoAhora.current || !enLinea) return;
+    if (cerrandoAhora.current || saliendoAhora.current || !enLinea) return;
     cerrandoAhora.current = true;
     setCerrando(true);
     try {
@@ -298,6 +321,28 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar, cerrarOtras }
     } finally {
       cerrandoAhora.current = false;
       setCerrando(false);
+    }
+  }
+
+  /**
+   * «Ir al login» con el cierre de las otras sesiones sin confirmar: la sesión de recuperación de ESTE navegador sigue abierta y
+   * un enlace común al login dejaría entrar al panel. Se cierra primero (alcance local; las otras sesiones no se tocan) y recién
+   * ahí se va al login con el correo escrito. Si el cierre no llega, la pantalla se queda, avisa y se puede reintentar; una a la vez.
+   */
+  async function salirAlLogin() {
+    if (saliendoAhora.current || cerrandoAhora.current || !enLinea) return;
+    saliendoAhora.current = true;
+    setSaliendo(true);
+    setNoPudoSalir(false);
+    try {
+      await salirDeLaRecuperacion();
+      guardarUltimoCorreo(correo);
+      irA(RUTA_DEL_LOGIN_TRAS_SALIR);
+    } catch {
+      setNoPudoSalir(true);
+    } finally {
+      saliendoAhora.current = false;
+      setSaliendo(false);
     }
   }
 
@@ -323,13 +368,14 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar, cerrarOtras }
   else if (!enLinea) cartel = { texto: T.sinConexion, rol: "status", tono: "sin-red" };
   else if (aviso === "error") cartel = { texto: T.errorAlGuardar, rol: "alert", tono: "error" };
 
-  const errorDelCampo = reglas.demasiadoLarga
-    ? T.demasiadaLarga
-    : aviso === "misma"
-      ? T.mismaContrasena
-      : aviso === "debil"
-        ? T.contrasenaDebil
-        : null;
+  const errorDelCampo =
+    reglas.demasiadoLarga || aviso === "larga"
+      ? T.demasiadaLarga
+      : aviso === "misma"
+        ? T.mismaContrasena
+        : aviso === "debil"
+          ? T.contrasenaDebil
+          : null;
 
   const botonPrincipal = "flex items-center justify-center gap-2.5 rounded-control px-3 py-[13px] text-[14px] font-semibold text-superficie outline-none focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-offset-2";
 
@@ -354,7 +400,7 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar, cerrarOtras }
               valor={nueva}
               alCambiar={(valor) => {
                 setNueva(valor);
-                setAviso((antes) => (antes === "misma" || antes === "debil" ? null : antes));
+                setAviso((antes) => (antes === "misma" || antes === "debil" || antes === "larga" ? null : antes));
               }}
               deshabilitado={guardando}
               invalido={errorDelCampo !== null}
@@ -417,22 +463,40 @@ export function PantallaNuevaContrasena({ inicial, abrir, guardar, cerrarOtras }
           <button
             type="button"
             onClick={() => void cerrarOtrasAhora()}
-            aria-disabled={cerrando || !enLinea || undefined}
-            className={cn(botonPrincipal, cerrando ? "bg-marca-media" : !enLinea ? "bg-tinta-tenue" : "bg-marca hover:bg-marca-media")}
+            aria-disabled={cerrando || saliendo || !enLinea || undefined}
+            className={cn(botonPrincipal, cerrando ? "bg-marca-media" : saliendo || !enLinea ? "bg-tinta-tenue" : "bg-marca hover:bg-marca-media")}
           >
             {cerrando ? (
               <span aria-hidden className="size-3.5 animate-spin rounded-pastilla border-2 border-superficie/35 border-t-superficie" />
             ) : null}
             {cerrando ? T.cerrandoOtras : T.cerrarOtras}
           </button>
-          <a href="/acceso" className={cn(CLASE_DE_ENLACE, "text-center")}>
-            {T.irAlLogin}
-          </a>
+          {/* Un botón y no un enlace: sin cerrar antes la sesión de este navegador, ir al login dejaría entrar al panel. */}
+          <button
+            type="button"
+            onClick={() => void salirAlLogin()}
+            aria-disabled={saliendo || cerrando || !enLinea || undefined}
+            className={cn(CLASE_DE_ENLACE, "text-center")}
+          >
+            {saliendo ? T.saliendo : T.irAlLogin}
+          </button>
+          {noPudoSalir ? (
+            <p role="alert" className="text-cuerpo text-peligro">
+              {T.noPudoSalir}
+            </p>
+          ) : null}
+          {/* Sin red los dos botones quedan apagados: la línea dice por qué (tono de 40B·08). */}
+          {!enLinea ? <Cartel aviso={{ texto: T.sinConexionParaSalir, rol: "status", tono: "sin-red" }} /> : null}
         </>
       ) : null}
 
       {paso === "cambiada" && !sinRevocar ? (
-        <a href="/acceso" className={cn(botonPrincipal, "bg-marca hover:bg-marca-media")}>
+        // Mismo final que «Ir al login» tras el cierre fallido (decisión del 26/11, 38·07): el login con el correo y «Cerraste sesión.».
+        <a
+          href={RUTA_DEL_LOGIN_TRAS_SALIR}
+          onClick={() => guardarUltimoCorreo(correo)}
+          className={cn(botonPrincipal, "bg-marca hover:bg-marca-media")}
+        >
           {T.irAlLogin}
         </a>
       ) : null}
