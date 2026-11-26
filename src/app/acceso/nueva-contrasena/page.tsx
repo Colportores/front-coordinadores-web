@@ -17,9 +17,11 @@ export const metadata: Metadata = {
 const LARGO_MAXIMO_DEL_CODIGO = 1024;
 
 /**
- * Vista 40B: «Nueva contraseña» del coordinador (issue #111, HU-AUTH-005), la pantalla a la que vuelve el enlace del correo con
- * un `?code=` (flujo PKCE de Supabase). Sin el marco del panel: el proxy lo saca de todo `/acceso/*`.
+ * Vista 40B: «Nueva contraseña» del coordinador (issue #111, HU-AUTH-005), la pantalla a la que vuelve el enlace del correo. Sin
+ * el marco del panel: el proxy lo saca de todo `/acceso/*`.
  *
+ * - El enlace de la plantilla de correo nueva trae `?token_hash=…&type=recovery`, un código de un solo uso que abre en CUALQUIER
+ *   navegador (#217, «Enlace otro n»); el `?code=` PKCE de los correos viejos sigue valiendo en el navegador que los pidió.
  * - Con código, la pantalla lo canjea (una server action: la sesión de recuperación va a una cookie `httpOnly`).
  * - Sin código pero con una recuperación en curso en este navegador (se recargó la página, ya sin el código en la URL), sigue en
  *   «Nueva contraseña».
@@ -36,12 +38,18 @@ export default async function NuevaContrasenaPagina({ searchParams }: PageProps<
     const consulta = await searchParams;
     const unico = (valor: string | string[] | undefined) => (Array.isArray(valor) ? valor[0] : valor);
     const codigo = unico(consulta.code);
+    // El código de un solo uso va con `type=recovery`; con otro `type` (o sin él) no es de esta pantalla. Si trae los dos, gana el de un solo uso.
+    const codigoDeUnSoloUso = unico(consulta.token_hash);
+    const tipoDelEnlace = unico(consulta.type);
     const hayError = unico(consulta.error) !== undefined;
+    const esValido = (valor: unknown): valor is string => typeof valor === "string" && valor !== "" && valor.length <= LARGO_MAXIMO_DEL_CODIGO;
 
     const { abrirEnlaceAccion, guardarContrasenaAccion, cerrarOtrasSesionesAccion, salirDeLaRecuperacionAccion } = await import("@/auth/acciones-recuperacion");
 
     let inicial: EstadoInicialDeNuevaContrasena = { paso: "no-valido" };
-    if (!hayError && typeof codigo === "string" && codigo !== "" && codigo.length <= LARGO_MAXIMO_DEL_CODIGO) {
+    if (!hayError && codigoDeUnSoloUso !== undefined) {
+      if (esValido(codigoDeUnSoloUso) && tipoDelEnlace === "recovery") inicial = { paso: "abrir", codigo: codigoDeUnSoloUso, tipo: "un-solo-uso" };
+    } else if (!hayError && esValido(codigo)) {
       inicial = { paso: "abrir", codigo };
     } else if (!hayError) {
       const enCurso = await (await import("@/auth/recuperacion-servidor")).recuperacionEnCurso();

@@ -13,6 +13,12 @@ function clienteFalso() {
         error: null,
       }),
     ),
+    verifyOtp: vi.fn(
+      async (): Promise<{ data: unknown; error: unknown }> => ({
+        data: { session: { user: { id: "u-1", email: "marta@correo.com" } } },
+        error: null,
+      }),
+    ),
     updateUser: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
     signOut: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
     getSession: vi.fn(async (): Promise<{ data: { session: unknown } }> => ({ data: { session: { user: { id: "u-1" } } } })),
@@ -77,12 +83,29 @@ describe("abrirEnlace", () => {
 
   it.each([
     ["vencido", errorApi(403, "otp_expired")],
-    ["sin el verificador (otro navegador)", Object.assign(new Error("PKCE code verifier not found in storage"), { name: "AuthPKCECodeVerifierMissingError", status: 400 })],
     ["un código que no existe", errorApi(404, "flow_state_not_found")],
   ])("un enlace %s es una sola respuesta: no válido", async (_nombre, error) => {
     const { supabase, auth } = clienteFalso();
     auth.exchangeCodeForSession.mockResolvedValue({ data: { session: null }, error });
     expect(await abrirEnlace(supabase, "x")).toEqual({ tipo: "no-valido" });
+  });
+
+  it("un `?code=` sin el verificador PKCE (otro navegador) es no válido y lo marca, para que la pantalla lo diga", async () => {
+    const { supabase, auth } = clienteFalso();
+    const error = Object.assign(new Error("PKCE code verifier not found in storage"), { name: "AuthPKCECodeVerifierMissingError", status: 400 });
+    auth.exchangeCodeForSession.mockResolvedValue({ data: { session: null }, error });
+    expect(await abrirEnlace(supabase, "x")).toEqual({ tipo: "no-valido", sinVerificador: true });
+  });
+
+  it("#217: el código de un solo uso se verifica con verifyOtp como recovery, sin verificador, y vencido es no válido (sin la marca)", async () => {
+    const { supabase, auth } = clienteFalso();
+    expect(await abrirEnlace(supabase, "hash-1", undefined, "un-solo-uso")).toEqual({ tipo: "ok", correo: "marta@correo.com", usuarioId: "u-1" });
+    expect(auth.verifyOtp).toHaveBeenCalledWith({ token_hash: "hash-1", type: "recovery" });
+    expect(auth.exchangeCodeForSession).not.toHaveBeenCalled();
+    auth.verifyOtp.mockResolvedValue({ data: { session: null }, error: errorApi(403, "otp_expired") });
+    expect(await abrirEnlace(supabase, "hash-1", undefined, "un-solo-uso")).toEqual({ tipo: "no-valido" });
+    auth.verifyOtp.mockResolvedValue({ data: { session: null }, error: errorApi(503, "unexpected_failure") });
+    expect(await abrirEnlace(supabase, "hash-1", undefined, "un-solo-uso")).toEqual({ tipo: "no-disponible" });
   });
 
   it("sin red, con el servicio caído o limitado no se dice que el enlace venció", async () => {

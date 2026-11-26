@@ -58,14 +58,14 @@ afterEach(() => vi.restoreAllMocks());
 describe("QA #213 · sin conexión: el texto de la convención (§10) y el anuncio", () => {
   it("QA #213: con el navegador sin conexión el diálogo dice «Necesitás conexión para pedir la transferencia», como cuando la red falla al enviar (hoy dice «No hay conexión: …»)", async () => {
     vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
-    render(<StockVista datos={chico()} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok())} />);
     await abrir();
     expect(enDialogo().getByText(/Necesitás conexión para pedir la transferencia/)).toBeInTheDocument();
   });
 
   it("la falla de red al enviar sí dice «Necesitás conexión para pedir la transferencia» y se anuncia (role alert)", async () => {
     const pedirTransferencia = vi.fn<AccionesDeStock["pedirTransferencia"]>(async () => ({ ok: false as const, causa: "sin-conexion" as const }));
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar();
     await pedir();
@@ -74,7 +74,7 @@ describe("QA #213 · sin conexión: el texto de la convención (§10) y el anunc
 
   it("QA #213: el aviso de «sin conexión» del diálogo se anuncia al lector de pantalla cuando la conexión se corta con el diálogo abierto (hoy es un <p> sin role ni región viva)", async () => {
     const enLinea = vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
-    render(<StockVista datos={chico()} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok())} />);
     await abrir();
     enLinea.mockReturnValue(false);
     act(() => {
@@ -95,7 +95,7 @@ describe("QA #213 · acciones superpuestas y falla a mitad", () => {
           soltar = () => resolver({ ok: false, causa: "rechazado", mensaje: "TR001: no se puede." });
         }),
     );
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar("ana", "beto", "l1", "2");
     const enviar = enDialogo().getByRole("button", { name: "Pedir transferencia" });
@@ -121,7 +121,7 @@ describe("QA #213 · acciones superpuestas y falla a mitad", () => {
       .fn<AccionesDeStock["pedirTransferencia"]>()
       .mockRejectedValueOnce(new Error("boom"))
       .mockResolvedValueOnce({ ok: true, valor: { id: "t", numero: "T-20" } });
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar();
     await pedir();
@@ -135,7 +135,7 @@ describe("QA #213 · acciones superpuestas y falla a mitad", () => {
 
   it("falla, se cancela y se vuelve a entrar: el formulario está vacío y sin el error anterior", async () => {
     const pedirTransferencia = vi.fn<AccionesDeStock["pedirTransferencia"]>(async () => ({ ok: false as const, causa: "sin-conexion" as const }));
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar();
     await pedir();
@@ -149,7 +149,7 @@ describe("QA #213 · acciones superpuestas y falla a mitad", () => {
   });
 
   it("tras un éxito, abrir otra vez da el formulario vacío y con el foco en el primer campo; el aviso anterior sigue", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(ok("T-19"))} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok("T-19"))} />);
     await abrir();
     await llenar();
     await pedir();
@@ -167,7 +167,7 @@ describe("QA #213 · la cantidad: lo que se acepta y lo que no", () => {
     ["con ceros a la izquierda", "0005", 5],
   ])("%s se manda como el entero que es", async (_nombre, escrito, esperado) => {
     const pedirTransferencia = ok();
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar("ana", "beto", "l1", escrito);
     await pedir();
@@ -178,7 +178,7 @@ describe("QA #213 · la cantidad: lo que se acepta y lo que no", () => {
     "«%s» no se manda: el error está en su fila, dice qué hacer y lo escrito se queda",
     async (escrito) => {
       const pedirTransferencia = ok();
-      render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+      render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
       await abrir();
       await llenar("ana", "beto", "l1", escrito);
       await pedir();
@@ -193,7 +193,7 @@ describe("QA #213 · la cantidad: lo que se acepta y lo que no", () => {
 
   it("un texto pegado larguísimo (emoji y dígitos) no rompe nada ni se manda", async () => {
     const pedirTransferencia = ok();
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar("ana", "beto", "l1", "😀".repeat(3000) + "9".repeat(5000));
     await pedir();
@@ -203,7 +203,7 @@ describe("QA #213 · la cantidad: lo que se acepta y lo que no", () => {
 
   it("el límite: 99.999 se manda y 100.000 avisa del máximo con el número en miles", async () => {
     const pedirTransferencia = ok();
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar("ana", "beto", "l1", "100000");
     await pedir();
@@ -218,7 +218,7 @@ describe("QA #213 · la cantidad: lo que se acepta y lo que no", () => {
 
   it("dos productos: sacar la primera fila no pierde lo cargado en la otra y se manda solo esa", async () => {
     const pedirTransferencia = ok();
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar("ana", "beto", "l1", "2");
     await userEvent.click(enDialogo().getByRole("button", { name: "Sumar otro producto" }));
@@ -240,7 +240,7 @@ describe("QA #213 · datos límite de la vista", () => {
       colportores: [col("ana", "Ana", "riv", ex("l1", 5)), col("beto", "Beto", "riv")],
     });
     const pedirTransferencia = ok();
-    render(<StockVista datos={datos} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={datos} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar("ana", "beto", "l1", "1");
     expect(enDialogo().getByRole("button", { name: "Sumar otro producto" })).toBeDisabled();
@@ -251,13 +251,13 @@ describe("QA #213 · datos límite de la vista", () => {
 
   it("un colportor sin ciudad aparece en el formulario y se puede elegir", async () => {
     const datos = chico({ colportores: [col("ana", "Ana", "riv", ex("l1", 5)), col("sin", "Sofía", null, ex("l1", 1))] });
-    render(<StockVista datos={datos} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={datos} acciones={acciones(ok())} />);
     await abrir();
     expect(within(enDialogo().getByLabelText("QUIÉN LOS RECIBE")).getByRole("option", { name: "Sofía" })).toBeInTheDocument();
   });
 
   it("los avisos de «Armaste…» no pisan el foco ni se pierden al cambiar de ciudad", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(ok("T-19"))} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok("T-19"))} />);
     await abrir();
     await llenar();
     await pedir();
@@ -289,7 +289,7 @@ describe("QA #213 · coherencia entre Stock y las vistas a las que lleva", () =>
       ],
       pedidosPorAutorizar: [{ ciudadId: "bu", pedidos: 2 }],
     });
-    render(<StockVista datos={datos} />);
+    render(<StockVista vistaInicial="producto" datos={datos} />);
     await userEvent.click(within(screen.getByRole("navigation", { name: "Ciudades" })).getByRole("button", { name: /^Bella Unión/ }));
     expect(screen.getByRole("link", { name: /Ver pedidos por autorizar en Bella Unión/ })).toBeInTheDocument();
   });

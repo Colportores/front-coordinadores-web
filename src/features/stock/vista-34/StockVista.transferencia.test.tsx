@@ -46,7 +46,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("el botón «Pedir transferencia de materiales»", () => {
   it("está arriba, con el nombre del 28/10 (nunca «Pedir prestado»), y abre el formulario", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok())} />);
     expect(screen.queryByText(/prestado/i)).toBeNull();
     await abrir();
     expect(dialogo()).toBeInTheDocument();
@@ -55,12 +55,12 @@ describe("el botón «Pedir transferencia de materiales»", () => {
   });
 
   it("sin `acciones` la vista es de lectura: no hay botón", () => {
-    render(<StockVista datos={chico()} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} />);
     expect(screen.queryByRole("button", { name: "Pedir transferencia de materiales" })).toBeNull();
   });
 
   it("el foco arranca en el primer campo y, al cancelar, vuelve al botón", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok())} />);
     await abrir();
     expect(enDialogo().getByLabelText("QUIÉN DA LOS LIBROS")).toHaveFocus();
     await userEvent.click(enDialogo().getByRole("button", { name: "Cancelar" }));
@@ -69,7 +69,7 @@ describe("el botón «Pedir transferencia de materiales»", () => {
   });
 
   it("Esc cancela y Tab no sale del diálogo", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok())} />);
     await abrir();
     await userEvent.tab({ shift: true });
     expect(enDialogo().getByRole("button", { name: "Pedir transferencia" })).toHaveFocus();
@@ -80,7 +80,7 @@ describe("el botón «Pedir transferencia de materiales»", () => {
   });
 
   it("al cancelar y volver a abrir, el formulario está vacío", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok())} />);
     await abrir();
     await llenar();
     await userEvent.click(enDialogo().getByRole("button", { name: "Cancelar" }));
@@ -93,7 +93,7 @@ describe("el botón «Pedir transferencia de materiales»", () => {
 describe("el formulario valida al pedir y cada error dice qué hacer", () => {
   it("vacío: dice que falta quién da, quién recibe y un producto, y manda el foco al primero", async () => {
     const pedirTransferencia = ok();
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await pedir();
     expect(enDialogo().getByText("Elegí quién da los libros.")).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe("el formulario valida al pedir y cada error dice qué hacer", () => {
   });
 
   it("quien da no se ofrece como quien recibe; si se lo elige después, el destino se vuelve a pedir", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok())} />);
     await abrir();
     await userEvent.selectOptions(enDialogo().getByLabelText("QUIÉN DA LOS LIBROS"), "ana");
     expect(within(enDialogo().getByLabelText("QUIÉN LOS RECIBE")).queryByRole("option", { name: /^Ana/ })).toBeNull();
@@ -116,7 +116,7 @@ describe("el formulario valida al pedir y cada error dice qué hacer", () => {
 
   it.each(["", "0", "-2", "1.5", "1,5", "abc", "2x", " "])("la cantidad %j no sirve: pide un entero mayor que cero y no manda nada", async (cantidad) => {
     const pedirTransferencia = ok();
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar("ana", "beto", "l1", cantidad);
     await pedir();
@@ -125,7 +125,7 @@ describe("el formulario valida al pedir y cada error dice qué hacer", () => {
   });
 
   it("un producto sin cantidad o una cantidad sin producto también avisan, en su fila", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok())} />);
     await abrir();
     await userEvent.selectOptions(enDialogo().getByLabelText("QUIÉN DA LOS LIBROS"), "ana");
     await userEvent.selectOptions(enDialogo().getByLabelText("QUIÉN LOS RECIBE"), "beto");
@@ -136,7 +136,7 @@ describe("el formulario valida al pedir y cada error dice qué hacer", () => {
   });
 
   it("un número descomunal avisa del máximo", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok())} />);
     await abrir();
     await llenar("ana", "beto", "l1", "100000");
     await pedir();
@@ -144,7 +144,7 @@ describe("el formulario valida al pedir y cada error dice qué hacer", () => {
   });
 
   it("un producto ya elegido no se ofrece en la otra fila (no se repite)", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok())} />);
     await abrir();
     await userEvent.selectOptions(enDialogo().getByLabelText("Producto 1"), "l1");
     await userEvent.click(enDialogo().getByRole("button", { name: "Sumar otro producto" }));
@@ -156,7 +156,7 @@ describe("el formulario valida al pedir y cada error dice qué hacer", () => {
   });
 
   it("se puede sacar una fila (con más de una) y el foco va a «Sumar otro producto»", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok())} />);
     await abrir();
     expect(enDialogo().queryByRole("button", { name: /^Sacar/ })).toBeNull();
     await userEvent.click(enDialogo().getByRole("button", { name: "Sumar otro producto" }));
@@ -167,7 +167,7 @@ describe("el formulario valida al pedir y cada error dice qué hacer", () => {
 
   it("dice cuánto tiene quien da y, si se pide más, avisa que se puede pedir igual", async () => {
     const pedirTransferencia = ok();
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar("ana", "beto", "l1", "9");
     expect(enDialogo().getByText(/Ana tiene 5, menos de lo que pedís\. Podés pedirla igual/)).toBeInTheDocument();
@@ -176,7 +176,7 @@ describe("el formulario valida al pedir y cada error dice qué hacer", () => {
   });
 
   it("con menos de dos colportores o sin productos lo dice y no deja pedir", async () => {
-    render(<StockVista datos={chico({ colportores: [chico().colportores[0]] })} acciones={acciones(ok())} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: [chico().colportores[0]] })} acciones={acciones(ok())} />);
     await abrir();
     expect(enDialogo().getByText(/hacen falta al menos dos colportores/)).toBeInTheDocument();
     expect(enDialogo().queryByRole("button", { name: "Pedir transferencia" })).toBeNull();
@@ -187,7 +187,7 @@ describe("el formulario valida al pedir y cada error dice qué hacer", () => {
 describe("pedirla: éxito, falla y casos límite", () => {
   it("manda lo elegido con cantidades enteras, cierra, avisa con el número y lleva a «Ver transferencias»", async () => {
     const pedirTransferencia = ok("T-19");
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar("ana", "beto", "l1", " 02 ");
     await userEvent.click(enDialogo().getByRole("button", { name: "Sumar otro producto" }));
@@ -210,7 +210,7 @@ describe("pedirla: éxito, falla y casos límite", () => {
   });
 
   it("una sola unidad se dice en singular y el aviso se puede cerrar", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(ok("T-20"))} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(ok("T-20"))} />);
     await abrir();
     await llenar("ana", "beto", "l1", "1");
     await pedir();
@@ -222,7 +222,7 @@ describe("pedirla: éxito, falla y casos límite", () => {
   it("doble toque: la segunda pulsación mientras está en camino no manda otra", async () => {
     let terminar: (r: Awaited<ReturnType<AccionesDeStock["pedirTransferencia"]>>) => void = () => {};
     const pedirTransferencia = vi.fn(() => new Promise<Awaited<ReturnType<AccionesDeStock["pedirTransferencia"]>>>((res) => (terminar = res)));
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar();
     const enviar = enDialogo().getByRole("button", { name: "Pedir transferencia" });
@@ -246,7 +246,7 @@ describe("pedirla: éxito, falla y casos límite", () => {
       .fn<AccionesDeStock["pedirTransferencia"]>()
       .mockRejectedValueOnce(new Error("red"))
       .mockResolvedValueOnce({ ok: true, valor: { id: "t", numero: "T-21" } });
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar();
     await pedir();
@@ -269,7 +269,7 @@ describe("pedirla: éxito, falla y casos límite", () => {
       .fn<AccionesDeStock["pedirTransferencia"]>()
       .mockResolvedValueOnce({ ok: false, causa: "rechazado", mensaje: "Hay un libro que ya no está en el catálogo. Sacalo de la transferencia y volvé a intentar." })
       .mockResolvedValueOnce({ ok: true, valor: { id: "t", numero: "T-22" } });
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     await llenar();
     await pedir();
@@ -279,7 +279,7 @@ describe("pedirla: éxito, falla y casos límite", () => {
   });
 
   it("un rechazo sin texto no deja el aviso vacío: dice qué hacer", async () => {
-    render(<StockVista datos={chico()} acciones={acciones(vi.fn(async () => ({ ok: false as const, causa: "rechazado" as const })))} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(vi.fn(async () => ({ ok: false as const, causa: "rechazado" as const })))} />);
     await abrir();
     await llenar();
     await pedir();
@@ -287,7 +287,7 @@ describe("pedirla: éxito, falla y casos límite", () => {
   });
 
   it("dos transferencias seguidas: salen las dos, con números distintos, y los dos avisos quedan a la vista", async () => {
-    render(<StockVista datos={chico()} acciones={crearAccionesSimuladas(chico())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={crearAccionesSimuladas(chico())} />);
     await abrir();
     await llenar("ana", "beto", "l1", "1");
     await pedir();
@@ -302,7 +302,7 @@ describe("pedirla: éxito, falla y casos límite", () => {
   });
 
   it("quedan a la vista solo los últimos tres avisos", async () => {
-    render(<StockVista datos={chico()} acciones={crearAccionesSimuladas(chico())} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={crearAccionesSimuladas(chico())} />);
     for (let i = 0; i < 4; i++) {
       await abrir();
       await llenar("ana", "beto", "l1", "1");
@@ -316,7 +316,7 @@ describe("pedirla: éxito, falla y casos límite", () => {
   it("sin conexión del navegador no se manda: avisa, y al volver la conexión sale", async () => {
     const pedirTransferencia = ok();
     const enLinea = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
-    render(<StockVista datos={chico()} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     expect(enDialogo().getByText(/Necesitás conexión para pedir la transferencia\. Revisá la conexión y probá de nuevo\. Lo que cargaste queda acá/)).toBeInTheDocument();
     await llenar();
@@ -343,7 +343,7 @@ describe("pedirla: éxito, falla y casos límite", () => {
       existencias: [ex("l1", i)],
     }));
     const pedirTransferencia = ok();
-    render(<StockVista datos={chico({ colportores: muchos })} acciones={acciones(pedirTransferencia)} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: muchos })} acciones={acciones(pedirTransferencia)} />);
     await abrir();
     expect(within(enDialogo().getByLabelText("QUIÉN DA LOS LIBROS")).getAllByRole("option")).toHaveLength(301);
     await userEvent.selectOptions(enDialogo().getByLabelText("QUIÉN DA LOS LIBROS"), "c7");
@@ -356,7 +356,7 @@ describe("pedirla: éxito, falla y casos límite", () => {
 
   it("con la fuente simulada completa se arma una transferencia de punta a punta", async () => {
     const datos = crearDatosDeStockSimulados();
-    render(<StockVista datos={datos} acciones={crearAccionesSimuladas(datos)} />);
+    render(<StockVista vistaInicial="producto" datos={datos} acciones={crearAccionesSimuladas(datos)} />);
     await abrir();
     await userEvent.selectOptions(enDialogo().getByLabelText("QUIÉN DA LOS LIBROS"), "lucia-fernandez");
     await userEvent.selectOptions(enDialogo().getByLabelText("QUIÉN LOS RECIBE"), "bruno-techera");

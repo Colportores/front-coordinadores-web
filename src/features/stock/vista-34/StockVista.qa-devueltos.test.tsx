@@ -48,20 +48,20 @@ const I = { tiene: 0, manos: 1, porEntregar: 2, entregados: 3, devueltos: 4, por
 
 describe("PR #119 · «Devueltos» no toca a «Entregados» ni al estado", () => {
   it("devolver no resta de lo entregado: entregados 10 y devueltos 4 se muestran como 10 y 4", () => {
-    render(<StockVista datos={datos(col("ana", "riv", ex("l1", { tiene: 2, entregados: 10, devueltos: 4, porCobrar: 1 })))} />);
+    render(<StockVista vistaInicial="producto" datos={datos(col("ana", "riv", ex("l1", { tiene: 2, entregados: 10, devueltos: 4, porCobrar: 1 })))} />);
     const c = celdasDe(/Libro uno/);
     expect(c[I.entregados]).toBe("10");
     expect(c[I.devueltos]).toBe("4");
   });
 
   it("lo devuelto no cambia el estado ni los avisos: sin stock en la ciudad sigue «Agotado en la ciudad», aunque haya devueltos", () => {
-    render(<StockVista datos={datos(col("ana", "riv", ex("l1", { tiene: 0, entregados: 5, devueltos: 5 })))} />);
+    render(<StockVista vistaInicial="producto" datos={datos(col("ana", "riv", ex("l1", { tiene: 0, entregados: 5, devueltos: 5 })))} />);
     expect(within(within(tabla()).getByRole("row", { name: /Libro uno/ })).getAllByRole("cell").at(-1)).toHaveTextContent("Agotado en la ciudad");
     expect(screen.getByRole("list", { name: "Avisos de stock" })).toHaveTextContent("Libro uno agotado en Rivera");
   });
 
   it("devueltos mayor que entregados (el servidor lo manda así) se muestra tal cual, sin recortar ni restar", () => {
-    render(<StockVista datos={datos(col("ana", "riv", ex("l1", { tiene: 2, entregados: 1, devueltos: 3 })))} />);
+    render(<StockVista vistaInicial="producto" datos={datos(col("ana", "riv", ex("l1", { tiene: 2, entregados: 1, devueltos: 3 })))} />);
     const c = celdasDe(/Libro uno/);
     expect([c[I.entregados], c[I.devueltos]]).toEqual(["1", "3"]);
   });
@@ -71,6 +71,7 @@ describe("PR #119 · cómo se suma «Devueltos»", () => {
   it("por producto suma a todos los colportores de la ciudad elegida y no mezcla ciudades", async () => {
     render(
       <StockVista
+        vistaInicial="producto"
         datos={datos(
           col("ana", "riv", ex("l1", { tiene: 1, devueltos: 2 })),
           col("beto", "riv", ex("l1", { tiene: 1, devueltos: 5 })),
@@ -88,6 +89,7 @@ describe("PR #119 · cómo se suma «Devueltos»", () => {
   it("la fila de categoría (revistas, todas juntas) suma lo devuelto de todos sus títulos", () => {
     render(
       <StockVista
+        vistaInicial="producto"
         datos={datos(col("ana", "riv", ex("r1", { tiene: 2, devueltos: 3 }), ex("r2", { tiene: 1, devueltos: 4 })))}
       />,
     );
@@ -95,13 +97,13 @@ describe("PR #119 · cómo se suma «Devueltos»", () => {
   });
 
   it("un colportor sin ciudad entra en «Sin ciudad» con sus devueltos (no se pierde)", async () => {
-    render(<StockVista datos={datos(col("sola", null, ex("l1", { tiene: 1, devueltos: 6 })))} />);
+    render(<StockVista vistaInicial="producto" datos={datos(col("sola", null, ex("l1", { tiene: 1, devueltos: 6 })))} />);
     await userEvent.click(within(lista()).getByRole("button", { name: /Sin ciudad/ }));
     expect(celdasDe(/Libro uno/)[I.devueltos]).toBe("6");
   });
 
   it("cifras grandes llevan separador de miles en la fila y en el detalle", async () => {
-    render(<StockVista datos={datos(col("ana", "riv", ex("l1", { tiene: 1, entregados: 2345678, devueltos: 1234567, porCobrar: 1000 })))} />);
+    render(<StockVista vistaInicial="producto" datos={datos(col("ana", "riv", ex("l1", { tiene: 1, entregados: 2345678, devueltos: 1234567, porCobrar: 1000 })))} />);
     const c = celdasDe(/Libro uno/);
     expect([c[I.entregados], c[I.devueltos], c[I.porCobrar]]).toEqual(["2.345.678", "1.234.567", "1.000"]);
     await userEvent.click(within(tabla()).getByRole("button", { name: /Libro uno/ }));
@@ -112,6 +114,7 @@ describe("PR #119 · cómo se suma «Devueltos»", () => {
   it("devueltos negativo, NaN o infinito cuentan cero y no contaminan la suma de los demás", () => {
     render(
       <StockVista
+        vistaInicial="producto"
         datos={datos(
           col("ana", "riv", ex("l1", { tiene: 1, devueltos: -5 })),
           col("beto", "riv", ex("l1", { tiene: 1, devueltos: Number.NaN })),
@@ -129,6 +132,7 @@ describe("PR #119 · el detalle «Quién lo tiene»", () => {
   it("cada colportor lleva su propio número de devueltos, en la columna DEVUELTOS, entre ENTREGADOS y POR COBRAR", async () => {
     render(
       <StockVista
+        vistaInicial="producto"
         datos={datos(
           col("ana", "riv", ex("l1", { tiene: 3, entregados: 9, devueltos: 2, porCobrar: 4 })),
           col("beto", "riv", ex("l1", { tiene: 1, entregados: 8, devueltos: 7, porCobrar: 5 })),
@@ -148,7 +152,7 @@ describe("PR #119 · el detalle «Quién lo tiene»", () => {
   });
 
   it("los números rotos del detalle no muestran NaN ni negativos (mismo saneado que la fila)", async () => {
-    render(<StockVista datos={datos(col("ana", "riv", ex("l1", { tiene: 3, devueltos: -2, porCobrar: Number.NaN })))} />);
+    render(<StockVista vistaInicial="producto" datos={datos(col("ana", "riv", ex("l1", { tiene: 3, devueltos: -2, porCobrar: Number.NaN })))} />);
     await userEvent.click(within(tabla()).getByRole("button", { name: /Libro uno/ }));
     const detalle = screen.getByRole("table", { name: /^Quién tiene Libro uno/ });
     expect(detalle.textContent).not.toMatch(/nan|undefined|null|-\d/i);
@@ -157,7 +161,7 @@ describe("PR #119 · el detalle «Quién lo tiene»", () => {
 
 describe("PR #119 · «Por cobrar» tal cual llega", () => {
   it("la fila y el detalle muestran el mismo número que manda el servidor: 3 libros cobrados a la mitad cuentan 2", async () => {
-    render(<StockVista datos={datos(col("ana", "riv", ex("l1", { tiene: 1, entregados: 3, porCobrar: 2 })))} />);
+    render(<StockVista vistaInicial="producto" datos={datos(col("ana", "riv", ex("l1", { tiene: 1, entregados: 3, porCobrar: 2 })))} />);
     expect(celdasDe(/Libro uno/)[I.porCobrar]).toBe("2");
     await userEvent.click(within(tabla()).getByRole("button", { name: /Libro uno/ }));
     const detalle = screen.getByRole("table", { name: /^Quién tiene Libro uno/ });
@@ -167,7 +171,7 @@ describe("PR #119 · «Por cobrar» tal cual llega", () => {
   });
 
   it("por cobrar mayor que entregados no se recorta ni se recalcula (el panel no prorratea)", () => {
-    render(<StockVista datos={datos(col("ana", "riv", ex("l1", { tiene: 1, entregados: 1, porCobrar: 4 })))} />);
+    render(<StockVista vistaInicial="producto" datos={datos(col("ana", "riv", ex("l1", { tiene: 1, entregados: 1, porCobrar: 4 })))} />);
     expect(celdasDe(/Libro uno/)[I.porCobrar]).toBe("4");
   });
 });
@@ -190,7 +194,7 @@ describe("PR #119 · fuente simulada", () => {
   });
 
   it("la vista simulada completa muestra la columna sin NaN ni vacíos en ninguna fila", () => {
-    render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     for (const fila of within(tabla()).getAllByRole("row")) {
       const celdas = within(fila).queryAllByRole("cell");
       if (celdas.length < 7) continue;

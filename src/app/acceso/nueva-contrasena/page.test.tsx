@@ -50,6 +50,37 @@ describe("/acceso/nueva-contrasena (vista 40B)", () => {
     expect(acciones.abrirEnlaceAccion).toHaveBeenCalledWith("c-del-correo");
   });
 
+  it("#217: con el código de un solo uso de la plantilla nueva (`token_hash` + `type=recovery`) lo canjea como tal", async () => {
+    prenderLogin();
+    render(await NuevaContrasenaPagina(consulta({ token_hash: "h-del-correo", type: "recovery" })));
+    expect(await screen.findByText(T.para("marta@correo.com"))).toBeVisible();
+    expect(acciones.abrirEnlaceAccion).toHaveBeenCalledWith("h-del-correo", "un-solo-uso");
+  });
+
+  it("#217: un `token_hash` con otro `type`, sin `type`, vacío o larguísimo es «Enlace no válido» y no se canjea, aunque traiga `code` o haya recuperación en curso", async () => {
+    prenderLogin();
+    servidor.enCurso = { id: "u-1", correo: "marta@correo.com" };
+    for (const malo of [
+      { token_hash: "h", type: "signup", code: "c" },
+      { token_hash: "h", code: "c" },
+      { token_hash: "", type: "recovery" },
+      { token_hash: "x".repeat(2000), type: "recovery" },
+    ]) {
+      const { unmount } = render(await NuevaContrasenaPagina(consulta(malo)));
+      expect(screen.getByRole("heading", { level: 1, name: T.tituloNoValido })).toBeVisible();
+      unmount();
+    }
+    expect(acciones.abrirEnlaceAccion).not.toHaveBeenCalled();
+  });
+
+  it("#217: si trae el `token_hash` y el `code` viejo, gana el de un solo uso", async () => {
+    prenderLogin();
+    render(await NuevaContrasenaPagina(consulta({ code: "c-viejo", token_hash: "h-nuevo", type: "recovery" })));
+    expect(await screen.findByText(T.para("marta@correo.com"))).toBeVisible();
+    expect(acciones.abrirEnlaceAccion).toHaveBeenCalledTimes(1);
+    expect(acciones.abrirEnlaceAccion).toHaveBeenCalledWith("h-nuevo", "un-solo-uso");
+  });
+
   it("sin código ni recuperación en curso: «Enlace no válido»", async () => {
     prenderLogin();
     render(await NuevaContrasenaPagina(consulta({})));

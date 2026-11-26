@@ -21,7 +21,7 @@ const tabla = () => within(screen.getByRole("table", { name: /^Stock por product
 
 describe("StockVista · accesibilidad (axe A/AA, sin contraste)", () => {
   it("la vista abierta, con una ciudad y con varias", async () => {
-    const { container } = render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    const { container } = render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     expect(await violaciones(container)).toEqual([]);
 
     await userEvent.click(lista().getByRole("button", { name: /^Rivera/ }));
@@ -32,7 +32,7 @@ describe("StockVista · accesibilidad (axe A/AA, sin contraste)", () => {
   });
 
   it("con filas abiertas y con la lista contraída", async () => {
-    const { container } = render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    const { container } = render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     await userEvent.click(tabla().getByRole("button", { name: /La Gran Esperanza/ }));
     await userEvent.click(tabla().getByRole("button", { name: /Misioneros · todos/ }));
     expect(await violaciones(container)).toEqual([]);
@@ -44,7 +44,7 @@ describe("StockVista · accesibilidad (axe A/AA, sin contraste)", () => {
   }, 20_000);
 
   it("el estado no depende solo del color: lleva un símbolo y un texto", () => {
-    render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     const estados = tabla().getAllByText(/Agotado en la ciudad|Faltan \d+ para entregar|Alcanza/);
 
     expect(estados.length).toBeGreaterThan(0);
@@ -52,7 +52,7 @@ describe("StockVista · accesibilidad (axe A/AA, sin contraste)", () => {
   });
 
   it("los botones de la vista miden al menos 32 px de alto (objetivo táctil AA)", () => {
-    const { container } = render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    const { container } = render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     for (const boton of container.querySelectorAll("button")) {
       expect(boton.className, boton.textContent ?? "").toMatch(/min-h-8|min-h-9|min-h-10|size-8/);
     }

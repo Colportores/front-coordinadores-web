@@ -68,7 +68,7 @@ function prenderServidor(cambios: Partial<Servidor> = {}) {
       };
       llamadas.push(llamada);
       if (url.pathname === "/auth/v1/recover") return servidor.recuperar(llamada);
-      if (url.pathname === "/auth/v1/token") return servidor.canjear(llamada);
+      if (url.pathname === "/auth/v1/token" || url.pathname === "/auth/v1/verify") return servidor.canjear(llamada);
       if (url.pathname === "/auth/v1/user" && llamada.metodo === "PUT") return servidor.cambiar(llamada);
       if (url.pathname === "/auth/v1/logout") return servidor.revocar(llamada);
       throw new Error(`Ruta no prevista en el test: ${llamada.metodo} ${url.pathname}`);
@@ -186,15 +186,47 @@ describe("abrirEnlaceAccion", () => {
     expect(await recuperacionEnCurso()).toEqual({ id: "u-9", correo: "coordinador@example.com" });
   });
 
+  it("#217: el código de un solo uso abre en otro navegador (sin verificador PKCE), se verifica como recovery y deja la sesión y la marca", async () => {
+    const { llamadas } = prenderServidor();
+    // Nunca se pidió el enlace desde este navegador: no hay cookie de verificador.
+    expect([...pedido.cookies.keys()].some((n) => n.endsWith("code-verifier"))).toBe(false);
+
+    expect(await abrirEnlaceAccion("hash-del-correo", "un-solo-uso")).toEqual({ tipo: "ok", correo: "coordinador@example.com" });
+    const verificacion = llamadas.find((l) => l.ruta === "/auth/v1/verify");
+    expect(verificacion?.cuerpo).toMatchObject({ token_hash: "hash-del-correo", type: "recovery" });
+    expect(llamadas.some((l) => l.ruta === "/auth/v1/token")).toBe(false);
+    expect(hayCookieDeSesion()).toBe(true);
+    expect(pedido.cookies.get(COOKIE_DE_RECUPERACION)).toBe("u-9");
+    expect(await recuperacionEnCurso()).toEqual({ id: "u-9", correo: "coordinador@example.com" });
+  });
+
+  it("#217: un código de un solo uso vencido o ya usado es «no válido», sin marca; con el servicio caído, «no disponible»", async () => {
+    prenderServidor({ canjear: () => errorDeAuth(403, "otp_expired", "vencido") });
+    expect(await abrirEnlaceAccion("hash", "un-solo-uso")).toEqual({ tipo: "no-valido" });
+    expect(pedido.cookies.has(COOKIE_DE_RECUPERACION)).toBe(false);
+
+    prenderServidor({ canjear: () => errorDeAuth(503, "unexpected_failure", "caído") });
+    expect(await abrirEnlaceAccion("hash", "un-solo-uso")).toEqual({ tipo: "no-disponible" });
+    expect(pedido.cookies.has(COOKIE_DE_RECUPERACION)).toBe(false);
+  });
+
+  it("#217: un tipo desconocido (viene del navegador) se trata como el código de siempre, nunca como otra cosa", async () => {
+    const { llamadas } = prenderServidor();
+    await pedirEnlaceAccion(CORREO);
+    await abrirEnlaceAccion("codigo", { tipo: "otro" });
+    expect(llamadas.some((l) => l.ruta === "/auth/v1/verify")).toBe(false);
+    expect(llamadas.find((l) => l.ruta === "/auth/v1/token")?.url.searchParams.get("grant_type")).toBe("pkce");
+  });
+
   it("vencido o ya usado, sin el verificador (otro navegador) o sin código: «no válido», sin marca", async () => {
     prenderServidor({ canjear: () => errorDeAuth(403, "otp_expired", "vencido") });
     await pedirEnlaceAccion(CORREO);
     expect(await abrirEnlaceAccion("c")).toEqual({ tipo: "no-valido" });
     expect(pedido.cookies.has(COOKIE_DE_RECUPERACION)).toBe(false);
 
-    // Otro navegador: no hay verificador.
+    // Otro navegador (un `?code=` viejo): no hay verificador y la respuesta lo marca.
     pedido.cookies.clear();
-    expect(await abrirEnlaceAccion("c")).toEqual({ tipo: "no-valido" });
+    expect(await abrirEnlaceAccion("c")).toEqual({ tipo: "no-valido", sinVerificador: true });
     for (const malo of ["", undefined, null, 7, "x".repeat(2000)]) {
       expect(await abrirEnlaceAccion(malo), String(malo)).toEqual({ tipo: "no-valido" });
     }

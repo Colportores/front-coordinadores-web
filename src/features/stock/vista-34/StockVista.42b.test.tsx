@@ -55,7 +55,7 @@ const navegacion = () => screen.getByRole("navigation", { name: "Secciones de St
 
 describe("42B·01 · el aviso «N pedidos por autorizar en <ciudad>» con «Ver pedidos»", () => {
   it("dice «2 pedidos por autorizar en Rivera» con la etiqueta PEDIDOS y lleva a la vista 35 en esa ciudad", async () => {
-    render(<StockVista datos={chico()} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} />);
     await elegir(/^Rivera/);
 
     const aviso = within(avisos()!).getByText("PEDIDOS").closest("li")!;
@@ -65,14 +65,14 @@ describe("42B·01 · el aviso «N pedidos por autorizar en <ciudad>» con «Ver 
   });
 
   it("con un solo pedido lo dice en singular", async () => {
-    render(<StockVista datos={chico({ pedidosPorAutorizar: [{ ciudadId: "riv", pedidos: 1 }] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ pedidosPorAutorizar: [{ ciudadId: "riv", pedidos: 1 }] })} />);
     await elegir(/^Rivera/);
     expect(avisos()).toHaveTextContent("1 pedido por autorizar en Rivera");
     expect(avisos()).not.toHaveTextContent("1 pedidos");
   });
 
   it("en «todas las ciudades» hay un aviso por ciudad con pedidos, cada uno con su ciudad; la que no tiene no avisa", () => {
-    render(<StockVista datos={chico({ pedidosPorAutorizar: [{ ciudadId: "riv", pedidos: 2 }, { ciudadId: "art", pedidos: 1 }] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ pedidosPorAutorizar: [{ ciudadId: "riv", pedidos: 2 }, { ciudadId: "art", pedidos: 1 }] })} />);
     const items = within(avisos()!).getAllByText("PEDIDOS").map((e) => e.closest("li")!);
     expect(items.map((i) => i.textContent)).toEqual([
       expect.stringContaining("1 pedido por autorizar en Artigas"),
@@ -81,7 +81,7 @@ describe("42B·01 · el aviso «N pedidos por autorizar en <ciudad>» con «Ver 
   });
 
   it("los pedidos van antes que los avisos de producto y la cuenta de la franja los incluye", async () => {
-    render(<StockVista datos={chico({ colportores: [col("ana", "riv", haceHoras(5), undefined, ex("l1", 0, 3))] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: [col("ana", "riv", haceHoras(5), undefined, ex("l1", 0, 3))] })} />);
     await elegir(/^Rivera/);
     const items = within(avisos()!).getAllByRole("listitem");
     expect(items[0]).toHaveTextContent("PEDIDOS");
@@ -90,24 +90,25 @@ describe("42B·01 · el aviso «N pedidos por autorizar en <ciudad>» con «Ver 
   });
 
   it("«Sin ciudad»: los pedidos de colportores sin ciudad se avisan aparte y «Ver pedidos» abre la vista sin elegir ciudad", () => {
-    render(<StockVista datos={chico({ pedidosPorAutorizar: [{ ciudadId: null, pedidos: 3 }] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ pedidosPorAutorizar: [{ ciudadId: null, pedidos: 3 }] })} />);
     const aviso = within(avisos()!).getByText("PEDIDOS").closest("li")!;
     expect(aviso).toHaveTextContent("3 pedidos por autorizar de colportores sin ciudad");
     expect(within(aviso).getByRole("link")).toHaveAttribute("href", "/stock/pedidos");
   });
 
   it("una ciudad que ya no figura en la lista cuenta como «sin ciudad»: el pedido no se pierde", () => {
-    render(<StockVista datos={chico({ pedidosPorAutorizar: [{ ciudadId: "fantasma", pedidos: 2 }] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ pedidosPorAutorizar: [{ ciudadId: "fantasma", pedidos: 2 }] })} />);
     expect(avisos()).toHaveTextContent("2 pedidos por autorizar de colportores sin ciudad");
   });
 
   it("el número de la lista de ciudades dice «2 por autorizar» donde iba «sin avisos»; con avisos de producto, van los dos", async () => {
-    const { rerender } = render(<StockVista datos={chico()} />);
+    const { rerender } = render(<StockVista vistaInicial="producto" datos={chico()} />);
     expect(within(lista()).getByRole("button", { name: /^Rivera/ })).toHaveTextContent("2 por autorizar");
     expect(within(lista()).getByRole("button", { name: /^Artigas/ })).toHaveTextContent("sin avisos");
 
     rerender(
       <StockVista
+        vistaInicial="producto"
         datos={chico({ colportores: [col("ana", "riv", haceHoras(5), undefined, ex("l1", 0, 3), ex("r1", 2), ex("r2", 1)), col("beto", "art", haceHoras(6), undefined, ex("l1", 3), ex("r1", 2), ex("r2", 1))] })}
       />,
     );
@@ -115,7 +116,7 @@ describe("42B·01 · el aviso «N pedidos por autorizar en <ciudad>» con «Ver 
   });
 
   it("la pastilla «Pedidos» lleva el número de lo que se mira, dicho también para el lector", async () => {
-    render(<StockVista datos={chico({ pedidosPorAutorizar: [{ ciudadId: "riv", pedidos: 2 }, { ciudadId: "art", pedidos: 1 }] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ pedidosPorAutorizar: [{ ciudadId: "riv", pedidos: 2 }, { ciudadId: "art", pedidos: 1 }] })} />);
     expect(within(navegacion()).getByRole("link", { name: "Pedidos (3 pedidos por autorizar)" })).toHaveAttribute("href", "/stock/pedidos");
 
     await elegir(/^Artigas/);
@@ -125,7 +126,7 @@ describe("42B·01 · el aviso «N pedidos por autorizar en <ciudad>» con «Ver 
 
 describe("42B·02 · sin pedidos por autorizar no hay aviso ni número", () => {
   it("sin pedidos: ni la franja PEDIDOS, ni el «por autorizar» de la lista, ni el número en la pestaña", async () => {
-    render(<StockVista datos={chico({ pedidosPorAutorizar: [] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ pedidosPorAutorizar: [] })} />);
     await elegir(/^Rivera/);
     expect(screen.queryByText("PEDIDOS")).toBeNull();
     expect(within(lista()).getByRole("button", { name: /^Rivera/ })).not.toHaveTextContent("por autorizar");
@@ -135,18 +136,18 @@ describe("42B·02 · sin pedidos por autorizar no hay aviso ni número", () => {
   it("sin la clave `pedidosPorAutorizar` pasa lo mismo (datos de antes de la lectura de pedidos)", () => {
     const datos = chico();
     delete datos.pedidosPorAutorizar;
-    render(<StockVista datos={datos} />);
+    render(<StockVista vistaInicial="producto" datos={datos} />);
     expect(screen.queryByText("PEDIDOS")).toBeNull();
     expect(within(navegacion()).getByRole("link", { name: "Pedidos" })).toBeInTheDocument();
   });
 
   it("un número que no sirve (cero, negativo, NaN) no es un pedido: no avisa", () => {
-    render(<StockVista datos={chico({ pedidosPorAutorizar: [{ ciudadId: "riv", pedidos: 0 }, { ciudadId: "art", pedidos: -2 }, { ciudadId: "riv", pedidos: Number.NaN }] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ pedidosPorAutorizar: [{ ciudadId: "riv", pedidos: 0 }, { ciudadId: "art", pedidos: -2 }, { ciudadId: "riv", pedidos: Number.NaN }] })} />);
     expect(screen.queryByText("PEDIDOS")).toBeNull();
   });
 
   it("con la fuente simulada hay pedidos en las tres ciudades, los mismos que la bandeja de la vista 35", () => {
-    render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     const textos = within(avisos()!).getAllByText("PEDIDOS").map((e) => e.closest("li")!.textContent);
     expect(textos).toEqual([
       expect.stringContaining("1 pedido por autorizar en Artigas"),
@@ -158,7 +159,7 @@ describe("42B·02 · sin pedidos por autorizar no hay aviso ni número", () => {
 
 describe("42B·01 · «Ver en Cuentas →» en cada colportor de la fila abierta", () => {
   it("cada colportor lleva su enlace a Cuentas, con su nombre para el lector", async () => {
-    render(<StockVista datos={chico({ colportores: [col("ana", "riv", haceHoras(5)), col("beto", "riv", haceHoras(5))] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: [col("ana", "riv", haceHoras(5)), col("beto", "riv", haceHoras(5))] })} />);
     await elegir(/^Rivera/);
     await abrir(/Libro uno/);
 
@@ -170,14 +171,14 @@ describe("42B·01 · «Ver en Cuentas →» en cada colportor de la fila abierta
   });
 
   it("el id con espacios, tildes o barras se escapa: el enlace nunca se rompe", async () => {
-    render(<StockVista datos={chico({ colportores: [{ ...col("ana", "riv", haceHoras(5)), id: "ana maría/1&x=2" }] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: [{ ...col("ana", "riv", haceHoras(5)), id: "ana maría/1&x=2" }] })} />);
     await elegir(/^Rivera/);
     await abrir(/Libro uno/);
     expect(screen.getByRole("link", { name: /Ver en Cuentas la plata de/ })).toHaveAttribute("href", "/cuentas?colportor=ana%20mar%C3%ADa%2F1%26x%3D2");
   });
 
   it("la plata sigue sin estar en Stock: el enlace no muestra montos", async () => {
-    render(<StockVista datos={chico()} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} />);
     await elegir(/^Rivera/);
     await abrir(/Libro uno/);
     expect(screen.getByRole("table", { name: /^Quién tiene/ }).textContent).not.toMatch(/\$|UYU/);
@@ -185,7 +186,7 @@ describe("42B·01 · «Ver en Cuentas →» en cada colportor de la fila abierta
 
   it("con un nombre larguísimo la fila no se rompe y el enlace sigue entero", async () => {
     const largo = "María de los Ángeles Fernández de la Peña y Rodríguez de Almeida".repeat(3);
-    render(<StockVista datos={chico({ colportores: [{ ...col("ana", "riv", haceHoras(5)), nombre: largo }] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: [{ ...col("ana", "riv", haceHoras(5)), nombre: largo }] })} />);
     await elegir(/^Rivera/);
     await abrir(/Libro uno/);
     expect(screen.getByRole("link", { name: `Ver en Cuentas la plata de ${largo}` })).toBeInTheDocument();
@@ -194,7 +195,7 @@ describe("42B·01 · «Ver en Cuentas →» en cada colportor de la fila abierta
 
 describe("42B·01 · «Sincronizó el …» en rojo después de dos días", () => {
   const sincroniza = async (ultimoDatoAt: string | null) => {
-    render(<StockVista datos={chico({ colportores: [col("ana", "riv", ultimoDatoAt)] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: [col("ana", "riv", ultimoDatoAt)] })} />);
     await elegir(/^Rivera/);
     await abrir(/Libro uno/);
     const cabecera = within(screen.getByRole("table", { name: /^Quién tiene/ })).getByRole("rowheader", { name: /^ana/ });
@@ -227,7 +228,7 @@ describe("42B·01 · «Sincronizó el …» en rojo después de dos días", () =
   });
 
   it("con la fuente simulada, Natalia Vidal (74 h sin señal) sale en rojo y las demás no", async () => {
-    render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     await elegir(/^Artigas/);
     await abrir(/Pamplona|Misioneros/);
     const quien = screen.getByRole("table", { name: /^Quién tiene Misioneros/ });
@@ -241,7 +242,7 @@ describe("42B·01 · los ajustes de stock que cargó la colportora (decisión de
   const conAjustes = (...ajustes: AjusteDeStock[]) =>
     chico({ colportores: [col("ana", "riv", haceHoras(5), ajustes, ex("l1", 3), ex("r1", 2), ex("r2", 1))] });
   const abrirLibro = async (datos: DatosDeStock) => {
-    render(<StockVista datos={datos} />);
+    render(<StockVista vistaInicial="producto" datos={datos} />);
     await elegir(/^Rivera/);
     await abrir(/Libro uno/);
   };
@@ -278,6 +279,7 @@ describe("42B·01 · los ajustes de stock que cargó la colportora (decisión de
   it("una categoría junta los ajustes de sus productos y dice de cuál es cada uno", async () => {
     render(
       <StockVista
+        vistaInicial="producto"
         datos={conAjustes(ajuste("a1", "r1", 4, "STOCK_INICIAL", "2026-10-10T15:00:00Z"), ajuste("a2", "r2", -1, "CONTEO", "2026-10-11T15:00:00Z"))}
       />,
     );
@@ -317,7 +319,7 @@ describe("42B·01 · los ajustes de stock que cargó la colportora (decisión de
   });
 
   it("con la fila sin quién que la tenga, los ajustes se ven igual, con el «Nadie lo tiene»", async () => {
-    render(<StockVista datos={chico({ colportores: [col("ana", "riv", haceHoras(5), [ajuste("a1", "l1", 5, "STOCK_INICIAL", "2026-10-10T15:00:00Z")], ex("l1", 0))] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: [col("ana", "riv", haceHoras(5), [ajuste("a1", "l1", 5, "STOCK_INICIAL", "2026-10-10T15:00:00Z")], ex("l1", 0))] })} />);
     await elegir(/^Rivera/);
     await abrir(/Libro uno/);
     expect(screen.getByText("Nadie lo tiene en Rivera.")).toBeInTheDocument();
@@ -327,6 +329,7 @@ describe("42B·01 · los ajustes de stock que cargó la colportora (decisión de
   it("varias ciudades: el ajuste dice de qué ciudad es la colportora", async () => {
     render(
       <StockVista
+        vistaInicial="producto"
         datos={chico({
           colportores: [
             col("ana", "riv", haceHoras(5), [ajuste("a1", "l1", 5, "STOCK_INICIAL", "2026-10-10T15:00:00Z")]),
@@ -340,7 +343,7 @@ describe("42B·01 · los ajustes de stock que cargó la colportora (decisión de
   });
 
   it("con la fuente simulada: Lucía Fernández tiene su stock inicial y los libros dañados del Deseado de Todas las Gentes", async () => {
-    render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     await elegir(/^Rivera/);
     await abrir(/El Deseado de Todas las Gentes/);
     const items = within(screen.getByRole("list", { name: /^Ajustes de stock de El Deseado/ })).getAllByRole("listitem");
@@ -353,7 +356,7 @@ describe("42B·01 · los ajustes de stock que cargó la colportora (decisión de
 
 describe("volver atrás y reentrar", () => {
   it("al volver a mirar la ciudad, el aviso y el número siguen donde estaban", async () => {
-    render(<StockVista datos={chico()} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} />);
     await elegir(/^Rivera/);
     await elegir(/^Artigas/);
     expect(screen.queryByText("PEDIDOS")).toBeNull();
@@ -367,7 +370,7 @@ describe("42B·01 · las pastillas «Stock / Pedidos / Transferencias» y la tab
   const porColportor = () => screen.getByRole("table", { name: /^Stock por colportor en/ });
 
   it("tres pastillas: «Stock» es la actual y las otras dos llevan a la vista 35, «Transferencias» en su pestaña", () => {
-    render(<StockVista datos={chico()} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} />);
     const nav = navegacion();
     expect(within(nav).getByText("Stock")).toHaveAttribute("aria-current", "page");
     expect(within(nav).getByRole("link", { name: /^Pedidos/ })).toHaveAttribute("href", "/stock/pedidos");
@@ -377,6 +380,7 @@ describe("42B·01 · las pastillas «Stock / Pedidos / Transferencias» y la tab
   it("«Por colportor» muestra una fila por colportor con lo que tiene de cada tipo, su «Sincronizó…» y «Ver en Cuentas →», sin abrir nada", async () => {
     render(
       <StockVista
+        vistaInicial="producto"
         datos={chico({ colportores: [col("ana", "riv", haceHoras(49), undefined, ex("l1", 3), ex("r1", 2), ex("r2", 1)), col("beto", "riv", haceHoras(5), undefined, ex("l1", 0))] })}
       />,
     );
@@ -397,7 +401,7 @@ describe("42B·01 · las pastillas «Stock / Pedidos / Transferencias» y la tab
   });
 
   it("sin plata, con varias ciudades cada nombre lleva la suya y volver a «Por producto» deja la tabla de siempre", async () => {
-    render(<StockVista datos={chico()} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} />);
     await vistaPor("Por colportor");
     expect(porColportor().textContent).not.toMatch(/\$|UYU/);
     expect(within(porColportor()).getByRole("rowheader", { name: /^ana · Rivera/ })).toBeInTheDocument();
@@ -407,18 +411,18 @@ describe("42B·01 · las pastillas «Stock / Pedidos / Transferencias» y la tab
   });
 
   it("con la fuente simulada cada ciudad lista a sus colportores, 25 en total; con 300 se arma igual", async () => {
-    const { unmount } = render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    const { unmount } = render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     await vistaPor("Por colportor");
     expect(within(porColportor()).getAllByRole("row")).toHaveLength(26);
     unmount();
     const muchos = Array.from({ length: 300 }, (_, i) => col(`c${i}`, "riv", haceHoras(5)));
-    render(<StockVista datos={chico({ colportores: muchos })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: muchos })} />);
     await vistaPor("Por colportor");
     expect(within(porColportor()).getAllByRole("row")).toHaveLength(301);
   });
 
   it("«Ver quién tiene» de un aviso vuelve a «Por producto» y abre esa fila", async () => {
-    render(<StockVista datos={chico({ colportores: [col("ana", "riv", haceHoras(5), undefined, ex("l1", 1, 3), ex("r1", 2), ex("r2", 1))] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: [col("ana", "riv", haceHoras(5), undefined, ex("l1", 1, 3), ex("r1", 2), ex("r2", 1))] })} />);
     await vistaPor("Por colportor");
     await userEvent.click(screen.getByRole("button", { name: /^Ver quién tiene/ }));
     expect(screen.getByRole("table", { name: /^Stock por producto en/ })).toBeInTheDocument();

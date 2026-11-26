@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type Ref } from "react";
 
 import type { RespuestaDeApertura, RespuestaDeCierreDeSesiones, RespuestaDeGuardado } from "@/auth/acciones-recuperacion";
+import type { TipoDeEnlace } from "@/auth/recuperacion";
 import { Cartel, CLASE_DE_CAMPO, CLASE_DE_ENLACE, CLASE_DE_ETIQUETA, MarcoDeAcceso, type DatosDelAviso } from "@/features/acceso/MarcoDeAcceso";
 import { TEXTOS_DE_NUEVA_CONTRASENA as T } from "@/features/acceso/textos-recuperacion";
 import { guardarUltimoCorreo } from "@/features/acceso/ultimo-correo";
@@ -35,8 +36,11 @@ import { cn } from "@/lib/utils";
  */
 
 export type EstadoInicialDeNuevaContrasena =
-  /** Vino con el código del enlace: hay que canjearlo. */
-  | { paso: "abrir"; codigo: string }
+  /**
+   * Vino con el código del enlace: hay que canjearlo. `tipo` es la clase de código: sin él, el `?code=` PKCE de siempre; con
+   * `un-solo-uso`, el `?token_hash=` de la plantilla nueva (#217), que abre en cualquier navegador.
+   */
+  | { paso: "abrir"; codigo: string; tipo?: TipoDeEnlace }
   /** Sin código, pero la sesión de recuperación sigue abierta en este navegador (se recargó la página). */
   | { paso: "nueva"; correo: string }
   /** Sin código ni recuperación en curso. */
@@ -45,7 +49,7 @@ export type EstadoInicialDeNuevaContrasena =
 export interface PropiedadesDeNuevaContrasena {
   inicial: EstadoInicialDeNuevaContrasena;
   /** Server action `abrirEnlaceAccion`. */
-  abrir: (codigo: string) => Promise<RespuestaDeApertura>;
+  abrir: (codigo: string, tipo?: TipoDeEnlace) => Promise<RespuestaDeApertura>;
   /** Server action `guardarContrasenaAccion`. */
   guardar: (contrasena: string) => Promise<RespuestaDeGuardado>;
   /** Server action `cerrarOtrasSesionesAccion`: reintenta el cierre global tras un guardado `ok-sin-revocar`. */
@@ -66,10 +70,11 @@ const RUTA_DEL_LOGIN_TRAS_SALIR = "/acceso?motivo=cerrada";
 /** Los canjes en vuelo, por código: el código vale una sola vez y React (en desarrollo) monta el efecto dos veces. */
 const canjes = new Map<string, Promise<RespuestaDeApertura>>();
 
-function canjearUnaVez(codigo: string, abrir: PropiedadesDeNuevaContrasena["abrir"]): Promise<RespuestaDeApertura> {
+function canjearUnaVez(codigo: string, tipo: TipoDeEnlace | undefined, abrir: PropiedadesDeNuevaContrasena["abrir"]): Promise<RespuestaDeApertura> {
   const enVuelo = canjes.get(codigo);
   if (enVuelo) return enVuelo;
-  const canje = abrir(codigo).finally(() => canjes.delete(codigo));
+  // El `?code=` de siempre llama con un solo argumento; solo el de un solo uso suma el tipo.
+  const canje = (tipo === undefined ? abrir(codigo) : abrir(codigo, tipo)).finally(() => canjes.delete(codigo));
   canjes.set(codigo, canje);
   return canje;
 }
@@ -164,6 +169,8 @@ export function PantallaNuevaContrasena({
   const [paso, setPaso] = useState<Paso>(inicial.paso === "abrir" ? "abriendo" : inicial.paso === "nueva" ? "nueva" : "no-valido");
   const [correo, setCorreo] = useState(inicial.paso === "nueva" ? inicial.correo : "");
   const [intento, setIntento] = useState(0);
+  /** El `?code=` viejo (PKCE) falló por no estar el verificador de este navegador: único caso en que se nombra el navegador. */
+  const [sinVerificador, setSinVerificador] = useState(false);
   const [nueva, setNueva] = useState("");
   const [repetida, setRepetida] = useState("");
   const [repetidaRevisada, setRepetidaRevisada] = useState(false);
@@ -191,6 +198,7 @@ export function PantallaNuevaContrasena({
 
   // Canjea el código del enlace. El resultado llega por una promesa: el estado no se cambia en el cuerpo del efecto.
   const codigo = inicial.paso === "abrir" ? inicial.codigo : null;
+  const tipoDeCodigo = inicial.paso === "abrir" ? inicial.tipo : undefined;
   /**
    * El código que ya dio un resultado definitivo (abierto o no válido). El código vale una sola vez: tras `history.replaceState`
    * Next vuelve a renderizar con otra referencia de la server action (`abrir`) y el efecto correría de nuevo, canjearía un código
@@ -200,7 +208,7 @@ export function PantallaNuevaContrasena({
   useEffect(() => {
     if (codigo === null || resuelto.current === codigo) return;
     let vigente = true;
-    canjearUnaVez(codigo, abrir)
+    canjearUnaVez(codigo, tipoDeCodigo, abrir)
       .then((respuesta) => {
         if (!vigente) return;
         if (respuesta.tipo !== "no-disponible") resuelto.current = codigo;
@@ -215,6 +223,7 @@ export function PantallaNuevaContrasena({
             // Sin historial (un iframe, un doble de test): la pantalla ya cambió.
           }
         } else {
+          setSinVerificador(respuesta.tipo === "no-valido" && respuesta.sinVerificador === true);
           setPaso(respuesta.tipo === "no-valido" ? "no-valido" : "no-se-pudo-abrir");
           focoPendiente.current = "titulo";
         }
@@ -227,7 +236,7 @@ export function PantallaNuevaContrasena({
     return () => {
       vigente = false;
     };
-  }, [codigo, abrir, intento]);
+  }, [codigo, tipoDeCodigo, abrir, intento]);
 
   function reintentarApertura() {
     setPaso("abriendo");
@@ -353,7 +362,7 @@ export function PantallaNuevaContrasena({
   let cartel: DatosDelAviso | null = null;
   if (paso === "abriendo") cartel = { texto: T.verificando, rol: "status", tono: "info" };
   else if (paso === "no-se-pudo-abrir") cartel = { texto: T.noSePudoAbrir, rol: "alert", tono: "error" };
-  else if (paso === "no-valido") cartel = { texto: T.noValido, rol: "alert", tono: "error" };
+  else if (paso === "no-valido") cartel = { texto: sinVerificador ? T.noValidoSinVerificador : T.noValido, rol: "alert", tono: "error" };
   else if (paso === "cambiada" && sinRevocar) cartel = { texto: T.sinRevocar, rol: "alert", tono: "error" };
   else if (paso === "cambiada") cartel = { texto: T.cambiada, rol: "status", tono: "exito" };
   else if (!enLinea) cartel = { texto: T.sinConexion, rol: "status", tono: "sin-red" };

@@ -49,7 +49,7 @@ const encabezadosConAyuda = (t: HTMLElement) =>
 
 describe("PR #120 · ayuda de «POR COBRAR»", () => {
   it("la tabla de productos tiene la ayuda en un solo encabezado (POR COBRAR) con el texto literal, y su nombre no cambia", () => {
-    render(<StockVista datos={datos()} />);
+    render(<StockVista vistaInicial="producto" datos={datos()} />);
     const t = tabla();
     expect(encabezadosConAyuda(t)).toEqual(["POR COBRAR"]);
     const h = within(t).getByRole("columnheader", { name: "POR COBRAR" });
@@ -58,7 +58,7 @@ describe("PR #120 · ayuda de «POR COBRAR»", () => {
   });
 
   it("el detalle de un libro, el de una categoría de revistas y el de una ciudad elegida llevan la misma ayuda, en un solo encabezado", async () => {
-    render(<StockVista datos={datos()} />);
+    render(<StockVista vistaInicial="producto" datos={datos()} />);
     await userEvent.click(within(lista()).getByRole("button", { name: /^Rivera/ }));
     for (const nombre of [/Libro uno/, /Revista A/]) {
       await userEvent.click(within(tabla()).getByRole("button", { name: nombre }));
@@ -70,7 +70,7 @@ describe("PR #120 · ayuda de «POR COBRAR»", () => {
   });
 
   it("con la fuente simulada, en todas las ciudades y con las filas de cada tipo abiertas, todo «POR COBRAR» de la vista tiene la ayuda", async () => {
-    const { container } = render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    const { container } = render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     await userEvent.click(within(tabla()).getByRole("button", { name: /La Gran Esperanza/ }));
     await userEvent.click(within(tabla()).getByRole("button", { name: /Misioneros · todos/ }));
     const todos = Array.from(container.querySelectorAll("th")).filter((h) => h.textContent === "POR COBRAR");
@@ -79,13 +79,13 @@ describe("PR #120 · ayuda de «POR COBRAR»", () => {
   });
 
   it("no agrega texto visible: la ayuda no aparece como contenido, solo como descripción", () => {
-    const { container } = render(<StockVista datos={datos()} />);
+    const { container } = render(<StockVista vistaInicial="producto" datos={datos()} />);
     expect(container.textContent).not.toContain(AYUDA);
     expect(screen.queryByText(AYUDA)).toBeNull();
   });
 
   it("axe A/AA sin violaciones con el detalle abierto y la ayuda puesta", async () => {
-    const { container } = render(<StockVista datos={datos()} />);
+    const { container } = render(<StockVista vistaInicial="producto" datos={datos()} />);
     await userEvent.click(within(tabla()).getByRole("button", { name: /Libro uno/ }));
     const r = await axe.run(container, {
       runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },

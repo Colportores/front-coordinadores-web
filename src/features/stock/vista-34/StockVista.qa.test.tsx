@@ -55,7 +55,7 @@ describe("StockVista · QA · contraste de los textos de la vista (AA: 4,5:1)", 
   });
 
   it("QA #65: las cifras en cero y «nadie» usan tinta-suave (5,43:1 sobre blanco), no tinta-tenue", () => {
-    render(<StockVista datos={chico({ colportores: [col("ana", "riv", ex("l1", 0, 0))] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: [col("ana", "riv", ex("l1", 0, 0))] })} />);
     // Precondición: hay celdas en cero con esa clase (así las pinta `Cifra` y la celda «EN MANOS DE»).
     const ceros = Array.from(tabla().querySelectorAll("span.font-mono")).filter((el) => el.textContent === "0");
     expect(ceros.length).toBeGreaterThan(0);
@@ -69,7 +69,7 @@ describe("StockVista · QA · contraste de los textos de la vista (AA: 4,5:1)", 
 
 describe("StockVista · QA · teclado", () => {
   it("Enter y Espacio sobre la fila abren y cierran el detalle una sola vez (el renglón no lo vuelve a alternar)", async () => {
-    render(<StockVista datos={chico()} />);
+    render(<StockVista vistaInicial="producto" datos={chico()} />);
     const boton = within(tabla()).getByRole("button", { name: /Libro uno/ });
     boton.focus();
 
@@ -84,7 +84,7 @@ describe("StockVista · QA · teclado", () => {
   });
 
   it("con Tab se llega a la lista de ciudades, a las pastillas de «Pedidos» y «Transferencias», a los avisos y a las filas, sin saltar ni atrapar", async () => {
-    render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     const visitados: string[] = [];
     for (let i = 0; i < 12; i++) {
       await userEvent.tab();
@@ -97,7 +97,7 @@ describe("StockVista · QA · teclado", () => {
   });
 
   it("«Ver quién tiene» con la lista contraída conserva el riel, abre la fila y le da el foco", async () => {
-    render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     await userEvent.click(screen.getByRole("button", { name: "Contraer ciudades" }));
     await userEvent.click(screen.getByRole("button", { name: "Ver quién tiene La Gran Esperanza en Rivera" }));
 
@@ -107,7 +107,7 @@ describe("StockVista · QA · teclado", () => {
   });
 
   it("elegir una ciudad con el riel y volver a la lista abierta deja la selección marcada con aria-current", async () => {
-    render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     await userEvent.click(screen.getByRole("button", { name: "Contraer ciudades" }));
     await userEvent.click(within(lista()).getByRole("button", { name: "Bella Unión" }));
     await userEvent.click(screen.getByRole("button", { name: "Expandir ciudades" }));
@@ -121,7 +121,7 @@ describe("StockVista · QA · teclado", () => {
 
 describe("StockVista · QA · datos límite", () => {
   it("un colportor cuya ciudad no figura en la lista no se pierde: aparece en «Sin ciudad»", async () => {
-    render(<StockVista datos={chico({ colportores: [col("ana", "riv", ex("l1", 3)), col("huérfano", "no-existe", ex("l1", 2))] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: [col("ana", "riv", ex("l1", 3)), col("huérfano", "no-existe", ex("l1", 2))] })} />);
     expect(screen.getByText(/2 colportores · 1 producto/)).toBeInTheDocument();
     await userEvent.click(within(lista()).getByRole("button", { name: /^Sin ciudad/ }));
     await userEvent.click(within(tabla()).getByRole("button", { name: /Libro uno/ }));
@@ -129,7 +129,7 @@ describe("StockVista · QA · datos límite", () => {
   });
 
   it("existencias de un producto que no está en el catálogo no rompen ni suman", () => {
-    render(<StockVista datos={chico({ colportores: [col("ana", "riv", ex("l1", 3), ex("fantasma", 99, 99))] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: [col("ana", "riv", ex("l1", 3), ex("fantasma", 99, 99))] })} />);
     expect(within(tabla()).getByRole("button", { name: /Libro uno/ }).closest("tr")).toHaveTextContent("3");
     expect(screen.queryByText("99")).not.toBeInTheDocument();
   });
@@ -137,6 +137,7 @@ describe("StockVista · QA · datos límite", () => {
   it("una ciudad sin departamento y dos ciudades con el mismo nombre se distinguen y se pueden elegir por separado", async () => {
     render(
       <StockVista
+        vistaInicial="producto"
         datos={chico({
           ciudades: [
             { id: "a", nombre: "San José", departamento: null },
@@ -155,7 +156,7 @@ describe("StockVista · QA · datos límite", () => {
   });
 
   it("un solo colportor, un solo producto con todo en cero: «Agotado» sin «Faltan» ni NaN", () => {
-    render(<StockVista datos={chico({ colportores: [col("ana", "riv", ex("l1", 0, 0))] })} />);
+    render(<StockVista vistaInicial="producto" datos={chico({ colportores: [col("ana", "riv", ex("l1", 0, 0))] })} />);
     expect(within(tabla()).getByText("Agotado en la ciudad")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/NaN|undefined|Infinity/);
   });
@@ -163,6 +164,7 @@ describe("StockVista · QA · datos límite", () => {
   it("nombres de colportor y de ciudad con emoji y caracteres especiales se muestran tal cual", async () => {
     render(
       <StockVista
+        vistaInicial="producto"
         datos={chico({
           ciudades: [{ id: "riv", nombre: "Río <b>Negro</b> 🌎", departamento: "Río Negro" }],
           colportores: [col("x", "riv", ex("l1", 2))].map((c) => ({ ...c, nombre: "Ñandú 🦤 <script>alert(1)</script>" })),
@@ -176,12 +178,12 @@ describe("StockVista · QA · datos límite", () => {
   });
 
   it("no muestra plata ni datos de clientes: solo cantidades (R-RP01, la plata es de Cuentas)", () => {
-    render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     expect(document.body.textContent).not.toMatch(/\$|U\$S|dinero en mano|cliente/i);
   });
 
   it("cambiar de ciudad con una fila abierta y volver conserva la fila abierta y la tabla coherente", async () => {
-    render(<StockVista datos={crearDatosDeStockSimulados()} />);
+    render(<StockVista vistaInicial="producto" datos={crearDatosDeStockSimulados()} />);
     await userEvent.click(within(lista()).getByRole("button", { name: /^Rivera/ }));
     await userEvent.click(within(tabla()).getByRole("button", { name: /La Gran Esperanza/ }));
     await userEvent.click(within(lista()).getByRole("button", { name: /^Artigas/ }));

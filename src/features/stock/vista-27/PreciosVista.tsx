@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 
 import { mensajeDeRechazo } from "@/auth/sesion-vencida";
+import { BuscadorDeCiudades, SinCoincidenciasDeCiudades } from "@/components/BuscadorDeCiudades";
 import type { AccionesPrecios, DatosDePrecios } from "@/datos/precios";
 import { EnlaceEntrarDeNuevo } from "@/features/equipo/EnlaceEntrarDeNuevo";
+import { coincidenciasPorNombre, hayBuscadorDeCiudades } from "@/lib/buscar-ciudades";
 import { cn } from "@/lib/utils";
 import { esperarYSalir, estaEsperando, hayQueEsperar } from "@/shell/trabajo-pendiente";
 
@@ -22,6 +24,8 @@ import {
   AVISO_GENERAL,
   bonificablesSinPrecioEnCiudad,
   bonificablesSinPrecioGeneral,
+  pestanasDeCiudades,
+  pestanasVisibles,
   resumirBorrador,
   SUBTITULO_GENERAL,
   subtituloDeCiudad,
@@ -57,6 +61,13 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
   const ciudad = datos.ciudades.find((c) => c.id === e.activa) ?? null;
   const esGeneral = ciudad === null;
   const pestanas = armarPestanas(datos, e.borradores);
+  // #217: con más ciudades que el umbral, un campo para buscar entre las pestañas (el mismo y con el mismo orden que Ciudades).
+  const [textoDeBusqueda, setTextoDeBusqueda] = useState("");
+  const ciudadesDePestanas = pestanasDeCiudades(pestanas);
+  const conBuscador = hayBuscadorDeCiudades(ciudadesDePestanas.length);
+  const buscando = conBuscador && textoDeBusqueda.trim() !== "";
+  const coinciden = coincidenciasPorNombre(ciudadesDePestanas, buscando ? textoDeBusqueda : "", (p) => p.id);
+  const visibles = pestanasVisibles(pestanas, buscando ? textoDeBusqueda : "", e.activa);
   const borrador = ciudad ? (e.borradores[ciudad.id] ?? {}) : {};
   const resumen = ciudad ? resumirBorrador(datos, ciudad.id, borrador) : { cambios: [], invalidos: 0 };
 
@@ -79,6 +90,11 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
     }
     habiaAcciones.current = hayAcciones;
   }, [hayAcciones, e.activa]);
+
+  // Con el alto fijo de la fila de pestañas (muchas ciudades), la abierta puede quedar fuera de lo que se ve: se trae a la vista.
+  useEffect(() => {
+    if (conBuscador) document.getElementById(`pestana-precios-${e.activa}`)?.scrollIntoView?.({ block: "nearest" });
+  }, [conBuscador, e.activa]);
 
   function alVolverAStock(evento: MouseEvent<HTMLAnchorElement>) {
     // Un clic con modificador abre otra pestaña y esta se queda como está.
@@ -158,18 +174,18 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
   const hayAvisosDeGuardado = falla !== null || sinConexion;
 
   function moverPestana(evento: KeyboardEvent<HTMLButtonElement>, indice: number) {
-    const ultimo = pestanas.length - 1;
+    const ultimo = visibles.length - 1;
     const destino =
-      evento.key === "ArrowRight" ? (indice + 1) % pestanas.length
-      : evento.key === "ArrowLeft" ? (indice - 1 + pestanas.length) % pestanas.length
+      evento.key === "ArrowRight" ? (indice + 1) % visibles.length
+      : evento.key === "ArrowLeft" ? (indice - 1 + visibles.length) % visibles.length
       : evento.key === "Home" ? 0
       : evento.key === "End" ? ultimo
       : null;
     if (destino === null) return;
     evento.preventDefault();
-    e.elegirPestana(pestanas[destino].id);
+    e.elegirPestana(visibles[destino].id);
     // Las pestañas están siempre en el DOM: se puede enfocar la nueva sin esperar al próximo pintado.
-    document.getElementById(`pestana-precios-${pestanas[destino].id}`)?.focus();
+    document.getElementById(`pestana-precios-${visibles[destino].id}`)?.focus();
   }
 
   return (
@@ -186,8 +202,28 @@ export function PreciosVista({ datos: inicial, acciones }: { datos: DatosDePreci
         )}
       </div>
 
-      <div role="tablist" aria-label="Precios por ciudad" className="flex flex-wrap gap-1 border-b border-borde">
-        {pestanas.map((p, indice) => {
+      {conBuscador && (
+        <div className="flex max-w-[320px] flex-col gap-2">
+          <BuscadorDeCiudades
+            texto={textoDeBusqueda}
+            alCambiar={setTextoDeBusqueda}
+            total={ciudadesDePestanas.length}
+            coinciden={coinciden.length}
+            buscando={buscando}
+            alElegirPrimera={() => {
+              if (coinciden[0]) e.elegirPestana(coinciden[0].id);
+            }}
+          />
+        </div>
+      )}
+      {buscando && coinciden.length === 0 && <SinCoincidenciasDeCiudades texto={textoDeBusqueda} />}
+
+      <div
+        role="tablist"
+        aria-label="Precios por ciudad"
+        className={cn("flex flex-wrap gap-1 border-b border-borde", conBuscador && "max-h-[132px] overflow-y-auto")}
+      >
+        {visibles.map((p, indice) => {
           const activa = p.id === e.activa;
           return (
             <button
